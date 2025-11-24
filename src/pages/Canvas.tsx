@@ -4,12 +4,22 @@ import { ArrowLeft, Plus, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AccountCanvas } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
+import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
+import { QRCodeButton } from "@/components/canvas/QRCodeButton";
 import { mockAccount } from "@/lib/mock-data";
 import { Contact } from "@/lib/types";
+import { toast } from "sonner";
 
 const Canvas = () => {
-  const [account] = useState(mockAccount);
+  const [account, setAccount] = useState(mockAccount);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  const handleCompanySwitch = (company: any) => {
+    toast.success(`Switched to ${company.name}`);
+    // In real implementation, load the new company's data
+    // For now, just update the name
+    setAccount({ ...account, name: company.name, industry: company.industry });
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -29,6 +39,15 @@ const Canvas = () => {
                 <h1 className="text-xl font-bold">{account.name}</h1>
                 <p className="text-sm text-muted-foreground">{account.industry}</p>
               </div>
+              <div className="h-6 w-px bg-border" />
+              <CompanySwitcher 
+                currentCompany={account.name}
+                onCompanySelect={handleCompanySwitch}
+              />
+              <QRCodeButton 
+                accountId={account.id}
+                accountName={account.name}
+              />
             </div>
             
             <div className="flex items-center gap-3">

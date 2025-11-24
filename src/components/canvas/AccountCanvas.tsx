@@ -512,21 +512,52 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
 };
 
 const createCompanyNode = (name: string, x: number, y: number): Group => {
-  const circle = new Circle({
-    radius: 35,
+  // Building icon using rectangles
+  const buildingMain = new Rect({
+    width: 50,
+    height: 60,
     fill: "hsl(221 83% 53%)",
-    strokeWidth: 0,
-  });
-
-  const text = new Text(name, {
-    fontSize: 14,
-    fontWeight: "bold",
-    fill: "white",
     originX: "center",
     originY: "center",
   });
 
-  const group = new Group([circle, text], {
+  const buildingTop = new Rect({
+    width: 30,
+    height: 15,
+    fill: "hsl(221 83% 53%)",
+    originX: "center",
+    originY: "center",
+    top: -30,
+  });
+
+  // Windows
+  const windows: Rect[] = [];
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 3; col++) {
+      const window = new Rect({
+        width: 6,
+        height: 8,
+        fill: "white",
+        opacity: 0.7,
+        left: -15 + col * 10,
+        top: -20 + row * 12,
+        originX: "center",
+        originY: "center",
+      });
+      windows.push(window);
+    }
+  }
+
+  const text = new Text(name, {
+    fontSize: 13,
+    fontWeight: "bold",
+    fill: "hsl(221 83% 53%)",
+    originX: "center",
+    originY: "center",
+    top: 45,
+  });
+
+  const group = new Group([buildingMain, buildingTop, ...windows, text], {
     left: x,
     top: y,
     originX: "center",

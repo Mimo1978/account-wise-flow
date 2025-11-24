@@ -3,10 +3,13 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AccountCanvas } from "@/components/canvas/AccountCanvas";
+import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { mockAccount } from "@/lib/mock-data";
+import { Contact } from "@/lib/types";
 
 const Canvas = () => {
   const [account] = useState(mockAccount);
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -43,8 +46,19 @@ const Canvas = () => {
       </header>
 
       {/* Canvas Area */}
-      <main className="flex-1 overflow-hidden">
-        <AccountCanvas account={account} />
+      <main className="flex-1 overflow-hidden flex">
+        <div className="flex-1">
+          <AccountCanvas 
+            account={account} 
+            onContactClick={setSelectedContact}
+          />
+        </div>
+        {selectedContact && (
+          <ContactDetailPanel 
+            contact={selectedContact} 
+            onClose={() => setSelectedContact(null)}
+          />
+        )}
       </main>
 
       {/* Bottom Info Bar */}

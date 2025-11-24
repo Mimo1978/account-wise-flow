@@ -2,15 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject } from "fabric";
 import { Account, Contact } from "@/lib/types";
 import { ContactNode } from "./ContactNode";
+import { CanvasSearch } from "./CanvasSearch";
 
 interface AccountCanvasProps {
   account: Account;
+}
+
+interface ContactNodeData {
+  contact: Contact;
+  group: Group;
+  originalStroke?: string | null;
+  originalStrokeWidth?: number;
 }
 
 export const AccountCanvas = ({ account }: AccountCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [matchedNodes, setMatchedNodes] = useState<ContactNodeData[]>([]);
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const contactNodesRef = useRef<Map<string, ContactNodeData>>(new Map());
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
@@ -52,6 +64,7 @@ export const AccountCanvas = ({ account }: AccountCanvasProps) => {
 
     fabricCanvas.clear();
     fabricCanvas.backgroundColor = "hsl(210 40% 98%)";
+    contactNodesRef.current.clear();
 
     // Render company node at top center
     const companyNode = createCompanyNode(account.name, fabricCanvas.width! / 2, 100);
@@ -84,6 +97,12 @@ export const AccountCanvas = ({ account }: AccountCanvasProps) => {
         const contactNode = createContactNode(contact, deptX, contactY);
         fabricCanvas.add(contactNode);
 
+        // Store contact node reference
+        contactNodesRef.current.set(contact.id, {
+          contact,
+          group: contactNode,
+        });
+
         // Draw line from company to first contact in dept
         if (idx === 0) {
           const line = new Line([fabricCanvas.width! / 2, 140, deptX, contactY - 50], {
@@ -114,8 +133,136 @@ export const AccountCanvas = ({ account }: AccountCanvasProps) => {
     fabricCanvas.renderAll();
   }, [fabricCanvas, account]);
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setCurrentMatchIndex(0);
+
+    if (!query.trim() || !fabricCanvas) {
+      // Clear all highlights
+    contactNodesRef.current.forEach(({ group, originalStroke, originalStrokeWidth }) => {
+      const circle = group.getObjects()[0] as Circle;
+      if (originalStroke !== undefined) {
+        circle.set({ 
+          stroke: originalStroke as string | undefined, 
+          strokeWidth: originalStrokeWidth || 0 
+        });
+      } else {
+        circle.set({ stroke: undefined, strokeWidth: 0 });
+      }
+    });
+      setMatchedNodes([]);
+      fabricCanvas.renderAll();
+      return;
+    }
+
+    const lowerQuery = query.toLowerCase();
+    const matches: ContactNodeData[] = [];
+
+    contactNodesRef.current.forEach((nodeData) => {
+      const { contact, group } = nodeData;
+      const circle = group.getObjects()[0] as Circle;
+
+      // Store original stroke if not already stored
+      if (nodeData.originalStroke === undefined) {
+        nodeData.originalStroke = typeof circle.stroke === 'string' ? circle.stroke : null;
+        nodeData.originalStrokeWidth = circle.strokeWidth;
+      }
+
+      const isMatch =
+        contact.name.toLowerCase().includes(lowerQuery) ||
+        contact.title.toLowerCase().includes(lowerQuery) ||
+        contact.department.toLowerCase().includes(lowerQuery) ||
+        contact.status.toLowerCase().includes(lowerQuery);
+
+      if (isMatch) {
+        matches.push(nodeData);
+        circle.set({
+          stroke: "hsl(221 83% 53%)",
+          strokeWidth: 5,
+        });
+      } else {
+        // Reset to original
+        circle.set({
+          stroke: nodeData.originalStroke as string | undefined,
+          strokeWidth: nodeData.originalStrokeWidth || 0,
+        });
+      }
+    });
+
+    setMatchedNodes(matches);
+
+    if (matches.length > 0) {
+      zoomToNode(matches[0].group);
+    }
+
+    fabricCanvas.renderAll();
+  };
+
+  const zoomToNode = (group: Group) => {
+    if (!fabricCanvas) return;
+
+    const center = group.getCenterPoint();
+    fabricCanvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+    fabricCanvas.setZoom(1.5);
+
+    const vpt = fabricCanvas.viewportTransform!;
+    vpt[4] = fabricCanvas.width! / 2 - center.x * 1.5;
+    vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
+
+    fabricCanvas.renderAll();
+  };
+
+  const handleNextMatch = () => {
+    if (matchedNodes.length === 0) return;
+    const newIndex = (currentMatchIndex + 1) % matchedNodes.length;
+    setCurrentMatchIndex(newIndex);
+    zoomToNode(matchedNodes[newIndex].group);
+  };
+
+  const handlePrevMatch = () => {
+    if (matchedNodes.length === 0) return;
+    const newIndex = (currentMatchIndex - 1 + matchedNodes.length) % matchedNodes.length;
+    setCurrentMatchIndex(newIndex);
+    zoomToNode(matchedNodes[newIndex].group);
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setMatchedNodes([]);
+    setCurrentMatchIndex(0);
+
+    if (!fabricCanvas) return;
+
+    // Reset zoom
+    fabricCanvas.setZoom(1);
+    fabricCanvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+
+    // Clear highlights
+    contactNodesRef.current.forEach(({ group, originalStroke, originalStrokeWidth }) => {
+      const circle = group.getObjects()[0] as Circle;
+      if (originalStroke !== undefined) {
+        circle.set({ 
+          stroke: originalStroke as string | undefined, 
+          strokeWidth: originalStrokeWidth || 0 
+        });
+      } else {
+        circle.set({ stroke: undefined, strokeWidth: 0 });
+      }
+    });
+
+    fabricCanvas.renderAll();
+  };
+
   return (
-    <div ref={containerRef} className="w-full h-full">
+    <div ref={containerRef} className="w-full h-full relative">
+      <CanvasSearch
+        onSearch={handleSearch}
+        onClear={handleClearSearch}
+        matchCount={matchedNodes.length}
+        currentMatchIndex={currentMatchIndex}
+        onNextMatch={handleNextMatch}
+        onPrevMatch={handlePrevMatch}
+      />
       <canvas ref={canvasRef} />
     </div>
   );

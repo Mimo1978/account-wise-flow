@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject } from "fabric";
+import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Image as FabricImage, Point } from "fabric";
 import { Account, Contact } from "@/lib/types";
-import { ContactNode } from "./ContactNode";
 import { CanvasSearch } from "./CanvasSearch";
+import { User, Users } from "lucide-react";
 
 interface AccountCanvasProps {
   account: Account;
@@ -14,6 +14,8 @@ interface ContactNodeData {
   group: Group;
   originalStroke?: string | null;
   originalStrokeWidth?: number;
+  lines: Line[];
+  anchorPoints: Point[];
 }
 
 export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) => {
@@ -36,7 +38,54 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
       width,
       height,
       backgroundColor: "hsl(210 40% 98%)",
-      selection: true,
+      selection: false,
+    });
+
+    // Enable zoom and pan
+    canvas.on('mouse:wheel', (opt) => {
+      const delta = opt.e.deltaY;
+      let zoom = canvas.getZoom();
+      zoom *= 0.999 ** delta;
+      if (zoom > 3) zoom = 3;
+      if (zoom < 0.3) zoom = 0.3;
+      canvas.zoomToPoint(new Point(opt.e.offsetX, opt.e.offsetY), zoom);
+      opt.e.preventDefault();
+      opt.e.stopPropagation();
+    });
+
+    // Pan on background drag
+    let isDragging = false;
+    let lastPosX = 0;
+    let lastPosY = 0;
+
+    canvas.on('mouse:down', (opt) => {
+      const evt = opt.e as MouseEvent;
+      if (!opt.target) {
+        isDragging = true;
+        canvas.selection = false;
+        lastPosX = evt.clientX;
+        lastPosY = evt.clientY;
+        canvas.setCursor('grab');
+      }
+    });
+
+    canvas.on('mouse:move', (opt) => {
+      if (isDragging) {
+        const evt = opt.e as MouseEvent;
+        const vpt = canvas.viewportTransform!;
+        vpt[4] += evt.clientX - lastPosX;
+        vpt[5] += evt.clientY - lastPosY;
+        canvas.requestRenderAll();
+        lastPosX = evt.clientX;
+        lastPosY = evt.clientY;
+      }
+    });
+
+    canvas.on('mouse:up', () => {
+      canvas.setViewportTransform(canvas.viewportTransform!);
+      isDragging = false;
+      canvas.selection = false;
+      canvas.setCursor('default');
     });
 
     setFabricCanvas(canvas);
@@ -67,6 +116,8 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
     fabricCanvas.backgroundColor = "hsl(210 40% 98%)";
     contactNodesRef.current.clear();
 
+    const allLines: Line[] = [];
+
     // Render company node at top center
     const companyNode = createCompanyNode(account.name, fabricCanvas.width! / 2, 100);
     fabricCanvas.add(companyNode);
@@ -89,30 +140,28 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
         originX: "center",
         originY: "center",
         selectable: false,
+        evented: false,
       });
       fabricCanvas.add(deptLabel);
 
       // Render contacts in this department
       deptContacts.forEach((contact, idx) => {
-        const contactY = 300 + idx * 140;
+        const contactY = 300 + idx * 160;
         const contactNode = createContactNode(contact, deptX, contactY);
         
-        // Add click handler
-        contactNode.on('mousedown', () => {
-          onContactClick(contact);
-        });
-        
-        fabricCanvas.add(contactNode);
+        // Calculate anchor points
+        const anchorPoints = [
+          new Point(deptX, contactY - 60), // top
+          new Point(deptX - 60, contactY), // left
+          new Point(deptX + 60, contactY), // right
+          new Point(deptX, contactY + 60), // bottom
+        ];
 
-        // Store contact node reference
-        contactNodesRef.current.set(contact.id, {
-          contact,
-          group: contactNode,
-        });
+        const nodeLines: Line[] = [];
 
         // Draw line from company to first contact in dept
         if (idx === 0) {
-          const line = new Line([fabricCanvas.width! / 2, 140, deptX, contactY - 50], {
+          const line = new Line([fabricCanvas.width! / 2, 140, deptX, contactY - 60], {
             stroke: "hsl(214 32% 91%)",
             strokeWidth: 2,
             selectable: false,
@@ -120,12 +169,14 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
           });
           fabricCanvas.add(line);
           fabricCanvas.sendObjectToBack(line);
+          allLines.push(line);
+          nodeLines.push(line);
         }
 
         // Draw lines between contacts in same dept
         if (idx > 0) {
-          const prevY = 300 + (idx - 1) * 140;
-          const line = new Line([deptX, prevY + 50, deptX, contactY - 50], {
+          const prevY = 300 + (idx - 1) * 160;
+          const line = new Line([deptX, prevY + 60, deptX, contactY - 60], {
             stroke: "hsl(214 32% 91%)",
             strokeWidth: 2,
             selectable: false,
@@ -133,12 +184,68 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
           });
           fabricCanvas.add(line);
           fabricCanvas.sendObjectToBack(line);
+          allLines.push(line);
+          nodeLines.push(line);
         }
+
+        // Make node draggable with dynamic line updates
+        contactNode.on('moving', function() {
+          const center = contactNode.getCenterPoint();
+          
+          // Update lines connected to this node
+          nodeLines.forEach((line) => {
+            const points = line.get('x1') === deptX ? 
+              [line.get('x1')!, line.get('y1')!, center.x, center.y - 60] :
+              [center.x, center.y + 60, line.get('x2')!, line.get('y2')!];
+            line.set({ x1: points[0], y1: points[1], x2: points[2], y2: points[3] });
+            line.setCoords();
+          });
+        });
+
+        // Hover effect - highlight node and connections
+        contactNode.on('mouseover', function() {
+          (this as FabricObject).set({ 
+            shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 }
+          });
+          nodeLines.forEach(line => line.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
+          fabricCanvas.renderAll();
+        });
+
+        contactNode.on('mouseout', function() {
+          (this as FabricObject).set({ shadow: null });
+          nodeLines.forEach(line => line.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
+          fabricCanvas.renderAll();
+        });
+
+        // Click handler
+        contactNode.on('mousedown', () => {
+          onContactClick(contact);
+        });
+
+        // Double-click to center
+        contactNode.on('mousedblclick', () => {
+          const center = contactNode.getCenterPoint();
+          fabricCanvas.setZoom(1.5);
+          const vpt = fabricCanvas.viewportTransform!;
+          vpt[4] = fabricCanvas.width! / 2 - center.x * 1.5;
+          vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
+          fabricCanvas.renderAll();
+        });
+        
+        fabricCanvas.add(contactNode);
+
+        // Store contact node reference with its connections
+        contactNodesRef.current.set(contact.id, {
+          contact,
+          group: contactNode,
+          lines: nodeLines,
+          anchorPoints,
+        });
       });
     });
 
     fabricCanvas.renderAll();
-  }, [fabricCanvas, account]);
+  }, [fabricCanvas, account, onContactClick]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -318,31 +425,72 @@ const createContactNode = (contact: Contact, x: number, y: number): Group => {
 
   const bgColor = statusColors[contact.status] || statusColors.unknown;
 
-  const rect = new Circle({
-    radius: 50,
+  // Outer circle for the node
+  const outerCircle = new Circle({
+    radius: 60,
     fill: bgColor,
-    strokeWidth: contact.status === "champion" ? 3 : 0,
-    stroke: contact.status === "champion" ? "hsl(142 71% 35%)" : undefined,
+    strokeWidth: contact.status === "champion" ? 4 : 2,
+    stroke: contact.status === "champion" ? "hsl(142 71% 35%)" : "hsl(0 0% 100% / 0.3)",
   });
 
+  // Inner circle for profile image placeholder
+  const innerCircle = new Circle({
+    radius: 45,
+    fill: "hsl(0 0% 100% / 0.9)",
+    strokeWidth: 0,
+  });
+
+  // Create silhouette icon (randomly male/female)
+  const isMale = Math.random() > 0.5;
+  const silhouetteText = new Text(isMale ? "👤" : "👤", {
+    fontSize: 40,
+    fill: "hsl(215 16% 47%)",
+    originX: "center",
+    originY: "center",
+    top: -5,
+  });
+
+  // Name below the circle
   const nameText = new Text(contact.name, {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
-    fill: "black",
+    fill: "hsl(222 47% 11%)",
     originX: "center",
     originY: "center",
-    top: -10,
+    top: 75,
+    textAlign: "center",
   });
 
+  // Title below name
   const titleText = new Text(contact.title, {
-    fontSize: 11,
-    fill: "black",
+    fontSize: 10,
+    fill: "hsl(215 16% 47%)",
     originX: "center",
     originY: "center",
-    top: 10,
+    top: 90,
+    textAlign: "center",
   });
 
-  const group = new Group([rect, nameText, titleText], {
+  // Magnetic anchor points (small circles)
+  const anchorTop = new Circle({
+    radius: 4,
+    fill: "hsl(221 83% 53%)",
+    originX: "center",
+    originY: "center",
+    top: -60,
+    opacity: 0,
+  });
+
+  const anchorBottom = new Circle({
+    radius: 4,
+    fill: "hsl(221 83% 53%)",
+    originX: "center",
+    originY: "center",
+    top: 60,
+    opacity: 0,
+  });
+
+  const group = new Group([outerCircle, innerCircle, silhouetteText, anchorTop, anchorBottom, nameText, titleText], {
     left: x,
     top: y,
     originX: "center",
@@ -353,17 +501,6 @@ const createContactNode = (contact: Contact, x: number, y: number): Group => {
     lockRotation: true,
     lockScalingX: true,
     lockScalingY: true,
-  });
-
-  // Hover effect
-  group.on("mouseover", function () {
-    (this as FabricObject).set({ scaleX: 1.05, scaleY: 1.05 });
-    (this as FabricObject).canvas?.renderAll();
-  });
-
-  group.on("mouseout", function () {
-    (this as FabricObject).set({ scaleX: 1, scaleY: 1 });
-    (this as FabricObject).canvas?.renderAll();
   });
 
   return group;

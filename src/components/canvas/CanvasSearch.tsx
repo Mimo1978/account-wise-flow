@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, X, RotateCcw } from "lucide-react";
 
 interface CanvasSearchProps {
   onSearch: (query: string) => void;
@@ -10,6 +10,7 @@ interface CanvasSearchProps {
   currentMatchIndex: number;
   onNextMatch: () => void;
   onPrevMatch: () => void;
+  onReset: () => void;
 }
 
 export const CanvasSearch = ({
@@ -19,6 +20,7 @@ export const CanvasSearch = ({
   currentMatchIndex,
   onNextMatch,
   onPrevMatch,
+  onReset,
 }: CanvasSearchProps) => {
   const [query, setQuery] = useState("");
 
@@ -82,6 +84,18 @@ export const CanvasSearch = ({
             </div>
           </div>
         )}
+
+        <div className="pl-2 border-l border-border">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onReset}
+            className="h-8 gap-2"
+          >
+            <RotateCcw className="w-4 h-4" />
+            Reset & Center
+          </Button>
+        </div>
       </div>
     </div>
   );

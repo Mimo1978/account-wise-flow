@@ -10,6 +10,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotesSection } from "./NotesSection";
 import { ActivityTimeline } from "./ActivityTimeline";
+import { PhotoCapture } from "./PhotoCapture";
+import { VoiceInput } from "./VoiceInput";
 import { 
   X, 
   Mail, 
@@ -130,10 +132,37 @@ export const ContactDetailPanel = ({ contact, onClose }: ContactDetailPanelProps
     return name.split(" ").map(n => n[0]).join("").toUpperCase();
   };
 
+  const handlePhotoDataExtracted = (data: any) => {
+    // Auto-fill extracted data into contact fields
+    setEditedContact({
+      ...editedContact,
+      name: data.name || editedContact.name,
+      email: data.email || editedContact.email,
+      title: data.title || editedContact.title,
+      phone: data.phone || editedContact.phone,
+    });
+    
+    // Add extraction note
+    if (data.note) {
+      handleAddNote(`Auto-extracted from photo: ${data.note}`);
+    }
+    
+    toast.success("Contact data extracted and pre-filled");
+  };
+
+  const handleVoiceTranscript = (transcript: string) => {
+    handleAddNote(transcript);
+  };
+
   return (
     <div className="w-[480px] h-full border-l border-border bg-background flex flex-col animate-slide-in-right">
       {/* Header with Profile */}
       <div className="p-6 border-b border-border space-y-4">
+        {/* Quick Capture Tools */}
+        <div className="flex items-center gap-2">
+          <PhotoCapture onDataExtracted={handlePhotoDataExtracted} />
+          <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
+        </div>
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-4 flex-1">
             <Avatar className="w-16 h-16">

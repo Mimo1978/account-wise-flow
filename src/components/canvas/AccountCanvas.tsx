@@ -16,6 +16,7 @@ interface ContactNodeData {
   originalStrokeWidth?: number;
   lines: Line[];
   anchorPoints: Point[];
+  originalPosition: { x: number; y: number };
 }
 
 export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) => {
@@ -240,6 +241,7 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
           group: contactNode,
           lines: nodeLines,
           anchorPoints,
+          originalPosition: { x: deptX, y: contactY },
         });
       });
     });
@@ -367,6 +369,37 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
     fabricCanvas.renderAll();
   };
 
+  const handleResetPositions = () => {
+    if (!fabricCanvas) return;
+
+    // Reset zoom and pan
+    fabricCanvas.setZoom(1);
+    fabricCanvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+
+    // Reset all nodes to original positions
+    contactNodesRef.current.forEach(({ group, originalPosition, lines }) => {
+      group.set({
+        left: originalPosition.x,
+        top: originalPosition.y,
+      });
+      group.setCoords();
+
+      // Update all connected lines
+      const center = group.getCenterPoint();
+      lines.forEach((line) => {
+        const isLineStart = line.get('x2') === center.x || Math.abs((line.get('x2') || 0) - originalPosition.x) < 1;
+        if (isLineStart) {
+          line.set({ x2: center.x, y2: center.y - 60 });
+        } else {
+          line.set({ x1: center.x, y1: center.y + 60 });
+        }
+        line.setCoords();
+      });
+    });
+
+    fabricCanvas.renderAll();
+  };
+
   return (
     <div ref={containerRef} className="w-full h-full relative">
       <CanvasSearch
@@ -376,6 +409,7 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
         currentMatchIndex={currentMatchIndex}
         onNextMatch={handleNextMatch}
         onPrevMatch={handlePrevMatch}
+        onReset={handleResetPositions}
       />
       <canvas ref={canvasRef} />
     </div>

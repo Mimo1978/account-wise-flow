@@ -328,7 +328,7 @@ const createContactNode = (contact: Contact, x: number, y: number): Group => {
   const nameText = new Text(contact.name, {
     fontSize: 14,
     fontWeight: "600",
-    fill: "white",
+    fill: "black",
     originX: "center",
     originY: "center",
     top: -10,
@@ -336,7 +336,7 @@ const createContactNode = (contact: Contact, x: number, y: number): Group => {
 
   const titleText = new Text(contact.title, {
     fontSize: 11,
-    fill: "white",
+    fill: "black",
     originX: "center",
     originY: "center",
     top: 10,

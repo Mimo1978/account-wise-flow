@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Image as FabricImage, Point } from "fabric";
 import { Account, Contact } from "@/lib/types";
 import { CanvasSearch } from "./CanvasSearch";
+import { CanvasMinimap } from "./CanvasMinimap";
 import { User, Users } from "lucide-react";
 
 interface AccountCanvasProps {
@@ -440,6 +441,7 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
         onReset={handleResetPositions}
       />
       <canvas ref={canvasRef} />
+      <CanvasMinimap mainCanvas={fabricCanvas} />
     </div>
   );
 };

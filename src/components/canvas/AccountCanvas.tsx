@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Image as FabricImage, Point } from "fabric";
+import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Image as FabricImage, Point, Rect } from "fabric";
 import { Account, Contact } from "@/lib/types";
 import { CanvasSearch } from "./CanvasSearch";
 import { CanvasMinimap } from "./CanvasMinimap";
@@ -121,49 +121,114 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
     const allLines: Line[] = [];
 
     // Render company node at top center
-    const companyNode = createCompanyNode(account.name, fabricCanvas.width! / 2, 100);
+    const companyNode = createCompanyNode(account.name, fabricCanvas.width! / 2, 80);
     fabricCanvas.add(companyNode);
 
-    // Group contacts by department and render
-    const departments = Array.from(new Set(account.contacts.map(c => c.department)));
-    const depWidth = fabricCanvas.width! / (departments.length + 1);
+    // Find CEO (assuming CEO is in contacts)
+    const ceo = account.contacts.find(c => c.title.toLowerCase().includes('ceo'));
+    let ceoY = 200;
+    
+    if (ceo) {
+      const ceoNode = createContactNode(ceo, fabricCanvas.width! / 2, ceoY);
+      
+      // Calculate anchor points for CEO
+      const ceoAnchorPoints = [
+        new Point(fabricCanvas.width! / 2, ceoY - 50),
+        new Point(fabricCanvas.width! / 2 - 90, ceoY),
+        new Point(fabricCanvas.width! / 2 + 90, ceoY),
+        new Point(fabricCanvas.width! / 2, ceoY + 50),
+      ];
 
-    departments.forEach((dept, deptIdx) => {
-      const deptContacts = account.contacts.filter(c => c.department === dept);
-      const deptX = depWidth * (deptIdx + 1);
+      const ceoLines: Line[] = [];
 
-      // Department label
-      const deptLabel = new Text(dept, {
-        left: deptX,
-        top: 220,
-        fontSize: 16,
-        fontWeight: "600",
-        fill: "hsl(215 16% 47%)",
-        originX: "center",
-        originY: "center",
+      // Draw line from company to CEO
+      const ceoLine = new Line([fabricCanvas.width! / 2, 120, fabricCanvas.width! / 2, ceoY - 50], {
+        stroke: "hsl(214 32% 91%)",
+        strokeWidth: 2,
         selectable: false,
         evented: false,
       });
-      fabricCanvas.add(deptLabel);
+      fabricCanvas.add(ceoLine);
+      fabricCanvas.sendObjectToBack(ceoLine);
+      allLines.push(ceoLine);
+      ceoLines.push(ceoLine);
+
+      // Make CEO node draggable with dynamic line updates
+      ceoNode.on('moving', function() {
+        const center = ceoNode.getCenterPoint();
+        ceoLines.forEach((line) => {
+          line.set({ x2: center.x, y2: center.y - 50 });
+          line.setCoords();
+        });
+      });
+
+      // Hover effect
+      ceoNode.on('mouseover', function() {
+        (this as FabricObject).set({ 
+          shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 }
+        });
+        ceoLines.forEach(line => line.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
+        fabricCanvas.renderAll();
+      });
+
+      ceoNode.on('mouseout', function() {
+        (this as FabricObject).set({ shadow: null });
+        ceoLines.forEach(line => line.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
+        fabricCanvas.renderAll();
+      });
+
+      ceoNode.on('mousedown', () => {
+        onContactClick(ceo);
+      });
+
+      ceoNode.on('mousedblclick', () => {
+        const center = ceoNode.getCenterPoint();
+        fabricCanvas.setZoom(1.5);
+        const vpt = fabricCanvas.viewportTransform!;
+        vpt[4] = fabricCanvas.width! / 2 - center.x * 1.5;
+        vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
+        fabricCanvas.renderAll();
+      });
+
+      fabricCanvas.add(ceoNode);
+
+      contactNodesRef.current.set(ceo.id, {
+        contact: ceo,
+        group: ceoNode,
+        lines: ceoLines,
+        anchorPoints: ceoAnchorPoints,
+        originalPosition: { x: fabricCanvas.width! / 2, y: ceoY },
+      });
+    }
+
+    // Group other contacts by department (excluding CEO)
+    const otherContacts = account.contacts.filter(c => !c.title.toLowerCase().includes('ceo'));
+    const departments = Array.from(new Set(otherContacts.map(c => c.department)));
+    const depWidth = fabricCanvas.width! / (departments.length + 1);
+    const startY = 350;
+
+    departments.forEach((dept, deptIdx) => {
+      const deptContacts = otherContacts.filter(c => c.department === dept);
+      const deptX = depWidth * (deptIdx + 1);
 
       // Render contacts in this department
       deptContacts.forEach((contact, idx) => {
-        const contactY = 300 + idx * 160;
+        const contactY = startY + idx * 140;
         const contactNode = createContactNode(contact, deptX, contactY);
         
         // Calculate anchor points
         const anchorPoints = [
-          new Point(deptX, contactY - 60), // top
-          new Point(deptX - 60, contactY), // left
-          new Point(deptX + 60, contactY), // right
-          new Point(deptX, contactY + 60), // bottom
+          new Point(deptX, contactY - 50),
+          new Point(deptX - 90, contactY),
+          new Point(deptX + 90, contactY),
+          new Point(deptX, contactY + 50),
         ];
 
         const nodeLines: Line[] = [];
 
-        // Draw line from company to first contact in dept
+        // Draw line from CEO to first contact in each dept
         if (idx === 0) {
-          const line = new Line([fabricCanvas.width! / 2, 140, deptX, contactY - 60], {
+          const line = new Line([fabricCanvas.width! / 2, ceoY + 50, deptX, contactY - 50], {
             stroke: "hsl(214 32% 91%)",
             strokeWidth: 2,
             selectable: false,
@@ -177,8 +242,8 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
 
         // Draw lines between contacts in same dept
         if (idx > 0) {
-          const prevY = 300 + (idx - 1) * 160;
-          const line = new Line([deptX, prevY + 60, deptX, contactY - 60], {
+          const prevY = startY + (idx - 1) * 140;
+          const line = new Line([deptX, prevY + 50, deptX, contactY - 50], {
             stroke: "hsl(214 32% 91%)",
             strokeWidth: 2,
             selectable: false,
@@ -197,8 +262,8 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
           // Update lines connected to this node
           nodeLines.forEach((line) => {
             const points = line.get('x1') === deptX ? 
-              [line.get('x1')!, line.get('y1')!, center.x, center.y - 60] :
-              [center.x, center.y + 60, line.get('x2')!, line.get('y2')!];
+              [line.get('x1')!, line.get('y1')!, center.x, center.y - 50] :
+              [center.x, center.y + 50, line.get('x2')!, line.get('y2')!];
             line.set({ x1: points[0], y1: points[1], x2: points[2], y2: points[3] });
             line.setCoords();
           });
@@ -257,14 +322,14 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
     if (!query.trim() || !fabricCanvas) {
       // Clear all highlights
     contactNodesRef.current.forEach(({ group, originalStroke, originalStrokeWidth }) => {
-      const circle = group.getObjects()[0] as Circle;
+      const cardBg = group.getObjects()[0] as Rect;
       if (originalStroke !== undefined) {
-        circle.set({ 
+        cardBg.set({ 
           stroke: originalStroke as string | undefined, 
-          strokeWidth: originalStrokeWidth || 0 
+          strokeWidth: originalStrokeWidth || 1 
         });
       } else {
-        circle.set({ stroke: undefined, strokeWidth: 0 });
+        cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
       }
     });
       setMatchedNodes([]);
@@ -277,12 +342,12 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
 
     contactNodesRef.current.forEach((nodeData) => {
       const { contact, group } = nodeData;
-      const circle = group.getObjects()[0] as Circle;
+      const cardBg = group.getObjects()[0] as Rect;
 
       // Store original stroke if not already stored
       if (nodeData.originalStroke === undefined) {
-        nodeData.originalStroke = typeof circle.stroke === 'string' ? circle.stroke : null;
-        nodeData.originalStrokeWidth = circle.strokeWidth;
+        nodeData.originalStroke = typeof cardBg.stroke === 'string' ? cardBg.stroke : null;
+        nodeData.originalStrokeWidth = cardBg.strokeWidth;
       }
 
       const isMatch =
@@ -293,15 +358,15 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
 
       if (isMatch) {
         matches.push(nodeData);
-        circle.set({
+        cardBg.set({
           stroke: "hsl(221 83% 53%)",
-          strokeWidth: 5,
+          strokeWidth: 3,
         });
       } else {
         // Reset to original
-        circle.set({
+        cardBg.set({
           stroke: nodeData.originalStroke as string | undefined,
-          strokeWidth: nodeData.originalStrokeWidth || 0,
+          strokeWidth: nodeData.originalStrokeWidth || 1,
         });
       }
     });
@@ -356,14 +421,14 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
 
     // Clear highlights
     contactNodesRef.current.forEach(({ group, originalStroke, originalStrokeWidth }) => {
-      const circle = group.getObjects()[0] as Circle;
+      const cardBg = group.getObjects()[0] as Rect;
       if (originalStroke !== undefined) {
-        circle.set({ 
+        cardBg.set({ 
           stroke: originalStroke as string | undefined, 
-          strokeWidth: originalStrokeWidth || 0 
+          strokeWidth: originalStrokeWidth || 1 
         });
       } else {
-        circle.set({ stroke: undefined, strokeWidth: 0 });
+        cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
       }
     });
 
@@ -416,9 +481,9 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
           lines.forEach((line) => {
             const isLineStart = line.get('x2') === center.x || Math.abs((line.get('x2') || 0) - originalPosition.x) < 1;
             if (isLineStart) {
-              line.set({ x2: center.x, y2: center.y - 60 });
+              line.set({ x2: center.x, y2: center.y - 50 });
             } else {
-              line.set({ x1: center.x, y1: center.y + 60 });
+              line.set({ x1: center.x, y1: center.y + 50 });
             }
             line.setCoords();
           });
@@ -448,13 +513,13 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
 
 const createCompanyNode = (name: string, x: number, y: number): Group => {
   const circle = new Circle({
-    radius: 40,
+    radius: 35,
     fill: "hsl(221 83% 53%)",
     strokeWidth: 0,
   });
 
   const text = new Text(name, {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "bold",
     fill: "white",
     originX: "center",
@@ -466,12 +531,9 @@ const createCompanyNode = (name: string, x: number, y: number): Group => {
     top: y,
     originX: "center",
     originY: "center",
-    selectable: true,
+    selectable: false,
     hasControls: false,
     hasBorders: false,
-    lockRotation: true,
-    lockScalingX: true,
-    lockScalingY: true,
   });
 
   return group;
@@ -489,72 +551,100 @@ const createContactNode = (contact: Contact, x: number, y: number): Group => {
 
   const bgColor = statusColors[contact.status] || statusColors.unknown;
 
-  // Outer circle for the node
-  const outerCircle = new Circle({
-    radius: 60,
-    fill: bgColor,
-    strokeWidth: contact.status === "champion" ? 4 : 2,
-    stroke: contact.status === "champion" ? "hsl(142 71% 35%)" : "hsl(0 0% 100% / 0.3)",
+  // Card background
+  const cardBg = new Rect({
+    width: 180,
+    height: 90,
+    fill: "white",
+    stroke: "hsl(214 32% 91%)",
+    strokeWidth: 1,
+    rx: 8,
+    ry: 8,
+    left: -90,
+    top: -45,
   });
 
-  // Inner circle for profile image placeholder
-  const innerCircle = new Circle({
-    radius: 45,
-    fill: "hsl(0 0% 100% / 0.9)",
-    strokeWidth: 0,
+  // Profile circle
+  const profileCircle = new Circle({
+    radius: 25,
+    fill: "hsl(210 20% 90%)",
+    left: -75,
+    top: -20,
   });
 
-  // Create silhouette icon (randomly male/female)
+  // Silhouette icon
   const isMale = Math.random() > 0.5;
   const silhouetteText = new Text(isMale ? "👤" : "👤", {
-    fontSize: 40,
+    fontSize: 24,
     fill: "hsl(215 16% 47%)",
+    left: -75,
+    top: -20,
     originX: "center",
     originY: "center",
-    top: -5,
   });
 
-  // Name below the circle
+  // Name text
   const nameText = new Text(contact.name, {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     fill: "hsl(222 47% 11%)",
-    originX: "center",
-    originY: "center",
-    top: 75,
-    textAlign: "center",
+    left: -40,
+    top: -25,
+    width: 110,
   });
 
-  // Title below name
+  // Title text
   const titleText = new Text(contact.title, {
-    fontSize: 10,
+    fontSize: 9,
     fill: "hsl(215 16% 47%)",
-    originX: "center",
-    originY: "center",
-    top: 90,
-    textAlign: "center",
+    left: -40,
+    top: -8,
+    width: 110,
   });
 
-  // Magnetic anchor points (small circles)
+  // Department text
+  const deptText = new Text(contact.department, {
+    fontSize: 8,
+    fill: "hsl(215 16% 47%)",
+    left: -40,
+    top: 8,
+    width: 110,
+  });
+
+  // Status indicator (small colored circle)
+  const statusIndicator = new Circle({
+    radius: 5,
+    fill: bgColor,
+    left: 65,
+    top: -35,
+  });
+
+  // Magnetic anchor points
   const anchorTop = new Circle({
     radius: 4,
     fill: "hsl(221 83% 53%)",
-    originX: "center",
-    originY: "center",
-    top: -60,
+    top: -50,
     opacity: 0,
   });
 
   const anchorBottom = new Circle({
     radius: 4,
     fill: "hsl(221 83% 53%)",
-    originX: "center",
-    originY: "center",
-    top: 60,
+    top: 50,
     opacity: 0,
   });
 
-  const group = new Group([outerCircle, innerCircle, silhouetteText, anchorTop, anchorBottom, nameText, titleText], {
+  const group = new Group([
+    cardBg,
+    profileCircle,
+    silhouetteText,
+    nameText,
+    titleText,
+    deptText,
+    statusIndicator,
+    anchorTop,
+    anchorBottom
+  ], {
     left: x,
     top: y,
     originX: "center",

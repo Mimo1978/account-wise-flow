@@ -9,16 +9,73 @@ import { QRCodeButton } from "@/components/canvas/QRCodeButton";
 import { mockAccount } from "@/lib/mock-data";
 import { Contact } from "@/lib/types";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const Canvas = () => {
   const [account, setAccount] = useState(mockAccount);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [pendingContact, setPendingContact] = useState<Contact | null>(null);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   const handleCompanySwitch = (company: any) => {
     toast.success(`Switched to ${company.name}`);
     // In real implementation, load the new company's data
     // For now, just update the name
     setAccount({ ...account, name: company.name, industry: company.industry });
+  };
+
+  const handleContactClick = (contact: Contact) => {
+    // If clicking the same contact, do nothing
+    if (selectedContact?.id === contact.id) return;
+
+    // If there are unsaved changes, show confirmation dialog
+    if (hasUnsavedChanges) {
+      setPendingContact(contact);
+      setShowSaveDialog(true);
+    } else {
+      setSelectedContact(contact);
+      setIsExpanded(false);
+    }
+  };
+
+  const handleSaveAndSwitch = () => {
+    // In real implementation, save the changes here
+    toast.success("Changes saved");
+    setSelectedContact(pendingContact);
+    setPendingContact(null);
+    setShowSaveDialog(false);
+    setHasUnsavedChanges(false);
+    setIsExpanded(false);
+  };
+
+  const handleDiscardAndSwitch = () => {
+    setSelectedContact(pendingContact);
+    setPendingContact(null);
+    setShowSaveDialog(false);
+    setHasUnsavedChanges(false);
+    setIsExpanded(false);
+  };
+
+  const handleCancelSwitch = () => {
+    setPendingContact(null);
+    setShowSaveDialog(false);
+  };
+
+  const handleClosePanel = () => {
+    setSelectedContact(null);
+    setIsExpanded(false);
+    setHasUnsavedChanges(false);
   };
 
   return (
@@ -66,21 +123,58 @@ const Canvas = () => {
 
       {/* Canvas Area */}
       <main className="flex-1 overflow-hidden flex relative">
-        <div className={`flex-1 transition-all duration-300 ${selectedContact ? 'mr-[480px]' : ''}`}>
+        <div className={`flex-1 transition-all duration-300 ${selectedContact && !isExpanded ? 'mr-[480px]' : ''}`}>
           <AccountCanvas 
             account={account} 
-            onContactClick={setSelectedContact}
+            onContactClick={handleContactClick}
           />
         </div>
+        
+        {/* Dimmed Overlay when expanded */}
+        {selectedContact && isExpanded && (
+          <div 
+            className="absolute inset-0 bg-background/60 backdrop-blur-sm z-10 animate-fade-in"
+            onClick={() => setIsExpanded(false)}
+          />
+        )}
+
         {selectedContact && (
-          <div className="absolute right-0 top-0 bottom-0 z-10">
+          <div className={`absolute top-0 bottom-0 z-20 transition-all duration-300 ${
+            isExpanded ? 'inset-0' : 'right-0'
+          }`}>
             <ContactDetailPanel 
               contact={selectedContact} 
-              onClose={() => setSelectedContact(null)}
+              onClose={handleClosePanel}
+              isExpanded={isExpanded}
+              onExpandToggle={() => setIsExpanded(!isExpanded)}
+              onUnsavedChanges={setHasUnsavedChanges}
             />
           </div>
         )}
       </main>
+
+      {/* Save Confirmation Dialog */}
+      <AlertDialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save Changes Before Switching?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes for this contact. What would you like to do?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelSwitch}>
+              Cancel
+            </AlertDialogCancel>
+            <Button variant="outline" onClick={handleDiscardAndSwitch}>
+              Discard & Switch
+            </Button>
+            <AlertDialogAction onClick={handleSaveAndSwitch}>
+              Save & Switch
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Bottom Info Bar */}
       <div className="border-t border-border/50 bg-muted/30 px-6 py-3">

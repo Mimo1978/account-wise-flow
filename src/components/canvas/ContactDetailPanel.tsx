@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Contact, Note, Activity } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,13 +27,18 @@ import {
   Save,
   Sparkles,
   Tag,
-  Clock
+  Clock,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface ContactDetailPanelProps {
   contact: Contact | null;
   onClose: () => void;
+  isExpanded?: boolean;
+  onExpandToggle?: () => void;
+  onUnsavedChanges?: (hasChanges: boolean) => void;
 }
 
 const statusConfig = {
@@ -73,9 +78,28 @@ const predefinedTags = [
   "Key Stakeholder"
 ];
 
-export const ContactDetailPanel = ({ contact, onClose }: ContactDetailPanelProps) => {
+export const ContactDetailPanel = ({ 
+  contact, 
+  onClose, 
+  isExpanded = false, 
+  onExpandToggle,
+  onUnsavedChanges 
+}: ContactDetailPanelProps) => {
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [editedContact, setEditedContact] = useState(contact);
+
+  // Track changes to notify parent component
+  useEffect(() => {
+    if (contact && editedContact) {
+      const hasChanges = JSON.stringify(contact) !== JSON.stringify(editedContact);
+      onUnsavedChanges?.(hasChanges);
+    }
+  }, [editedContact, contact, onUnsavedChanges]);
+
+  // Reset edited contact when contact changes
+  useEffect(() => {
+    setEditedContact(contact);
+  }, [contact]);
 
   if (!contact || !editedContact) return null;
 
@@ -155,13 +179,36 @@ export const ContactDetailPanel = ({ contact, onClose }: ContactDetailPanelProps
   };
 
   return (
-    <div className="w-[480px] h-full border-l border-border bg-background flex flex-col animate-slide-in-right">
+    <div className={`h-full border-l border-border bg-background flex flex-col transition-all duration-300 ${
+      isExpanded ? 'w-full animate-scale-in' : 'w-[480px] animate-slide-in-right'
+    }`}>
       {/* Header with Profile */}
       <div className="p-6 border-b border-border space-y-4">
-        {/* Quick Capture Tools */}
-        <div className="flex items-center gap-2">
-          <PhotoCapture onDataExtracted={handlePhotoDataExtracted} />
-          <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
+        {/* Quick Capture Tools & Expand Button */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <PhotoCapture onDataExtracted={handlePhotoDataExtracted} />
+            <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
+          </div>
+          <div className="flex items-center gap-2">
+            {onExpandToggle && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onExpandToggle}
+                title={isExpanded ? "Collapse to side panel" : "Expand to full screen"}
+              >
+                {isExpanded ? (
+                  <Minimize2 className="w-4 h-4" />
+                ) : (
+                  <Maximize2 className="w-4 h-4" />
+                )}
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
         <div className="flex items-start justify-between">
           <div className="flex items-start gap-4 flex-1">
@@ -235,9 +282,6 @@ export const ContactDetailPanel = ({ contact, onClose }: ContactDetailPanelProps
               )}
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-4 h-4" />
-          </Button>
         </div>
         
         <div className="flex flex-wrap gap-2">

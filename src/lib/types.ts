@@ -37,6 +37,19 @@ export interface Activity {
   metadata?: Record<string, any>;
 }
 
+export interface AccountManager {
+  name: string;
+  title: string;
+  photo?: string;
+}
+
+export interface NewsItem {
+  id: string;
+  date: string;
+  headline: string;
+  summary?: string;
+}
+
 export interface Account {
   id: string;
   name: string;
@@ -45,6 +58,12 @@ export interface Account {
   contacts: Contact[];
   lastUpdated: string;
   engagementScore: number;
+  accountManager?: AccountManager;
+  lastInteraction?: string;
+  primaryChampion?: { name: string; title: string };
+  knownBlockers?: string[];
+  importantNote?: string;
+  recentNews?: NewsItem[];
 }
 
 export interface Department {

@@ -3,6 +3,7 @@ import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Image 
 import { Account, Contact } from "@/lib/types";
 import { CanvasSearch } from "./CanvasSearch";
 import { CanvasMinimap } from "./CanvasMinimap";
+import { CompanyInfoPopover } from "./CompanyInfoPopover";
 import { User, Users } from "lucide-react";
 
 interface AccountCanvasProps {
@@ -28,6 +29,9 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
   const [matchedNodes, setMatchedNodes] = useState<ContactNodeData[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const contactNodesRef = useRef<Map<string, ContactNodeData>>(new Map());
+  const [showCompanyHover, setShowCompanyHover] = useState(false);
+  const [companyHoverPosition, setCompanyHoverPosition] = useState({ x: 0, y: 0 });
+  const companyNodeRef = useRef<Group | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
@@ -122,6 +126,28 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
 
     // Render company node at top center
     const companyNode = createCompanyNode(account.name, fabricCanvas.width! / 2, 80);
+    
+    // Add hover effects to company node
+    companyNode.on('mouseover', function() {
+      (this as FabricObject).set({ 
+        shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 4 }
+      });
+      fabricCanvas.renderAll();
+      setShowCompanyHover(true);
+    });
+
+    companyNode.on('mouseout', function() {
+      (this as FabricObject).set({ shadow: null });
+      fabricCanvas.renderAll();
+      setShowCompanyHover(false);
+    });
+
+    companyNode.on('mousedown', () => {
+      // TODO: Open full company profile panel
+      console.log('Open company profile panel');
+    });
+
+    companyNodeRef.current = companyNode;
     fabricCanvas.add(companyNode);
 
     // Find CEO (assuming CEO is in contacts)
@@ -507,6 +533,19 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
       />
       <canvas ref={canvasRef} />
       <CanvasMinimap mainCanvas={fabricCanvas} />
+      
+      {/* Company Info Popover */}
+      {showCompanyHover && companyNodeRef.current && (
+        <CompanyInfoPopover 
+          account={account}
+          position={{
+            x: companyNodeRef.current.left! + 100,
+            y: companyNodeRef.current.top! - 50,
+          }}
+          onNewsClick={() => console.log('Open news panel')}
+          onNoteClick={() => console.log('Open notes panel')}
+        />
+      )}
     </div>
   );
 };

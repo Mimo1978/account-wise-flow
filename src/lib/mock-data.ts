@@ -442,4 +442,30 @@ export const mockAccount: Account = {
   contacts: mockContacts,
   lastUpdated: "2025-01-23",
   engagementScore: 72,
+  accountManager: {
+    name: "John Parker",
+    title: "Senior Enterprise Manager",
+    photo: "https://api.dicebear.com/7.x/avataaars/svg?seed=JohnParker",
+  },
+  lastInteraction: "4 days ago",
+  primaryChampion: {
+    name: "Sarah Chen",
+    title: "CTO",
+  },
+  knownBlockers: ["Rebecca Johnson"],
+  importantNote: "Q4 renewal approaching. CEO highly engaged, but procurement showing resistance on pricing.",
+  recentNews: [
+    {
+      id: "news-1",
+      date: "2025-01-20",
+      headline: "New CTO appointed — potential change in strategy",
+      summary: "Sarah Chen promoted to CTO, signaling shift toward cloud infrastructure investments.",
+    },
+    {
+      id: "news-2",
+      date: "2025-01-18",
+      headline: "Announced Q3 expansion into APAC market",
+      summary: "Company plans to open three new regional offices in Singapore, Tokyo, and Sydney.",
+    },
+  ],
 };

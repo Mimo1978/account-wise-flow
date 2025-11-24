@@ -6,6 +6,7 @@ import { CanvasSearch } from "./CanvasSearch";
 
 interface AccountCanvasProps {
   account: Account;
+  onContactClick: (contact: Contact) => void;
 }
 
 interface ContactNodeData {
@@ -15,7 +16,7 @@ interface ContactNodeData {
   originalStrokeWidth?: number;
 }
 
-export const AccountCanvas = ({ account }: AccountCanvasProps) => {
+export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -95,6 +96,12 @@ export const AccountCanvas = ({ account }: AccountCanvasProps) => {
       deptContacts.forEach((contact, idx) => {
         const contactY = 300 + idx * 140;
         const contactNode = createContactNode(contact, deptX, contactY);
+        
+        // Add click handler
+        contactNode.on('mousedown', () => {
+          onContactClick(contact);
+        });
+        
         fabricCanvas.add(contactNode);
 
         // Store contact node reference

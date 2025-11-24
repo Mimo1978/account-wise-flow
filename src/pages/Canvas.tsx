@@ -46,18 +46,20 @@ const Canvas = () => {
       </header>
 
       {/* Canvas Area */}
-      <main className="flex-1 overflow-hidden flex">
-        <div className="flex-1">
+      <main className="flex-1 overflow-hidden flex relative">
+        <div className={`flex-1 transition-all duration-300 ${selectedContact ? 'mr-[480px]' : ''}`}>
           <AccountCanvas 
             account={account} 
             onContactClick={setSelectedContact}
           />
         </div>
         {selectedContact && (
-          <ContactDetailPanel 
-            contact={selectedContact} 
-            onClose={() => setSelectedContact(null)}
-          />
+          <div className="absolute right-0 top-0 bottom-0 z-10">
+            <ContactDetailPanel 
+              contact={selectedContact} 
+              onClose={() => setSelectedContact(null)}
+            />
+          </div>
         )}
       </main>
 

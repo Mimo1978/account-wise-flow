@@ -13,6 +13,28 @@ export interface Contact {
   reportsTo?: string;
   linkedIn?: string;
   contactOwner?: string;
+  profilePhoto?: string;
+  location?: string;
+  nextFollowUp?: string;
+  tags?: string[];
+  notes?: Note[];
+  activities?: Activity[];
+}
+
+export interface Note {
+  id: string;
+  date: string;
+  author: string;
+  content: string;
+  pinned?: boolean;
+}
+
+export interface Activity {
+  id: string;
+  type: "meeting" | "call" | "email" | "update" | "owner-change" | "score-change";
+  date: string;
+  description: string;
+  metadata?: Record<string, any>;
 }
 
 export interface Account {

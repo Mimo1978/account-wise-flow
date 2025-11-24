@@ -372,32 +372,60 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
   const handleResetPositions = () => {
     if (!fabricCanvas) return;
 
-    // Reset zoom and pan
-    fabricCanvas.setZoom(1);
-    fabricCanvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+    // Animate zoom and pan reset
+    const currentZoom = fabricCanvas.getZoom();
+    const currentVpt = [...fabricCanvas.viewportTransform!];
+    
+    // Smoothly animate zoom back to 1
+    const zoomSteps = 20;
+    const zoomIncrement = (1 - currentZoom) / zoomSteps;
+    const vptXIncrement = (0 - currentVpt[4]) / zoomSteps;
+    const vptYIncrement = (0 - currentVpt[5]) / zoomSteps;
+    
+    let step = 0;
+    const animateZoom = () => {
+      if (step < zoomSteps) {
+        step++;
+        fabricCanvas.setZoom(currentZoom + zoomIncrement * step);
+        const vpt = fabricCanvas.viewportTransform!;
+        vpt[4] = currentVpt[4] + vptXIncrement * step;
+        vpt[5] = currentVpt[5] + vptYIncrement * step;
+        fabricCanvas.renderAll();
+        requestAnimationFrame(animateZoom);
+      } else {
+        fabricCanvas.setZoom(1);
+        fabricCanvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+        fabricCanvas.renderAll();
+      }
+    };
+    animateZoom();
 
-    // Reset all nodes to original positions
+    // Animate all nodes back to original positions
     contactNodesRef.current.forEach(({ group, originalPosition, lines }) => {
-      group.set({
+      group.animate({
         left: originalPosition.x,
         top: originalPosition.y,
-      });
-      group.setCoords();
-
-      // Update all connected lines
-      const center = group.getCenterPoint();
-      lines.forEach((line) => {
-        const isLineStart = line.get('x2') === center.x || Math.abs((line.get('x2') || 0) - originalPosition.x) < 1;
-        if (isLineStart) {
-          line.set({ x2: center.x, y2: center.y - 60 });
-        } else {
-          line.set({ x1: center.x, y1: center.y + 60 });
-        }
-        line.setCoords();
+      }, {
+        duration: 500,
+        onChange: () => {
+          group.setCoords();
+          
+          // Update connected lines during animation
+          const center = group.getCenterPoint();
+          lines.forEach((line) => {
+            const isLineStart = line.get('x2') === center.x || Math.abs((line.get('x2') || 0) - originalPosition.x) < 1;
+            if (isLineStart) {
+              line.set({ x2: center.x, y2: center.y - 60 });
+            } else {
+              line.set({ x1: center.x, y1: center.y + 60 });
+            }
+            line.setCoords();
+          });
+          fabricCanvas.renderAll();
+        },
+        easing: (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t, // easeInOutQuad
       });
     });
-
-    fabricCanvas.renderAll();
   };
 
   return (

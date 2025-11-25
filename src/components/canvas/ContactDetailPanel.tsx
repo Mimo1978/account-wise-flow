@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { PhotoCapture } from "./PhotoCapture";
 import { VoiceInput } from "./VoiceInput";
 import { 
@@ -31,9 +30,13 @@ import {
   Activity as ActivityIcon,
   Pin,
   Plus,
-  Search
+  Search,
+  ChevronDown,
+  ChevronRight,
+  Focus
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface ContactDetailPanelProps {
   contact: Contact | null;
@@ -80,6 +83,85 @@ const predefinedTags = [
   "Key Stakeholder"
 ];
 
+interface SectionProps {
+  id: string;
+  title: string;
+  icon: React.ReactNode;
+  badge?: number;
+  isOpen: boolean;
+  isFocused: boolean;
+  onToggle: () => void;
+  onFocus: () => void;
+  children: React.ReactNode;
+}
+
+const Section = ({ id, title, icon, badge, isOpen, isFocused, onToggle, onFocus, children }: SectionProps) => {
+  return (
+    <div 
+      className={cn(
+        "rounded-xl border transition-all duration-300",
+        isOpen ? "border-primary/30 bg-card shadow-sm" : "border-border bg-background hover:border-primary/20",
+        isFocused && "flex-1 min-h-[400px]"
+      )}
+    >
+      {/* Section Header */}
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted/30 transition-colors rounded-t-xl"
+      >
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "p-2 rounded-lg transition-colors",
+            isOpen ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+          )}>
+            {icon}
+          </div>
+          <span className={cn("font-semibold text-base", isOpen && "text-primary")}>{title}</span>
+          {badge !== undefined && (
+            <Badge variant="secondary" className="ml-1">{badge}</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {isOpen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={(e) => {
+                e.stopPropagation();
+                onFocus();
+              }}
+              title={isFocused ? "Exit focus mode" : "Focus on this section"}
+            >
+              <Focus className={cn("w-4 h-4", isFocused && "text-primary")} />
+            </Button>
+          )}
+          {isOpen ? (
+            <ChevronDown className="w-5 h-5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          )}
+        </div>
+      </button>
+
+      {/* Section Content */}
+      <div
+        className={cn(
+          "overflow-hidden transition-all duration-300",
+          isOpen ? "opacity-100" : "max-h-0 opacity-0"
+        )}
+      >
+        <div className={cn(
+          "px-6 pb-6 space-y-5",
+          isFocused && "min-h-[300px]"
+        )}>
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const ContactDetailPanel = ({ 
   contact, 
   onClose, 
@@ -89,7 +171,8 @@ export const ContactDetailPanel = ({
 }: ContactDetailPanelProps) => {
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [editedContact, setEditedContact] = useState(contact);
-  const [expandedSection, setExpandedSection] = useState<string>("ai-insights");
+  const [openSection, setOpenSection] = useState<string | null>("ai-insights");
+  const [focusedSection, setFocusedSection] = useState<string | null>(null);
   
   // Notes state
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
@@ -202,7 +285,7 @@ export const ContactDetailPanel = ({
   const handleVoiceTranscript = (transcript: string) => {
     setNewNoteContent(transcript);
     setIsAddingNote(true);
-    setExpandedSection("notes");
+    setOpenSection("notes");
   };
 
   const getActivityIcon = (type: string) => {
@@ -216,15 +299,125 @@ export const ContactDetailPanel = ({
     }
   };
 
+  const toggleSection = (sectionId: string) => {
+    if (focusedSection) {
+      setFocusedSection(null);
+    }
+    setOpenSection(openSection === sectionId ? null : sectionId);
+  };
+
+  const toggleFocus = (sectionId: string) => {
+    if (focusedSection === sectionId) {
+      setFocusedSection(null);
+    } else {
+      setFocusedSection(sectionId);
+      setOpenSection(sectionId);
+    }
+  };
+
+  // Editable Field Component
+  const EditableField = ({ 
+    field, 
+    value, 
+    icon, 
+    type = "text",
+    label 
+  }: { 
+    field: string; 
+    value: string; 
+    icon: React.ReactNode; 
+    type?: string;
+    label?: string;
+  }) => {
+    const isFieldEditing = isEditing === field;
+
+    return (
+      <div className={cn(
+        "group rounded-xl transition-all duration-200",
+        isFieldEditing ? "bg-muted p-5" : "bg-muted/40 p-4 hover:bg-muted/60"
+      )}>
+        {label && (
+          <span className="text-xs text-muted-foreground uppercase tracking-wide mb-2 block">{label}</span>
+        )}
+        <div className="flex items-start gap-4">
+          <div className="p-2 rounded-lg bg-background/50 text-muted-foreground shrink-0 mt-0.5">
+            {icon}
+          </div>
+          {isFieldEditing ? (
+            <div className="flex-1 space-y-4">
+              <Input
+                type={type}
+                value={(editedContact as any)[field]}
+                onChange={(e) => setEditedContact({ ...editedContact, [field]: e.target.value })}
+                className="h-12 text-base"
+                autoFocus
+              />
+              <div className="flex gap-3">
+                <Button onClick={() => handleSave(field, (editedContact as any)[field])} className="h-10">
+                  <Save className="w-4 h-4 mr-2" /> Save
+                </Button>
+                <Button variant="ghost" onClick={() => setIsEditing(null)} className="h-10">Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-between min-h-[32px]">
+              {field === "email" ? (
+                <a href={`mailto:${value}`} className="text-primary hover:underline text-base">{value}</a>
+              ) : field === "linkedIn" ? (
+                <a href={value} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-base">
+                  View LinkedIn Profile
+                </a>
+              ) : (
+                <span className="text-base">{value}</span>
+              )}
+              <Button 
+                size="icon" 
+                variant="ghost" 
+                className="opacity-0 group-hover:opacity-100 h-9 w-9" 
+                onClick={() => setIsEditing(field)}
+              >
+                <Edit2 className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Display-only Field Component
+  const DisplayField = ({ 
+    value, 
+    icon, 
+    label 
+  }: { 
+    value: string; 
+    icon: React.ReactNode; 
+    label?: string;
+  }) => (
+    <div className="rounded-xl bg-muted/40 p-4">
+      {label && (
+        <span className="text-xs text-muted-foreground uppercase tracking-wide mb-2 block">{label}</span>
+      )}
+      <div className="flex items-center gap-4">
+        <div className="p-2 rounded-lg bg-background/50 text-muted-foreground shrink-0">
+          {icon}
+        </div>
+        <span className="text-base">{value}</span>
+      </div>
+    </div>
+  );
+
   return (
-    <div className={`h-full border-l border-border bg-background flex flex-col transition-all duration-300 ${
-      isExpanded ? 'w-full animate-scale-in' : 'w-[520px] animate-slide-in-right'
-    }`}>
+    <div className={cn(
+      "h-full border-l border-border bg-background flex flex-col transition-all duration-300",
+      isExpanded ? "w-full animate-scale-in" : "w-[560px] animate-slide-in-right"
+    )}>
       {/* Sticky Header */}
       <div className="sticky top-0 z-10 bg-background border-b border-border">
         {/* Quick Capture Tools & Expand Button */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-border/50">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <PhotoCapture onDataExtracted={handlePhotoDataExtracted} />
             <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
           </div>
@@ -235,474 +428,413 @@ export const ContactDetailPanel = ({
                 size="icon"
                 onClick={onExpandToggle}
                 title={isExpanded ? "Collapse to side panel" : "Expand to full screen"}
+                className="h-9 w-9"
               >
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9">
               <X className="w-4 h-4" />
             </Button>
           </div>
         </div>
 
         {/* Profile Header */}
-        <div className="px-6 py-5">
-          <div className="flex items-start gap-4">
-            <Avatar className="w-16 h-16 shrink-0">
+        <div className="px-6 py-6">
+          <div className="flex items-start gap-5">
+            <Avatar className="w-20 h-20 shrink-0 ring-2 ring-primary/20">
               <AvatarImage src={editedContact.profilePhoto} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-lg">
+              <AvatarFallback className="bg-primary text-primary-foreground text-xl font-semibold">
                 {getInitials(editedContact.name)}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex-1 min-w-0 space-y-3">
+              {/* Name */}
               {isEditing === "name" ? (
                 <div className="space-y-3">
                   <Input
                     value={editedContact.name}
                     onChange={(e) => setEditedContact({ ...editedContact, name: e.target.value })}
-                    className="text-lg font-bold h-10"
+                    className="text-xl font-bold h-12"
                     autoFocus
                   />
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleSave("name", editedContact.name)}>
-                      <Save className="w-3 h-3 mr-1" /> Save
+                  <div className="flex gap-3">
+                    <Button onClick={() => handleSave("name", editedContact.name)} className="h-10">
+                      <Save className="w-4 h-4 mr-2" /> Save
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setIsEditing(null)}>Cancel</Button>
+                    <Button variant="ghost" onClick={() => setIsEditing(null)} className="h-10">Cancel</Button>
                   </div>
                 </div>
               ) : (
-                <div className="group flex items-center gap-2">
-                  <h2 className="text-xl font-bold truncate">{editedContact.name}</h2>
+                <div className="group flex items-center gap-3">
+                  <h2 className="text-2xl font-bold truncate">{editedContact.name}</h2>
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="ghost"
-                    className="opacity-0 group-hover:opacity-100 h-7 w-7 p-0"
+                    className="opacity-0 group-hover:opacity-100 h-8 w-8"
                     onClick={() => setIsEditing("name")}
                   >
-                    <Edit2 className="w-3.5 h-3.5" />
+                    <Edit2 className="w-4 h-4" />
                   </Button>
                 </div>
               )}
               
+              {/* Title */}
               {isEditing === "title" ? (
                 <div className="space-y-3">
                   <Input
                     value={editedContact.title}
                     onChange={(e) => setEditedContact({ ...editedContact, title: e.target.value })}
-                    className="h-9"
+                    className="h-10"
                     autoFocus
                   />
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleSave("title", editedContact.title)}>
-                      <Save className="w-3 h-3 mr-1" /> Save
+                  <div className="flex gap-3">
+                    <Button onClick={() => handleSave("title", editedContact.title)} className="h-10">
+                      <Save className="w-4 h-4 mr-2" /> Save
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setIsEditing(null)}>Cancel</Button>
+                    <Button variant="ghost" onClick={() => setIsEditing(null)} className="h-10">Cancel</Button>
                   </div>
                 </div>
               ) : (
                 <div className="group flex items-center gap-2">
-                  <p className="text-sm text-muted-foreground truncate">{editedContact.title}</p>
+                  <p className="text-base text-muted-foreground truncate">{editedContact.title}</p>
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="ghost"
-                    className="opacity-0 group-hover:opacity-100 h-6 w-6 p-0"
+                    className="opacity-0 group-hover:opacity-100 h-7 w-7"
                     onClick={() => setIsEditing("title")}
                   >
-                    <Edit2 className="w-3 h-3" />
+                    <Edit2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               )}
 
-              {/* Status & Tags */}
-              <div className="flex flex-wrap gap-2 pt-1">
-                <Badge className={statusInfo.color}>{statusInfo.label}</Badge>
+              {/* Status & Role Badges */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <Badge className={cn(statusInfo.color, "text-sm px-3 py-1")}>{statusInfo.label}</Badge>
                 {editedContact.role && (
-                  <Badge variant="outline">{roleConfig[editedContact.role]}</Badge>
+                  <Badge variant="outline" className="text-sm px-3 py-1">{roleConfig[editedContact.role]}</Badge>
                 )}
+              </div>
+
+              {/* Tags */}
+              <div className="flex flex-wrap items-center gap-2 pt-2">
                 {editedContact.tags?.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="gap-1">
+                  <Badge key={tag} variant="secondary" className="gap-1.5 text-sm px-3 py-1">
                     <Tag className="w-3 h-3" />
                     {tag}
-                    <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive">
+                    <button onClick={() => handleRemoveTag(tag)} className="ml-1 hover:text-destructive transition-colors">
                       <X className="w-3 h-3" />
                     </button>
                   </Badge>
                 ))}
+                <Select onValueChange={handleAddTag}>
+                  <SelectTrigger className="h-8 w-32 text-sm border-dashed">
+                    <SelectValue placeholder="+ Add tag" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {predefinedTags
+                      .filter(tag => !editedContact.tags?.includes(tag))
+                      .map((tag) => (
+                        <SelectItem key={tag} value={tag} className="text-sm">{tag}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
-
-              {/* Add Tag */}
-              <Select onValueChange={handleAddTag}>
-                <SelectTrigger className="h-8 w-40 text-xs">
-                  <SelectValue placeholder="+ Add tag" />
-                </SelectTrigger>
-                <SelectContent>
-                  {predefinedTags
-                    .filter(tag => !editedContact.tags?.includes(tag))
-                    .map((tag) => (
-                      <SelectItem key={tag} value={tag} className="text-xs">{tag}</SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Single Scrollable Content Area */}
+      {/* Single Scrollable Content Area - NO NESTED SCROLLBARS */}
       <div className="flex-1 overflow-y-auto">
-        <div className="px-6 py-4">
-          <Accordion 
-            type="single" 
-            collapsible 
-            value={expandedSection} 
-            onValueChange={setExpandedSection}
-            className="space-y-3"
-          >
-            {/* AI Insights Section */}
-            <AccordionItem value="ai-insights" className="border border-primary/20 rounded-lg bg-gradient-to-br from-primary/5 to-transparent overflow-hidden">
-              <AccordionTrigger className="px-5 py-4 hover:no-underline">
-                <div className="flex items-center gap-3">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  <span className="font-semibold">AI Insights</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-5 pb-5">
-                <div className="space-y-4">
-                  <p className="text-sm leading-relaxed text-foreground">
-                    High engagement contact with strong buying signals. Recommended next action: Schedule technical deep-dive within 7 days.
-                  </p>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <TrendingUp className="w-4 h-4 text-primary" />
-                    <span>Engagement trending upward</span>
-                  </div>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Contact Information Section */}
-            <AccordionItem value="contact-info" className="border border-border rounded-lg overflow-hidden">
-              <AccordionTrigger className="px-5 py-4 hover:no-underline">
-                <div className="flex items-center gap-3">
-                  <User className="w-5 h-5" />
-                  <span className="font-semibold">Contact Information</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-5 pb-5">
-                <div className="space-y-4">
-                  {/* Email */}
-                  <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30 group">
-                    <Mail className="w-5 h-5 text-muted-foreground shrink-0" />
-                    {isEditing === "email" ? (
-                      <div className="flex-1 space-y-3">
-                        <Input
-                          type="email"
-                          value={editedContact.email}
-                          onChange={(e) => setEditedContact({ ...editedContact, email: e.target.value })}
-                          className="h-10"
-                          autoFocus
-                        />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleSave("email", editedContact.email)}>
-                            <Save className="w-3 h-3 mr-1" /> Save
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setIsEditing(null)}>Cancel</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <a href={`mailto:${editedContact.email}`} className="text-primary hover:underline flex-1 text-sm">
-                          {editedContact.email}
-                        </a>
-                        <Button size="sm" variant="ghost" className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0" onClick={() => setIsEditing("email")}>
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Phone */}
-                  <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30 group">
-                    <Phone className="w-5 h-5 text-muted-foreground shrink-0" />
-                    {isEditing === "phone" ? (
-                      <div className="flex-1 space-y-3">
-                        <Input
-                          type="tel"
-                          value={editedContact.phone}
-                          onChange={(e) => setEditedContact({ ...editedContact, phone: e.target.value })}
-                          className="h-10"
-                          autoFocus
-                        />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => handleSave("phone", editedContact.phone)}>
-                            <Save className="w-3 h-3 mr-1" /> Save
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setIsEditing(null)}>Cancel</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <span className="flex-1 text-sm">{editedContact.phone}</span>
-                        <Button size="sm" variant="ghost" className="opacity-0 group-hover:opacity-100 h-8 w-8 p-0" onClick={() => setIsEditing("phone")}>
-                          <Edit2 className="w-4 h-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Department */}
-                  <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-                    <Building2 className="w-5 h-5 text-muted-foreground shrink-0" />
-                    <span className="text-sm">{editedContact.department}</span>
-                  </div>
-
-                  {/* Seniority */}
-                  <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-                    <Briefcase className="w-5 h-5 text-muted-foreground shrink-0" />
-                    <span className="text-sm">{seniorityConfig[editedContact.seniority]}</span>
-                  </div>
-
-                  {/* Location */}
-                  {editedContact.location && (
-                    <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-                      <MapPin className="w-5 h-5 text-muted-foreground shrink-0" />
-                      <span className="text-sm">{editedContact.location}</span>
-                    </div>
-                  )}
-
-                  {/* LinkedIn */}
-                  {editedContact.linkedIn && (
-                    <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-                      <Linkedin className="w-5 h-5 text-muted-foreground shrink-0" />
-                      <a href={editedContact.linkedIn} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-sm">
-                        View LinkedIn Profile
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-
-            {/* Engagement & Ownership Section */}
-            <AccordionItem value="engagement" className="border border-border rounded-lg overflow-hidden">
-              <AccordionTrigger className="px-5 py-4 hover:no-underline">
-                <div className="flex items-center gap-3">
+        <div className={cn(
+          "px-6 py-6 space-y-4",
+          focusedSection && "flex flex-col"
+        )}>
+          {/* AI Insights Section */}
+          {(!focusedSection || focusedSection === "ai-insights") && (
+            <Section
+              id="ai-insights"
+              title="AI Insights"
+              icon={<Sparkles className="w-5 h-5" />}
+              isOpen={openSection === "ai-insights"}
+              isFocused={focusedSection === "ai-insights"}
+              onToggle={() => toggleSection("ai-insights")}
+              onFocus={() => toggleFocus("ai-insights")}
+            >
+              <div className="p-5 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+                <p className="text-base leading-relaxed text-foreground mb-4">
+                  High engagement contact with strong buying signals. Recommended next action: Schedule technical deep-dive within 7 days.
+                </p>
+                <div className="flex items-center gap-3 text-base text-primary font-medium">
                   <TrendingUp className="w-5 h-5" />
-                  <span className="font-semibold">Engagement & Ownership</span>
+                  <span>Engagement trending upward</span>
                 </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-5 pb-5">
-                <div className="space-y-5">
-                  {/* Engagement Score */}
-                  <div className="p-4 rounded-lg bg-muted/30">
-                    <div className="flex justify-between text-sm mb-3">
-                      <span className="text-muted-foreground">Engagement Score</span>
-                      <span className="font-bold text-lg">{editedContact.engagementScore}/100</span>
-                    </div>
-                    <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-primary/60 to-primary transition-all rounded-full"
-                        style={{ width: `${editedContact.engagementScore}%` }}
-                      />
+              </div>
+            </Section>
+          )}
+
+          {/* Contact Information Section */}
+          {(!focusedSection || focusedSection === "contact-info") && (
+            <Section
+              id="contact-info"
+              title="Contact Information"
+              icon={<User className="w-5 h-5" />}
+              isOpen={openSection === "contact-info"}
+              isFocused={focusedSection === "contact-info"}
+              onToggle={() => toggleSection("contact-info")}
+              onFocus={() => toggleFocus("contact-info")}
+            >
+              <div className="space-y-4">
+                <EditableField field="email" value={editedContact.email} icon={<Mail className="w-5 h-5" />} type="email" />
+                <EditableField field="phone" value={editedContact.phone} icon={<Phone className="w-5 h-5" />} type="tel" />
+                <DisplayField value={editedContact.department} icon={<Building2 className="w-5 h-5" />} label="Department" />
+                <DisplayField value={seniorityConfig[editedContact.seniority]} icon={<Briefcase className="w-5 h-5" />} label="Seniority" />
+                {editedContact.location && (
+                  <DisplayField value={editedContact.location} icon={<MapPin className="w-5 h-5" />} label="Location" />
+                )}
+                {editedContact.linkedIn && (
+                  <EditableField field="linkedIn" value={editedContact.linkedIn} icon={<Linkedin className="w-5 h-5" />} />
+                )}
+              </div>
+            </Section>
+          )}
+
+          {/* Engagement & Ownership Section */}
+          {(!focusedSection || focusedSection === "engagement") && (
+            <Section
+              id="engagement"
+              title="Engagement & Ownership"
+              icon={<TrendingUp className="w-5 h-5" />}
+              isOpen={openSection === "engagement"}
+              isFocused={focusedSection === "engagement"}
+              onToggle={() => toggleSection("engagement")}
+              onFocus={() => toggleFocus("engagement")}
+            >
+              <div className="space-y-5">
+                {/* Engagement Score */}
+                <div className="p-5 rounded-xl bg-muted/40">
+                  <div className="flex justify-between text-base mb-4">
+                    <span className="text-muted-foreground font-medium">Engagement Score</span>
+                    <span className="font-bold text-2xl text-primary">{editedContact.engagementScore}/100</span>
+                  </div>
+                  <div className="w-full h-4 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-primary/60 to-primary transition-all rounded-full"
+                      style={{ width: `${editedContact.engagementScore}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4">
+                  <div className="rounded-xl bg-muted/40 p-4">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide block mb-2">Last Contact</span>
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 rounded-lg bg-background/50 text-muted-foreground">
+                        <Calendar className="w-5 h-5" />
+                      </div>
+                      <span className="text-base font-medium">{editedContact.lastContact}</span>
                     </div>
                   </div>
 
-                  {/* Last Contact */}
-                  <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-                    <Calendar className="w-5 h-5 text-muted-foreground shrink-0" />
-                    <div className="flex-1">
-                      <span className="text-xs text-muted-foreground block">Last Contact</span>
-                      <span className="text-sm font-medium">{editedContact.lastContact}</span>
-                    </div>
-                  </div>
-
-                  {/* Next Follow-up */}
                   {editedContact.nextFollowUp && (
-                    <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-                      <Clock className="w-5 h-5 text-muted-foreground shrink-0" />
-                      <div className="flex-1">
-                        <span className="text-xs text-muted-foreground block">Next Follow-up</span>
-                        <span className="text-sm font-medium">{editedContact.nextFollowUp}</span>
+                    <div className="rounded-xl bg-muted/40 p-4">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide block mb-2">Next Follow-up</span>
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 rounded-lg bg-background/50 text-muted-foreground">
+                          <Clock className="w-5 h-5" />
+                        </div>
+                        <span className="text-base font-medium">{editedContact.nextFollowUp}</span>
                       </div>
                     </div>
                   )}
 
-                  {/* Owner */}
                   {editedContact.contactOwner && (
-                    <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
-                      <User className="w-5 h-5 text-muted-foreground shrink-0" />
-                      <div className="flex-1">
-                        <span className="text-xs text-muted-foreground block">Contact Owner</span>
-                        <span className="text-sm font-medium">{editedContact.contactOwner}</span>
+                    <div className="rounded-xl bg-muted/40 p-4">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wide block mb-2">Contact Owner</span>
+                      <div className="flex items-center gap-4">
+                        <div className="p-2 rounded-lg bg-background/50 text-muted-foreground">
+                          <User className="w-5 h-5" />
+                        </div>
+                        <span className="text-base font-medium">{editedContact.contactOwner}</span>
                       </div>
                     </div>
                   )}
                 </div>
-              </AccordionContent>
-            </AccordionItem>
+              </div>
+            </Section>
+          )}
 
-            {/* Notes Section */}
-            <AccordionItem value="notes" className="border border-border rounded-lg overflow-hidden">
-              <AccordionTrigger className="px-5 py-4 hover:no-underline">
-                <div className="flex items-center gap-3">
-                  <FileText className="w-5 h-5" />
-                  <span className="font-semibold">Notes</span>
-                  <Badge variant="secondary" className="ml-2">{mockNotes.length}</Badge>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-5 pb-5">
-                <div className="space-y-4">
-                  {/* Search & Add */}
-                  <div className="flex items-center gap-3">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search notes..."
-                        value={noteSearchQuery}
-                        onChange={(e) => setNoteSearchQuery(e.target.value)}
-                        className="pl-10 h-10"
-                      />
-                    </div>
-                    <Button onClick={() => setIsAddingNote(true)} disabled={isAddingNote}>
-                      <Plus className="w-4 h-4 mr-2" /> Add Note
-                    </Button>
+          {/* Notes Section */}
+          {(!focusedSection || focusedSection === "notes") && (
+            <Section
+              id="notes"
+              title="Notes"
+              icon={<FileText className="w-5 h-5" />}
+              badge={mockNotes.length}
+              isOpen={openSection === "notes"}
+              isFocused={focusedSection === "notes"}
+              onToggle={() => toggleSection("notes")}
+              onFocus={() => toggleFocus("notes")}
+            >
+              <div className="space-y-5">
+                {/* Search & Add */}
+                <div className="flex items-center gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search notes..."
+                      value={noteSearchQuery}
+                      onChange={(e) => setNoteSearchQuery(e.target.value)}
+                      className="pl-12 h-12 text-base"
+                    />
                   </div>
+                  <Button onClick={() => setIsAddingNote(true)} disabled={isAddingNote} className="h-12 px-5">
+                    <Plus className="w-5 h-5 mr-2" /> Add Note
+                  </Button>
+                </div>
 
-                  {/* Add Note Form */}
-                  {isAddingNote && (
-                    <div className="p-4 rounded-lg bg-muted/50 space-y-4 animate-fade-in">
-                      <Textarea
-                        placeholder="Type your note here..."
-                        value={newNoteContent}
-                        onChange={(e) => setNewNoteContent(e.target.value)}
-                        className="min-h-[120px] text-base leading-relaxed resize-y"
-                        autoFocus
-                      />
-                      <div className="flex gap-3">
-                        <Button onClick={handleAddNote}>
-                          <Save className="w-4 h-4 mr-2" /> Save Note
-                        </Button>
-                        <Button variant="ghost" onClick={() => { setIsAddingNote(false); setNewNoteContent(""); }}>
-                          Cancel
-                        </Button>
-                      </div>
+                {/* Add Note Form - FULL WIDTH */}
+                {isAddingNote && (
+                  <div className="p-6 rounded-xl bg-muted/50 space-y-5 animate-fade-in">
+                    <Textarea
+                      placeholder="Type your note here..."
+                      value={newNoteContent}
+                      onChange={(e) => setNewNoteContent(e.target.value)}
+                      className="min-h-[180px] text-base leading-relaxed resize-y p-4"
+                      autoFocus
+                    />
+                    <div className="flex gap-4">
+                      <Button onClick={handleAddNote} className="h-11 px-6">
+                        <Save className="w-4 h-4 mr-2" /> Save Note
+                      </Button>
+                      <Button variant="ghost" onClick={() => { setIsAddingNote(false); setNewNoteContent(""); }} className="h-11">
+                        Cancel
+                      </Button>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {/* Notes List */}
-                  <div className="space-y-3">
-                    {sortedNotes.length === 0 ? (
-                      <p className="text-sm text-muted-foreground text-center py-8">
+                {/* Notes List - FULL WIDTH CARDS */}
+                <div className="space-y-4">
+                  {sortedNotes.length === 0 ? (
+                    <div className="text-center py-12 rounded-xl bg-muted/30">
+                      <FileText className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+                      <p className="text-base text-muted-foreground">
                         {noteSearchQuery ? "No notes found" : "No notes yet. Add your first note above."}
                       </p>
-                    ) : (
-                      sortedNotes.map((note) => (
-                        <div key={note.id} className="p-4 rounded-lg bg-muted/30 space-y-3">
-                          {editingNoteId === note.id ? (
-                            <div className="space-y-4">
-                              <Textarea
-                                value={editNoteContent}
-                                onChange={(e) => setEditNoteContent(e.target.value)}
-                                className="min-h-[120px] text-base leading-relaxed resize-y"
-                                autoFocus
-                              />
-                              <div className="flex gap-3">
-                                <Button onClick={() => handleEditNote(note.id)}>
-                                  <Save className="w-4 h-4 mr-2" /> Save
+                    </div>
+                  ) : (
+                    sortedNotes.map((note) => (
+                      <div key={note.id} className="p-5 rounded-xl bg-muted/40 space-y-4">
+                        {editingNoteId === note.id ? (
+                          <div className="space-y-5">
+                            <Textarea
+                              value={editNoteContent}
+                              onChange={(e) => setEditNoteContent(e.target.value)}
+                              className="min-h-[180px] text-base leading-relaxed resize-y p-4"
+                              autoFocus
+                            />
+                            <div className="flex gap-4">
+                              <Button onClick={() => handleEditNote(note.id)} className="h-11 px-6">
+                                <Save className="w-4 h-4 mr-2" /> Save
+                              </Button>
+                              <Button variant="ghost" onClick={() => { setEditingNoteId(null); setEditNoteContent(""); }} className="h-11">
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <span className="text-base font-semibold">{note.author}</span>
+                                {note.pinned && (
+                                  <Badge variant="secondary" className="h-7 px-3">
+                                    <Pin className="w-3 h-3 mr-1.5 fill-current" /> Pinned
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-muted-foreground">{note.date}</span>
+                                <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => handlePinNote(note.id)}>
+                                  <Pin className={cn("w-4 h-4", note.pinned && "fill-current")} />
                                 </Button>
-                                <Button variant="ghost" onClick={() => { setEditingNoteId(null); setEditNoteContent(""); }}>
-                                  Cancel
+                                <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => { setEditingNoteId(note.id); setEditNoteContent(note.content); }}>
+                                  <Edit2 className="w-4 h-4" />
                                 </Button>
                               </div>
                             </div>
-                          ) : (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-sm font-medium">{note.author}</span>
-                                  {note.pinned && (
-                                    <Badge variant="secondary" className="h-6 px-2">
-                                      <Pin className="w-3 h-3 mr-1 fill-current" /> Pinned
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-muted-foreground">{note.date}</span>
-                                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handlePinNote(note.id)}>
-                                    <Pin className={`w-4 h-4 ${note.pinned ? 'fill-current' : ''}`} />
-                                  </Button>
-                                  <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => { setEditingNoteId(note.id); setEditNoteContent(note.content); }}>
-                                    <Edit2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                              <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{note.content}</p>
-                            </>
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
+                            <p className="text-base leading-relaxed text-foreground whitespace-pre-wrap">{note.content}</p>
+                          </>
+                        )}
+                      </div>
+                    ))
+                  )}
                 </div>
-              </AccordionContent>
-            </AccordionItem>
+              </div>
+            </Section>
+          )}
 
-            {/* Activity Timeline Section */}
-            <AccordionItem value="activity" className="border border-border rounded-lg overflow-hidden">
-              <AccordionTrigger className="px-5 py-4 hover:no-underline">
-                <div className="flex items-center gap-3">
-                  <ActivityIcon className="w-5 h-5" />
-                  <span className="font-semibold">Activity Timeline</span>
-                  <Badge variant="secondary" className="ml-2">{mockActivities.length}</Badge>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-5 pb-5">
-                <div className="space-y-1">
-                  {mockActivities.map((activity, index) => (
-                    <div key={activity.id} className="flex gap-4 py-4">
-                      <div className="flex flex-col items-center">
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-                          {getActivityIcon(activity.type)}
-                        </div>
-                        {index < mockActivities.length - 1 && (
-                          <div className="w-px h-full bg-border mt-2" />
-                        )}
+          {/* Activity Timeline Section */}
+          {(!focusedSection || focusedSection === "activity") && (
+            <Section
+              id="activity"
+              title="Activity Timeline"
+              icon={<ActivityIcon className="w-5 h-5" />}
+              badge={mockActivities.length}
+              isOpen={openSection === "activity"}
+              isFocused={focusedSection === "activity"}
+              onToggle={() => toggleSection("activity")}
+              onFocus={() => toggleFocus("activity")}
+            >
+              <div className="space-y-1">
+                {mockActivities.map((activity, index) => (
+                  <div key={activity.id} className="flex gap-5 py-5">
+                    <div className="flex flex-col items-center">
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+                        {getActivityIcon(activity.type)}
                       </div>
-                      <div className="flex-1 pb-4">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium capitalize">{activity.type.replace("-", " ")}</span>
-                          <span className="text-xs text-muted-foreground">{activity.date}</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">{activity.description}</p>
-                        {activity.metadata && (
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {Object.entries(activity.metadata).map(([key, value]) => (
-                              <Badge key={key} variant="outline" className="text-xs">
-                                {key}: {value}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      {index < mockActivities.length - 1 && (
+                        <div className="w-px h-full bg-border mt-3" />
+                      )}
                     </div>
-                  ))}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+                    <div className="flex-1 pb-2">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-base font-semibold capitalize">{activity.type.replace("-", " ")}</span>
+                        <span className="text-sm text-muted-foreground">{activity.date}</span>
+                      </div>
+                      <p className="text-base text-muted-foreground leading-relaxed">{activity.description}</p>
+                      {activity.metadata && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {Object.entries(activity.metadata).map(([key, value]) => (
+                            <Badge key={key} variant="outline" className="text-sm">
+                              {key}: {value}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
         </div>
       </div>
 
-      {/* Action Buttons */}
-      <div className="sticky bottom-0 bg-background border-t border-border p-4 space-y-3">
-        <Button className="w-full h-11">
-          <Mail className="w-4 h-4 mr-2" /> Send Email
+      {/* Action Buttons - Sticky Footer */}
+      <div className="sticky bottom-0 bg-background border-t border-border p-5 space-y-4">
+        <Button className="w-full h-12 text-base">
+          <Mail className="w-5 h-5 mr-2" /> Send Email
         </Button>
-        <div className="grid grid-cols-2 gap-3">
-          <Button variant="outline" className="h-10">
-            <Phone className="w-4 h-4 mr-2" /> Call
+        <div className="grid grid-cols-2 gap-4">
+          <Button variant="outline" className="h-11 text-base">
+            <Phone className="w-5 h-5 mr-2" /> Call
           </Button>
-          <Button variant="outline" className="h-10">
-            <Calendar className="w-4 h-4 mr-2" /> Schedule
+          <Button variant="outline" className="h-11 text-base">
+            <Calendar className="w-5 h-5 mr-2" /> Schedule
           </Button>
         </div>
       </div>

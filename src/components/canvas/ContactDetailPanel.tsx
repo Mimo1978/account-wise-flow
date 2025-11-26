@@ -33,8 +33,18 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
-  Focus
+  Focus,
+  Camera,
+  Mic,
+  CreditCard,
+  Network
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -415,11 +425,60 @@ export const ContactDetailPanel = ({
     )}>
       {/* Sticky Header */}
       <div className="sticky top-0 z-10 bg-background border-b border-border">
-        {/* Quick Capture Tools & Expand Button */}
+        {/* Quick Capture Tools, Actions & Expand Button */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-border/50">
-          <div className="flex items-center gap-3">
-            <PhotoCapture onDataExtracted={handlePhotoDataExtracted} />
+          <div className="flex items-center gap-2">
+            {/* Capture Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Camera className="w-4 h-4" />
+                  Capture
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={() => document.getElementById('photo-capture-trigger')?.click()}>
+                  <User className="w-4 h-4 mr-2" />
+                  Contact Photo
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => document.getElementById('photo-capture-trigger')?.click()}>
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Business Card
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setIsAddingNote(true); setOpenSection("notes"); }}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Notes
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Network className="w-4 h-4 mr-2" />
+                  Org Chart
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            
             <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
+            
+            {/* Hidden PhotoCapture trigger */}
+            <div className="hidden">
+              <PhotoCapture onDataExtracted={handlePhotoDataExtracted} />
+            </div>
+
+            <div className="w-px h-6 bg-border mx-1" />
+
+            {/* Action Buttons */}
+            <Button variant="outline" size="sm" className="gap-2">
+              <Phone className="w-4 h-4" />
+              Call
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Mail className="w-4 h-4" />
+              Email
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Calendar className="w-4 h-4" />
+              Schedule
+            </Button>
           </div>
           <div className="flex items-center gap-2">
             {onExpandToggle && (
@@ -824,20 +883,6 @@ export const ContactDetailPanel = ({
         </div>
       </div>
 
-      {/* Action Buttons - Sticky Footer */}
-      <div className="sticky bottom-0 bg-background border-t border-border p-5 space-y-4">
-        <Button className="w-full h-12 text-base">
-          <Mail className="w-5 h-5 mr-2" /> Send Email
-        </Button>
-        <div className="grid grid-cols-2 gap-4">
-          <Button variant="outline" className="h-11 text-base">
-            <Phone className="w-5 h-5 mr-2" /> Call
-          </Button>
-          <Button variant="outline" className="h-11 text-base">
-            <Calendar className="w-5 h-5 mr-2" /> Schedule
-          </Button>
-        </div>
-      </div>
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhotoCapture } from "./PhotoCapture";
 import { VoiceInput } from "./VoiceInput";
+import { CallActionModal } from "./CallActionModal";
 import { useDraggable } from "@/hooks/use-draggable";
 import { 
   X, 
@@ -541,10 +542,16 @@ export const ContactDetailPanel = ({
             <div className="w-px h-6 bg-border mx-1" />
 
             {/* Action Buttons */}
-            <Button variant="outline" size="sm" className="gap-2">
-              <Phone className="w-4 h-4" />
-              Call
-            </Button>
+            <CallActionModal 
+              phone={editedContact.phone} 
+              email={editedContact.email}
+              contactName={editedContact.name}
+            >
+              <Button variant="outline" size="sm" className="gap-2">
+                <Phone className="w-4 h-4" />
+                Call
+              </Button>
+            </CallActionModal>
             <Button variant="outline" size="sm" className="gap-2">
               <Mail className="w-4 h-4" />
               Email

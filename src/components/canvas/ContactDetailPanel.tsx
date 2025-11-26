@@ -10,6 +10,7 @@ import { PhotoCapture } from "./PhotoCapture";
 import { VoiceInput } from "./VoiceInput";
 import { CallActionModal } from "./CallActionModal";
 import { EmailActionModal } from "./EmailActionModal";
+import { ScheduleActionModal } from "./ScheduleActionModal";
 import { useDraggable } from "@/hooks/use-draggable";
 import { 
   X, 
@@ -563,10 +564,15 @@ export const ContactDetailPanel = ({
                 Email
               </Button>
             </EmailActionModal>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Calendar className="w-4 h-4" />
-              Schedule
-            </Button>
+            <ScheduleActionModal
+              email={editedContact.email}
+              contactName={editedContact.name}
+            >
+              <Button variant="outline" size="sm" className="gap-2">
+                <Calendar className="w-4 h-4" />
+                Schedule
+              </Button>
+            </ScheduleActionModal>
           </div>
         </div>
 

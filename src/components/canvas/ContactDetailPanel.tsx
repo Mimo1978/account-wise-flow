@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhotoCapture } from "./PhotoCapture";
 import { VoiceInput } from "./VoiceInput";
+import { useDraggable } from "@/hooks/use-draggable";
 import { 
   X, 
   Mail, 
@@ -35,9 +36,9 @@ import {
   ChevronRight,
   Focus,
   Camera,
-  Mic,
   CreditCard,
-  Network
+  Network,
+  GripHorizontal
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -190,6 +191,19 @@ export const ContactDetailPanel = ({
   const [newNoteContent, setNewNoteContent] = useState("");
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editNoteContent, setEditNoteContent] = useState("");
+
+  // Draggable functionality for floating mode
+  const { position, setPosition, isDragging, dragRef, dragHandleProps } = useDraggable({
+    initialPosition: { x: window.innerWidth - 920, y: 100 },
+    bounds: "viewport",
+  });
+
+  // Reset position when contact changes
+  useEffect(() => {
+    if (!isExpanded) {
+      setPosition({ x: window.innerWidth - 920, y: 100 });
+    }
+  }, [contact?.id, isExpanded, setPosition]);
 
   useEffect(() => {
     if (contact && editedContact) {
@@ -419,16 +433,40 @@ export const ContactDetailPanel = ({
   );
 
   return (
-    <div className={cn(
-      "flex flex-col transition-all duration-300 bg-background",
-      isExpanded 
-        ? "fixed inset-4 z-50 rounded-2xl shadow-2xl border border-border animate-scale-in" 
-        : "h-full w-[560px] rounded-l-2xl shadow-xl border border-border animate-slide-in-right"
-    )}>
+    <div 
+      ref={!isExpanded ? dragRef : undefined}
+      className={cn(
+        "flex flex-col bg-background pointer-events-auto",
+        isExpanded 
+          ? "fixed inset-4 z-50 rounded-2xl shadow-2xl border border-border animate-scale-in" 
+          : "fixed z-[9999] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-border min-w-[740px] w-[880px] max-w-[960px] max-h-[calc(100vh-140px)]"
+      )}
+      style={!isExpanded ? {
+        left: position.x,
+        top: position.y,
+        transition: isDragging ? 'none' : 'box-shadow 0.2s ease',
+      } : undefined}
+    >
+      {/* Drag Handle Bar - Only visible in floating mode */}
+      {!isExpanded && (
+        <div 
+          {...dragHandleProps}
+          className="flex items-center justify-center py-2 bg-muted/50 rounded-t-2xl border-b border-border/50 hover:bg-muted/70 transition-colors"
+        >
+          <GripHorizontal className="w-5 h-5 text-muted-foreground" />
+        </div>
+      )}
+      
       {/* Panel Header with Title */}
-      <div className="sticky top-0 z-10 bg-background rounded-t-2xl border-b border-border">
+      <div className={cn(
+        "sticky top-0 z-10 bg-background border-b border-border",
+        isExpanded && "rounded-t-2xl"
+      )}>
         {/* Panel Title Bar */}
-        <div className="flex items-center justify-between px-6 py-3 bg-muted/30 rounded-t-2xl">
+        <div className={cn(
+          "flex items-center justify-between px-6 py-3 bg-muted/30",
+          isExpanded && "rounded-t-2xl"
+        )}>
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
               <User className="w-5 h-5 text-primary" />

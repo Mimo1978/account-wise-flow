@@ -9,7 +9,6 @@ import { QRCodeButton } from "@/components/canvas/QRCodeButton";
 import { mockAccount } from "@/lib/mock-data";
 import { Contact } from "@/lib/types";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -122,41 +121,17 @@ const Canvas = () => {
         </div>
       </header>
 
-      {/* Canvas Area */}
-      <main className="flex-1 overflow-hidden flex relative">
-        <div className="flex-1">
+      {/* Canvas Area - Always fully visible and interactive */}
+      <main className="flex-1 overflow-hidden relative">
+        <div className="w-full h-full">
           <AccountCanvas 
             account={account} 
             onContactClick={handleContactClick}
           />
         </div>
-        
-        {/* Dimmed Overlay when panel is open */}
-        {selectedContact && (
-          <div 
-            className={cn(
-              "fixed inset-0 bg-background/40 backdrop-blur-sm transition-opacity duration-300",
-              isExpanded ? "z-40" : "z-10"
-            )}
-            onClick={isExpanded ? () => setIsExpanded(false) : undefined}
-          />
-        )}
 
-        {/* Floating Contact Panel */}
-        {selectedContact && !isExpanded && (
-          <div className="fixed top-24 right-6 bottom-20 z-20 animate-slide-in-right">
-            <ContactDetailPanel 
-              contact={selectedContact} 
-              onClose={handleClosePanel}
-              isExpanded={isExpanded}
-              onExpandToggle={() => setIsExpanded(!isExpanded)}
-              onUnsavedChanges={setHasUnsavedChanges}
-            />
-          </div>
-        )}
-        
-        {/* Full Screen Contact Panel */}
-        {selectedContact && isExpanded && (
+        {/* Floating Contact Panel - No overlay, no dimming, canvas stays interactive */}
+        {selectedContact && (
           <ContactDetailPanel 
             contact={selectedContact} 
             onClose={handleClosePanel}

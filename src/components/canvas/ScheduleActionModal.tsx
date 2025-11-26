@@ -16,12 +16,18 @@ import {
   Sparkles,
   Globe,
   X,
-  Send
+  Send,
+  Phone,
+  CalendarClock,
+  MessageSquare
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format, addMinutes, addHours, addDays, setHours, setMinutes} from "date-fns";
 
 interface ScheduleActionModalProps {
   email?: string;
@@ -30,7 +36,7 @@ interface ScheduleActionModalProps {
   onOpenComposer?: (email: string, subject: string, body: string) => void;
 }
 
-type ModalView = "main" | "attendees" | "propose-times" | "ai-scheduler";
+type ModalView = "main" | "attendees" | "propose-times" | "ai-scheduler" | "callbacks" | "callback-custom" | "callback-ai";
 
 interface TimeSlot {
   id: string;
@@ -38,6 +44,13 @@ interface TimeSlot {
   time: string;
   label: string;
   confidence?: number;
+}
+
+interface CallbackOption {
+  id: string;
+  label: string;
+  description: string;
+  getDate: () => Date;
 }
 
 const calendarOptions = [
@@ -51,6 +64,37 @@ const suggestedTimes: TimeSlot[] = [
   { id: "1", date: "Tomorrow", time: "10:00 AM", label: "Morning slot", confidence: 95 },
   { id: "2", date: "Tomorrow", time: "2:00 PM", label: "Afternoon slot", confidence: 87 },
   { id: "3", date: "Thursday", time: "11:00 AM", label: "Mid-morning", confidence: 82 },
+];
+
+const callbackOptions: CallbackOption[] = [
+  { 
+    id: "15min", 
+    label: "Call back in 15 minutes", 
+    description: "Quick follow-up",
+    getDate: () => addMinutes(new Date(), 15)
+  },
+  { 
+    id: "1hour", 
+    label: "Call back in 1 hour", 
+    description: "Short delay",
+    getDate: () => addHours(new Date(), 1)
+  },
+  { 
+    id: "tomorrow", 
+    label: "Call back tomorrow morning", 
+    description: "9:00 AM",
+    getDate: () => setMinutes(setHours(addDays(new Date(), 1), 9), 0)
+  },
+  { 
+    id: "nextweek", 
+    label: "Call back next week", 
+    description: "Same time, Monday",
+    getDate: () => {
+      const now = new Date();
+      const daysUntilMonday = (8 - now.getDay()) % 7 || 7;
+      return addDays(now, daysUntilMonday);
+    }
+  },
 ];
 
 const generateICSContent = (title: string, attendees: string[], date: Date, duration: number = 60) => {
@@ -83,6 +127,13 @@ export const ScheduleActionModal = ({
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<TimeSlot[] | null>(null);
+  
+  // Callback state
+  const [callbackNote, setCallbackNote] = useState("");
+  const [callbackDate, setCallbackDate] = useState<Date | undefined>(undefined);
+  const [callbackTime, setCallbackTime] = useState("09:00");
+  const [aiCallbackSuggestion, setAiCallbackSuggestion] = useState<{ date: Date; reason: string } | null>(null);
+  const [isAiCallbackAnalyzing, setIsAiCallbackAnalyzing] = useState(false);
 
   const handleOpenCalendar = (calendarType: string) => {
     const meetingTitle = `Meeting with ${contactName}`;
@@ -210,6 +261,95 @@ export const ScheduleActionModal = ({
     if (view === "main") return;
     setView("main");
     setAiSuggestions(null);
+    setAiCallbackSuggestion(null);
+  };
+
+  const handleQuickCallback = (option: CallbackOption) => {
+    const callbackDateTime = option.getDate();
+    
+    // Create calendar reminder
+    const reminderTitle = `Call back: ${contactName}`;
+    const icsContent = generateICSContent(reminderTitle, [], callbackDateTime, 15);
+    const blob = new Blob([icsContent], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `callback-${contactName.replace(/\s+/g, '-')}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    toast.success(`Callback scheduled: ${option.label}`, {
+      description: callbackNote ? `Note: ${callbackNote}` : `Reminder created for ${format(callbackDateTime, "PPp")}`
+    });
+    
+    setOpen(false);
+    setCallbackNote("");
+  };
+
+  const handleCustomCallback = () => {
+    if (!callbackDate) {
+      toast.error("Please select a date");
+      return;
+    }
+    
+    const [hours, minutes] = callbackTime.split(':').map(Number);
+    const callbackDateTime = setMinutes(setHours(callbackDate, hours), minutes);
+    
+    const reminderTitle = `Call back: ${contactName}`;
+    const icsContent = generateICSContent(reminderTitle, [], callbackDateTime, 15);
+    const blob = new Blob([icsContent], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `callback-${contactName.replace(/\s+/g, '-')}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    toast.success(`Callback scheduled for ${format(callbackDateTime, "PPp")}`, {
+      description: callbackNote ? `Note: ${callbackNote}` : "Reminder downloaded"
+    });
+    
+    setOpen(false);
+    setCallbackNote("");
+    setCallbackDate(undefined);
+  };
+
+  const handleAiCallbackSuggestion = () => {
+    setIsAiCallbackAnalyzing(true);
+    
+    // Simulate AI analysis based on engagement patterns
+    setTimeout(() => {
+      const suggestedDate = addDays(new Date(), 2);
+      setHours(suggestedDate, 14);
+      setMinutes(suggestedDate, 30);
+      
+      setAiCallbackSuggestion({
+        date: setMinutes(setHours(suggestedDate, 14), 30),
+        reason: "Based on past engagement, this contact responds best in early afternoon. Their last activity was 2 days ago."
+      });
+      setIsAiCallbackAnalyzing(false);
+    }, 1200);
+  };
+
+  const handleAcceptAiCallback = () => {
+    if (!aiCallbackSuggestion) return;
+    
+    const reminderTitle = `Call back: ${contactName}`;
+    const icsContent = generateICSContent(reminderTitle, [], aiCallbackSuggestion.date, 15);
+    const blob = new Blob([icsContent], { type: 'text/calendar' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `callback-${contactName.replace(/\s+/g, '-')}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    toast.success(`AI-suggested callback scheduled`, {
+      description: `${format(aiCallbackSuggestion.date, "PPp")}`
+    });
+    
+    setOpen(false);
+    setAiCallbackSuggestion(null);
   };
 
   const renderMainView = () => (
@@ -280,6 +420,59 @@ export const ScheduleActionModal = ({
           </div>
         </div>
         <Badge variant="secondary" className="text-xs">Recommended</Badge>
+      </button>
+
+      <div className="h-px bg-border my-2" />
+
+      {/* Call-Backs Section */}
+      <p className="text-xs text-muted-foreground px-3 py-1">Call-Backs</p>
+      
+      <button
+        onClick={() => setView("callbacks")}
+        className="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-accent transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="p-1.5 rounded-full bg-orange-500/10">
+            <Phone className="w-4 h-4 text-orange-500" />
+          </span>
+          <div className="text-left">
+            <span className="text-sm">Schedule Call-Back</span>
+            <p className="text-xs text-muted-foreground">Quick follow-up reminders</p>
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+      </button>
+
+      <button
+        onClick={() => setView("callback-custom")}
+        className="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-accent transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="p-1.5 rounded-full bg-orange-500/10">
+            <CalendarClock className="w-4 h-4 text-orange-500" />
+          </span>
+          <div className="text-left">
+            <span className="text-sm">Pick Date & Time</span>
+            <p className="text-xs text-muted-foreground">Custom callback scheduling</p>
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+      </button>
+
+      <button
+        onClick={() => { setView("callback-ai"); handleAiCallbackSuggestion(); }}
+        className="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-accent transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="p-1.5 rounded-full bg-gradient-to-br from-orange-500/20 to-amber-500/20">
+            <Sparkles className="w-4 h-4 text-orange-500" />
+          </span>
+          <div className="text-left">
+            <span className="text-sm">AI Suggested Follow-Up</span>
+            <p className="text-xs text-muted-foreground">Optimal callback time</p>
+          </div>
+        </div>
+        <Badge variant="outline" className="text-xs text-orange-500 border-orange-500/30">Smart</Badge>
       </button>
     </div>
   );
@@ -399,6 +592,136 @@ export const ScheduleActionModal = ({
     </div>
   );
 
+  const renderCallbacksView = () => (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground px-1">Quick callback scheduling</p>
+      
+      {/* Note input */}
+      <div className="px-1">
+        <div className="flex items-center gap-2 mb-2">
+          <MessageSquare className="w-3 h-3 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Add a note (optional)</span>
+        </div>
+        <Textarea
+          placeholder="Reason for callback..."
+          value={callbackNote}
+          onChange={(e) => setCallbackNote(e.target.value)}
+          className="h-16 text-sm resize-none"
+        />
+      </div>
+
+      <div className="space-y-1">
+        {callbackOptions.map((option) => (
+          <button
+            key={option.id}
+            onClick={() => handleQuickCallback(option)}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-md hover:bg-accent transition-colors border border-transparent hover:border-orange-500/20"
+          >
+            <div className="flex items-center gap-3">
+              <span className="p-1.5 rounded-full bg-orange-500/10">
+                <Phone className="w-4 h-4 text-orange-500" />
+              </span>
+              <div className="text-left">
+                <p className="text-sm font-medium">{option.label}</p>
+                <p className="text-xs text-muted-foreground">{option.description}</p>
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderCallbackCustomView = () => (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground px-1">Pick a specific date & time</p>
+      
+      {/* Date picker */}
+      <div className="flex justify-center">
+        <CalendarComponent
+          mode="single"
+          selected={callbackDate}
+          onSelect={setCallbackDate}
+          className="rounded-md border pointer-events-auto"
+          disabled={(date) => date < new Date()}
+        />
+      </div>
+
+      {/* Time picker */}
+      <div className="px-1">
+        <label className="text-xs text-muted-foreground mb-1 block">Time</label>
+        <Input
+          type="time"
+          value={callbackTime}
+          onChange={(e) => setCallbackTime(e.target.value)}
+          className="h-9"
+        />
+      </div>
+
+      {/* Note input */}
+      <div className="px-1">
+        <div className="flex items-center gap-2 mb-1">
+          <MessageSquare className="w-3 h-3 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">Note (optional)</span>
+        </div>
+        <Textarea
+          placeholder="Reason for callback..."
+          value={callbackNote}
+          onChange={(e) => setCallbackNote(e.target.value)}
+          className="h-14 text-sm resize-none"
+        />
+      </div>
+
+      <Button onClick={handleCustomCallback} className="w-full" size="sm" disabled={!callbackDate}>
+        <CalendarClock className="w-4 h-4 mr-2" />
+        Schedule Callback
+      </Button>
+    </div>
+  );
+
+  const renderCallbackAiView = () => (
+    <div className="space-y-3">
+      {isAiCallbackAnalyzing ? (
+        <div className="py-8 text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Analyzing engagement patterns...</p>
+          <p className="text-xs text-muted-foreground mt-1">Finding optimal follow-up time</p>
+        </div>
+      ) : aiCallbackSuggestion ? (
+        <>
+          <div className="flex items-center gap-2 px-1">
+            <Sparkles className="w-4 h-4 text-orange-500" />
+            <p className="text-xs text-muted-foreground">AI-suggested follow-up</p>
+          </div>
+          
+          <button
+            onClick={handleAcceptAiCallback}
+            className="w-full flex items-center justify-between px-3 py-4 rounded-md bg-orange-500/5 border border-orange-500/30 hover:bg-orange-500/10 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span className="p-2 rounded-full bg-orange-500/20">
+                <Phone className="w-5 h-5 text-orange-500" />
+              </span>
+              <div className="text-left">
+                <p className="text-sm font-medium">{format(aiCallbackSuggestion.date, "EEEE, MMM d")}</p>
+                <p className="text-sm text-orange-500">{format(aiCallbackSuggestion.date, "h:mm a")}</p>
+              </div>
+            </div>
+            <Badge className="bg-orange-500 text-white">Best Time</Badge>
+          </button>
+          
+          <div className="px-2 py-2 bg-muted/50 rounded-md">
+            <p className="text-xs text-muted-foreground">{aiCallbackSuggestion.reason}</p>
+          </div>
+          
+          <p className="text-xs text-muted-foreground text-center px-2">
+            Click to schedule this callback
+          </p>
+        </>
+      ) : null}
+    </div>
+  );
+
   const renderAiSchedulerView = () => (
     <div className="space-y-3">
       {isAiAnalyzing ? (
@@ -462,6 +785,9 @@ export const ScheduleActionModal = ({
       case "attendees": return "Manage Attendees";
       case "propose-times": return "Propose Times";
       case "ai-scheduler": return "AI Auto-Scheduler";
+      case "callbacks": return "Quick Call-Backs";
+      case "callback-custom": return "Custom Call-Back";
+      case "callback-ai": return "AI Follow-Up Suggestion";
       default: return `Schedule with ${contactName}`;
     }
   };
@@ -473,6 +799,9 @@ export const ScheduleActionModal = ({
         setView("main");
         setAiSuggestions(null);
         setSelectedSlots([]);
+        setCallbackNote("");
+        setCallbackDate(undefined);
+        setAiCallbackSuggestion(null);
       }
     }}>
       <PopoverTrigger asChild>
@@ -501,6 +830,9 @@ export const ScheduleActionModal = ({
           {view === "attendees" && renderAttendeesView()}
           {view === "propose-times" && renderProposeTimesView()}
           {view === "ai-scheduler" && renderAiSchedulerView()}
+          {view === "callbacks" && renderCallbacksView()}
+          {view === "callback-custom" && renderCallbackCustomView()}
+          {view === "callback-ai" && renderCallbackAiView()}
         </div>
       </PopoverContent>
     </Popover>

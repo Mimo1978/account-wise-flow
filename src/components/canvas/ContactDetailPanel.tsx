@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PhotoCapture } from "./PhotoCapture";
 import { VoiceInput } from "./VoiceInput";
 import { CallActionModal } from "./CallActionModal";
+import { EmailActionModal } from "./EmailActionModal";
 import { useDraggable } from "@/hooks/use-draggable";
 import { 
   X, 
@@ -552,10 +553,16 @@ export const ContactDetailPanel = ({
                 Call
               </Button>
             </CallActionModal>
-            <Button variant="outline" size="sm" className="gap-2">
-              <Mail className="w-4 h-4" />
-              Email
-            </Button>
+            <EmailActionModal
+              email={editedContact.email}
+              phone={editedContact.phone}
+              contactName={editedContact.name}
+            >
+              <Button variant="outline" size="sm" className="gap-2">
+                <Mail className="w-4 h-4" />
+                Email
+              </Button>
+            </EmailActionModal>
             <Button variant="outline" size="sm" className="gap-2">
               <Calendar className="w-4 h-4" />
               Schedule

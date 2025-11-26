@@ -122,25 +122,23 @@ const Canvas = () => {
       </header>
 
       {/* Canvas Area - Always fully visible and interactive */}
-      <main className="flex-1 overflow-hidden relative">
-        <div className="w-full h-full">
-          <AccountCanvas 
-            account={account} 
-            onContactClick={handleContactClick}
-          />
-        </div>
-
-        {/* Floating Contact Panel - No overlay, no dimming, canvas stays interactive */}
-        {selectedContact && (
-          <ContactDetailPanel 
-            contact={selectedContact} 
-            onClose={handleClosePanel}
-            isExpanded={isExpanded}
-            onExpandToggle={() => setIsExpanded(!isExpanded)}
-            onUnsavedChanges={setHasUnsavedChanges}
-          />
-        )}
+      <main className="flex-1 overflow-hidden relative pointer-events-auto">
+        <AccountCanvas 
+          account={account} 
+          onContactClick={handleContactClick}
+        />
       </main>
+
+      {/* Floating Contact Panel - Rendered outside main, truly floating above canvas */}
+      {selectedContact && (
+        <ContactDetailPanel 
+          contact={selectedContact} 
+          onClose={handleClosePanel}
+          isExpanded={isExpanded}
+          onExpandToggle={() => setIsExpanded(!isExpanded)}
+          onUnsavedChanges={setHasUnsavedChanges}
+        />
+      )}
 
       {/* Save Confirmation Dialog */}
       <AlertDialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>

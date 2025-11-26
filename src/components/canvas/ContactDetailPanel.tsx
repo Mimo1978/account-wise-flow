@@ -306,8 +306,12 @@ export const ContactDetailPanel = ({
     toast.success("Contact data extracted and pre-filled");
   };
 
-  const handleVoiceTranscript = (transcript: string) => {
-    setNewNoteContent(transcript);
+  const handleVoiceTranscript = (transcript: string, noteType: string) => {
+    const prefix = noteType === "meeting" ? "[Meeting Notes] " 
+      : noteType === "call" ? "[Call Notes] " 
+      : noteType === "reminder" ? "[Reminder] " 
+      : "";
+    setNewNoteContent(prefix + transcript);
     setIsAddingNote(true);
     setOpenSection("notes");
   };

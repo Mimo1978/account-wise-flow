@@ -9,6 +9,7 @@ import { QRCodeButton } from "@/components/canvas/QRCodeButton";
 import { mockAccount } from "@/lib/mock-data";
 import { Contact } from "@/lib/types";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -123,25 +124,27 @@ const Canvas = () => {
 
       {/* Canvas Area */}
       <main className="flex-1 overflow-hidden flex relative">
-        <div className={`flex-1 transition-all duration-300 ${selectedContact && !isExpanded ? 'mr-[480px]' : ''}`}>
+        <div className="flex-1">
           <AccountCanvas 
             account={account} 
             onContactClick={handleContactClick}
           />
         </div>
         
-        {/* Dimmed Overlay when expanded */}
-        {selectedContact && isExpanded && (
+        {/* Dimmed Overlay when panel is open */}
+        {selectedContact && (
           <div 
-            className="absolute inset-0 bg-background/60 backdrop-blur-sm z-10 animate-fade-in"
-            onClick={() => setIsExpanded(false)}
+            className={cn(
+              "fixed inset-0 bg-background/40 backdrop-blur-sm transition-opacity duration-300",
+              isExpanded ? "z-40" : "z-10"
+            )}
+            onClick={isExpanded ? () => setIsExpanded(false) : undefined}
           />
         )}
 
-        {selectedContact && (
-          <div className={`absolute top-0 bottom-0 z-20 transition-all duration-300 ${
-            isExpanded ? 'inset-0' : 'right-0'
-          }`}>
+        {/* Floating Contact Panel */}
+        {selectedContact && !isExpanded && (
+          <div className="fixed top-24 right-6 bottom-20 z-20 animate-slide-in-right">
             <ContactDetailPanel 
               contact={selectedContact} 
               onClose={handleClosePanel}
@@ -150,6 +153,17 @@ const Canvas = () => {
               onUnsavedChanges={setHasUnsavedChanges}
             />
           </div>
+        )}
+        
+        {/* Full Screen Contact Panel */}
+        {selectedContact && isExpanded && (
+          <ContactDetailPanel 
+            contact={selectedContact} 
+            onClose={handleClosePanel}
+            isExpanded={isExpanded}
+            onExpandToggle={() => setIsExpanded(!isExpanded)}
+            onUnsavedChanges={setHasUnsavedChanges}
+          />
         )}
       </main>
 

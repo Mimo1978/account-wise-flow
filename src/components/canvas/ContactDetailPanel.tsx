@@ -420,11 +420,43 @@ export const ContactDetailPanel = ({
 
   return (
     <div className={cn(
-      "h-full border-l border-border bg-background flex flex-col transition-all duration-300",
-      isExpanded ? "w-full animate-scale-in" : "w-[560px] animate-slide-in-right"
+      "flex flex-col transition-all duration-300 bg-background",
+      isExpanded 
+        ? "fixed inset-4 z-50 rounded-2xl shadow-2xl border border-border animate-scale-in" 
+        : "h-full w-[560px] rounded-l-2xl shadow-xl border border-border animate-slide-in-right"
     )}>
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border">
+      {/* Panel Header with Title */}
+      <div className="sticky top-0 z-10 bg-background rounded-t-2xl border-b border-border">
+        {/* Panel Title Bar */}
+        <div className="flex items-center justify-between px-6 py-3 bg-muted/30 rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <User className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Contact Details</h3>
+              <p className="text-xs text-muted-foreground">View and manage contact information</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {onExpandToggle && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onExpandToggle}
+                className="gap-2"
+              >
+                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                {isExpanded ? "Exit Full Screen" : "Full Screen"}
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9">
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+        
+        {/* Quick Actions Bar */}
         {/* Quick Capture Tools, Actions & Expand Button */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-border/50">
           <div className="flex items-center gap-2">
@@ -478,22 +510,6 @@ export const ContactDetailPanel = ({
             <Button variant="outline" size="sm" className="gap-2">
               <Calendar className="w-4 h-4" />
               Schedule
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            {onExpandToggle && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onExpandToggle}
-                title={isExpanded ? "Collapse to side panel" : "Expand to full screen"}
-                className="h-9 w-9"
-              >
-                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9">
-              <X className="w-4 h-4" />
             </Button>
           </div>
         </div>

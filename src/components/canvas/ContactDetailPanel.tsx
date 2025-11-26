@@ -507,7 +507,7 @@ export const ContactDetailPanel = ({
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
+              <DropdownMenuContent align="start" className="z-[10000] bg-popover border border-border shadow-lg">
                 <DropdownMenuItem onClick={() => document.getElementById('photo-capture-trigger')?.click()}>
                   <User className="w-4 h-4 mr-2" />
                   Contact Photo

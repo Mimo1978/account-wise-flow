@@ -521,7 +521,7 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full relative">
+    <div ref={containerRef} className="w-full h-full absolute inset-0">
       <CanvasSearch
         onSearch={handleSearch}
         onClear={handleClearSearch}
@@ -531,7 +531,7 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
         onPrevMatch={handlePrevMatch}
         onReset={handleResetPositions}
       />
-      <canvas ref={canvasRef} />
+      <canvas ref={canvasRef} className="w-full h-full block" />
       <CanvasMinimap mainCanvas={fabricCanvas} />
       
       {/* Company Info Popover */}

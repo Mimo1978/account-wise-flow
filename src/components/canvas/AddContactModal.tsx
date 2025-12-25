@@ -110,8 +110,8 @@ export const AddContactModal = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open} onOpenChange={handleClose} modal={false}>
+      <DialogContent className="sm:max-w-[425px] shadow-2xl border border-border/50 bg-background/95 backdrop-blur-sm">
         <DialogHeader>
           <DialogTitle>Add Contact to {companyName}</DialogTitle>
         </DialogHeader>

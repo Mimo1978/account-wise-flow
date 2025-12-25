@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, Users, Zap, Shield } from "lucide-react";
+import { ArrowRight, Sparkles, Users, Zap, Shield, Database } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Index = () => {
@@ -24,6 +24,10 @@ const Index = () => {
               <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 How It Works
               </a>
+              <Link to="/contacts" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+                <Database className="w-4 h-4" />
+                Contacts
+              </Link>
               <Link to="/canvas">
                 <Button variant="default" className="gap-2">
                   Try Demo <ArrowRight className="w-4 h-4" />

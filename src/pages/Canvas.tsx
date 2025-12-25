@@ -6,6 +6,7 @@ import { AccountCanvas } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
 import { QRCodeButton } from "@/components/canvas/QRCodeButton";
+import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { mockAccount } from "@/lib/mock-data";
 import { Contact } from "@/lib/types";
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ const Canvas = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingContact, setPendingContact] = useState<Contact | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showAddContactModal, setShowAddContactModal] = useState(false);
 
   const handleCompanySwitch = (company: any) => {
     toast.success(`Switched to ${company.name}`);
@@ -78,6 +80,13 @@ const Canvas = () => {
     setHasUnsavedChanges(false);
   };
 
+  const handleAddContact = (contact: Contact) => {
+    setAccount((prev) => ({
+      ...prev,
+      contacts: [...prev.contacts, contact],
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -112,7 +121,7 @@ const Canvas = () => {
                 <Sparkles className="w-4 h-4" />
                 AI Suggestions
               </Button>
-              <Button size="sm" className="gap-2">
+              <Button size="sm" className="gap-2" onClick={() => setShowAddContactModal(true)}>
                 <Plus className="w-4 h-4" />
                 Add Contact
               </Button>
@@ -162,6 +171,14 @@ const Canvas = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add Contact Modal */}
+      <AddContactModal
+        open={showAddContactModal}
+        onOpenChange={setShowAddContactModal}
+        onAddContact={handleAddContact}
+        companyName={account.name}
+      />
 
       {/* Bottom Info Bar */}
       <div className="border-t border-border/50 bg-muted/30 px-6 py-3">

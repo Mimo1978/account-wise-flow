@@ -1,14 +1,14 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { AccountCanvas } from "@/components/canvas/AccountCanvas";
+import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
 import { QRCodeButton } from "@/components/canvas/QRCodeButton";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { mockAccount } from "@/lib/mock-data";
-import { Contact } from "@/lib/types";
+import { Account, Contact } from "@/lib/types";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -29,12 +29,55 @@ const Canvas = () => {
   const [pendingContact, setPendingContact] = useState<Contact | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [pendingCompany, setPendingCompany] = useState<Account | null>(null);
+  const [showCompanySaveDialog, setShowCompanySaveDialog] = useState(false);
+  const canvasRef = useRef<AccountCanvasRef>(null);
 
-  const handleCompanySwitch = (company: any) => {
-    toast.success(`Switched to ${company.name}`);
-    // In real implementation, load the new company's data
-    // For now, just update the name
-    setAccount({ ...account, name: company.name, industry: company.industry });
+  const handleCompanySwitch = (newAccount: Account) => {
+    // If there are unsaved changes, show confirmation dialog
+    if (hasUnsavedChanges) {
+      setPendingCompany(newAccount);
+      setShowCompanySaveDialog(true);
+    } else {
+      performCompanySwitch(newAccount);
+    }
+  };
+
+  const performCompanySwitch = (newAccount: Account) => {
+    // Clear any open contact card
+    setSelectedContact(null);
+    setIsExpanded(false);
+    setHasUnsavedChanges(false);
+    
+    // Reset the canvas search
+    canvasRef.current?.clearSearch();
+    
+    // Load the new account
+    setAccount(newAccount);
+    
+    toast.success(`Switched to ${newAccount.name}`);
+  };
+
+  const handleCompanySaveAndSwitch = () => {
+    toast.success("Changes saved");
+    if (pendingCompany) {
+      performCompanySwitch(pendingCompany);
+    }
+    setPendingCompany(null);
+    setShowCompanySaveDialog(false);
+  };
+
+  const handleCompanyDiscardAndSwitch = () => {
+    if (pendingCompany) {
+      performCompanySwitch(pendingCompany);
+    }
+    setPendingCompany(null);
+    setShowCompanySaveDialog(false);
+  };
+
+  const handleCompanyCancelSwitch = () => {
+    setPendingCompany(null);
+    setShowCompanySaveDialog(false);
   };
 
   const handleContactClick = (contact: Contact) => {
@@ -133,6 +176,7 @@ const Canvas = () => {
       {/* Canvas Area - Always fully visible and interactive */}
       <main className="flex-1 overflow-hidden relative pointer-events-auto">
         <AccountCanvas 
+          ref={canvasRef}
           account={account} 
           onContactClick={handleContactClick}
         />
@@ -166,6 +210,29 @@ const Canvas = () => {
               Discard & Switch
             </Button>
             <AlertDialogAction onClick={handleSaveAndSwitch}>
+              Save & Switch
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Company Switch Save Confirmation Dialog */}
+      <AlertDialog open={showCompanySaveDialog} onOpenChange={setShowCompanySaveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save Changes Before Switching Company?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. What would you like to do before switching to {pendingCompany?.name}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCompanyCancelSwitch}>
+              Cancel
+            </AlertDialogCancel>
+            <Button variant="outline" onClick={handleCompanyDiscardAndSwitch}>
+              Discard & Switch
+            </Button>
+            <AlertDialogAction onClick={handleCompanySaveAndSwitch}>
               Save & Switch
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import {
   Command,
   CommandEmpty,
@@ -14,47 +13,33 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
-interface Company {
-  id: string;
-  name: string;
-  industry: string;
-}
+import { mockAccounts } from "@/lib/mock-data";
+import { Account } from "@/lib/types";
 
 interface CompanySwitcherProps {
   currentCompany: string;
-  onCompanySelect: (company: Company) => void;
+  onCompanySelect: (account: Account) => void;
 }
-
-// Mock companies for demonstration
-const mockCompanies: Company[] = [
-  { id: "1", name: "ACME Corp", industry: "Technology" },
-  { id: "2", name: "TechStart Inc", industry: "Software" },
-  { id: "3", name: "Global Solutions", industry: "Consulting" },
-  { id: "4", name: "Innovation Labs", industry: "R&D" },
-  { id: "5", name: "Enterprise Systems", industry: "IT Services" },
-];
 
 export const CompanySwitcher = ({ currentCompany, onCompanySelect }: CompanySwitcherProps) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>(mockCompanies);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery) {
-        setFilteredCompanies(
-          mockCompanies.filter((company) =>
-            company.name.toLowerCase().includes(searchQuery.toLowerCase())
-          )
-        );
-      } else {
-        setFilteredCompanies(mockCompanies);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+  // Filter out current company and apply search
+  const filteredCompanies = useMemo(() => {
+    const otherCompanies = mockAccounts.filter(
+      (acc) => acc.name.toLowerCase() !== currentCompany.toLowerCase()
+    );
+    
+    if (!searchQuery.trim()) {
+      return otherCompanies;
+    }
+    
+    return otherCompanies.filter((acc) =>
+      acc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      acc.industry.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [searchQuery, currentCompany]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -74,17 +59,18 @@ export const CompanySwitcher = ({ currentCompany, onCompanySelect }: CompanySwit
           <CommandList>
             <CommandEmpty>No companies found.</CommandEmpty>
             <CommandGroup>
-              {filteredCompanies.map((company) => (
+              {filteredCompanies.map((account) => (
                 <CommandItem
-                  key={company.id}
+                  key={account.id}
                   onSelect={() => {
-                    onCompanySelect(company);
+                    onCompanySelect(account);
                     setOpen(false);
+                    setSearchQuery("");
                   }}
                 >
                   <div className="flex flex-col">
-                    <span className="font-medium">{company.name}</span>
-                    <span className="text-xs text-muted-foreground">{company.industry}</span>
+                    <span className="font-medium">{account.name}</span>
+                    <span className="text-xs text-muted-foreground">{account.industry}</span>
                   </div>
                 </CommandItem>
               ))}

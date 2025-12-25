@@ -26,6 +26,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import {
   Search,
@@ -33,7 +39,56 @@ import {
   Upload,
   Network,
   ArrowLeft,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
+
+// Helper to check data quality
+const isContactReady = (contact: Contact): boolean => {
+  return Boolean(contact.department && contact.department.trim() !== "" && contact.title && contact.title.trim() !== "");
+};
+
+// Available options for dropdowns
+const departmentOptions = [
+  "Engineering",
+  "Product",
+  "Sales",
+  "Marketing",
+  "Finance",
+  "Operations",
+  "Legal",
+  "Human Resources",
+  "Customer Success",
+  "Executive",
+];
+
+const jobTitleOptions = [
+  "CEO",
+  "CTO",
+  "CFO",
+  "COO",
+  "VP of Engineering",
+  "VP of Sales",
+  "VP of Marketing",
+  "VP of Product",
+  "Director",
+  "Senior Manager",
+  "Manager",
+  "Senior Engineer",
+  "Engineer",
+  "Analyst",
+  "Associate",
+  "Coordinator",
+];
+
+const seniorityOptions = [
+  { value: "executive", label: "Executive" },
+  { value: "director", label: "Director" },
+  { value: "manager", label: "Manager" },
+  { value: "senior", label: "Senior" },
+  { value: "mid", label: "Mid-Level" },
+  { value: "junior", label: "Junior" },
+];
 
 const statusColors: Record<string, string> = {
   unknown: "bg-muted text-muted-foreground",
@@ -101,12 +156,55 @@ export default function ContactsDatabase() {
     });
   }, [allContacts, searchQuery, departmentFilter, statusFilter, ownerFilter, companyName]);
 
-  const handleRowClick = (contact: Contact) => {
+  const handleRowClick = (contact: Contact, e: React.MouseEvent) => {
+    // Don't open detail if clicking on data quality actions
+    if ((e.target as HTMLElement).closest('[data-quality-action]')) {
+      return;
+    }
     setSelectedContact(contact);
   };
 
   const handleViewOrgChart = () => {
     navigate("/canvas");
+  };
+
+  // State for assign modal
+  const [assignContact, setAssignContact] = useState<Contact | null>(null);
+  const [assignDepartment, setAssignDepartment] = useState("");
+  const [assignJobTitle, setAssignJobTitle] = useState("");
+  const [assignSeniority, setAssignSeniority] = useState("");
+
+  const handleOpenAssign = (contact: Contact, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAssignContact(contact);
+    setAssignDepartment(contact.department || "");
+    setAssignJobTitle(contact.title || "");
+    setAssignSeniority(contact.seniority || "");
+  };
+
+  const handleSaveAssignment = () => {
+    if (!assignContact) return;
+    
+    // Validate required fields
+    if (!assignDepartment || !assignJobTitle) {
+      return; // Don't save if missing required fields
+    }
+
+    // Update the contact in mock data (in real app, this would be an API call)
+    const contactIndex = mockAccount.contacts.findIndex(c => c.id === assignContact.id);
+    if (contactIndex !== -1) {
+      mockAccount.contacts[contactIndex] = {
+        ...mockAccount.contacts[contactIndex],
+        department: assignDepartment,
+        title: assignJobTitle,
+        seniority: assignSeniority as Contact["seniority"] || mockAccount.contacts[contactIndex].seniority,
+      };
+    }
+    
+    setAssignContact(null);
+    setAssignDepartment("");
+    setAssignJobTitle("");
+    setAssignSeniority("");
   };
 
   return (
@@ -208,6 +306,7 @@ export default function ContactsDatabase() {
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
+                <TableHead className="font-semibold">Data Quality</TableHead>
                 <TableHead className="font-semibold">Name</TableHead>
                 <TableHead className="font-semibold">Company</TableHead>
                 <TableHead className="font-semibold">Department</TableHead>
@@ -221,48 +320,178 @@ export default function ContactsDatabase() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredContacts.map((contact) => (
-                <TableRow
-                  key={contact.id}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleRowClick(contact)}
-                >
-                  <TableCell className="font-medium">{contact.name}</TableCell>
-                  <TableCell>{companyName}</TableCell>
-                  <TableCell>{contact.department}</TableCell>
-                  <TableCell>{contact.title}</TableCell>
-                  <TableCell>
-                    <span className="text-muted-foreground">
-                      {seniorityLabels[contact.seniority] || contact.seniority}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {contact.email}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {contact.phone}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="secondary"
-                      className={statusColors[contact.status]}
-                    >
-                      {contact.status.charAt(0).toUpperCase() +
-                        contact.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {contact.contactOwner || "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {contact.lastContact || "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filteredContacts.map((contact) => {
+                const isReady = isContactReady(contact);
+                return (
+                  <TableRow
+                    key={contact.id}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={(e) => handleRowClick(contact, e)}
+                  >
+                    <TableCell data-quality-action>
+                      {isReady ? (
+                        <div className="flex items-center gap-1.5 text-green-500">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span className="text-xs">Ready</span>
+                        </div>
+                      ) : (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button className="flex items-center gap-1.5 text-yellow-500 hover:text-yellow-400 transition-colors">
+                              <AlertTriangle className="h-4 w-4" />
+                              <span className="text-xs underline underline-offset-2">Assign</span>
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-72 p-4" align="start">
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="font-medium text-sm mb-1">Complete Contact Data</h4>
+                                <p className="text-xs text-muted-foreground">
+                                  Department and Job Title are required to map this contact to the organisation chart.
+                                </p>
+                              </div>
+                              <div className="space-y-3">
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">Department *</Label>
+                                  <Select 
+                                    value={assignContact?.id === contact.id ? assignDepartment : (contact.department || "")}
+                                    onValueChange={(value) => {
+                                      if (assignContact?.id !== contact.id) {
+                                        setAssignContact(contact);
+                                        setAssignDepartment(value);
+                                        setAssignJobTitle(contact.title || "");
+                                        setAssignSeniority(contact.seniority || "");
+                                      } else {
+                                        setAssignDepartment(value);
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs">
+                                      <SelectValue placeholder="Select department" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {departmentOptions.map((dept) => (
+                                        <SelectItem key={dept} value={dept} className="text-xs">
+                                          {dept}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">Job Title *</Label>
+                                  <Select 
+                                    value={assignContact?.id === contact.id ? assignJobTitle : (contact.title || "")}
+                                    onValueChange={(value) => {
+                                      if (assignContact?.id !== contact.id) {
+                                        setAssignContact(contact);
+                                        setAssignDepartment(contact.department || "");
+                                        setAssignJobTitle(value);
+                                        setAssignSeniority(contact.seniority || "");
+                                      } else {
+                                        setAssignJobTitle(value);
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs">
+                                      <SelectValue placeholder="Select job title" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {jobTitleOptions.map((title) => (
+                                        <SelectItem key={title} value={title} className="text-xs">
+                                          {title}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">Seniority (optional)</Label>
+                                  <Select 
+                                    value={assignContact?.id === contact.id ? assignSeniority : (contact.seniority || "")}
+                                    onValueChange={(value) => {
+                                      if (assignContact?.id !== contact.id) {
+                                        setAssignContact(contact);
+                                        setAssignDepartment(contact.department || "");
+                                        setAssignJobTitle(contact.title || "");
+                                        setAssignSeniority(value);
+                                      } else {
+                                        setAssignSeniority(value);
+                                      }
+                                    }}
+                                  >
+                                    <SelectTrigger className="h-8 text-xs">
+                                      <SelectValue placeholder="Select seniority" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {seniorityOptions.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                          {opt.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <Button 
+                                size="sm" 
+                                className="w-full"
+                                disabled={
+                                  !(assignContact?.id === contact.id ? assignDepartment : contact.department) ||
+                                  !(assignContact?.id === contact.id ? assignJobTitle : contact.title)
+                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (assignContact?.id !== contact.id) {
+                                    setAssignContact(contact);
+                                  }
+                                  handleSaveAssignment();
+                                }}
+                              >
+                                Save & Mark Ready
+                              </Button>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{contact.name}</TableCell>
+                    <TableCell>{companyName}</TableCell>
+                    <TableCell>{contact.department || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                    <TableCell>{contact.title || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                    <TableCell>
+                      <span className="text-muted-foreground">
+                        {seniorityLabels[contact.seniority] || contact.seniority}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {contact.email}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {contact.phone}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={statusColors[contact.status]}
+                      >
+                        {contact.status.charAt(0).toUpperCase() +
+                          contact.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {contact.contactOwner || "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {contact.lastContact || "—"}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {filteredContacts.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={10}
+                    colSpan={11}
                     className="text-center py-8 text-muted-foreground"
                   >
                     No contacts found matching your filters.

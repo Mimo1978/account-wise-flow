@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Image as FabricImage, Point, Rect } from "fabric";
 import { Account, Contact } from "@/lib/types";
 import { CanvasSearch } from "./CanvasSearch";
@@ -11,6 +11,10 @@ interface AccountCanvasProps {
   onContactClick: (contact: Contact) => void;
 }
 
+export interface AccountCanvasRef {
+  clearSearch: () => void;
+}
+
 interface ContactNodeData {
   contact: Contact;
   group: Group;
@@ -21,7 +25,7 @@ interface ContactNodeData {
   originalPosition: { x: number; y: number };
 }
 
-export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) => {
+export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({ account, onContactClick }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -461,6 +465,11 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
     fabricCanvas.renderAll();
   };
 
+  // Expose clearSearch to parent via ref
+  useImperativeHandle(ref, () => ({
+    clearSearch: handleClearSearch,
+  }));
+
   const handleResetPositions = () => {
     if (!fabricCanvas) return;
 
@@ -548,7 +557,9 @@ export const AccountCanvas = ({ account, onContactClick }: AccountCanvasProps) =
       )}
     </div>
   );
-};
+});
+
+AccountCanvas.displayName = "AccountCanvas";
 
 const createCompanyNode = (name: string, x: number, y: number): Group => {
   // Building icon using rectangles

@@ -16,7 +16,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -42,53 +44,18 @@ import {
   CheckCircle2,
   AlertTriangle,
 } from "lucide-react";
+import {
+  departmentOptions,
+  jobTitleOptions,
+  seniorityOptions,
+} from "@/lib/dropdown-options";
 
 // Helper to check data quality
 const isContactReady = (contact: Contact): boolean => {
   return Boolean(contact.department && contact.department.trim() !== "" && contact.title && contact.title.trim() !== "");
 };
 
-// Available options for dropdowns
-const departmentOptions = [
-  "Engineering",
-  "Product",
-  "Sales",
-  "Marketing",
-  "Finance",
-  "Operations",
-  "Legal",
-  "Human Resources",
-  "Customer Success",
-  "Executive",
-];
-
-const jobTitleOptions = [
-  "CEO",
-  "CTO",
-  "CFO",
-  "COO",
-  "VP of Engineering",
-  "VP of Sales",
-  "VP of Marketing",
-  "VP of Product",
-  "Director",
-  "Senior Manager",
-  "Manager",
-  "Senior Engineer",
-  "Engineer",
-  "Analyst",
-  "Associate",
-  "Coordinator",
-];
-
-const seniorityOptions = [
-  { value: "executive", label: "Executive" },
-  { value: "director", label: "Director" },
-  { value: "manager", label: "Manager" },
-  { value: "senior", label: "Senior" },
-  { value: "mid", label: "Mid-Level" },
-  { value: "junior", label: "Junior" },
-];
+const OTHER_CUSTOM = "__other_custom__";
 
 const statusColors: Record<string, string> = {
   unknown: "bg-muted text-muted-foreground",
@@ -173,6 +140,12 @@ export default function ContactsDatabase() {
   const [assignDepartment, setAssignDepartment] = useState("");
   const [assignJobTitle, setAssignJobTitle] = useState("");
   const [assignSeniority, setAssignSeniority] = useState("");
+  
+  // State for custom "Other" inputs
+  const [customDepartment, setCustomDepartment] = useState("");
+  const [customJobTitle, setCustomJobTitle] = useState("");
+  const [showCustomDept, setShowCustomDept] = useState(false);
+  const [showCustomTitle, setShowCustomTitle] = useState(false);
 
   const handleOpenAssign = (contact: Contact, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -180,13 +153,55 @@ export default function ContactsDatabase() {
     setAssignDepartment(contact.department || "");
     setAssignJobTitle(contact.title || "");
     setAssignSeniority(contact.seniority || "");
+    setShowCustomDept(false);
+    setShowCustomTitle(false);
+    setCustomDepartment("");
+    setCustomJobTitle("");
   };
+
+  const handleDepartmentChange = (value: string, contact: Contact) => {
+    if (assignContact?.id !== contact.id) {
+      setAssignContact(contact);
+      setAssignJobTitle(contact.title || "");
+      setAssignSeniority(contact.seniority || "");
+    }
+    if (value === OTHER_CUSTOM) {
+      setShowCustomDept(true);
+      setAssignDepartment("");
+    } else {
+      setShowCustomDept(false);
+      setCustomDepartment("");
+      setAssignDepartment(value);
+    }
+  };
+
+  const handleJobTitleChange = (value: string, contact: Contact) => {
+    if (assignContact?.id !== contact.id) {
+      setAssignContact(contact);
+      setAssignDepartment(contact.department || "");
+      setAssignSeniority(contact.seniority || "");
+    }
+    if (value === OTHER_CUSTOM) {
+      setShowCustomTitle(true);
+      setAssignJobTitle("");
+    } else {
+      setShowCustomTitle(false);
+      setCustomJobTitle("");
+      setAssignJobTitle(value);
+    }
+  };
+
+  const getFinalDepartment = () => showCustomDept ? customDepartment : assignDepartment;
+  const getFinalJobTitle = () => showCustomTitle ? customJobTitle : assignJobTitle;
 
   const handleSaveAssignment = () => {
     if (!assignContact) return;
     
+    const finalDept = getFinalDepartment();
+    const finalTitle = getFinalJobTitle();
+    
     // Validate required fields
-    if (!assignDepartment || !assignJobTitle) {
+    if (!finalDept || !finalTitle) {
       return; // Don't save if missing required fields
     }
 
@@ -195,8 +210,8 @@ export default function ContactsDatabase() {
     if (contactIndex !== -1) {
       mockAccount.contacts[contactIndex] = {
         ...mockAccount.contacts[contactIndex],
-        department: assignDepartment,
-        title: assignJobTitle,
+        department: finalDept,
+        title: finalTitle,
         seniority: assignSeniority as Contact["seniority"] || mockAccount.contacts[contactIndex].seniority,
       };
     }
@@ -205,6 +220,10 @@ export default function ContactsDatabase() {
     setAssignDepartment("");
     setAssignJobTitle("");
     setAssignSeniority("");
+    setShowCustomDept(false);
+    setShowCustomTitle(false);
+    setCustomDepartment("");
+    setCustomJobTitle("");
   };
 
   return (
@@ -353,57 +372,70 @@ export default function ContactsDatabase() {
                               <div className="space-y-3">
                                 <div className="space-y-1.5">
                                   <Label className="text-xs">Department *</Label>
-                                  <Select 
-                                    value={assignContact?.id === contact.id ? assignDepartment : (contact.department || "")}
-                                    onValueChange={(value) => {
-                                      if (assignContact?.id !== contact.id) {
-                                        setAssignContact(contact);
-                                        setAssignDepartment(value);
-                                        setAssignJobTitle(contact.title || "");
-                                        setAssignSeniority(contact.seniority || "");
-                                      } else {
-                                        setAssignDepartment(value);
-                                      }
-                                    }}
-                                  >
-                                    <SelectTrigger className="h-8 text-xs">
-                                      <SelectValue placeholder="Select department" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {departmentOptions.map((dept) => (
-                                        <SelectItem key={dept} value={dept} className="text-xs">
-                                          {dept}
+                                  {showCustomDept && assignContact?.id === contact.id ? (
+                                    <Input
+                                      className="h-8 text-xs"
+                                      placeholder="Enter custom department"
+                                      value={customDepartment}
+                                      onChange={(e) => setCustomDepartment(e.target.value)}
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    <Select 
+                                      value={assignContact?.id === contact.id ? assignDepartment : (contact.department || "")}
+                                      onValueChange={(value) => handleDepartmentChange(value, contact)}
+                                    >
+                                      <SelectTrigger className="h-8 text-xs">
+                                        <SelectValue placeholder="Select department" />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-[300px]">
+                                        {departmentOptions.map((dept) => (
+                                          <SelectItem key={dept} value={dept} className="text-xs">
+                                            {dept}
+                                          </SelectItem>
+                                        ))}
+                                        <SelectItem value={OTHER_CUSTOM} className="text-xs text-muted-foreground italic">
+                                          Other (custom)
                                         </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                      </SelectContent>
+                                    </Select>
+                                  )}
                                 </div>
                                 <div className="space-y-1.5">
                                   <Label className="text-xs">Job Title *</Label>
-                                  <Select 
-                                    value={assignContact?.id === contact.id ? assignJobTitle : (contact.title || "")}
-                                    onValueChange={(value) => {
-                                      if (assignContact?.id !== contact.id) {
-                                        setAssignContact(contact);
-                                        setAssignDepartment(contact.department || "");
-                                        setAssignJobTitle(value);
-                                        setAssignSeniority(contact.seniority || "");
-                                      } else {
-                                        setAssignJobTitle(value);
-                                      }
-                                    }}
-                                  >
-                                    <SelectTrigger className="h-8 text-xs">
-                                      <SelectValue placeholder="Select job title" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {jobTitleOptions.map((title) => (
-                                        <SelectItem key={title} value={title} className="text-xs">
-                                          {title}
+                                  {showCustomTitle && assignContact?.id === contact.id ? (
+                                    <Input
+                                      className="h-8 text-xs"
+                                      placeholder="Enter custom job title"
+                                      value={customJobTitle}
+                                      onChange={(e) => setCustomJobTitle(e.target.value)}
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    <Select 
+                                      value={assignContact?.id === contact.id ? assignJobTitle : (contact.title || "")}
+                                      onValueChange={(value) => handleJobTitleChange(value, contact)}
+                                    >
+                                      <SelectTrigger className="h-8 text-xs">
+                                        <SelectValue placeholder="Select job title" />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-[300px]">
+                                        {Object.entries(jobTitleOptions).map(([group, titles]) => (
+                                          <SelectGroup key={group}>
+                                            <SelectLabel className="text-xs font-semibold text-muted-foreground">{group}</SelectLabel>
+                                            {titles.map((title) => (
+                                              <SelectItem key={title} value={title} className="text-xs">
+                                                {title}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectGroup>
+                                        ))}
+                                        <SelectItem value={OTHER_CUSTOM} className="text-xs text-muted-foreground italic">
+                                          Other (custom)
                                         </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                      </SelectContent>
+                                    </Select>
+                                  )}
                                 </div>
                                 <div className="space-y-1.5">
                                   <Label className="text-xs">Seniority (optional)</Label>
@@ -437,8 +469,8 @@ export default function ContactsDatabase() {
                                 size="sm" 
                                 className="w-full"
                                 disabled={
-                                  !(assignContact?.id === contact.id ? assignDepartment : contact.department) ||
-                                  !(assignContact?.id === contact.id ? assignJobTitle : contact.title)
+                                  !(assignContact?.id === contact.id ? getFinalDepartment() : contact.department) ||
+                                  !(assignContact?.id === contact.id ? getFinalJobTitle() : contact.title)
                                 }
                                 onClick={(e) => {
                                   e.stopPropagation();

@@ -1,15 +1,17 @@
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, Plus, Sparkles, Network, Table2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
 import { QRCodeButton } from "@/components/canvas/QRCodeButton";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
+import { CompanyDatabaseView } from "@/components/canvas/CompanyDatabaseView";
 import { mockAccount } from "@/lib/mock-data";
 import { Account, Contact } from "@/lib/types";
 import { toast } from "sonner";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,6 +33,7 @@ const Canvas = () => {
   const [showAddContactModal, setShowAddContactModal] = useState(false);
   const [pendingCompany, setPendingCompany] = useState<Account | null>(null);
   const [showCompanySaveDialog, setShowCompanySaveDialog] = useState(false);
+  const [viewMode, setViewMode] = useState<"canvas" | "database">("canvas");
   const canvasRef = useRef<AccountCanvasRef>(null);
 
   const handleCompanySwitch = (newAccount: Account) => {
@@ -160,6 +163,18 @@ const Canvas = () => {
             </div>
             
             <div className="flex items-center gap-3">
+              {/* View Toggle */}
+              <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as "canvas" | "database")}>
+                <ToggleGroupItem value="canvas" aria-label="Canvas view" className="gap-2">
+                  <Network className="w-4 h-4" />
+                  Canvas
+                </ToggleGroupItem>
+                <ToggleGroupItem value="database" aria-label="Database view" className="gap-2">
+                  <Table2 className="w-4 h-4" />
+                  Database
+                </ToggleGroupItem>
+              </ToggleGroup>
+              <div className="h-6 w-px bg-border" />
               <Button variant="outline" size="sm" className="gap-2">
                 <Sparkles className="w-4 h-4" />
                 AI Suggestions
@@ -173,17 +188,25 @@ const Canvas = () => {
         </div>
       </header>
 
-      {/* Canvas Area - Always fully visible and interactive */}
+      {/* Main Content Area */}
       <main className="flex-1 overflow-hidden relative pointer-events-auto">
-        <AccountCanvas 
-          ref={canvasRef}
-          account={account} 
-          onContactClick={handleContactClick}
-        />
+        {viewMode === "canvas" ? (
+          <AccountCanvas 
+            ref={canvasRef}
+            account={account} 
+            onContactClick={handleContactClick}
+          />
+        ) : (
+          <CompanyDatabaseView
+            account={account}
+            onAccountUpdate={setAccount}
+            onViewCanvas={() => setViewMode("canvas")}
+          />
+        )}
       </main>
 
-      {/* Floating Contact Panel - Rendered outside main, truly floating above canvas */}
-      {selectedContact && (
+      {/* Floating Contact Panel - Only show in canvas mode */}
+      {viewMode === "canvas" && selectedContact && (
         <ContactDetailPanel 
           contact={selectedContact} 
           onClose={handleClosePanel}
@@ -247,32 +270,34 @@ const Canvas = () => {
         companyName={account.name}
       />
 
-      {/* Bottom Info Bar */}
-      <div className="border-t border-border/50 bg-muted/30 px-6 py-3">
-        <div className="container mx-auto flex items-center justify-between text-sm">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-node-champion" />
-              <span className="text-muted-foreground">Champion</span>
+      {/* Bottom Info Bar - Only show in canvas mode */}
+      {viewMode === "canvas" && (
+        <div className="border-t border-border/50 bg-muted/30 px-6 py-3">
+          <div className="container mx-auto flex items-center justify-between text-sm">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-node-champion" />
+                <span className="text-muted-foreground">Champion</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-node-engaged" />
+                <span className="text-muted-foreground">Engaged</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-node-warm" />
+                <span className="text-muted-foreground">Warm</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-node-blocker" />
+                <span className="text-muted-foreground">Blocker</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-node-engaged" />
-              <span className="text-muted-foreground">Engaged</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-node-warm" />
-              <span className="text-muted-foreground">Warm</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-node-blocker" />
-              <span className="text-muted-foreground">Blocker</span>
-            </div>
+            <p className="text-muted-foreground">
+              Drag nodes to reposition • Click to see details
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            Drag nodes to reposition • Click to see details
-          </p>
         </div>
-      </div>
+      )}
     </div>
   );
 };

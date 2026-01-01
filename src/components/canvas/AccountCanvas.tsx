@@ -36,6 +36,13 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const [showCompanyHover, setShowCompanyHover] = useState(false);
   const [companyHoverPosition, setCompanyHoverPosition] = useState({ x: 0, y: 0 });
   const companyNodeRef = useRef<Group | null>(null);
+  
+  // Hover intent tracking for company node
+  const companyHoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isCompanyDraggingRef = useRef(false);
+  const companyDragStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const HOVER_DELAY = 700;
+  const DRAG_THRESHOLD = 5;
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
@@ -131,28 +138,83 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     // Render company node at top center
     const companyNode = createCompanyNode(account.name, fabricCanvas.width! / 2, 80);
     
-    // Add hover effects to company node
+    // Helper to cancel hover timer
+    const cancelCompanyHoverTimer = () => {
+      if (companyHoverTimerRef.current) {
+        clearTimeout(companyHoverTimerRef.current);
+        companyHoverTimerRef.current = null;
+      }
+    };
+
+    // Add hover effects to company node with intent-based delay
     companyNode.on('mouseover', function() {
+      // Don't show hover if dragging
+      if (isCompanyDraggingRef.current) return;
+      
       (this as FabricObject).set({ 
         shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 4 }
       });
       fabricCanvas.renderAll();
-      setShowCompanyHover(true);
+      
+      // Start hover timer - only show popover after 700ms of continuous hover
+      cancelCompanyHoverTimer();
+      companyHoverTimerRef.current = setTimeout(() => {
+        if (!isCompanyDraggingRef.current) {
+          setShowCompanyHover(true);
+        }
+      }, HOVER_DELAY);
     });
 
     companyNode.on('mouseout', function() {
+      cancelCompanyHoverTimer();
       (this as FabricObject).set({ shadow: null });
       fabricCanvas.renderAll();
       setShowCompanyHover(false);
     });
 
-    companyNode.on('mousedown', () => {
-      // TODO: Open full company profile panel
-      console.log('Open company profile panel');
+    companyNode.on('mousedown', (opt) => {
+      const evt = opt.e as MouseEvent;
+      // Store the initial mouse position for drag detection
+      companyDragStartPosRef.current = { x: evt.clientX, y: evt.clientY };
+      isCompanyDraggingRef.current = false;
+      cancelCompanyHoverTimer();
+    });
+
+    // Track mouse movement to detect drag intent
+    companyNode.on('moving', () => {
+      if (!isCompanyDraggingRef.current) {
+        isCompanyDraggingRef.current = true;
+        cancelCompanyHoverTimer();
+        setShowCompanyHover(false);
+      }
+    });
+
+    companyNode.on('mouseup', () => {
+      // Reset drag state after a short delay to allow hover to resume
+      setTimeout(() => {
+        isCompanyDraggingRef.current = false;
+        companyDragStartPosRef.current = null;
+      }, 100);
     });
 
     companyNodeRef.current = companyNode;
     fabricCanvas.add(companyNode);
+
+    // Add global mouse move listener for drag threshold detection on company node
+    const handleCanvasMouseMove = (opt: { e: MouseEvent | TouchEvent }) => {
+      const evt = opt.e as MouseEvent;
+      if (companyDragStartPosRef.current && !isCompanyDraggingRef.current && evt.clientX !== undefined) {
+        const dx = Math.abs(evt.clientX - companyDragStartPosRef.current.x);
+        const dy = Math.abs(evt.clientY - companyDragStartPosRef.current.y);
+        if (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
+          isCompanyDraggingRef.current = true;
+          cancelCompanyHoverTimer();
+          setShowCompanyHover(false);
+        }
+      }
+    };
+
+    fabricCanvas.on('mouse:move', handleCanvasMouseMove as any);
 
     // Find CEO (assuming CEO is in contacts)
     const ceo = account.contacts.find(c => c.title.toLowerCase().includes('ceo'));

@@ -172,49 +172,61 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       setShowCompanyHover(false);
     });
 
+    // Track last position for panning
+    let companyLastPosX = 0;
+    let companyLastPosY = 0;
+
     companyNode.on('mousedown', (opt) => {
       const evt = opt.e as MouseEvent;
       // Store the initial mouse position for drag detection
       companyDragStartPosRef.current = { x: evt.clientX, y: evt.clientY };
+      companyLastPosX = evt.clientX;
+      companyLastPosY = evt.clientY;
       isCompanyDraggingRef.current = false;
       cancelCompanyHoverTimer();
     });
 
-    // Track mouse movement to detect drag intent
-    companyNode.on('moving', () => {
-      if (!isCompanyDraggingRef.current) {
-        isCompanyDraggingRef.current = true;
-        cancelCompanyHoverTimer();
-        setShowCompanyHover(false);
-      }
-    });
-
-    companyNode.on('mouseup', () => {
-      // Reset drag state after a short delay to allow hover to resume
-      setTimeout(() => {
-        isCompanyDraggingRef.current = false;
-        companyDragStartPosRef.current = null;
-      }, 100);
-    });
-
-    companyNodeRef.current = companyNode;
-    fabricCanvas.add(companyNode);
-
-    // Add global mouse move listener for drag threshold detection on company node
-    const handleCanvasMouseMove = (opt: { e: MouseEvent | TouchEvent }) => {
+    // Handle canvas panning when dragging company node
+    fabricCanvas.on('mouse:move', (opt) => {
+      if (!companyDragStartPosRef.current) return;
+      
       const evt = opt.e as MouseEvent;
-      if (companyDragStartPosRef.current && !isCompanyDraggingRef.current && evt.clientX !== undefined) {
-        const dx = Math.abs(evt.clientX - companyDragStartPosRef.current.x);
-        const dy = Math.abs(evt.clientY - companyDragStartPosRef.current.y);
-        if (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
+      if (evt.clientX === undefined) return;
+      
+      const dx = Math.abs(evt.clientX - companyDragStartPosRef.current.x);
+      const dy = Math.abs(evt.clientY - companyDragStartPosRef.current.y);
+      
+      // Start panning if threshold exceeded
+      if (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
+        if (!isCompanyDraggingRef.current) {
           isCompanyDraggingRef.current = true;
           cancelCompanyHoverTimer();
           setShowCompanyHover(false);
         }
+        
+        // Pan the canvas
+        const vpt = fabricCanvas.viewportTransform!;
+        vpt[4] += evt.clientX - companyLastPosX;
+        vpt[5] += evt.clientY - companyLastPosY;
+        fabricCanvas.requestRenderAll();
       }
-    };
+      
+      companyLastPosX = evt.clientX;
+      companyLastPosY = evt.clientY;
+    });
 
-    fabricCanvas.on('mouse:move', handleCanvasMouseMove as any);
+    fabricCanvas.on('mouse:up', () => {
+      if (companyDragStartPosRef.current) {
+        // Reset drag state after a short delay to allow hover to resume
+        setTimeout(() => {
+          isCompanyDraggingRef.current = false;
+          companyDragStartPosRef.current = null;
+        }, 100);
+      }
+    });
+
+    companyNodeRef.current = companyNode;
+    fabricCanvas.add(companyNode);
 
     // Find CEO (assuming CEO is in contacts)
     const ceo = account.contacts.find(c => c.title.toLowerCase().includes('ceo'));
@@ -535,15 +547,66 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const handleResetPositions = () => {
     if (!fabricCanvas) return;
 
-    // Animate zoom and pan reset
+    // Calculate the bounding box of all content (current positions, not original)
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    // Include company node
+    if (companyNodeRef.current) {
+      const companyBounds = companyNodeRef.current.getBoundingRect();
+      minX = Math.min(minX, companyBounds.left);
+      minY = Math.min(minY, companyBounds.top);
+      maxX = Math.max(maxX, companyBounds.left + companyBounds.width);
+      maxY = Math.max(maxY, companyBounds.top + companyBounds.height);
+    }
+    
+    // Include all contact nodes
+    contactNodesRef.current.forEach(({ group }) => {
+      const bounds = group.getBoundingRect();
+      minX = Math.min(minX, bounds.left);
+      minY = Math.min(minY, bounds.top);
+      maxX = Math.max(maxX, bounds.left + bounds.width);
+      maxY = Math.max(maxY, bounds.top + bounds.height);
+    });
+
+    // If no content, reset to default
+    if (minX === Infinity) {
+      fabricCanvas.setZoom(1);
+      fabricCanvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+      fabricCanvas.renderAll();
+      return;
+    }
+
+    // Add padding around content
+    const padding = 50;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+    const contentCenterX = (minX + maxX) / 2;
+    const contentCenterY = (minY + maxY) / 2;
+
+    // Calculate zoom to fit content in viewport
+    const canvasWidth = fabricCanvas.width!;
+    const canvasHeight = fabricCanvas.height!;
+    const zoomX = canvasWidth / contentWidth;
+    const zoomY = canvasHeight / contentHeight;
+    const targetZoom = Math.min(zoomX, zoomY, 1); // Don't zoom in more than 1x
+
+    // Calculate target viewport position to center content
+    const targetVptX = canvasWidth / 2 - contentCenterX * targetZoom;
+    const targetVptY = canvasHeight / 2 - contentCenterY * targetZoom;
+
+    // Animate to the target state
     const currentZoom = fabricCanvas.getZoom();
     const currentVpt = [...fabricCanvas.viewportTransform!];
     
-    // Smoothly animate zoom back to 1
     const zoomSteps = 20;
-    const zoomIncrement = (1 - currentZoom) / zoomSteps;
-    const vptXIncrement = (0 - currentVpt[4]) / zoomSteps;
-    const vptYIncrement = (0 - currentVpt[5]) / zoomSteps;
+    const zoomIncrement = (targetZoom - currentZoom) / zoomSteps;
+    const vptXIncrement = (targetVptX - currentVpt[4]) / zoomSteps;
+    const vptYIncrement = (targetVptY - currentVpt[5]) / zoomSteps;
     
     let step = 0;
     const animateZoom = () => {
@@ -556,39 +619,14 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         fabricCanvas.renderAll();
         requestAnimationFrame(animateZoom);
       } else {
-        fabricCanvas.setZoom(1);
-        fabricCanvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+        fabricCanvas.setZoom(targetZoom);
+        const vpt = fabricCanvas.viewportTransform!;
+        vpt[4] = targetVptX;
+        vpt[5] = targetVptY;
         fabricCanvas.renderAll();
       }
     };
     animateZoom();
-
-    // Animate all nodes back to original positions
-    contactNodesRef.current.forEach(({ group, originalPosition, lines }) => {
-      group.animate({
-        left: originalPosition.x,
-        top: originalPosition.y,
-      }, {
-        duration: 500,
-        onChange: () => {
-          group.setCoords();
-          
-          // Update connected lines during animation
-          const center = group.getCenterPoint();
-          lines.forEach((line) => {
-            const isLineStart = line.get('x2') === center.x || Math.abs((line.get('x2') || 0) - originalPosition.x) < 1;
-            if (isLineStart) {
-              line.set({ x2: center.x, y2: center.y - 50 });
-            } else {
-              line.set({ x1: center.x, y1: center.y + 50 });
-            }
-            line.setCoords();
-          });
-          fabricCanvas.renderAll();
-        },
-        easing: (t: number) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t, // easeInOutQuad
-      });
-    });
   };
 
   return (

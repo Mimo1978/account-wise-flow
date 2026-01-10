@@ -247,219 +247,224 @@ export function AIKnowledgePanel({
     sendMessage(question);
   };
 
-  if (!isOpen) {
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              onClick={onToggle}
-              className="fixed bottom-44 right-4 gap-2 shadow-lg z-40"
-              size="default"
-            >
-              <Brain className="w-4 h-4" />
-              AI Knowledge
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="left" className="max-w-64">
-            <div className="flex items-start gap-2">
-              <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
-              <div>
-                <p className="font-medium">AI Knowledge Assistant</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Ask questions about your contacts, find engagement gaps, discover patterns in notes, and get insights about your account relationships.
-                </p>
-              </div>
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-  }
-
+  // Always render a single consistent structure to avoid React reconciliation issues
   return (
-    <div 
-      ref={dragRef}
-      className={cn(
-        "fixed bg-background border border-border rounded-xl shadow-2xl z-50",
-        isMinimized ? "w-80 h-14" : "w-96 h-[500px]",
-        isDragging ? "cursor-grabbing" : ""
-      )}
-      style={{
-        left: position.x,
-        top: position.y,
-        transition: isDragging ? 'none' : 'box-shadow 0.2s ease',
-      }}
-    >
-      {/* Header - Draggable */}
-      <div 
-        className={cn(
-          "flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30 rounded-t-xl select-none",
-          isDragging ? "cursor-grabbing" : "cursor-grab"
-        )}
-        {...dragHandleProps}
-      >
-        <div className="flex items-center gap-2">
-          <GripVertical className="w-4 h-4 text-muted-foreground" />
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <Brain className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-sm">AI Knowledge</h3>
-            {!isMinimized && (
-              <p className="text-xs text-muted-foreground">{account.name}</p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMinimized(!isMinimized);
-            }}
-          >
-            {isMinimized ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <ChevronDown className="w-4 h-4" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggle();
-            }}
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-
-      {!isMinimized && (
-        <>
-          {/* Messages Area */}
-          <ScrollArea className="h-[360px] p-4" ref={scrollRef}>
-            {messages.length === 0 ? (
-              <div className="space-y-4">
-                <div className="text-center py-4">
-                  <div className="p-3 bg-primary/10 rounded-full w-fit mx-auto mb-3">
-                    <Sparkles className="w-6 h-6 text-primary" />
-                  </div>
-                  <h4 className="font-medium mb-1">Ask about your account</h4>
-                  <p className="text-xs text-muted-foreground">
-                    I can analyze contacts, notes, and engagement patterns
+    <>
+      {/* Closed state - Button with tooltip */}
+      {!isOpen && (
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                onClick={onToggle}
+                className="fixed bottom-44 right-4 gap-2 shadow-lg z-40"
+                size="default"
+              >
+                <Brain className="w-4 h-4" />
+                AI Knowledge
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-64">
+              <div className="flex items-start gap-2">
+                <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
+                <div>
+                  <p className="font-medium">AI Knowledge Assistant</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Ask questions about your contacts, find engagement gaps, discover patterns in notes, and get insights about your account relationships.
                   </p>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Try asking:
-                  </p>
-                  {EXAMPLE_QUESTIONS.map((q, i) => (
-                    <button
-                      key={i}
-                      onClick={() => handleExampleClick(q)}
-                      className="w-full text-left text-sm p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                    >
-                      {q}
-                    </button>
-                  ))}
                 </div>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "flex gap-2",
-                      msg.role === "user" ? "justify-end" : "justify-start"
-                    )}
-                  >
-                    {msg.role === "assistant" && (
-                      <div className="p-1.5 bg-primary/10 rounded-lg h-fit mt-0.5">
-                        <Brain className="w-3 h-3 text-primary" />
-                      </div>
-                    )}
-                    <div
-                      className={cn(
-                        "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
-                      )}
-                    >
-                      <div 
-                        className="whitespace-pre-wrap"
-                        dangerouslySetInnerHTML={{
-                          __html: msg.role === "assistant" 
-                            ? formatResponseText(msg.content, account.contacts)
-                                .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-primary">$1</strong>')
-                            : msg.content
-                        }}
-                      />
-                      {msg.highlightedContacts && msg.highlightedContacts.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-border/50">
-                          <p className="text-xs text-muted-foreground">
-                            📍 {msg.highlightedContacts.length} contact(s) highlighted on canvas
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    {msg.role === "user" && (
-                      <div className="p-1.5 bg-primary rounded-lg h-fit mt-0.5">
-                        <User className="w-3 h-3 text-primary-foreground" />
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {isLoading && (
-                  <div className="flex gap-2">
-                    <div className="p-1.5 bg-primary/10 rounded-lg h-fit">
-                      <Brain className="w-3 h-3 text-primary" />
-                    </div>
-                    <div className="bg-muted rounded-lg px-3 py-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                    </div>
-                  </div>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
+      {/* Open state - Full panel */}
+      {isOpen && (
+        <div 
+          ref={dragRef}
+          className={cn(
+            "fixed bg-background border border-border rounded-xl shadow-2xl z-50",
+            isMinimized ? "w-80 h-14" : "w-96 h-[500px]",
+            isDragging ? "cursor-grabbing" : ""
+          )}
+          style={{
+            left: position.x,
+            top: position.y,
+            transition: isDragging ? 'none' : 'box-shadow 0.2s ease',
+          }}
+        >
+          {/* Header - Draggable */}
+          <div 
+            className={cn(
+              "flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30 rounded-t-xl select-none",
+              isDragging ? "cursor-grabbing" : "cursor-grab"
+            )}
+            {...dragHandleProps}
+          >
+            <div className="flex items-center gap-2">
+              <GripVertical className="w-4 h-4 text-muted-foreground" />
+              <div className="p-1.5 bg-primary/10 rounded-lg">
+                <Brain className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">AI Knowledge</h3>
+                {!isMinimized && (
+                  <p className="text-xs text-muted-foreground">{account.name}</p>
                 )}
               </div>
-            )}
-            {error && (
-              <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg mt-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <p className="text-sm">{error}</p>
-              </div>
-            )}
-          </ScrollArea>
-
-          {/* Input Area */}
-          <form onSubmit={handleSubmit} className="p-3 border-t border-border">
-            <div className="flex gap-2">
-              <Input
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about contacts, themes, gaps..."
-                className="flex-1"
-                disabled={isLoading}
-              />
-              <Button 
-                type="submit" 
-                size="icon" 
-                disabled={!input.trim() || isLoading}
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMinimized(!isMinimized);
+                }}
               >
-                <Send className="w-4 h-4" />
+                {isMinimized ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggle();
+                }}
+              >
+                <X className="w-4 h-4" />
               </Button>
             </div>
-          </form>
-        </>
+          </div>
+
+          {!isMinimized && (
+            <>
+              {/* Messages Area */}
+              <ScrollArea className="h-[360px] p-4" ref={scrollRef}>
+                {messages.length === 0 ? (
+                  <div className="space-y-4">
+                    <div className="text-center py-4">
+                      <div className="p-3 bg-primary/10 rounded-full w-fit mx-auto mb-3">
+                        <Sparkles className="w-6 h-6 text-primary" />
+                      </div>
+                      <h4 className="font-medium mb-1">Ask about your account</h4>
+                      <p className="text-xs text-muted-foreground">
+                        I can analyze contacts, notes, and engagement patterns
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        Try asking:
+                      </p>
+                      {EXAMPLE_QUESTIONS.map((q, i) => (
+                        <button
+                          key={i}
+                          onClick={() => handleExampleClick(q)}
+                          className="w-full text-left text-sm p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {messages.map((msg) => (
+                      <div
+                        key={msg.id}
+                        className={cn(
+                          "flex gap-2",
+                          msg.role === "user" ? "justify-end" : "justify-start"
+                        )}
+                      >
+                        {msg.role === "assistant" && (
+                          <div className="p-1.5 bg-primary/10 rounded-lg h-fit mt-0.5">
+                            <Brain className="w-3 h-3 text-primary" />
+                          </div>
+                        )}
+                        <div
+                          className={cn(
+                            "max-w-[85%] rounded-lg px-3 py-2 text-sm",
+                            msg.role === "user"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted"
+                          )}
+                        >
+                          <div 
+                            className="whitespace-pre-wrap"
+                            dangerouslySetInnerHTML={{
+                              __html: msg.role === "assistant" 
+                                ? formatResponseText(msg.content, account.contacts)
+                                    .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-primary">$1</strong>')
+                                : msg.content
+                            }}
+                          />
+                          {msg.highlightedContacts && msg.highlightedContacts.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-border/50">
+                              <p className="text-xs text-muted-foreground">
+                                📍 {msg.highlightedContacts.length} contact(s) highlighted on canvas
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                        {msg.role === "user" && (
+                          <div className="p-1.5 bg-primary rounded-lg h-fit mt-0.5">
+                            <User className="w-3 h-3 text-primary-foreground" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {isLoading && (
+                      <div className="flex gap-2">
+                        <div className="p-1.5 bg-primary/10 rounded-lg h-fit">
+                          <Brain className="w-3 h-3 text-primary" />
+                        </div>
+                        <div className="bg-muted rounded-lg px-3 py-2">
+                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {error && (
+                  <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg mt-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <p className="text-sm">{error}</p>
+                  </div>
+                )}
+              </ScrollArea>
+
+              {/* Input Area */}
+              <form onSubmit={handleSubmit} className="p-3 border-t border-border">
+                <div className="flex gap-2">
+                  <Input
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Ask about contacts, themes, gaps..."
+                    className="flex-1"
+                    disabled={isLoading}
+                  />
+                  <Button 
+                    type="submit" 
+                    size="icon" 
+                    disabled={!input.trim() || isLoading}
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
+        </div>
       )}
-    </div>
+    </>
   );
 }

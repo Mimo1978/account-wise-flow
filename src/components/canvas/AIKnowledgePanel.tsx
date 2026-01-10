@@ -80,7 +80,8 @@ export function AIKnowledgePanel({
     const minimapOuterHeight = minimapCanvasHeight + minimapBorder * 2;
 
     const buttonHeight = 48; // matches h-12
-    const gapAboveMinimap = 12; // ensure no touching/overlap
+    const gapAboveMinimap = 96; // ~1 inch (96px) so it never touches/overlaps
+    const leftNudge = 24; // move slightly left so it doesn't feel too tight to the right edge
 
     if (forPanel) {
       // Panel position: centered vertically with padding from top, right-aligned
@@ -94,12 +95,12 @@ export function AIKnowledgePanel({
       };
     }
 
-    // Button position: just above minimap, aligned with minimap container edges
+    // Button position: above minimap (no touching) and roughly aligned with its left edge
     const minimapLeft = window.innerWidth - rightOffset - minimapOuterWidth;
     const minimapTop = window.innerHeight - bottomOffset - minimapOuterHeight;
 
     return {
-      x: minimapLeft,
+      x: minimapLeft - leftNudge,
       y: minimapTop - gapAboveMinimap - buttonHeight,
     };
   };

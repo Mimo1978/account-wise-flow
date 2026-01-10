@@ -34,6 +34,7 @@ import {
   ArrowUpDown,
   Network,
   ExternalLink,
+  UserPlus,
 } from "lucide-react";
 import {
   departmentOptions,
@@ -50,6 +51,7 @@ interface CompanyDatabaseViewProps {
   onAccountUpdate: (account: Account) => void;
   onViewCanvas: () => void;
   onContactSelect?: (contact: Contact) => void;
+  onAddContact?: () => void;
 }
 
 const isContactReady = (contact: Contact): boolean => {
@@ -98,6 +100,7 @@ export const CompanyDatabaseView = ({
   onAccountUpdate,
   onViewCanvas,
   onContactSelect,
+  onAddContact,
 }: CompanyDatabaseViewProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
@@ -355,6 +358,13 @@ export const CompanyDatabaseView = ({
       {/* Toolbar */}
       <div className="border-b border-border p-4">
         <div className="flex flex-wrap items-center gap-4">
+          <Button 
+            onClick={onAddContact} 
+            className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <UserPlus className="h-4 w-4" />
+            Add Contact
+          </Button>
           <div className="relative flex-1 min-w-[250px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input

@@ -9,10 +9,12 @@ import { User, Users } from "lucide-react";
 interface AccountCanvasProps {
   account: Account;
   onContactClick: (contact: Contact) => void;
+  highlightedContactIds?: string[];
 }
 
 export interface AccountCanvasRef {
   clearSearch: () => void;
+  highlightContacts: (contactIds: string[]) => void;
 }
 
 interface ContactNodeData {
@@ -25,7 +27,7 @@ interface ContactNodeData {
   originalPosition: { x: number; y: number };
 }
 
-export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({ account, onContactClick }, ref) => {
+export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({ account, onContactClick, highlightedContactIds = [] }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -539,9 +541,86 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     fabricCanvas.renderAll();
   };
 
-  // Expose clearSearch to parent via ref
+  // Function to highlight specific contacts by ID (for AI knowledge panel)
+  const highlightContactsById = (contactIds: string[]) => {
+    if (!fabricCanvas) return;
+
+    contactNodesRef.current.forEach((nodeData, id) => {
+      const { group } = nodeData;
+      const cardBg = group.getObjects()[0] as Rect;
+
+      // Store original stroke if not already stored
+      if (nodeData.originalStroke === undefined) {
+        nodeData.originalStroke = typeof cardBg.stroke === 'string' ? cardBg.stroke : null;
+        nodeData.originalStrokeWidth = cardBg.strokeWidth;
+      }
+
+      if (contactIds.includes(id)) {
+        // Highlight with a distinct gold/yellow color for AI highlights
+        cardBg.set({
+          stroke: "hsl(45 93% 47%)", // Gold color
+          strokeWidth: 4,
+        });
+        // Add pulsing shadow effect
+        group.set({
+          shadow: { color: 'hsl(45 93% 47%)', blur: 15, offsetX: 0, offsetY: 0 }
+        });
+      } else {
+        // Reset to original
+        cardBg.set({
+          stroke: nodeData.originalStroke as string | undefined,
+          strokeWidth: nodeData.originalStrokeWidth || 1,
+        });
+        group.set({ shadow: null });
+      }
+    });
+
+    fabricCanvas.renderAll();
+
+    // If there are highlighted contacts, zoom to show them all
+    if (contactIds.length > 0) {
+      const highlightedNodes = contactIds
+        .map(id => contactNodesRef.current.get(id))
+        .filter(Boolean);
+
+      if (highlightedNodes.length === 1) {
+        zoomToNode(highlightedNodes[0]!.group);
+      } else if (highlightedNodes.length > 1) {
+        // Calculate bounding box of all highlighted nodes
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        highlightedNodes.forEach(node => {
+          if (node) {
+            const bounds = node.group.getBoundingRect();
+            minX = Math.min(minX, bounds.left);
+            minY = Math.min(minY, bounds.top);
+            maxX = Math.max(maxX, bounds.left + bounds.width);
+            maxY = Math.max(maxY, bounds.top + bounds.height);
+          }
+        });
+
+        const padding = 100;
+        const contentCenterX = (minX + maxX) / 2;
+        const contentCenterY = (minY + maxY) / 2;
+        const contentWidth = maxX - minX + padding * 2;
+        const contentHeight = maxY - minY + padding * 2;
+
+        const canvasWidth = fabricCanvas.width!;
+        const canvasHeight = fabricCanvas.height!;
+        const targetZoom = Math.min(canvasWidth / contentWidth, canvasHeight / contentHeight, 1.2);
+
+        fabricCanvas.setZoom(targetZoom);
+        const vpt = fabricCanvas.viewportTransform!;
+        vpt[4] = canvasWidth / 2 - contentCenterX * targetZoom;
+        vpt[5] = canvasHeight / 2 - contentCenterY * targetZoom;
+        fabricCanvas.renderAll();
+      }
+    }
+  };
+
+  // Expose clearSearch and highlightContacts to parent via ref
   useImperativeHandle(ref, () => ({
     clearSearch: handleClearSearch,
+    highlightContacts: highlightContactsById,
   }));
 
   const handleResetPositions = () => {

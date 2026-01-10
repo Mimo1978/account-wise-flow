@@ -20,7 +20,8 @@ import {
   ChevronDown,
   ChevronUp,
   Info,
-  GripVertical
+  GripVertical,
+  RotateCcw
 } from "lucide-react";
 import { Account, Contact } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -70,10 +71,14 @@ export function AIKnowledgePanel({
     y: typeof window !== 'undefined' ? window.innerHeight - 680 : 0,
   });
 
-  const { position, dragRef, dragHandleProps, isDragging } = useDraggable({
+  const { position, setPosition, dragRef, dragHandleProps, isDragging } = useDraggable({
     initialPosition: getInitialPosition(),
     bounds: "viewport",
   });
+
+  const handleResetPosition = () => {
+    setPosition(getInitialPosition());
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -326,6 +331,26 @@ export function AIKnowledgePanel({
               </div>
             </div>
             <div className="flex items-center gap-1">
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleResetPosition();
+                      }}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    Reset position
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <Button
                 variant="ghost"
                 size="icon"

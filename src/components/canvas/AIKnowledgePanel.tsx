@@ -70,14 +70,17 @@ export function AIKnowledgePanel({
     if (typeof window === 'undefined') return { x: 0, y: 0 };
     
     const rightOffset = 16;
-    const topOffset = 100; // below the header navigation
-    const buttonWidth = 200;
+    const bottomOffset = 16;
+    const minimapWidth = 200;
+    const minimapHeight = 150;
+    const buttonHeight = 44;
+    const gapAboveMinimap = 8;
     
     if (forPanel) {
       // Panel position: centered vertically with padding from top, right-aligned
       const panelWidth = 384; // w-96
       const panelHeight = 500;
-      const topPadding = 100; // ensure header is visible
+      const topPadding = 100;
       
       return {
         x: window.innerWidth - panelWidth - rightOffset,
@@ -85,10 +88,12 @@ export function AIKnowledgePanel({
       };
     }
     
-    // Button position: top right of the screen
+    // Button position: just above minimap, aligned with it
+    const minimapTop = window.innerHeight - bottomOffset - minimapHeight;
+    
     return {
-      x: window.innerWidth - buttonWidth - rightOffset,
-      y: topOffset,
+      x: window.innerWidth - minimapWidth - rightOffset,
+      y: minimapTop - gapAboveMinimap - buttonHeight,
     };
   };
 

@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FlexibleCombobox } from "./FlexibleCombobox";
 import {
   Table,
   TableBody,
@@ -340,12 +341,11 @@ export const AIImportModal = ({
       return;
     }
 
-    // Validate required fields for org chart
+    // Show warning but don't block if fields are missing
     if (selectedAction === 'database-and-chart') {
       const incomplete = selectedContacts.filter(c => !c.department || !c.title);
       if (incomplete.length > 0) {
-        toast.error(`${incomplete.length} contacts are missing Department or Job Title required for org chart`);
-        return;
+        toast.warning(`${incomplete.length} contacts missing Department or Job Title will be flagged for review`);
       }
     }
 
@@ -682,48 +682,22 @@ export const AIImportModal = ({
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Select 
-                            value={contact.department || ''} 
-                            onValueChange={(v) => updateContactField(contact.id, 'department', v)}
-                          >
-                            <SelectTrigger className="h-7 text-xs">
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {contact.department && !(departmentOptions as readonly string[]).includes(contact.department) && (
-                                <SelectItem value={contact.department} className="text-xs">
-                                  {contact.department}
-                                </SelectItem>
-                              )}
-                              {departmentOptions.map((dept) => (
-                                <SelectItem key={dept} value={dept} className="text-xs">
-                                  {dept}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FlexibleCombobox
+                            value={contact.department || ''}
+                            onChange={(v) => updateContactField(contact.id, 'department', v)}
+                            options={departmentOptions}
+                            placeholder="Type or select..."
+                            createLabel="Create department"
+                          />
                         </TableCell>
                         <TableCell>
-                          <Select 
-                            value={contact.title || ''} 
-                            onValueChange={(v) => updateContactField(contact.id, 'title', v)}
-                          >
-                            <SelectTrigger className="h-7 text-xs">
-                              <SelectValue placeholder="Select..." />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[200px]">
-                              {contact.title && !(jobTitleOptionsFlat as readonly string[]).includes(contact.title) && (
-                                <SelectItem value={contact.title} className="text-xs">
-                                  {contact.title}
-                                </SelectItem>
-                              )}
-                              {jobTitleOptionsFlat.map((title) => (
-                                <SelectItem key={title} value={title} className="text-xs">
-                                  {title}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <FlexibleCombobox
+                            value={contact.title || ''}
+                            onChange={(v) => updateContactField(contact.id, 'title', v)}
+                            options={jobTitleOptionsFlat}
+                            placeholder="Type or select..."
+                            createLabel="Create job title"
+                          />
                         </TableCell>
                         <TableCell>
                           <Input
@@ -748,8 +722,10 @@ export const AIImportModal = ({
                         </TableCell>
                         <TableCell>
                           {contact.selected && (!contact.department || !contact.title) && (
-                            <span title="Missing required fields">
-                              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                            <span title="Needs review after import">
+                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-yellow-500 text-yellow-500">
+                                Needs Review
+                              </Badge>
                             </span>
                           )}
                         </TableCell>

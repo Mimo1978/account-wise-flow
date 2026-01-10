@@ -65,20 +65,44 @@ export function AIKnowledgePanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Calculate initial position (bottom-right, above minimap)
-  const getInitialPosition = () => ({
-    x: typeof window !== 'undefined' ? window.innerWidth - 400 : 0,
-    y: typeof window !== 'undefined' ? window.innerHeight - 680 : 0,
-  });
+  // Calculate initial position based on whether panel is open
+  // Minimap is 200x150 at bottom-4 right-4, button should sit directly above with a gap
+  const getInitialPosition = (forPanel = false) => {
+    if (typeof window === 'undefined') return { x: 0, y: 0 };
+    
+    const minimapWidth = 200;
+    const minimapHeight = 150;
+    const spacing = 16; // gap between elements
+    const buttonHeight = 40;
+    
+    if (forPanel) {
+      // Panel position (larger, so offset differently)
+      return {
+        x: window.innerWidth - 400,
+        y: window.innerHeight - 680,
+      };
+    }
+    
+    // Button position: above minimap, same width, aligned
+    return {
+      x: window.innerWidth - minimapWidth - spacing, // right-4 (16px) aligns with minimap
+      y: window.innerHeight - minimapHeight - buttonHeight - spacing * 2 - spacing, // above minimap with gap
+    };
+  };
 
   const { position, setPosition, dragRef, dragHandleProps, isDragging } = useDraggable({
-    initialPosition: getInitialPosition(),
+    initialPosition: getInitialPosition(isOpen),
     bounds: "viewport",
   });
 
   const handleResetPosition = () => {
-    setPosition(getInitialPosition());
+    setPosition(getInitialPosition(isOpen));
   };
+
+  // Update position when panel opens/closes
+  useEffect(() => {
+    setPosition(getInitialPosition(isOpen));
+  }, [isOpen]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -255,33 +279,53 @@ export function AIKnowledgePanel({
   // Always render a single consistent structure to avoid React reconciliation issues
   return (
     <>
-      {/* Closed state - Button with tooltip */}
+      {/* Closed state - Draggable button aligned above minimap */}
       {!isOpen && (
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                onClick={onToggle}
-                className="fixed bottom-48 right-4 gap-2 shadow-lg z-40"
-                size="default"
-              >
-                <Brain className="w-4 h-4" />
-                AI Knowledge
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left" className="max-w-64">
-              <div className="flex items-start gap-2">
-                <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
-                <div>
-                  <p className="font-medium">AI Knowledge Assistant</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Ask questions about your contacts, find engagement gaps, discover patterns in notes, and get insights about your account relationships.
-                  </p>
-                </div>
-              </div>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div
+          ref={dragRef}
+          className="fixed z-40"
+          style={{
+            left: position.x,
+            top: position.y,
+            transition: isDragging ? 'none' : 'box-shadow 0.2s ease',
+          }}
+        >
+          <div
+            className={cn(
+              "flex items-center gap-2 bg-primary text-primary-foreground rounded-lg shadow-lg w-[200px]",
+              isDragging ? "cursor-grabbing" : ""
+            )}
+          >
+            {/* Drag handle */}
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className={cn(
+                      "p-2 rounded-l-lg hover:bg-primary-foreground/10 transition-colors",
+                      isDragging ? "cursor-grabbing" : "cursor-grab"
+                    )}
+                    {...dragHandleProps}
+                  >
+                    <GripVertical className="w-4 h-4" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  Drag to reposition
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            {/* Button content */}
+            <button
+              onClick={onToggle}
+              className="flex items-center gap-2 py-2 pr-3 flex-1"
+            >
+              <Brain className="w-4 h-4" />
+              <span className="font-medium text-sm">AI Knowledge</span>
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Open state - Full panel */}

@@ -9,3 +9,6 @@ max_rows = 1000
 
 [functions.ai-knowledge-chat]
 verify_jwt = false
+
+[functions.ai-insights-analysis]
+verify_jwt = false

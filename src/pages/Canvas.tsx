@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Brain, Network, Table2 } from "lucide-react";
+import { ArrowLeft, Plus, Brain, Network, Table2, Lightbulb } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
@@ -9,6 +9,7 @@ import { QRCodeButton } from "@/components/canvas/QRCodeButton";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { CompanyDatabaseView } from "@/components/canvas/CompanyDatabaseView";
 import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
+import { AIInsightsPanel } from "@/components/canvas/AIInsightsPanel";
 import { mockAccount } from "@/lib/mock-data";
 import { Account, Contact } from "@/lib/types";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ const Canvas = () => {
   const [showCompanySaveDialog, setShowCompanySaveDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"canvas" | "database">("canvas");
   const [isAIKnowledgeOpen, setIsAIKnowledgeOpen] = useState(false);
+  const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(false);
   const [highlightedContactIds, setHighlightedContactIds] = useState<string[]>([]);
   const canvasRef = useRef<AccountCanvasRef>(null);
 
@@ -185,6 +187,15 @@ const Canvas = () => {
               </ToggleGroup>
               <div className="h-6 w-px bg-border" />
               <Button 
+                variant={isAIInsightsOpen ? "default" : "outline"} 
+                size="sm" 
+                className="gap-2"
+                onClick={() => setIsAIInsightsOpen(!isAIInsightsOpen)}
+              >
+                <Lightbulb className="w-4 h-4" />
+                AI Insights
+              </Button>
+              <Button 
                 variant={isAIKnowledgeOpen ? "default" : "outline"} 
                 size="sm" 
                 className="gap-2"
@@ -291,6 +302,16 @@ const Canvas = () => {
           account={account}
           isOpen={isAIKnowledgeOpen}
           onToggle={() => setIsAIKnowledgeOpen(!isAIKnowledgeOpen)}
+          onHighlightContacts={handleHighlightContacts}
+        />
+      )}
+
+      {/* AI Insights Panel */}
+      {viewMode === "canvas" && (
+        <AIInsightsPanel
+          account={account}
+          isOpen={isAIInsightsOpen}
+          onToggle={() => setIsAIInsightsOpen(!isAIInsightsOpen)}
           onHighlightContacts={handleHighlightContacts}
         />
       )}

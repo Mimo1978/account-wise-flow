@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Account, Contact } from "@/lib/types";
+import { Account, Contact, PhoneNumber } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,7 @@ import {
   AlertTriangle,
   ArrowUpDown,
   Network,
+  Mail,
 } from "lucide-react";
 import {
   departmentOptions,
@@ -40,6 +41,7 @@ import {
   seniorityOptions,
 } from "@/lib/dropdown-options";
 import { toast } from "sonner";
+import { PhoneInlineEditor } from "./PhoneInlineEditor";
 
 interface CompanyDatabaseViewProps {
   account: Account;
@@ -441,6 +443,8 @@ export const CompanyDatabaseView = ({
               <SortableHeader field="title">Job Title</SortableHeader>
               <TableHead className="font-semibold">Seniority</TableHead>
               <TableHead className="font-semibold">Email</TableHead>
+              <TableHead className="font-semibold">Private Email</TableHead>
+              <TableHead className="font-semibold">Phone</TableHead>
               <SortableHeader field="status">Status</SortableHeader>
               <SortableHeader field="lastContact">Last Contacted</SortableHeader>
             </TableRow>
@@ -654,6 +658,28 @@ export const CompanyDatabaseView = ({
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {contact.email || "-"}
+                  </TableCell>
+                  <TableCell>
+                    {contact.privateEmail ? (
+                      <span className="flex items-center gap-1.5 text-muted-foreground/70">
+                        <Mail className="h-3 w-3" />
+                        <span className="truncate max-w-[140px]">{contact.privateEmail}</span>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground/50 italic">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <PhoneInlineEditor
+                      phoneNumbers={contact.phoneNumbers || []}
+                      legacyPhone={contact.phone}
+                      onSave={(phones: PhoneNumber[]) => {
+                        updateContact(contact.id, {
+                          phoneNumbers: phones,
+                          phone: phones.find(p => p.preferred)?.value || phones[0]?.value || "",
+                        });
+                      }}
+                    />
                   </TableCell>
                   <TableCell>
                     <Badge className={statusColors[contact.status] || ""}>

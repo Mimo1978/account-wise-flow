@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, ChevronLeft, ChevronRight, X, RotateCcw } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, X, RotateCcw, GripVertical } from "lucide-react";
+import { useDraggable } from "@/hooks/use-draggable";
+import { cn } from "@/lib/utils";
 
 interface CanvasSearchProps {
   onSearch: (query: string) => void;
@@ -24,6 +26,17 @@ export const CanvasSearch = ({
 }: CanvasSearchProps) => {
   const [query, setQuery] = useState("");
 
+  // Calculate initial position (top center)
+  const getInitialPosition = () => ({
+    x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 280 : 0,
+    y: 80, // Below header
+  });
+
+  const { position, dragRef, dragHandleProps, isDragging } = useDraggable({
+    initialPosition: getInitialPosition(),
+    bounds: "viewport",
+  });
+
   const handleSearch = (value: string) => {
     setQuery(value);
     onSearch(value);
@@ -35,8 +48,27 @@ export const CanvasSearch = ({
   };
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-2">
+    <div 
+      ref={dragRef}
+      className="fixed z-10 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-2"
+      style={{
+        left: position.x,
+        top: position.y,
+        transition: isDragging ? 'none' : 'box-shadow 0.2s ease',
+      }}
+    >
       <div className="flex items-center gap-2">
+        {/* Drag handle */}
+        <div 
+          className={cn(
+            "flex items-center justify-center p-1 rounded hover:bg-muted select-none",
+            isDragging ? "cursor-grabbing" : "cursor-grab"
+          )}
+          {...dragHandleProps}
+        >
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
+        </div>
+
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input

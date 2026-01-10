@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Sparkles, Network, Table2 } from "lucide-react";
+import { ArrowLeft, Plus, Brain, Network, Table2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
@@ -8,6 +8,7 @@ import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
 import { QRCodeButton } from "@/components/canvas/QRCodeButton";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { CompanyDatabaseView } from "@/components/canvas/CompanyDatabaseView";
+import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
 import { mockAccount } from "@/lib/mock-data";
 import { Account, Contact } from "@/lib/types";
 import { toast } from "sonner";
@@ -34,6 +35,8 @@ const Canvas = () => {
   const [pendingCompany, setPendingCompany] = useState<Account | null>(null);
   const [showCompanySaveDialog, setShowCompanySaveDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"canvas" | "database">("canvas");
+  const [isAIKnowledgeOpen, setIsAIKnowledgeOpen] = useState(false);
+  const [highlightedContactIds, setHighlightedContactIds] = useState<string[]>([]);
   const canvasRef = useRef<AccountCanvasRef>(null);
 
   const handleCompanySwitch = (newAccount: Account) => {
@@ -133,6 +136,12 @@ const Canvas = () => {
     }));
   };
 
+  const handleHighlightContacts = useCallback((contactIds: string[]) => {
+    setHighlightedContactIds(contactIds);
+    // Also call the canvas method directly for immediate visual feedback
+    canvasRef.current?.highlightContacts(contactIds);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -175,9 +184,14 @@ const Canvas = () => {
                 </ToggleGroupItem>
               </ToggleGroup>
               <div className="h-6 w-px bg-border" />
-              <Button variant="outline" size="sm" className="gap-2">
-                <Sparkles className="w-4 h-4" />
-                AI Suggestions
+              <Button 
+                variant={isAIKnowledgeOpen ? "default" : "outline"} 
+                size="sm" 
+                className="gap-2"
+                onClick={() => setIsAIKnowledgeOpen(!isAIKnowledgeOpen)}
+              >
+                <Brain className="w-4 h-4" />
+                AI Knowledge
               </Button>
               <Button size="sm" className="gap-2" onClick={() => setShowAddContactModal(true)}>
                 <Plus className="w-4 h-4" />
@@ -195,6 +209,7 @@ const Canvas = () => {
             ref={canvasRef}
             account={account} 
             onContactClick={handleContactClick}
+            highlightedContactIds={highlightedContactIds}
           />
         ) : (
           <CompanyDatabaseView
@@ -269,6 +284,16 @@ const Canvas = () => {
         onAddContact={handleAddContact}
         companyName={account.name}
       />
+
+      {/* AI Knowledge Panel */}
+      {viewMode === "canvas" && (
+        <AIKnowledgePanel
+          account={account}
+          isOpen={isAIKnowledgeOpen}
+          onToggle={() => setIsAIKnowledgeOpen(!isAIKnowledgeOpen)}
+          onHighlightContacts={handleHighlightContacts}
+        />
+      )}
 
       {/* Bottom Info Bar - Only show in canvas mode */}
       {viewMode === "canvas" && (

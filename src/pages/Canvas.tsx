@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Brain, Network, Table2, Lightbulb } from "lucide-react";
+import { ArrowLeft, Plus, Brain, Network, Table2, Lightbulb, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
@@ -10,6 +10,7 @@ import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { CompanyDatabaseView } from "@/components/canvas/CompanyDatabaseView";
 import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
 import { AIInsightsPanel } from "@/components/canvas/AIInsightsPanel";
+import { AIRoleSuggestionsPanel } from "@/components/canvas/AIRoleSuggestionsPanel";
 import { mockAccount } from "@/lib/mock-data";
 import { Account, Contact } from "@/lib/types";
 import { toast } from "sonner";
@@ -38,6 +39,7 @@ const Canvas = () => {
   const [viewMode, setViewMode] = useState<"canvas" | "database">("canvas");
   const [isAIKnowledgeOpen, setIsAIKnowledgeOpen] = useState(false);
   const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(false);
+  const [isRoleSuggestionsOpen, setIsRoleSuggestionsOpen] = useState(false);
   const [highlightedContactIds, setHighlightedContactIds] = useState<string[]>([]);
   const canvasRef = useRef<AccountCanvasRef>(null);
 
@@ -187,6 +189,15 @@ const Canvas = () => {
               </ToggleGroup>
               <div className="h-6 w-px bg-border" />
               <Button 
+                variant={isRoleSuggestionsOpen ? "default" : "outline"} 
+                size="sm" 
+                className="gap-2"
+                onClick={() => setIsRoleSuggestionsOpen(!isRoleSuggestionsOpen)}
+              >
+                <UserPlus className="w-4 h-4" />
+                Missing Roles
+              </Button>
+              <Button 
                 variant={isAIInsightsOpen ? "default" : "outline"} 
                 size="sm" 
                 className="gap-2"
@@ -313,6 +324,16 @@ const Canvas = () => {
           isOpen={isAIInsightsOpen}
           onToggle={() => setIsAIInsightsOpen(!isAIInsightsOpen)}
           onHighlightContacts={handleHighlightContacts}
+        />
+      )}
+
+      {/* AI Role Suggestions Panel */}
+      {viewMode === "canvas" && (
+        <AIRoleSuggestionsPanel
+          account={account}
+          isOpen={isRoleSuggestionsOpen}
+          onToggle={() => setIsRoleSuggestionsOpen(!isRoleSuggestionsOpen)}
+          onAddContact={handleAddContact}
         />
       )}
 

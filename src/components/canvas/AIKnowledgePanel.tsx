@@ -72,8 +72,10 @@ export function AIKnowledgePanel({
     
     const minimapWidth = 200;
     const minimapHeight = 150;
-    const spacing = 16; // gap between elements
-    const buttonHeight = 40;
+    const rightOffset = 16; // matches minimap's right-4
+    const bottomOffset = 16; // matches minimap's bottom-4
+    const buttonHeight = 44;
+    const gapAboveMinimap = 8; // small gap between button and minimap
     
     if (forPanel) {
       // Panel position: centered vertically with padding from top, right-aligned
@@ -82,15 +84,19 @@ export function AIKnowledgePanel({
       const topPadding = 100; // ensure header is visible
       
       return {
-        x: window.innerWidth - panelWidth - spacing,
-        y: Math.max(topPadding, (window.innerHeight - panelHeight) / 2), // vertically centered, but never above topPadding
+        x: window.innerWidth - panelWidth - rightOffset,
+        y: Math.max(topPadding, (window.innerHeight - panelHeight) / 2),
       };
     }
     
-    // Button position: above minimap, same width, aligned
+    // Button position: directly above minimap, same width, aligned to right edge
+    // Minimap top = window.innerHeight - bottomOffset - minimapHeight
+    // Button should be at minimap top - gapAboveMinimap - buttonHeight
+    const minimapTop = window.innerHeight - bottomOffset - minimapHeight;
+    
     return {
-      x: window.innerWidth - minimapWidth - spacing, // right-4 (16px) aligns with minimap
-      y: window.innerHeight - minimapHeight - buttonHeight - spacing * 2 - spacing, // above minimap with gap
+      x: window.innerWidth - minimapWidth - rightOffset,
+      y: minimapTop - gapAboveMinimap - buttonHeight,
     };
   };
 

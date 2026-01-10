@@ -423,7 +423,7 @@ export const CompanyDatabaseView = ({
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <Table>
+        <Table className="min-w-[1400px]">
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow className="bg-muted/50">
               <TableHead className="w-[40px]">
@@ -442,9 +442,9 @@ export const CompanyDatabaseView = ({
               <SortableHeader field="department">Department</SortableHeader>
               <SortableHeader field="title">Job Title</SortableHeader>
               <TableHead className="font-semibold">Seniority</TableHead>
-              <TableHead className="font-semibold">Email</TableHead>
-              <TableHead className="font-semibold">Private Email</TableHead>
-              <TableHead className="font-semibold">Phone</TableHead>
+              <TableHead className="font-semibold min-w-[200px]">Email</TableHead>
+              <TableHead className="font-semibold min-w-[180px]">Private Email</TableHead>
+              <TableHead className="font-semibold min-w-[200px]">Phone</TableHead>
               <SortableHeader field="status">Status</SortableHeader>
               <SortableHeader field="lastContact">Last Contacted</SortableHeader>
             </TableRow>

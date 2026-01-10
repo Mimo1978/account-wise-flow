@@ -36,6 +36,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { PhoneInlineEditor } from "@/components/canvas/PhoneInlineEditor";
+import { PrivateEmailEditor } from "@/components/canvas/PrivateEmailEditor";
 import {
   Search,
   Plus,
@@ -503,14 +504,18 @@ export default function ContactsDatabase() {
                       {contact.email}
                     </TableCell>
                     <TableCell data-quality-action>
-                      {contact.privateEmail ? (
-                        <span className="flex items-center gap-1.5 text-muted-foreground/70">
-                          <Mail className="h-3 w-3" />
-                          <span className="truncate max-w-[140px]">{contact.privateEmail}</span>
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/50 italic">—</span>
-                      )}
+                      <PrivateEmailEditor
+                        privateEmail={contact.privateEmail}
+                        onSave={(email) => {
+                          const contactIndex = mockAccount.contacts.findIndex(c => c.id === contact.id);
+                          if (contactIndex !== -1) {
+                            mockAccount.contacts[contactIndex] = {
+                              ...mockAccount.contacts[contactIndex],
+                              privateEmail: email,
+                            };
+                          }
+                        }}
+                      />
                     </TableCell>
                     <TableCell data-quality-action>
                       <PhoneInlineEditor

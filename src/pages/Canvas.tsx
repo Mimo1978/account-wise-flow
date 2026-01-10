@@ -1,12 +1,13 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Brain, Network, Table2, Lightbulb, UserPlus } from "lucide-react";
+import { ArrowLeft, Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
 import { QRCodeButton } from "@/components/canvas/QRCodeButton";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
+import { AIImportModal } from "@/components/canvas/AIImportModal";
 import { CompanyDatabaseView } from "@/components/canvas/CompanyDatabaseView";
 import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
 import { AIInsightsPanel } from "@/components/canvas/AIInsightsPanel";
@@ -15,6 +16,7 @@ import { mockAccount } from "@/lib/mock-data";
 import { Account, Contact } from "@/lib/types";
 import { toast } from "sonner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,6 +36,7 @@ const Canvas = () => {
   const [pendingContact, setPendingContact] = useState<Contact | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [showAIImportModal, setShowAIImportModal] = useState(false);
   const [pendingCompany, setPendingCompany] = useState<Account | null>(null);
   const [showCompanySaveDialog, setShowCompanySaveDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"canvas" | "database">("canvas");
@@ -215,6 +218,18 @@ const Canvas = () => {
                 <Brain className="w-4 h-4" />
                 AI Knowledge
               </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowAIImportModal(true)}
+                  >
+                    <Upload className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Import Contacts</TooltipContent>
+              </Tooltip>
               <Button size="sm" className="gap-2" onClick={() => setShowAddContactModal(true)}>
                 <Plus className="w-4 h-4" />
                 Add Contact
@@ -239,6 +254,7 @@ const Canvas = () => {
             onAccountUpdate={setAccount}
             onViewCanvas={() => setViewMode("canvas")}
             onAddContact={() => setShowAddContactModal(true)}
+            onAIImport={() => setShowAIImportModal(true)}
           />
         )}
       </main>
@@ -306,6 +322,12 @@ const Canvas = () => {
         onOpenChange={setShowAddContactModal}
         onAddContact={handleAddContact}
         companyName={account.name}
+      />
+
+      {/* AI Import Modal */}
+      <AIImportModal
+        open={showAIImportModal}
+        onOpenChange={setShowAIImportModal}
       />
 
       {/* AI Knowledge Panel */}

@@ -28,6 +28,12 @@ import {
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Search,
   CheckCircle2,
   AlertTriangle,
@@ -35,6 +41,11 @@ import {
   Network,
   ExternalLink,
   UserPlus,
+  Upload,
+  FileImage,
+  FileText,
+  ClipboardPaste,
+  ChevronDown,
 } from "lucide-react";
 import {
   departmentOptions,
@@ -52,6 +63,7 @@ interface CompanyDatabaseViewProps {
   onViewCanvas: () => void;
   onContactSelect?: (contact: Contact) => void;
   onAddContact?: () => void;
+  onAIImport?: () => void;
 }
 
 const isContactReady = (contact: Contact): boolean => {
@@ -101,6 +113,7 @@ export const CompanyDatabaseView = ({
   onViewCanvas,
   onContactSelect,
   onAddContact,
+  onAIImport,
 }: CompanyDatabaseViewProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
@@ -365,6 +378,37 @@ export const CompanyDatabaseView = ({
             <UserPlus className="h-4 w-4" />
             Add Contact
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Upload className="h-4 w-4" />
+                Import
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuItem onClick={onAIImport}>
+                <FileText className="h-4 w-4 mr-2" />
+                Import from CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onAIImport}>
+                <FileImage className="h-4 w-4 mr-2" />
+                Import from Image
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onAIImport}>
+                <FileText className="h-4 w-4 mr-2" />
+                Import from Document
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onAIImport}>
+                <Network className="h-4 w-4 mr-2" />
+                Import from Org Chart
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onAIImport}>
+                <ClipboardPaste className="h-4 w-4 mr-2" />
+                Import from Clipboard / Screenshot
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <div className="relative flex-1 min-w-[250px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input

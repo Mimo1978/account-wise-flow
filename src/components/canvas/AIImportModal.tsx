@@ -686,8 +686,7 @@ export const AIImportModal = ({
                             value={contact.department || ''}
                             onChange={(v) => updateContactField(contact.id, 'department', v)}
                             options={departmentOptions}
-                            placeholder="Type or select..."
-                            createLabel="Create department"
+                            placeholder="Type department..."
                           />
                         </TableCell>
                         <TableCell>
@@ -695,8 +694,7 @@ export const AIImportModal = ({
                             value={contact.title || ''}
                             onChange={(v) => updateContactField(contact.id, 'title', v)}
                             options={jobTitleOptionsFlat}
-                            placeholder="Type or select..."
-                            createLabel="Create job title"
+                            placeholder="Type job title..."
                           />
                         </TableCell>
                         <TableCell>

@@ -68,34 +68,36 @@ export function AIKnowledgePanel({
   // Calculate initial position based on whether panel is open
   const getInitialPosition = (forPanel = false) => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
-    
-    // Minimap is positioned at bottom-4 right-4 (16px each), size 200x150
+
+    // Minimap container is bottom-4 right-4 with border-2.
+    // Canvas is 200x150, but the visible container is +4px in both directions.
     const rightOffset = 16;
     const bottomOffset = 16;
-    const minimapWidth = 200;
-    const minimapHeight = 150;
-    const buttonWidth = 200;
-    const buttonHeight = 44;
-    const gapAboveMinimap = 8;
-    
+    const minimapCanvasWidth = 200;
+    const minimapCanvasHeight = 150;
+    const minimapBorder = 2;
+    const minimapOuterWidth = minimapCanvasWidth + minimapBorder * 2;
+    const minimapOuterHeight = minimapCanvasHeight + minimapBorder * 2;
+
+    const buttonHeight = 48; // matches h-12
+    const gapAboveMinimap = 12; // ensure no touching/overlap
+
     if (forPanel) {
       // Panel position: centered vertically with padding from top, right-aligned
       const panelWidth = 384; // w-96
       const panelHeight = 500;
       const topPadding = 100;
-      
+
       return {
         x: window.innerWidth - panelWidth - rightOffset,
         y: Math.max(topPadding, (window.innerHeight - panelHeight) / 2),
       };
     }
-    
-    // Button position: just above minimap, left-aligned with minimap's left edge
-    // Minimap left edge = window.innerWidth - rightOffset - minimapWidth
-    // Minimap top = window.innerHeight - bottomOffset - minimapHeight
-    const minimapLeft = window.innerWidth - rightOffset - minimapWidth;
-    const minimapTop = window.innerHeight - bottomOffset - minimapHeight;
-    
+
+    // Button position: just above minimap, aligned with minimap container edges
+    const minimapLeft = window.innerWidth - rightOffset - minimapOuterWidth;
+    const minimapTop = window.innerHeight - bottomOffset - minimapOuterHeight;
+
     return {
       x: minimapLeft,
       y: minimapTop - gapAboveMinimap - buttonHeight,
@@ -304,7 +306,7 @@ export function AIKnowledgePanel({
         >
           <div
             className={cn(
-              "flex items-center gap-2 bg-primary text-primary-foreground rounded-lg shadow-lg w-[200px]",
+              "flex items-center gap-2 bg-primary text-primary-foreground rounded-lg shadow-lg w-[204px] h-12",
               isDragging ? "cursor-grabbing" : ""
             )}
           >
@@ -312,9 +314,9 @@ export function AIKnowledgePanel({
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div 
+                  <div
                     className={cn(
-                      "p-2 rounded-l-lg hover:bg-primary-foreground/10 transition-colors",
+                      "h-12 w-10 flex items-center justify-center rounded-l-lg hover:bg-primary-foreground/10 transition-colors",
                       isDragging ? "cursor-grabbing" : "cursor-grab"
                     )}
                     {...dragHandleProps}
@@ -331,7 +333,7 @@ export function AIKnowledgePanel({
             {/* Button content */}
             <button
               onClick={onToggle}
-              className="flex items-center gap-2 py-2 pr-3 flex-1"
+              className="h-12 flex items-center gap-2 pr-3 flex-1"
             >
               <Brain className="w-4 h-4" />
               <span className="font-medium text-sm">AI Knowledge</span>

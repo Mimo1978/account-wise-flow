@@ -69,10 +69,12 @@ export function AIKnowledgePanel({
   const getInitialPosition = (forPanel = false) => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
     
+    // Minimap is positioned at bottom-4 right-4 (16px each), size 200x150
     const rightOffset = 16;
     const bottomOffset = 16;
     const minimapWidth = 200;
     const minimapHeight = 150;
+    const buttonWidth = 200;
     const buttonHeight = 44;
     const gapAboveMinimap = 8;
     
@@ -88,11 +90,14 @@ export function AIKnowledgePanel({
       };
     }
     
-    // Button position: just above minimap, aligned with it
+    // Button position: just above minimap, left-aligned with minimap's left edge
+    // Minimap left edge = window.innerWidth - rightOffset - minimapWidth
+    // Minimap top = window.innerHeight - bottomOffset - minimapHeight
+    const minimapLeft = window.innerWidth - rightOffset - minimapWidth;
     const minimapTop = window.innerHeight - bottomOffset - minimapHeight;
     
     return {
-      x: window.innerWidth - minimapWidth - rightOffset,
+      x: minimapLeft,
       y: minimapTop - gapAboveMinimap - buttonHeight,
     };
   };

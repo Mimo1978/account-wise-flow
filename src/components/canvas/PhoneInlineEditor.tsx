@@ -16,8 +16,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Phone, Plus, Star, Trash2, ChevronDown } from "lucide-react";
+import { Phone, Plus, Star, Trash2, ChevronDown, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface PhoneInlineEditorProps {
   phoneNumbers: PhoneNumber[];
@@ -185,6 +186,16 @@ export const PhoneInlineEditor = ({
                   />
                 </button>
                 <span className="text-sm flex-1 truncate">{phone.value}</span>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(phone.value);
+                    toast.success("Phone copied to clipboard");
+                  }}
+                  className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                  title="Copy to clipboard"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
                 <Select
                   value={phone.label}
                   onValueChange={(v) => handleUpdateLabel(index, v as PhoneLabel)}

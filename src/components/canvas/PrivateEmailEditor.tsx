@@ -7,8 +7,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
-import { Mail, Pencil, Trash2, Plus } from "lucide-react";
+import { Mail, Pencil, Trash2, Plus, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface PrivateEmailEditorProps {
   privateEmail?: string;
@@ -126,6 +127,19 @@ export const PrivateEmailEditor = ({
             <Button size="sm" className="flex-1" onClick={handleSave}>
               Save
             </Button>
+            {privateEmail && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  navigator.clipboard.writeText(privateEmail);
+                  toast.success("Email copied to clipboard");
+                }}
+                title="Copy to clipboard"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            )}
             {privateEmail && (
               <Button
                 size="sm"

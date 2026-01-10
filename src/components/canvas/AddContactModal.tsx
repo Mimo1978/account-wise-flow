@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Contact } from "@/lib/types";
+import { Contact, PhoneLabel } from "@/lib/types";
 import { departmentOptions, jobTitleOptionsFlat, seniorityOptions } from "@/lib/dropdown-options";
 import { toast } from "sonner";
 
@@ -27,6 +27,8 @@ interface AddContactModalProps {
   companyName: string;
 }
 
+const phoneLabelOptions: PhoneLabel[] = ["Work", "Mobile", "Desk", "Home", "Private", "Other"];
+
 export const AddContactModal = ({
   open,
   onOpenChange,
@@ -36,6 +38,8 @@ export const AddContactModal = ({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneLabel, setPhoneLabel] = useState<PhoneLabel>("Work");
+  const [privateEmail, setPrivateEmail] = useState("");
   const [department, setDepartment] = useState("");
   const [customDepartment, setCustomDepartment] = useState("");
   const [jobTitle, setJobTitle] = useState("");
@@ -48,6 +52,8 @@ export const AddContactModal = ({
     setName("");
     setEmail("");
     setPhone("");
+    setPhoneLabel("Work");
+    setPrivateEmail("");
     setDepartment("");
     setCustomDepartment("");
     setJobTitle("");
@@ -96,6 +102,8 @@ export const AddContactModal = ({
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim(),
+      phoneNumbers: phone.trim() ? [{ value: phone.trim(), label: phoneLabel, preferred: true }] : [],
+      privateEmail: privateEmail.trim() || undefined,
       department: finalDepartment,
       title: finalJobTitle,
       seniority: finalSeniority as Contact["seniority"],
@@ -219,12 +227,39 @@ export const AddContactModal = ({
           {/* Phone */}
           <div className="grid gap-2">
             <Label htmlFor="phone">Phone</Label>
+            <div className="flex gap-2">
+              <Input
+                id="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="+1 234 567 8900"
+                className="flex-1"
+              />
+              <Select value={phoneLabel} onValueChange={(v) => setPhoneLabel(v as PhoneLabel)}>
+                <SelectTrigger className="w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {phoneLabelOptions.map((label) => (
+                    <SelectItem key={label} value={label}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Private Email */}
+          <div className="grid gap-2">
+            <Label htmlFor="privateEmail">Private Email</Label>
             <Input
-              id="phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+1 234 567 8900"
+              id="privateEmail"
+              type="email"
+              value={privateEmail}
+              onChange={(e) => setPrivateEmail(e.target.value)}
+              placeholder="personal@email.com"
             />
           </div>
         </div>

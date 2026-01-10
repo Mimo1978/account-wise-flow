@@ -123,7 +123,7 @@ export const PhoneInlineEditor = ({
         >
           {preferredPhone ? (
             <>
-              <span className="text-muted-foreground truncate max-w-[120px]">
+              <span className="text-muted-foreground truncate min-w-[100px] max-w-[160px]">
                 {preferredPhone.value}
               </span>
               <Badge

@@ -42,6 +42,7 @@ import {
 } from "@/lib/dropdown-options";
 import { toast } from "sonner";
 import { PhoneInlineEditor } from "./PhoneInlineEditor";
+import { PrivateEmailEditor } from "./PrivateEmailEditor";
 
 interface CompanyDatabaseViewProps {
   account: Account;
@@ -660,14 +661,12 @@ export const CompanyDatabaseView = ({
                     {contact.email || "-"}
                   </TableCell>
                   <TableCell>
-                    {contact.privateEmail ? (
-                      <span className="flex items-center gap-1.5 text-muted-foreground/70">
-                        <Mail className="h-3 w-3" />
-                        <span className="truncate max-w-[140px]">{contact.privateEmail}</span>
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground/50 italic">—</span>
-                    )}
+                    <PrivateEmailEditor
+                      privateEmail={contact.privateEmail}
+                      onSave={(email) => {
+                        updateContact(contact.id, { privateEmail: email });
+                      }}
+                    />
                   </TableCell>
                   <TableCell>
                     <PhoneInlineEditor

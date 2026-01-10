@@ -76,10 +76,14 @@ export function AIKnowledgePanel({
     const buttonHeight = 40;
     
     if (forPanel) {
-      // Panel position (larger, so offset differently)
+      // Panel position: centered vertically with padding from top, right-aligned
+      const panelWidth = 384; // w-96
+      const panelHeight = 500;
+      const topPadding = 100; // ensure header is visible
+      
       return {
-        x: window.innerWidth - 400,
-        y: window.innerHeight - 680,
+        x: window.innerWidth - panelWidth - spacing,
+        y: Math.max(topPadding, (window.innerHeight - panelHeight) / 2), // vertically centered, but never above topPadding
       };
     }
     

@@ -41,6 +41,12 @@ import { InlineEditCell } from "@/components/canvas/InlineEditCell";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { AIImportModal } from "@/components/canvas/AIImportModal";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Search,
   Plus,
   Upload,
@@ -50,6 +56,10 @@ import {
   AlertTriangle,
   Mail,
   Sparkles,
+  FileImage,
+  FileText,
+  ClipboardPaste,
+  ChevronDown,
 } from "lucide-react";
 import {
   departmentOptions,
@@ -284,15 +294,37 @@ export default function ContactsDatabase() {
                 <Plus className="h-4 w-4 mr-2" />
                 Add Contact
               </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowAIImportModal(true)}
-                className="gap-2"
-              >
-                <Sparkles className="h-4 w-4" />
-                AI Import
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    Import
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Import from CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
+                    <FileImage className="h-4 w-4 mr-2" />
+                    Import from Image
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Import from Document
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
+                    <Network className="h-4 w-4 mr-2" />
+                    Import from Org Chart
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
+                    <ClipboardPaste className="h-4 w-4 mr-2" />
+                    Import from Clipboard / Screenshot
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="default" size="sm" onClick={handleViewOrgChart}>
                 <Network className="h-4 w-4 mr-2" />
                 View Org Chart

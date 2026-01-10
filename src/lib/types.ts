@@ -1,3 +1,11 @@
+export type PhoneLabel = "Work" | "Mobile" | "Desk" | "Home" | "Private" | "Other";
+
+export interface PhoneNumber {
+  value: string;
+  label: PhoneLabel;
+  preferred: boolean;
+}
+
 export interface Contact {
   id: string;
   name: string;
@@ -5,7 +13,9 @@ export interface Contact {
   department: string;
   seniority: "executive" | "director" | "manager" | "senior" | "mid" | "junior";
   email: string;
-  phone: string;
+  phone: string; // legacy single phone field
+  phoneNumbers?: PhoneNumber[]; // new multi-phone support
+  privateEmail?: string; // new private email field
   status: "unknown" | "new" | "warm" | "engaged" | "champion" | "blocker";
   engagementScore?: number;
   lastContact?: string;

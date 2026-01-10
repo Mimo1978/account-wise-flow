@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { mockAccount } from "@/lib/mock-data";
-import { Contact } from "@/lib/types";
+import { Contact, PhoneNumber } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
+import { PhoneInlineEditor } from "@/components/canvas/PhoneInlineEditor";
 import {
   Search,
   Plus,
@@ -43,6 +44,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertTriangle,
+  Mail,
 } from "lucide-react";
 import {
   departmentOptions,
@@ -332,6 +334,7 @@ export default function ContactsDatabase() {
                 <TableHead className="font-semibold">Job Title</TableHead>
                 <TableHead className="font-semibold">Seniority</TableHead>
                 <TableHead className="font-semibold">Email</TableHead>
+                <TableHead className="font-semibold">Private Email</TableHead>
                 <TableHead className="font-semibold">Phone</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
                 <TableHead className="font-semibold">Owner</TableHead>
@@ -499,8 +502,32 @@ export default function ContactsDatabase() {
                     <TableCell className="text-muted-foreground">
                       {contact.email}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {contact.phone}
+                    <TableCell data-quality-action>
+                      {contact.privateEmail ? (
+                        <span className="flex items-center gap-1.5 text-muted-foreground/70">
+                          <Mail className="h-3 w-3" />
+                          <span className="truncate max-w-[140px]">{contact.privateEmail}</span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50 italic">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell data-quality-action>
+                      <PhoneInlineEditor
+                        phoneNumbers={contact.phoneNumbers || []}
+                        legacyPhone={contact.phone}
+                        onSave={(phones: PhoneNumber[]) => {
+                          // Update contact in mock data
+                          const contactIndex = mockAccount.contacts.findIndex(c => c.id === contact.id);
+                          if (contactIndex !== -1) {
+                            mockAccount.contacts[contactIndex] = {
+                              ...mockAccount.contacts[contactIndex],
+                              phoneNumbers: phones,
+                              phone: phones.find(p => p.preferred)?.value || phones[0]?.value || "",
+                            };
+                          }
+                        }}
+                      />
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -523,7 +550,7 @@ export default function ContactsDatabase() {
               {filteredContacts.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={11}
+                    colSpan={12}
                     className="text-center py-8 text-muted-foreground"
                   >
                     No contacts found matching your filters.

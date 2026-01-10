@@ -238,6 +238,7 @@ const Canvas = () => {
             account={account}
             onAccountUpdate={setAccount}
             onViewCanvas={() => setViewMode("canvas")}
+            onAddContact={() => setShowAddContactModal(true)}
           />
         )}
       </main>

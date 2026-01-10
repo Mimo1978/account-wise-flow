@@ -37,6 +37,7 @@ import { Label } from "@/components/ui/label";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { PhoneInlineEditor } from "@/components/canvas/PhoneInlineEditor";
 import { PrivateEmailEditor } from "@/components/canvas/PrivateEmailEditor";
+import { InlineEditCell } from "@/components/canvas/InlineEditCell";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { AIImportModal } from "@/components/canvas/AIImportModal";
 import {
@@ -72,6 +73,15 @@ const statusColors: Record<string, string> = {
   champion: "bg-purple-500/20 text-purple-400",
   blocker: "bg-red-500/20 text-red-400",
 };
+
+const statusOptions = [
+  { value: "unknown", label: "Unknown" },
+  { value: "new", label: "New" },
+  { value: "warm", label: "Warm" },
+  { value: "engaged", label: "Engaged" },
+  { value: "champion", label: "Champion" },
+  { value: "blocker", label: "Blocker" },
+];
 
 const seniorityLabels: Record<string, string> = {
   executive: "Executive",
@@ -556,14 +566,30 @@ export default function ContactsDatabase() {
                         }}
                       />
                     </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={statusColors[contact.status]}
-                      >
-                        {contact.status.charAt(0).toUpperCase() +
-                          contact.status.slice(1)}
-                      </Badge>
+                    <TableCell data-quality-action>
+                      <InlineEditCell
+                        value={contact.status}
+                        displayValue={
+                          <Badge
+                            variant="secondary"
+                            className={statusColors[contact.status]}
+                          >
+                            {contact.status.charAt(0).toUpperCase() + contact.status.slice(1)}
+                          </Badge>
+                        }
+                        onSave={(value) => {
+                          const contactIndex = mockAccount.contacts.findIndex(c => c.id === contact.id);
+                          if (contactIndex !== -1) {
+                            mockAccount.contacts[contactIndex] = {
+                              ...mockAccount.contacts[contactIndex],
+                              status: value as Contact["status"],
+                            };
+                          }
+                        }}
+                        type="select"
+                        options={statusOptions}
+                        placeholder="Select status"
+                      />
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {contact.contactOwner || "—"}

@@ -72,6 +72,15 @@ const statusColors: Record<string, string> = {
   blocker: "bg-red-500/20 text-red-400",
 };
 
+const statusOptions = [
+  { value: "unknown", label: "Unknown" },
+  { value: "new", label: "New" },
+  { value: "warm", label: "Warm" },
+  { value: "engaged", label: "Engaged" },
+  { value: "champion", label: "Champion" },
+  { value: "blocker", label: "Blocker" },
+];
+
 const seniorityLabels: Record<string, string> = {
   executive: "Executive",
   director: "Director",
@@ -732,10 +741,19 @@ export const CompanyDatabaseView = ({
                     />
                   </TableCell>
                   <TableCell>
-                    <Badge className={statusColors[contact.status] || ""}>
-                      {contact.status.charAt(0).toUpperCase() +
-                        contact.status.slice(1)}
-                    </Badge>
+                    <InlineEditCell
+                      value={contact.status}
+                      displayValue={
+                        <Badge className={statusColors[contact.status] || ""}>
+                          {contact.status.charAt(0).toUpperCase() + contact.status.slice(1)}
+                        </Badge>
+                      }
+                      onSave={(value) => updateContact(contact.id, { status: value as Contact["status"] })}
+                      type="select"
+                      options={statusOptions}
+                      placeholder="Select status"
+                      isEdited={editedContacts.has(contact.id)}
+                    />
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {contact.lastContact || "-"}

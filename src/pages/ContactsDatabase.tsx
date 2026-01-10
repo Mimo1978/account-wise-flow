@@ -37,6 +37,8 @@ import { Label } from "@/components/ui/label";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { PhoneInlineEditor } from "@/components/canvas/PhoneInlineEditor";
 import { PrivateEmailEditor } from "@/components/canvas/PrivateEmailEditor";
+import { AddContactModal } from "@/components/canvas/AddContactModal";
+import { AIImportModal } from "@/components/canvas/AIImportModal";
 import {
   Search,
   Plus,
@@ -46,12 +48,14 @@ import {
   CheckCircle2,
   AlertTriangle,
   Mail,
+  Sparkles,
 } from "lucide-react";
 import {
   departmentOptions,
   jobTitleOptions,
   seniorityOptions,
 } from "@/lib/dropdown-options";
+import { toast } from "sonner";
 
 // Helper to check data quality
 const isContactReady = (contact: Contact): boolean => {
@@ -149,6 +153,15 @@ export default function ContactsDatabase() {
   const [customJobTitle, setCustomJobTitle] = useState("");
   const [showCustomDept, setShowCustomDept] = useState(false);
   const [showCustomTitle, setShowCustomTitle] = useState(false);
+
+  // State for Add Contact and AI Import modals
+  const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [showAIImportModal, setShowAIImportModal] = useState(false);
+
+  const handleAddContact = (contact: Contact) => {
+    mockAccount.contacts.push(contact);
+    toast.success(`${contact.name} added to database`);
+  };
 
   const handleOpenAssign = (contact: Contact, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -253,13 +266,22 @@ export default function ContactsDatabase() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowAddContactModal(true)}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Contact
               </Button>
-              <Button variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />
-                Import CSV
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowAIImportModal(true)}
+                className="gap-2"
+              >
+                <Sparkles className="h-4 w-4" />
+                AI Import
               </Button>
               <Button variant="default" size="sm" onClick={handleViewOrgChart}>
                 <Network className="h-4 w-4 mr-2" />
@@ -585,6 +607,24 @@ export default function ContactsDatabase() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Add Contact Modal */}
+      <AddContactModal
+        open={showAddContactModal}
+        onOpenChange={setShowAddContactModal}
+        onAddContact={handleAddContact}
+        companyName={companyName}
+      />
+
+      {/* AI Import Modal */}
+      <AIImportModal
+        open={showAIImportModal}
+        onOpenChange={setShowAIImportModal}
+        onImportComplete={(data) => {
+          toast.info("AI processing will be connected soon. Files received.");
+          setShowAIImportModal(false);
+        }}
+      />
     </div>
   );
 }

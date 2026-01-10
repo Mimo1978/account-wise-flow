@@ -80,7 +80,7 @@ export function AIKnowledgePanel({
     const minimapOuterHeight = minimapCanvasHeight + minimapBorder * 2;
 
     const buttonHeight = 48; // matches h-12
-    const gapAboveMinimap = 64; // moved down a tiny bit more
+    const gapAboveMinimap = 56; // moved down a tiny bit more
     const leftNudge = 18; // a bit more left
 
     if (forPanel) {
@@ -334,11 +334,31 @@ export function AIKnowledgePanel({
             {/* Button content */}
             <button
               onClick={onToggle}
-              className="h-12 flex items-center gap-2 pr-3 flex-1"
+              className="h-12 flex items-center gap-2 flex-1"
             >
               <Brain className="w-4 h-4" />
               <span className="font-medium text-sm">AI Knowledge</span>
             </button>
+
+            {/* Home/Reset button */}
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleResetPosition();
+                    }}
+                    className="h-12 w-10 flex items-center justify-center rounded-r-lg hover:bg-primary-foreground/10 transition-colors"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  Reset position
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
       )}

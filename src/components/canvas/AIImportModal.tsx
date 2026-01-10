@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -39,12 +41,18 @@ import {
   CheckCircle2,
   Users,
   ChevronLeft,
+  ChevronRight,
   Pencil,
+  Plus,
+  Search,
+  MapPin,
+  Briefcase,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Contact } from "@/lib/types";
-import { mockAccount } from "@/lib/mock-data";
+import { Contact, Account } from "@/lib/types";
+import { mockAccount, mockAccounts } from "@/lib/mock-data";
 import {
   departmentOptions,
   jobTitleOptionsFlat,
@@ -56,6 +64,7 @@ interface AIImportModalProps {
   onOpenChange: (open: boolean) => void;
   onImportComplete?: (contacts: Contact[]) => void;
   existingContacts?: Contact[];
+  currentCompany?: string;
 }
 
 type FilePreview = {
@@ -80,6 +89,14 @@ type ExtractedContact = {
 
 type ImportAction = 'new' | 'merge' | 'database-only' | 'database-and-chart' | 'notes-only';
 
+type CompanyAssignment = 'existing' | 'new' | 'unassigned';
+
+type NewCompanyData = {
+  name: string;
+  industry: string;
+  location: string;
+};
+
 const confidenceColors: Record<string, string> = {
   high: 'bg-green-500/20 text-green-400',
   medium: 'bg-yellow-500/20 text-yellow-400',
@@ -91,6 +108,7 @@ export const AIImportModal = ({
   onOpenChange,
   onImportComplete,
   existingContacts = mockAccount.contacts,
+  currentCompany,
 }: AIImportModalProps) => {
   const [files, setFiles] = useState<FilePreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -98,9 +116,35 @@ export const AIImportModal = ({
   const [extractedContacts, setExtractedContacts] = useState<ExtractedContact[]>([]);
   const [sourceType, setSourceType] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
-  const [step, setStep] = useState<'upload' | 'preview'>('upload');
+  const [step, setStep] = useState<'upload' | 'preview' | 'company'>('upload');
   const [selectedAction, setSelectedAction] = useState<ImportAction>('database-and-chart');
+  
+  // Company assignment state
+  const [companyAssignment, setCompanyAssignment] = useState<CompanyAssignment>('existing');
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(currentCompany || mockAccount.id);
+  const [companySearch, setCompanySearch] = useState('');
+  const [newCompanyData, setNewCompanyData] = useState<NewCompanyData>({
+    name: '',
+    industry: '',
+    location: '',
+  });
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Filter companies based on search
+  const filteredCompanies = useMemo(() => {
+    if (!companySearch) return mockAccounts;
+    const search = companySearch.toLowerCase();
+    return mockAccounts.filter(acc => 
+      acc.name.toLowerCase().includes(search) ||
+      acc.industry?.toLowerCase().includes(search)
+    );
+  }, [companySearch]);
+
+  const selectedCompany = useMemo(() => 
+    mockAccounts.find(acc => acc.id === selectedCompanyId),
+    [selectedCompanyId]
+  );
 
   const handleClose = () => {
     setFiles([]);
@@ -111,6 +155,10 @@ export const AIImportModal = ({
     setNotes('');
     setStep('upload');
     setSelectedAction('database-and-chart');
+    setCompanyAssignment('existing');
+    setSelectedCompanyId(currentCompany || mockAccount.id);
+    setCompanySearch('');
+    setNewCompanyData({ name: '', industry: '', location: '' });
     onOpenChange(false);
   };
 
@@ -284,7 +332,7 @@ export const AIImportModal = ({
     );
   };
 
-  const handleConfirmImport = () => {
+  const handleProceedToCompany = () => {
     const selectedContacts = extractedContacts.filter(c => c.selected);
     
     if (selectedContacts.length === 0) {
@@ -299,6 +347,47 @@ export const AIImportModal = ({
         toast.error(`${incomplete.length} contacts are missing Department or Job Title required for org chart`);
         return;
       }
+    }
+
+    setStep('company');
+  };
+
+  const canConfirmImport = () => {
+    if (companyAssignment === 'new' && !newCompanyData.name.trim()) {
+      return false;
+    }
+    return true;
+  };
+
+  const handleConfirmImport = () => {
+    if (!canConfirmImport()) {
+      toast.error('Please provide a company name for the new company');
+      return;
+    }
+
+    const selectedContacts = extractedContacts.filter(c => c.selected);
+
+    // Determine target account
+    let targetAccount: Account | undefined;
+    let companyName = 'Unassigned';
+
+    if (companyAssignment === 'existing') {
+      targetAccount = mockAccounts.find(acc => acc.id === selectedCompanyId);
+      companyName = targetAccount?.name || mockAccount.name;
+    } else if (companyAssignment === 'new') {
+      // Create new company (in real implementation, this would persist)
+      const newCompany: Account = {
+        id: `acc-${Date.now()}`,
+        name: newCompanyData.name,
+        industry: newCompanyData.industry || undefined,
+        size: '',
+        contacts: [],
+        lastUpdated: new Date().toISOString().split('T')[0],
+        engagementScore: 0,
+      };
+      mockAccounts.push(newCompany);
+      targetAccount = newCompany;
+      companyName = newCompanyData.name;
     }
 
     // Convert to Contact type and add to mock data
@@ -316,18 +405,27 @@ export const AIImportModal = ({
       lastContact: new Date().toISOString().split('T')[0],
     }));
 
-    // Add to mock account based on action
-    if (selectedAction !== 'notes-only') {
+    // Add to target account based on action
+    if (selectedAction !== 'notes-only' && targetAccount) {
+      newContacts.forEach(contact => {
+        targetAccount!.contacts.push(contact);
+      });
+    } else if (selectedAction !== 'notes-only' && companyAssignment !== 'unassigned') {
+      // Fallback to current mockAccount
       newContacts.forEach(contact => {
         mockAccount.contacts.push(contact);
       });
     }
 
+    const assignmentText = companyAssignment === 'unassigned' 
+      ? ' (unassigned)' 
+      : ` to ${companyName}`;
+
     const actionMessages: Record<ImportAction, string> = {
-      'new': `Added ${newContacts.length} new contacts`,
-      'merge': `Merged ${newContacts.length} contacts`,
-      'database-only': `Added ${newContacts.length} contacts to database`,
-      'database-and-chart': `Added ${newContacts.length} contacts to database and org chart`,
+      'new': `Added ${newContacts.length} new contacts${assignmentText}`,
+      'merge': `Merged ${newContacts.length} contacts${assignmentText}`,
+      'database-only': `Added ${newContacts.length} contacts to database${assignmentText}`,
+      'database-and-chart': `Added ${newContacts.length} contacts to database and org chart${assignmentText}`,
       'notes-only': `Saved ${newContacts.length} contacts as notes`,
     };
 
@@ -361,9 +459,14 @@ export const AIImportModal = ({
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             AI Import
-            {step === 'preview' && (
+            {(step === 'preview' || step === 'company') && (
               <Badge variant="secondary" className="ml-2">
                 {extractedContacts.length} contacts detected
+              </Badge>
+            )}
+            {step === 'company' && (
+              <Badge variant="outline" className="ml-2">
+                Step 3: Assign Company
               </Badge>
             )}
           </DialogTitle>
@@ -501,7 +604,7 @@ export const AIImportModal = ({
               </Button>
             </DialogFooter>
           </>
-        ) : (
+        ) : step === 'preview' ? (
           <>
             {/* Preview Step */}
             <div className="flex-1 overflow-hidden flex flex-col py-2">
@@ -713,8 +816,195 @@ export const AIImportModal = ({
                 Cancel
               </Button>
               <Button 
-                onClick={handleConfirmImport}
+                onClick={handleProceedToCompany}
                 disabled={selectedCount === 0}
+                className="gap-2"
+              >
+                Next: Assign Company
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </DialogFooter>
+          </>
+        ) : step === 'company' ? (
+          <>
+            {/* Company Assignment Step */}
+            <div className="flex-1 overflow-hidden flex flex-col py-2">
+              <div className="mb-4">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5 text-muted-foreground" />
+                  Where should these contacts be added?
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {selectedCount} contact{selectedCount > 1 ? 's' : ''} selected for import
+                </p>
+              </div>
+
+              <RadioGroup 
+                value={companyAssignment} 
+                onValueChange={(v) => setCompanyAssignment(v as CompanyAssignment)}
+                className="space-y-4"
+              >
+                {/* Option 1: Add to existing company */}
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="existing" id="existing" className="mt-1" />
+                  <div className="flex-1 space-y-3">
+                    <Label htmlFor="existing" className="text-sm font-medium cursor-pointer">
+                      Add to existing company
+                    </Label>
+                    
+                    {companyAssignment === 'existing' && (
+                      <div className="space-y-2 pl-0">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Search companies..."
+                            value={companySearch}
+                            onChange={(e) => setCompanySearch(e.target.value)}
+                            className="pl-9"
+                          />
+                        </div>
+                        
+                        <ScrollArea className="h-[140px] border rounded-lg">
+                          <div className="p-2 space-y-1">
+                            {filteredCompanies.map((company) => (
+                              <button
+                                key={company.id}
+                                type="button"
+                                onClick={() => setSelectedCompanyId(company.id)}
+                                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors flex items-center gap-3 ${
+                                  selectedCompanyId === company.id
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'hover:bg-muted'
+                                }`}
+                              >
+                                <Building2 className="h-4 w-4 shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="font-medium truncate">{company.name}</p>
+                                  {company.industry && (
+                                    <p className={`text-xs truncate ${
+                                      selectedCompanyId === company.id 
+                                        ? 'text-primary-foreground/80' 
+                                        : 'text-muted-foreground'
+                                    }`}>
+                                      {company.industry}
+                                    </p>
+                                  )}
+                                </div>
+                                {selectedCompanyId === company.id && (
+                                  <CheckCircle2 className="h-4 w-4 ml-auto shrink-0" />
+                                )}
+                              </button>
+                            ))}
+                            {filteredCompanies.length === 0 && (
+                              <p className="text-sm text-muted-foreground text-center py-4">
+                                No companies found
+                              </p>
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Option 2: Create new company */}
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="new" id="new" className="mt-1" />
+                  <div className="flex-1 space-y-3">
+                    <Label htmlFor="new" className="text-sm font-medium cursor-pointer flex items-center gap-2">
+                      <Plus className="h-4 w-4" />
+                      Create new company
+                    </Label>
+                    
+                    {companyAssignment === 'new' && (
+                      <div className="space-y-3 pl-0">
+                        <div className="space-y-2">
+                          <Label htmlFor="company-name" className="text-xs text-muted-foreground">
+                            Company Name <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="company-name"
+                            placeholder="Enter company name..."
+                            value={newCompanyData.name}
+                            onChange={(e) => setNewCompanyData(prev => ({ ...prev, name: e.target.value }))}
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="company-industry" className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Briefcase className="h-3 w-3" />
+                              Industry (optional)
+                            </Label>
+                            <Input
+                              id="company-industry"
+                              placeholder="e.g., Software, Finance..."
+                              value={newCompanyData.industry}
+                              onChange={(e) => setNewCompanyData(prev => ({ ...prev, industry: e.target.value }))}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="company-location" className="text-xs text-muted-foreground flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              Location (optional)
+                            </Label>
+                            <Input
+                              id="company-location"
+                              placeholder="e.g., New York, NY..."
+                              value={newCompanyData.location}
+                              onChange={(e) => setNewCompanyData(prev => ({ ...prev, location: e.target.value }))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Option 3: Save as unassigned */}
+                <div className="flex items-start space-x-3">
+                  <RadioGroupItem value="unassigned" id="unassigned" className="mt-1" />
+                  <div className="flex-1">
+                    <Label htmlFor="unassigned" className="text-sm font-medium cursor-pointer">
+                      Save as unassigned contacts
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Contacts remain searchable and can be linked to a company later
+                    </p>
+                  </div>
+                </div>
+              </RadioGroup>
+
+              {/* Summary */}
+              <div className="mt-auto pt-4 p-3 rounded-lg bg-muted/50 border border-border">
+                <div className="flex items-center gap-2 text-sm">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Action:</span>
+                  <span className="font-medium">
+                    {selectedAction === 'database-and-chart' && 'Add to Database + Org Chart'}
+                    {selectedAction === 'database-only' && 'Add to Database Only'}
+                    {selectedAction === 'new' && 'Add as New Contacts'}
+                    {selectedAction === 'notes-only' && 'Save as Notes Only'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => setStep('preview')}
+                className="mr-auto gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </Button>
+              <Button variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleConfirmImport}
+                disabled={!canConfirmImport()}
                 className="gap-2"
               >
                 <CheckCircle2 className="h-4 w-4" />
@@ -722,7 +1012,7 @@ export const AIImportModal = ({
               </Button>
             </DialogFooter>
           </>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
   );

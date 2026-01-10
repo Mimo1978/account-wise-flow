@@ -33,7 +33,7 @@ import {
   AlertTriangle,
   ArrowUpDown,
   Network,
-  Mail,
+  ExternalLink,
 } from "lucide-react";
 import {
   departmentOptions,
@@ -43,11 +43,13 @@ import {
 import { toast } from "sonner";
 import { PhoneInlineEditor } from "./PhoneInlineEditor";
 import { PrivateEmailEditor } from "./PrivateEmailEditor";
+import { InlineEditCell } from "./InlineEditCell";
 
 interface CompanyDatabaseViewProps {
   account: Account;
   onAccountUpdate: (account: Account) => void;
   onViewCanvas: () => void;
+  onContactSelect?: (contact: Contact) => void;
 }
 
 const isContactReady = (contact: Contact): boolean => {
@@ -86,6 +88,7 @@ export const CompanyDatabaseView = ({
   account,
   onAccountUpdate,
   onViewCanvas,
+  onContactSelect,
 }: CompanyDatabaseViewProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
@@ -93,6 +96,9 @@ export const CompanyDatabaseView = ({
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  // Track edited contacts (staged changes)
+  const [editedContacts, setEditedContacts] = useState<Set<string>>(new Set());
 
   // Assign modal state
   const [assignContact, setAssignContact] = useState<Contact | null>(null);
@@ -211,6 +217,18 @@ export const CompanyDatabaseView = ({
       c.id === contactId ? { ...c, ...updates } : c
     );
     onAccountUpdate({ ...account, contacts: updatedContacts });
+    
+    // Mark as edited briefly for visual feedback
+    setEditedContacts((prev) => new Set(prev).add(contactId));
+    setTimeout(() => {
+      setEditedContacts((prev) => {
+        const next = new Set(prev);
+        next.delete(contactId);
+        return next;
+      });
+    }, 1500);
+    
+    toast.success("Contact updated");
   };
 
   const handleDepartmentChange = (value: string, contact: Contact) => {
@@ -448,6 +466,7 @@ export const CompanyDatabaseView = ({
               <TableHead className="font-semibold min-w-[200px]">Phone</TableHead>
               <SortableHeader field="status">Status</SortableHeader>
               <SortableHeader field="lastContact">Last Contacted</SortableHeader>
+              <TableHead className="font-semibold w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -456,7 +475,7 @@ export const CompanyDatabaseView = ({
               return (
                 <TableRow
                   key={contact.id}
-                  className="hover:bg-muted/50 transition-colors"
+                  className="hover:bg-muted/50 transition-colors group"
                 >
                   <TableCell>
                     <Checkbox
@@ -650,15 +669,47 @@ export const CompanyDatabaseView = ({
                     )}
                   </TableCell>
                   <TableCell className="font-medium">{contact.name}</TableCell>
-                  <TableCell>{contact.department}</TableCell>
-                  <TableCell>{contact.title}</TableCell>
                   <TableCell>
-                    {contact.seniority
-                      ? seniorityLabels[contact.seniority] || contact.seniority
-                      : "-"}
+                    <InlineEditCell
+                      value={contact.department}
+                      onSave={(value) => updateContact(contact.id, { department: value })}
+                      type="select"
+                      options={[...departmentOptions]}
+                      placeholder="Select department"
+                      isEdited={editedContacts.has(contact.id)}
+                    />
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {contact.email || "-"}
+                  <TableCell>
+                    <InlineEditCell
+                      value={contact.title}
+                      onSave={(value) => updateContact(contact.id, { title: value })}
+                      type="grouped-select"
+                      groupedOptions={Object.fromEntries(
+                        Object.entries(jobTitleOptions).map(([k, v]) => [k, [...v]])
+                      )}
+                      placeholder="Select job title"
+                      isEdited={editedContacts.has(contact.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <InlineEditCell
+                      value={contact.seniority || ""}
+                      displayValue={contact.seniority ? seniorityLabels[contact.seniority] || contact.seniority : ""}
+                      onSave={(value) => updateContact(contact.id, { seniority: value as Contact["seniority"] })}
+                      type="select"
+                      options={seniorityOptions.map(s => ({ value: s.value, label: s.label }))}
+                      placeholder="Select seniority"
+                      isEdited={editedContacts.has(contact.id)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <InlineEditCell
+                      value={contact.email || ""}
+                      onSave={(value) => updateContact(contact.id, { email: value })}
+                      type="text"
+                      placeholder="Enter email"
+                      isEdited={editedContacts.has(contact.id)}
+                    />
                   </TableCell>
                   <TableCell>
                     <PrivateEmailEditor
@@ -688,6 +739,17 @@ export const CompanyDatabaseView = ({
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {contact.lastContact || "-"}
+                  </TableCell>
+                  <TableCell>
+                    {onContactSelect && (
+                      <button
+                        onClick={() => onContactSelect(contact)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted"
+                        title="View details"
+                      >
+                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    )}
                   </TableCell>
                 </TableRow>
               );

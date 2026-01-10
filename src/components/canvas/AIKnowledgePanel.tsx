@@ -66,16 +66,12 @@ export function AIKnowledgePanel({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Calculate initial position based on whether panel is open
-  // Minimap is 200x150 at bottom-4 right-4, button should sit directly above with a gap
   const getInitialPosition = (forPanel = false) => {
     if (typeof window === 'undefined') return { x: 0, y: 0 };
     
-    const minimapWidth = 200;
-    const minimapHeight = 150;
-    const rightOffset = 16; // matches minimap's right-4
-    const bottomOffset = 16; // matches minimap's bottom-4
-    const buttonHeight = 44;
-    const gapAboveMinimap = 8; // small gap between button and minimap
+    const rightOffset = 16;
+    const topOffset = 100; // below the header navigation
+    const buttonWidth = 200;
     
     if (forPanel) {
       // Panel position: centered vertically with padding from top, right-aligned
@@ -89,14 +85,10 @@ export function AIKnowledgePanel({
       };
     }
     
-    // Button position: directly above minimap, same width, aligned to right edge
-    // Minimap top = window.innerHeight - bottomOffset - minimapHeight
-    // Button should be at minimap top - gapAboveMinimap - buttonHeight
-    const minimapTop = window.innerHeight - bottomOffset - minimapHeight;
-    
+    // Button position: top right of the screen
     return {
-      x: window.innerWidth - minimapWidth - rightOffset,
-      y: minimapTop - gapAboveMinimap - buttonHeight,
+      x: window.innerWidth - buttonWidth - rightOffset,
+      y: topOffset,
     };
   };
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -25,7 +25,7 @@ interface GroupedOptions {
 
 interface InlineEditCellProps {
   value: string;
-  displayValue?: string;
+  displayValue?: string | ReactNode;
   onSave: (value: string) => void;
   type?: EditType;
   options?: SelectOption[] | string[];

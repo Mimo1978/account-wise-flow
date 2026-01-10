@@ -19,10 +19,12 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  Info
+  Info,
+  GripVertical
 } from "lucide-react";
 import { Account, Contact } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useDraggable } from "@/hooks/use-draggable";
 
 interface Message {
   id: string;
@@ -61,6 +63,17 @@ export function AIKnowledgePanel({
   const [isMinimized, setIsMinimized] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Calculate initial position (bottom-right, above minimap)
+  const getInitialPosition = () => ({
+    x: typeof window !== 'undefined' ? window.innerWidth - 400 : 0,
+    y: typeof window !== 'undefined' ? window.innerHeight - 680 : 0,
+  });
+
+  const { position, dragRef, dragHandleProps, isDragging } = useDraggable({
+    initialPosition: getInitialPosition(),
+    bounds: "viewport",
+  });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -266,14 +279,28 @@ export function AIKnowledgePanel({
 
   return (
     <div 
+      ref={dragRef}
       className={cn(
-        "fixed bottom-44 right-4 bg-background border border-border rounded-xl shadow-2xl transition-all duration-300 z-50",
-        isMinimized ? "w-80 h-14" : "w-96 h-[500px]"
+        "fixed bg-background border border-border rounded-xl shadow-2xl z-50",
+        isMinimized ? "w-80 h-14" : "w-96 h-[500px]",
+        isDragging ? "cursor-grabbing" : ""
       )}
+      style={{
+        left: position.x,
+        top: position.y,
+        transition: isDragging ? 'none' : 'box-shadow 0.2s ease',
+      }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30 rounded-t-xl">
+      {/* Header - Draggable */}
+      <div 
+        className={cn(
+          "flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30 rounded-t-xl select-none",
+          isDragging ? "cursor-grabbing" : "cursor-grab"
+        )}
+        {...dragHandleProps}
+      >
         <div className="flex items-center gap-2">
+          <GripVertical className="w-4 h-4 text-muted-foreground" />
           <div className="p-1.5 bg-primary/10 rounded-lg">
             <Brain className="w-4 h-4 text-primary" />
           </div>
@@ -289,7 +316,10 @@ export function AIKnowledgePanel({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onClick={() => setIsMinimized(!isMinimized)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMinimized(!isMinimized);
+            }}
           >
             {isMinimized ? (
               <ChevronUp className="w-4 h-4" />
@@ -301,7 +331,10 @@ export function AIKnowledgePanel({
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onClick={onToggle}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
           >
             <X className="w-4 h-4" />
           </Button>

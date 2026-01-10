@@ -80,8 +80,8 @@ export function AIKnowledgePanel({
     const minimapOuterHeight = minimapCanvasHeight + minimapBorder * 2;
 
     const buttonHeight = 48; // matches h-12
-    const gapAboveMinimap = 80; // slightly less gap (moved down)
-    const leftNudge = 12; // less left nudge (moved right)
+    const gapAboveMinimap = 72; // slightly less gap (moved down)
+    const leftNudge = 18; // a bit more left
 
     if (forPanel) {
       // Panel position: centered vertically with padding from top, right-aligned

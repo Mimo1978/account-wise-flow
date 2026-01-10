@@ -257,7 +257,7 @@ export function AIKnowledgePanel({
             <TooltipTrigger asChild>
               <Button
                 onClick={onToggle}
-                className="fixed bottom-44 right-4 gap-2 shadow-lg z-40"
+                className="fixed bottom-48 right-4 gap-2 shadow-lg z-40"
                 size="default"
               >
                 <Brain className="w-4 h-4" />
@@ -303,7 +303,18 @@ export function AIKnowledgePanel({
             {...dragHandleProps}
           >
             <div className="flex items-center gap-2">
-              <GripVertical className="w-4 h-4 text-muted-foreground" />
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="p-1 rounded hover:bg-muted/50 transition-colors">
+                      <GripVertical className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    Drag to reposition
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               <div className="p-1.5 bg-primary/10 rounded-lg">
                 <Brain className="w-4 h-4 text-primary" />
               </div>

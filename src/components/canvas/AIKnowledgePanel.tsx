@@ -3,6 +3,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { 
   Brain, 
   Send, 
   X, 
@@ -12,7 +18,8 @@ import {
   Loader2,
   AlertCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Info
 } from "lucide-react";
 import { Account, Contact } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -229,21 +236,38 @@ export function AIKnowledgePanel({
 
   if (!isOpen) {
     return (
-      <Button
-        onClick={onToggle}
-        className="fixed bottom-24 right-6 gap-2 shadow-lg"
-        size="lg"
-      >
-        <Brain className="w-5 h-5" />
-        AI Knowledge
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              onClick={onToggle}
+              className="fixed bottom-44 right-4 gap-2 shadow-lg z-40"
+              size="default"
+            >
+              <Brain className="w-4 h-4" />
+              AI Knowledge
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="max-w-64">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-primary" />
+              <div>
+                <p className="font-medium">AI Knowledge Assistant</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Ask questions about your contacts, find engagement gaps, discover patterns in notes, and get insights about your account relationships.
+                </p>
+              </div>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
   return (
     <div 
       className={cn(
-        "fixed bottom-24 right-6 bg-background border border-border rounded-xl shadow-2xl transition-all duration-300 z-50",
+        "fixed bottom-44 right-4 bg-background border border-border rounded-xl shadow-2xl transition-all duration-300 z-50",
         isMinimized ? "w-80 h-14" : "w-96 h-[500px]"
       )}
     >

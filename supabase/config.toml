@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.ai-insights-analysis]
 verify_jwt = false
+
+[functions.ai-role-suggestions]
+verify_jwt = false

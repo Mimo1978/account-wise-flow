@@ -15,3 +15,6 @@ verify_jwt = false
 
 [functions.ai-role-suggestions]
 verify_jwt = false
+
+[functions.ai-extract-contacts]
+verify_jwt = false

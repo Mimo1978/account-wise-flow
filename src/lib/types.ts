@@ -83,6 +83,9 @@ export interface Department {
 
 export type TalentAvailability = "available" | "interviewing" | "deployed";
 
+export type TalentDataQuality = "parsed" | "needs-review";
+export type TalentStatus = "active" | "on-hold" | "archived" | "new";
+
 export interface Talent {
   id: string;
   name: string;
@@ -99,6 +102,8 @@ export interface Talent {
   linkedIn?: string;
   location?: string;
   lastUpdated?: string;
+  dataQuality: TalentDataQuality;
+  status: TalentStatus;
 }
 
 export type EngagementStatus = "proposed" | "interviewing" | "deployed";

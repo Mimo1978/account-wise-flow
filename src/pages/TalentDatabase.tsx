@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
 import { mockTalents, roleTypeOptions } from "@/lib/mock-talent";
-import { Talent, TalentAvailability } from "@/lib/types";
+import { Talent, TalentAvailability, TalentDataQuality, TalentStatus } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -27,7 +29,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Search,
@@ -38,8 +39,9 @@ import {
   Mail,
   FileText,
   ExternalLink,
-  Briefcase,
-  DollarSign,
+  AlertCircle,
+  CheckCircle2,
+  MapPin,
 } from "lucide-react";
 
 const availabilityColors: Record<TalentAvailability, string> = {
@@ -52,6 +54,20 @@ const availabilityLabels: Record<TalentAvailability, string> = {
   available: "Available",
   interviewing: "Interviewing",
   deployed: "Deployed",
+};
+
+const statusColors: Record<TalentStatus, string> = {
+  active: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  new: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  "on-hold": "bg-orange-500/20 text-orange-400 border-orange-500/30",
+  archived: "bg-muted text-muted-foreground border-muted",
+};
+
+const statusLabels: Record<TalentStatus, string> = {
+  active: "Active",
+  new: "New",
+  "on-hold": "On Hold",
+  archived: "Archived",
 };
 
 const seniorityLabels: Record<string, string> = {
@@ -69,6 +85,7 @@ export default function TalentDatabase() {
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
   const [roleTypeFilter, setRoleTypeFilter] = useState<string>("all");
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Get unique role types from data
   const roleTypes = useMemo(() => {
@@ -103,8 +120,54 @@ export default function TalentDatabase() {
   };
 
   const handleAddTalent = () => {
-    // Placeholder for add talent functionality
     console.log("Add talent clicked");
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredTalents.map((t) => t.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSet = new Set(selectedIds);
+    if (checked) {
+      newSet.add(id);
+    } else {
+      newSet.delete(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const isAllSelected = filteredTalents.length > 0 && selectedIds.size === filteredTalents.length;
+  const isSomeSelected = selectedIds.size > 0 && selectedIds.size < filteredTalents.length;
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return "—";
+    try {
+      return format(new Date(dateStr), "MMM d, yyyy");
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getDataQualityBadge = (quality: TalentDataQuality) => {
+    if (quality === "parsed") {
+      return (
+        <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30 gap-1">
+          <CheckCircle2 className="h-3 w-3" />
+          Parsed
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30 gap-1">
+        <AlertCircle className="h-3 w-3" />
+        Needs Review
+      </Badge>
+    );
   };
 
   return (
@@ -127,6 +190,7 @@ export default function TalentDatabase() {
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   {filteredTalents.length} candidates & contractors
+                  {selectedIds.size > 0 && ` • ${selectedIds.size} selected`}
                 </p>
               </div>
             </div>
@@ -182,94 +246,117 @@ export default function TalentDatabase() {
           </Select>
         </div>
 
-        {/* Table */}
+        {/* Table - Summary View for Wide Screens */}
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Name</TableHead>
-                <TableHead className="font-semibold">Role Type</TableHead>
-                <TableHead className="font-semibold">Seniority</TableHead>
-                <TableHead className="font-semibold">Skills</TableHead>
-                <TableHead className="font-semibold">Availability</TableHead>
-                <TableHead className="font-semibold">Rate</TableHead>
-                <TableHead className="font-semibold">Location</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTalents.map((talent) => (
-                <TableRow
-                  key={talent.id}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleRowClick(talent)}
-                >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Users className="h-4 w-4 text-primary" />
-                      </div>
-                      <div>
-                        <div>{talent.name}</div>
-                        <div className="text-xs text-muted-foreground">{talent.email}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="font-normal">
-                      <Briefcase className="h-3 w-3 mr-1" />
-                      {talent.roleType}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {seniorityLabels[talent.seniority] || talent.seniority}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1 max-w-[200px]">
-                      {talent.skills.slice(0, 3).map((skill) => (
-                        <Badge 
-                          key={skill} 
-                          variant="outline" 
-                          className="text-xs font-normal"
-                        >
-                          {skill}
-                        </Badge>
-                      ))}
-                      {talent.skills.length > 3 && (
-                        <Badge variant="outline" className="text-xs font-normal">
-                          +{talent.skills.length - 3}
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={availabilityColors[talent.availability]}>
-                      {availabilityLabels[talent.availability]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {talent.rate ? (
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <DollarSign className="h-3 w-3" />
-                        <span>{talent.rate.replace("$", "")}</span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {talent.location || "—"}
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table className="min-w-[1200px]">
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  <TableHead className="w-[40px]">
+                    <Checkbox 
+                      checked={isAllSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                      className={isSomeSelected ? "opacity-50" : ""}
+                    />
+                  </TableHead>
+                  <TableHead className="font-semibold w-[120px]">Data Quality</TableHead>
+                  <TableHead className="font-semibold min-w-[180px]">Name</TableHead>
+                  <TableHead className="font-semibold min-w-[140px]">Primary Role</TableHead>
+                  <TableHead className="font-semibold w-[100px]">Seniority</TableHead>
+                  <TableHead className="font-semibold min-w-[200px]">Top Skills</TableHead>
+                  <TableHead className="font-semibold w-[110px]">Availability</TableHead>
+                  <TableHead className="font-semibold min-w-[130px]">Location</TableHead>
+                  <TableHead className="font-semibold w-[90px]">Status</TableHead>
+                  <TableHead className="font-semibold w-[110px]">Last Updated</TableHead>
                 </TableRow>
-              ))}
-              {filteredTalents.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No talent found matching your criteria
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredTalents.map((talent) => (
+                  <TableRow
+                    key={talent.id}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleRowClick(talent)}
+                  >
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox 
+                        checked={selectedIds.has(talent.id)}
+                        onCheckedChange={(checked) => handleSelectOne(talent.id, !!checked)}
+                        aria-label={`Select ${talent.name}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {getDataQualityBadge(talent.dataQuality)}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <Users className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="truncate">{talent.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm">{talent.roleType}</span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {seniorityLabels[talent.seniority] || talent.seniority}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {talent.skills.slice(0, 3).map((skill) => (
+                          <Badge 
+                            key={skill} 
+                            variant="outline" 
+                            className="text-xs font-normal"
+                          >
+                            {skill}
+                          </Badge>
+                        ))}
+                        {talent.skills.length > 3 && (
+                          <Badge variant="secondary" className="text-xs font-normal">
+                            +{talent.skills.length - 3}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={availabilityColors[talent.availability]}>
+                        {availabilityLabels[talent.availability]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 text-muted-foreground text-sm">
+                        {talent.location ? (
+                          <>
+                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{talent.location}</span>
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={statusColors[talent.status]}>
+                        {statusLabels[talent.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {formatDate(talent.lastUpdated)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredTalents.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                      No talent found matching your criteria
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
         {/* Footer */}
@@ -278,7 +365,7 @@ export default function TalentDatabase() {
         </div>
       </div>
 
-      {/* Talent Detail Dialog */}
+      {/* Talent Detail Side Panel Dialog */}
       <Dialog open={!!selectedTalent} onOpenChange={(open) => !open && setSelectedTalent(null)}>
         <DialogContent className="sm:max-w-lg max-h-[85vh]">
           <DialogHeader>
@@ -297,19 +384,26 @@ export default function TalentDatabase() {
           <ScrollArea className="max-h-[60vh] pr-4">
             {selectedTalent && (
               <div className="space-y-6 py-4">
-                {/* Status & Rate Row */}
-                <div className="flex items-center gap-3">
+                {/* Status Row */}
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge className={availabilityColors[selectedTalent.availability]}>
                     {availabilityLabels[selectedTalent.availability]}
                   </Badge>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-sm text-muted-foreground">
+                  <Badge className={statusColors[selectedTalent.status]}>
+                    {statusLabels[selectedTalent.status]}
+                  </Badge>
+                  {getDataQualityBadge(selectedTalent.dataQuality)}
+                </div>
+
+                {/* Seniority & Rate */}
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-muted-foreground">
                     {seniorityLabels[selectedTalent.seniority]}
                   </span>
                   {selectedTalent.rate && (
                     <>
                       <span className="text-muted-foreground">•</span>
-                      <span className="text-sm font-medium text-green-500">
+                      <span className="font-medium text-green-500">
                         {selectedTalent.rate}
                       </span>
                     </>
@@ -363,7 +457,10 @@ export default function TalentDatabase() {
                 {selectedTalent.location && (
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Location</Label>
-                    <div className="text-sm">{selectedTalent.location}</div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      {selectedTalent.location}
+                    </div>
                   </div>
                 )}
 
@@ -396,6 +493,11 @@ export default function TalentDatabase() {
                     <FileText className="h-4 w-4" />
                     {selectedTalent.cvUrl ? "View CV" : "Upload CV (Coming Soon)"}
                   </Button>
+                </div>
+
+                {/* Last Updated */}
+                <div className="pt-2 border-t text-xs text-muted-foreground">
+                  Last updated: {formatDate(selectedTalent.lastUpdated)}
                 </div>
               </div>
             )}

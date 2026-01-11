@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Columns3, LayoutGrid, LayoutList, RotateCcw } from "lucide-react";
+import { Toggle } from "@/components/ui/toggle";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Columns3, LayoutGrid, LayoutList, RotateCcw, Maximize2, WrapText } from "lucide-react";
 
 export type TableDensity = "compact" | "comfortable";
 
@@ -21,12 +27,42 @@ export interface TableColumnConfig {
   category?: string;
 }
 
+export interface TableViewPreferences {
+  fitToScreen: boolean;
+  wrapText: boolean;
+}
+
 interface TableViewControlsProps {
   density: TableDensity;
   onDensityChange: (density: TableDensity) => void;
   columns: TableColumnConfig[];
   onColumnVisibilityChange: (columnId: string, visible: boolean) => void;
   onResetColumns: () => void;
+  // New optional props for view preferences
+  viewPreferences?: TableViewPreferences;
+  onViewPreferencesChange?: (prefs: TableViewPreferences) => void;
+  storageKey?: string; // For persisting preferences
+}
+
+// Hook to manage persisted view preferences
+export function useTableViewPreferences(storageKey: string) {
+  const [preferences, setPreferences] = useState<TableViewPreferences>(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    return { fitToScreen: false, wrapText: false };
+  });
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(preferences));
+  }, [preferences, storageKey]);
+
+  return [preferences, setPreferences] as const;
 }
 
 export const TableViewControls = ({
@@ -35,6 +71,8 @@ export const TableViewControls = ({
   columns,
   onColumnVisibilityChange,
   onResetColumns,
+  viewPreferences,
+  onViewPreferencesChange,
 }: TableViewControlsProps) => {
   const [isColumnPickerOpen, setIsColumnPickerOpen] = useState(false);
 
@@ -46,6 +84,18 @@ export const TableViewControls = ({
   }, {} as Record<string, TableColumnConfig[]>);
 
   const visibleCount = columns.filter((c) => c.visible).length;
+
+  const handleFitToScreenChange = (pressed: boolean) => {
+    if (viewPreferences && onViewPreferencesChange) {
+      onViewPreferencesChange({ ...viewPreferences, fitToScreen: pressed });
+    }
+  };
+
+  const handleWrapTextChange = (pressed: boolean) => {
+    if (viewPreferences && onViewPreferencesChange) {
+      onViewPreferencesChange({ ...viewPreferences, wrapText: pressed });
+    }
+  };
 
   return (
     <div className="flex items-center gap-2">
@@ -73,6 +123,49 @@ export const TableViewControls = ({
           Comfortable
         </ToggleGroupItem>
       </ToggleGroup>
+
+      {/* View Preference Toggles */}
+      {viewPreferences && onViewPreferencesChange && (
+        <>
+          <Separator orientation="vertical" className="h-6" />
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Toggle
+                pressed={viewPreferences.fitToScreen}
+                onPressedChange={handleFitToScreenChange}
+                size="sm"
+                aria-label="Fit to screen"
+                className="gap-1.5 text-xs px-2.5 h-8 data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+                Fit
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">Fit columns to screen width</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Toggle
+                pressed={viewPreferences.wrapText}
+                onPressedChange={handleWrapTextChange}
+                size="sm"
+                aria-label="Wrap text"
+                className="gap-1.5 text-xs px-2.5 h-8 data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+              >
+                <WrapText className="h-3.5 w-3.5" />
+                Wrap
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">Wrap text in Name, Department, Job Title</p>
+            </TooltipContent>
+          </Tooltip>
+        </>
+      )}
 
       {/* Column Picker */}
       <Popover open={isColumnPickerOpen} onOpenChange={setIsColumnPickerOpen}>

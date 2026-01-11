@@ -16,6 +16,7 @@ import { GlobalSearch } from "@/components/canvas/GlobalSearch";
 import { mockAccount, mockAccounts } from "@/lib/mock-data";
 import { mockTalents, mockEngagements } from "@/lib/mock-talent";
 import { Account, Contact, Talent, TalentEngagement } from "@/lib/types";
+import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { toast } from "sonner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -49,6 +50,8 @@ const Canvas = () => {
   const [isRoleSuggestionsOpen, setIsRoleSuggestionsOpen] = useState(false);
   const [highlightedContactIds, setHighlightedContactIds] = useState<string[]>([]);
   const [showTalentOverlay, setShowTalentOverlay] = useState(false);
+  const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
+  const [showTalentPanel, setShowTalentPanel] = useState(false);
   const canvasRef = useRef<AccountCanvasRef>(null);
 
   // Get engagements for current company with talent data
@@ -192,6 +195,16 @@ const Canvas = () => {
     setHighlightedContactIds([contact.id]);
   }, [account.id, hasUnsavedChanges]);
 
+  const handleTalentClick = useCallback((talent: Talent, engagement: TalentEngagement) => {
+    setSelectedTalent(talent);
+    setShowTalentPanel(true);
+  }, []);
+
+  const handleCloseTalentPanel = () => {
+    setSelectedTalent(null);
+    setShowTalentPanel(false);
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -316,6 +329,7 @@ const Canvas = () => {
             ref={canvasRef}
             account={account} 
             onContactClick={handleContactClick}
+            onTalentClick={handleTalentClick}
             highlightedContactIds={highlightedContactIds}
             showTalentOverlay={showTalentOverlay}
             talentEngagements={companyEngagements}
@@ -432,6 +446,13 @@ const Canvas = () => {
           onAddContact={handleAddContact}
         />
       )}
+
+      {/* Talent Profile Panel */}
+      <TalentProfilePanel
+        talent={selectedTalent}
+        open={showTalentPanel}
+        onClose={handleCloseTalentPanel}
+      />
 
       {/* Bottom Info Bar - Only show in canvas mode */}
       {viewMode === "canvas" && (

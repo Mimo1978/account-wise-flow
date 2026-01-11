@@ -38,6 +38,7 @@ import { TalentImportModal } from "@/components/talent/TalentImportModal";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
 import { CVViewer } from "@/components/talent/CVViewer";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
+import { useTableViewPreferences } from "@/components/canvas/TableViewControls";
 import { useResizableColumns, ColumnConfig } from "@/hooks/use-resizable-columns";
 import {
   Search,
@@ -58,7 +59,11 @@ import {
   ChevronDown,
   Layers,
   MousePointer2,
+  Maximize2,
+  WrapText,
 } from "lucide-react";
+import { Toggle } from "@/components/ui/toggle";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 const availabilityColors: Record<TalentAvailability, string> = {
@@ -133,6 +138,9 @@ export default function TalentDatabase() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showCVViewer, setShowCVViewer] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
+
+  // Persisted view preferences
+  const [viewPreferences, setViewPreferences] = useTableViewPreferences("talent-table-view-prefs");
 
   // Check if this is the first visit to show scroll hint
   useEffect(() => {
@@ -219,7 +227,7 @@ export default function TalentDatabase() {
     }
   };
 
-  const renderCellContent = (columnId: string, talent: Talent) => {
+  const renderCellContent = (columnId: string, talent: Talent, wrapText: boolean = false) => {
     switch (columnId) {
       case "name":
         return (
@@ -227,11 +235,11 @@ export default function TalentDatabase() {
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
               <Users className="h-4 w-4 text-primary" />
             </div>
-            <span className="truncate font-medium">{talent.name}</span>
+            <span className={wrapText ? "font-medium" : "truncate font-medium"}>{talent.name}</span>
           </div>
         );
       case "roleType":
-        return <span className="text-sm truncate">{talent.roleType}</span>;
+        return <span className={cn("text-sm", wrapText ? "" : "truncate")}>{talent.roleType}</span>;
       case "seniority":
         return (
           <span className="text-muted-foreground text-sm">
@@ -349,15 +357,40 @@ export default function TalentDatabase() {
     }
   };
 
-  // Calculate total table width
+  // Calculate total table width - use smaller widths when fit to screen is enabled
   const totalTableWidth = useMemo(() => {
+    if (viewPreferences.fitToScreen) {
+      return undefined; // Let table stretch to container width
+    }
     const checkboxWidth = 40;
     const columnsWidth = visibleColumns.reduce(
       (sum, col) => sum + (columnWidths[col.id] || col.defaultWidth),
       0
     );
     return checkboxWidth + columnsWidth + 20; // 20px buffer
-  }, [visibleColumns, columnWidths]);
+  }, [visibleColumns, columnWidths, viewPreferences.fitToScreen]);
+
+  // Columns that should wrap text when wrapText is enabled
+  const wrappableColumns = new Set(["name", "roleType", "seniority"]);
+
+  // Get cell styles based on view preferences
+  const getCellStyles = (columnId: string) => {
+    const baseWidth = columnWidths[columnId] || visibleColumns.find(c => c.id === columnId)?.defaultWidth || 150;
+    
+    if (viewPreferences.fitToScreen) {
+      // Proportional widths with ellipsis
+      return {
+        width: "auto",
+        minWidth: Math.min(baseWidth * 0.6, 100),
+        maxWidth: viewPreferences.wrapText && wrappableColumns.has(columnId) ? undefined : baseWidth,
+      };
+    }
+    
+    return {
+      width: baseWidth,
+      maxWidth: viewPreferences.wrapText && wrappableColumns.has(columnId) ? undefined : baseWidth,
+    };
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -384,6 +417,45 @@ export default function TalentDatabase() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* View Preference Toggles */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    pressed={viewPreferences.fitToScreen}
+                    onPressedChange={(pressed) => setViewPreferences(prev => ({ ...prev, fitToScreen: pressed }))}
+                    size="sm"
+                    aria-label="Fit to screen"
+                    className="gap-1.5 text-xs px-2.5 h-8 data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+                  >
+                    <Maximize2 className="h-3.5 w-3.5" />
+                    Fit
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">Fit columns to screen width</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Toggle
+                    pressed={viewPreferences.wrapText}
+                    onPressedChange={(pressed) => setViewPreferences(prev => ({ ...prev, wrapText: pressed }))}
+                    size="sm"
+                    aria-label="Wrap text"
+                    className="gap-1.5 text-xs px-2.5 h-8 data-[state=on]:bg-primary/10 data-[state=on]:text-primary"
+                  >
+                    <WrapText className="h-3.5 w-3.5" />
+                    Wrap
+                  </Toggle>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">Wrap text in Name, Role, Seniority</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <Separator orientation="vertical" className="h-6" />
+
               <TalentColumnPicker
                 columns={columns}
                 onToggleColumn={toggleColumnVisibility}
@@ -470,7 +542,7 @@ export default function TalentDatabase() {
             stickyHeader
             maxHeight="calc(100vh - 320px)"
           >
-            <Table style={{ minWidth: `${totalTableWidth}px` }}>
+            <Table style={{ minWidth: viewPreferences.fitToScreen ? undefined : `${totalTableWidth}px`, width: viewPreferences.fitToScreen ? '100%' : undefined }}>
               <TableHeader>
                 <TableRow className="bg-muted/95 backdrop-blur-sm">
                   <TableHead className="w-[40px]">
@@ -484,17 +556,22 @@ export default function TalentDatabase() {
                   {visibleColumns.map((column) => (
                     <TableHead
                       key={column.id}
-                      className="font-semibold relative group whitespace-nowrap"
-                      style={{ width: columnWidths[column.id] || column.defaultWidth }}
+                      className={cn(
+                        "font-semibold relative group",
+                        viewPreferences.fitToScreen ? "" : "whitespace-nowrap"
+                      )}
+                      style={getCellStyles(column.id)}
                     >
                       <div className="flex items-center justify-between pr-2">
                         <span className="truncate">{column.label}</span>
                       </div>
-                      {/* Resize handle */}
-                      <div
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 bg-primary/50 hover:bg-primary transition-opacity"
-                        onMouseDown={(e) => handleResizeStart(column.id, e)}
-                      />
+                      {/* Resize handle - hidden when fit to screen is active */}
+                      {!viewPreferences.fitToScreen && (
+                        <div
+                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 bg-primary/50 hover:bg-primary transition-opacity"
+                          onMouseDown={(e) => handleResizeStart(column.id, e)}
+                        />
+                      )}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -518,12 +595,14 @@ export default function TalentDatabase() {
                     {visibleColumns.map((column) => (
                       <TableCell
                         key={column.id}
-                        style={{
-                          width: columnWidths[column.id] || column.defaultWidth,
-                          maxWidth: columnWidths[column.id] || column.defaultWidth,
-                        }}
+                        className={cn(
+                          viewPreferences.wrapText && wrappableColumns.has(column.id)
+                            ? "whitespace-normal"
+                            : "whitespace-nowrap"
+                        )}
+                        style={getCellStyles(column.id)}
                       >
-                        {renderCellContent(column.id, talent)}
+                        {renderCellContent(column.id, talent, viewPreferences.wrapText)}
                       </TableCell>
                     ))}
                   </TableRow>

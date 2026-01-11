@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload } from "lucide-react";
+import { ArrowLeft, Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
@@ -14,10 +14,13 @@ import { AIInsightsPanel } from "@/components/canvas/AIInsightsPanel";
 import { AIRoleSuggestionsPanel } from "@/components/canvas/AIRoleSuggestionsPanel";
 import { GlobalSearch } from "@/components/canvas/GlobalSearch";
 import { mockAccount, mockAccounts } from "@/lib/mock-data";
-import { Account, Contact } from "@/lib/types";
+import { mockTalents, mockEngagements } from "@/lib/mock-talent";
+import { Account, Contact, Talent, TalentEngagement } from "@/lib/types";
 import { toast } from "sonner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,7 +48,17 @@ const Canvas = () => {
   const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(false);
   const [isRoleSuggestionsOpen, setIsRoleSuggestionsOpen] = useState(false);
   const [highlightedContactIds, setHighlightedContactIds] = useState<string[]>([]);
+  const [showTalentOverlay, setShowTalentOverlay] = useState(false);
   const canvasRef = useRef<AccountCanvasRef>(null);
+
+  // Get engagements for current company with talent data
+  const companyEngagements = mockEngagements
+    .filter((eng) => eng.companyId === account.id)
+    .map((eng) => ({
+      ...eng,
+      talent: mockTalents.find((t) => t.id === eng.talentId),
+    }))
+    .filter((eng) => eng.talent) as (TalentEngagement & { talent: Talent })[];
 
   const handleCompanySwitch = (newAccount: Account) => {
     // If there are unsaved changes, show confirmation dialog
@@ -214,6 +227,28 @@ const Canvas = () => {
             </div>
             
             <div className="flex items-center gap-3">
+              {/* Talent Overlay Toggle - Only show in canvas mode */}
+              {viewMode === "canvas" && companyEngagements.length > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50">
+                  <Users className="w-4 h-4 text-muted-foreground" />
+                  <Label htmlFor="talent-overlay" className="text-sm cursor-pointer">
+                    Talent Overlay
+                  </Label>
+                  <Switch
+                    id="talent-overlay"
+                    checked={showTalentOverlay}
+                    onCheckedChange={setShowTalentOverlay}
+                  />
+                  {showTalentOverlay && (
+                    <span className="text-xs text-muted-foreground">
+                      ({companyEngagements.length})
+                    </span>
+                  )}
+                </div>
+              )}
+              {viewMode === "canvas" && companyEngagements.length > 0 && (
+                <div className="h-6 w-px bg-border" />
+              )}
               {/* View Toggle */}
               <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as "canvas" | "database")}>
                 <ToggleGroupItem value="canvas" aria-label="Canvas view" className="gap-2">
@@ -282,6 +317,8 @@ const Canvas = () => {
             account={account} 
             onContactClick={handleContactClick}
             highlightedContactIds={highlightedContactIds}
+            showTalentOverlay={showTalentOverlay}
+            talentEngagements={companyEngagements}
           />
         ) : (
           <CompanyDatabaseView

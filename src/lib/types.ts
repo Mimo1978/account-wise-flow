@@ -100,3 +100,17 @@ export interface Talent {
   location?: string;
   lastUpdated?: string;
 }
+
+export type EngagementStatus = "proposed" | "interviewing" | "deployed";
+
+export interface TalentEngagement {
+  id: string;
+  talentId: string;
+  companyId: string;
+  status: EngagementStatus;
+  roleType: string;
+  department?: string;
+  startDate?: string;
+  endDate?: string;
+  notes?: string;
+}

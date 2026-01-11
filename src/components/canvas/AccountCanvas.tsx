@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Image as FabricImage, Point, Rect } from "fabric";
-import { Account, Contact } from "@/lib/types";
+import { Account, Contact, Talent, TalentEngagement, EngagementStatus } from "@/lib/types";
 import { CanvasSearch } from "./CanvasSearch";
 import { CanvasMinimap } from "./CanvasMinimap";
 import { CompanyInfoPopover } from "./CompanyInfoPopover";
 import { User, Users } from "lucide-react";
 
+interface TalentEngagementWithData extends TalentEngagement {
+  talent: Talent;
+}
+
 interface AccountCanvasProps {
   account: Account;
   onContactClick: (contact: Contact) => void;
   highlightedContactIds?: string[];
+  showTalentOverlay?: boolean;
+  talentEngagements?: TalentEngagementWithData[];
 }
 
 export interface AccountCanvasRef {
@@ -27,7 +33,18 @@ interface ContactNodeData {
   originalPosition: { x: number; y: number };
 }
 
-export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({ account, onContactClick, highlightedContactIds = [] }, ref) => {
+interface TalentNodeData {
+  engagement: TalentEngagementWithData;
+  group: Group;
+}
+
+export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({ 
+  account, 
+  onContactClick, 
+  highlightedContactIds = [],
+  showTalentOverlay = false,
+  talentEngagements = [],
+}, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -35,6 +52,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const [matchedNodes, setMatchedNodes] = useState<ContactNodeData[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const contactNodesRef = useRef<Map<string, ContactNodeData>>(new Map());
+  const talentNodesRef = useRef<Map<string, TalentNodeData>>(new Map());
   const [showCompanyHover, setShowCompanyHover] = useState(false);
   const [companyHoverPosition, setCompanyHoverPosition] = useState({ x: 0, y: 0 });
   const companyNodeRef = useRef<Group | null>(null);
@@ -420,6 +438,71 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
     fabricCanvas.renderAll();
   }, [fabricCanvas, account, onContactClick]);
+
+  // Effect to render/remove talent overlay nodes
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    // Remove existing talent nodes
+    talentNodesRef.current.forEach(({ group }) => {
+      fabricCanvas.remove(group);
+    });
+    talentNodesRef.current.clear();
+
+    if (!showTalentOverlay || talentEngagements.length === 0) {
+      fabricCanvas.renderAll();
+      return;
+    }
+
+    // Group engagements by department to position them near relevant contacts
+    const engagementsByDept = new Map<string, TalentEngagementWithData[]>();
+    talentEngagements.forEach((eng) => {
+      const dept = eng.department || "Other";
+      if (!engagementsByDept.has(dept)) {
+        engagementsByDept.set(dept, []);
+      }
+      engagementsByDept.get(dept)!.push(eng);
+    });
+
+    // Find department positions from existing contact nodes
+    const deptPositions = new Map<string, { x: number; y: number; count: number }>();
+    contactNodesRef.current.forEach(({ contact, group }) => {
+      const dept = contact.department;
+      if (!deptPositions.has(dept)) {
+        deptPositions.set(dept, { x: group.left!, y: group.top!, count: 1 });
+      } else {
+        const pos = deptPositions.get(dept)!;
+        pos.x = (pos.x * pos.count + group.left!) / (pos.count + 1);
+        pos.y = Math.max(pos.y, group.top!);
+        pos.count++;
+      }
+    });
+
+    // Create talent nodes positioned near their department
+    let talentIndex = 0;
+    engagementsByDept.forEach((engagements, dept) => {
+      const deptPos = deptPositions.get(dept);
+      const baseX = deptPos ? deptPos.x + 220 : 800 + talentIndex * 200;
+      const baseY = deptPos ? deptPos.y : 400;
+
+      engagements.forEach((eng, idx) => {
+        const x = baseX;
+        const y = baseY + idx * 100;
+        
+        const talentNode = createTalentNode(eng, x, y);
+        fabricCanvas.add(talentNode);
+        
+        talentNodesRef.current.set(eng.id, {
+          engagement: eng,
+          group: talentNode,
+        });
+        
+        talentIndex++;
+      });
+    });
+
+    fabricCanvas.renderAll();
+  }, [fabricCanvas, showTalentOverlay, talentEngagements]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -915,6 +998,144 @@ const createContactNode = (contact: Contact, x: number, y: number): Group => {
     lockRotation: true,
     lockScalingX: true,
     lockScalingY: true,
+  });
+
+  return group;
+};
+
+const createTalentNode = (engagement: TalentEngagementWithData, x: number, y: number): Group => {
+  const statusColors: Record<EngagementStatus, { bg: string; border: string; text: string }> = {
+    proposed: { 
+      bg: "hsl(45 93% 95%)", 
+      border: "hsl(45 93% 47%)", 
+      text: "Proposed" 
+    },
+    interviewing: { 
+      bg: "hsl(221 83% 95%)", 
+      border: "hsl(221 83% 53%)", 
+      text: "Interviewing" 
+    },
+    deployed: { 
+      bg: "hsl(142 71% 95%)", 
+      border: "hsl(142 71% 45%)", 
+      text: "Deployed" 
+    },
+  };
+
+  const colors = statusColors[engagement.status];
+  const talent = engagement.talent;
+
+  // Card background with dashed border
+  const cardBg = new Rect({
+    width: 180,
+    height: 90,
+    fill: colors.bg,
+    stroke: colors.border,
+    strokeWidth: 2,
+    strokeDashArray: [8, 4],
+    rx: 8,
+    ry: 8,
+    left: -90,
+    top: -45,
+  });
+
+  // Talent badge indicator
+  const badgeBg = new Rect({
+    width: 60,
+    height: 18,
+    fill: colors.border,
+    rx: 9,
+    ry: 9,
+    left: -30,
+    top: -55,
+  });
+
+  const badgeText = new Text("TALENT", {
+    fontSize: 9,
+    fontWeight: "bold",
+    fill: "white",
+    originX: "center",
+    originY: "center",
+    left: 0,
+    top: -46,
+  });
+
+  // Profile circle
+  const profileCircle = new Circle({
+    radius: 20,
+    fill: colors.border,
+    opacity: 0.3,
+    left: -75,
+    top: -15,
+  });
+
+  // User icon placeholder
+  const silhouetteText = new Text("👤", {
+    fontSize: 18,
+    fill: colors.border,
+    left: -75,
+    top: -15,
+    originX: "center",
+    originY: "center",
+  });
+
+  // Name text
+  const nameText = new Text(talent.name, {
+    fontSize: 11,
+    fontWeight: "600",
+    fill: "hsl(222 47% 11%)",
+    left: -45,
+    top: -20,
+    width: 110,
+  });
+
+  // Role type text
+  const roleText = new Text(engagement.roleType, {
+    fontSize: 9,
+    fill: "hsl(215 16% 47%)",
+    left: -45,
+    top: -3,
+    width: 110,
+  });
+
+  // Status text
+  const statusText = new Text(colors.text, {
+    fontSize: 8,
+    fontWeight: "600",
+    fill: colors.border,
+    left: -45,
+    top: 12,
+    width: 110,
+  });
+
+  // Rate if available
+  const rateText = talent.rate ? new Text(talent.rate, {
+    fontSize: 8,
+    fill: "hsl(142 71% 35%)",
+    left: 55,
+    top: 25,
+  }) : null;
+
+  const elements = [
+    cardBg,
+    badgeBg,
+    badgeText,
+    profileCircle,
+    silhouetteText,
+    nameText,
+    roleText,
+    statusText,
+    ...(rateText ? [rateText] : []),
+  ];
+
+  const group = new Group(elements, {
+    left: x,
+    top: y,
+    originX: "center",
+    originY: "center",
+    selectable: false,
+    hasControls: false,
+    hasBorders: false,
   });
 
   return group;

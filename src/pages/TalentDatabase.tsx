@@ -44,6 +44,7 @@ import { useTableViewPreferences } from "@/components/canvas/TableViewControls";
 import { useResizableColumns, ColumnConfig } from "@/hooks/use-resizable-columns";
 import { useColumnPinning } from "@/hooks/use-column-pinning";
 import { useViewPresets } from "@/hooks/use-view-presets";
+import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import {
   Search,
   Plus,
@@ -195,6 +196,15 @@ export default function TalentDatabase() {
     getLeftPinnedColumns,
     getRightPinnedColumns,
   } = useColumnPinning();
+
+  // Responsive column hiding
+  const {
+    responsiveVisibleColumns,
+    hiddenCount: responsiveHiddenCount,
+  } = useResponsiveColumns(visibleColumns);
+
+  // State for column picker popover (to open from hidden indicator)
+  const [columnPickerOpen, setColumnPickerOpen] = useState(false);
 
   // Get unique role types from data
   const roleTypes = useMemo(() => {
@@ -573,7 +583,22 @@ export default function TalentDatabase() {
                 isPinned={isPinned}
                 canPin={canPin}
                 onTogglePin={togglePin}
+                open={columnPickerOpen}
+                onOpenChange={setColumnPickerOpen}
               />
+
+              {/* Responsive hidden columns indicator */}
+              {responsiveHiddenCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setColumnPickerOpen(true)}
+                >
+                  <span className="hidden sm:inline">{responsiveHiddenCount} columns hidden</span>
+                  <span className="sm:hidden">{responsiveHiddenCount} hidden</span>
+                </Button>
+              )}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
@@ -669,7 +694,7 @@ export default function TalentDatabase() {
                       className={isSomeSelected ? "opacity-50" : ""}
                     />
                   </TableHead>
-                  {visibleColumns.map((column) => {
+                  {responsiveVisibleColumns.map((column) => {
                     const pinPosition = isPinned(column.id);
                     return (
                       <TableHead
@@ -746,7 +771,7 @@ export default function TalentDatabase() {
                         />
                       </div>
                     </TableCell>
-                    {visibleColumns.map((column) => {
+                    {responsiveVisibleColumns.map((column) => {
                       const pinPosition = isPinned(column.id);
                       return (
                         <TableCell

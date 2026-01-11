@@ -56,6 +56,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const [showCompanyHover, setShowCompanyHover] = useState(false);
   const [companyHoverPosition, setCompanyHoverPosition] = useState({ x: 0, y: 0 });
   const companyNodeRef = useRef<Group | null>(null);
+  const isCanvasDisposedRef = useRef(false);
   
   // Hover intent tracking for company node
   const companyHoverTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -67,6 +68,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
 
+    isCanvasDisposedRef.current = false;
+    
     const container = containerRef.current;
     const width = container.clientWidth;
     const height = container.clientHeight;
@@ -142,12 +145,13 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      isCanvasDisposedRef.current = true;
       canvas.dispose();
     };
   }, []);
 
   useEffect(() => {
-    if (!fabricCanvas || !account) return;
+    if (!fabricCanvas || !account || isCanvasDisposedRef.current) return;
 
     fabricCanvas.clear();
     fabricCanvas.backgroundColor = "hsl(210 40% 98%)";

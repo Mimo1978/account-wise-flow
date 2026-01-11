@@ -13,6 +13,7 @@ interface TalentEngagementWithData extends TalentEngagement {
 interface AccountCanvasProps {
   account: Account;
   onContactClick: (contact: Contact) => void;
+  onTalentClick?: (talent: Talent, engagement: TalentEngagement) => void;
   highlightedContactIds?: string[];
   showTalentOverlay?: boolean;
   talentEngagements?: TalentEngagementWithData[];
@@ -40,7 +41,8 @@ interface TalentNodeData {
 
 export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({ 
   account, 
-  onContactClick, 
+  onContactClick,
+  onTalentClick,
   highlightedContactIds = [],
   showTalentOverlay = false,
   talentEngagements = [],
@@ -494,6 +496,29 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         const y = baseY + idx * 100;
         
         const talentNode = createTalentNode(eng, x, y);
+        
+        // Add hover effects
+        talentNode.on('mouseover', function() {
+          fabricCanvas.setCursor('pointer');
+          (this as FabricObject).set({ 
+            shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 }
+          });
+          fabricCanvas.renderAll();
+        });
+
+        talentNode.on('mouseout', function() {
+          fabricCanvas.setCursor('default');
+          (this as FabricObject).set({ shadow: null });
+          fabricCanvas.renderAll();
+        });
+
+        // Click handler to open talent profile
+        talentNode.on('mousedown', () => {
+          if (onTalentClick) {
+            onTalentClick(eng.talent, eng);
+          }
+        });
+        
         fabricCanvas.add(talentNode);
         
         talentNodesRef.current.set(eng.id, {
@@ -506,7 +531,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     });
 
     fabricCanvas.renderAll();
-  }, [fabricCanvas, showTalentOverlay, talentEngagements]);
+  }, [fabricCanvas, showTalentOverlay, talentEngagements, onTalentClick]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);

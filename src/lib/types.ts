@@ -96,6 +96,8 @@ export interface TalentExperience {
   description?: string;
 }
 
+export type TalentCvSource = "upload" | "image" | "linkedin" | "manual";
+
 export interface Talent {
   id: string;
   name: string;
@@ -116,6 +118,7 @@ export interface Talent {
   lastUpdated?: string;
   dataQuality: TalentDataQuality;
   status: TalentStatus;
+  cvSource?: TalentCvSource;
 }
 
 export type EngagementStatus = "proposed" | "interviewing" | "deployed";

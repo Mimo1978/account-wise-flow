@@ -12,6 +12,7 @@ import { CompanyDatabaseView } from "@/components/canvas/CompanyDatabaseView";
 import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
 import { AIInsightsPanel } from "@/components/canvas/AIInsightsPanel";
 import { AIRoleSuggestionsPanel } from "@/components/canvas/AIRoleSuggestionsPanel";
+import { GlobalSearch } from "@/components/canvas/GlobalSearch";
 import { mockAccount } from "@/lib/mock-data";
 import { Account, Contact } from "@/lib/types";
 import { toast } from "sonner";
@@ -149,6 +150,35 @@ const Canvas = () => {
     canvasRef.current?.highlightContacts(contactIds);
   }, []);
 
+  const handleGlobalSelectCompany = useCallback((selectedAccount: Account) => {
+    if (hasUnsavedChanges) {
+      setPendingCompany(selectedAccount);
+      setShowCompanySaveDialog(true);
+    } else {
+      performCompanySwitch(selectedAccount);
+    }
+  }, [hasUnsavedChanges]);
+
+  const handleGlobalSelectContact = useCallback((contact: Contact, selectedAccount: Account) => {
+    // If the contact is from a different company, switch to that company first
+    if (selectedAccount.id !== account.id) {
+      if (hasUnsavedChanges) {
+        toast.info("Please save or discard changes before switching companies");
+        return;
+      }
+      performCompanySwitch(selectedAccount);
+    }
+    
+    // Set the selected contact and switch to canvas view
+    setSelectedContact(contact);
+    setViewMode("canvas");
+    setIsExpanded(false);
+    
+    // Highlight the contact on the canvas
+    canvasRef.current?.highlightContacts([contact.id]);
+    setHighlightedContactIds([contact.id]);
+  }, [account.id, hasUnsavedChanges]);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -175,6 +205,11 @@ const Canvas = () => {
               <QRCodeButton 
                 accountId={account.id}
                 accountName={account.name}
+              />
+              <div className="h-6 w-px bg-border" />
+              <GlobalSearch
+                onSelectCompany={handleGlobalSelectCompany}
+                onSelectContact={handleGlobalSelectContact}
               />
             </div>
             

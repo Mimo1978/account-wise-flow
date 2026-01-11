@@ -18,6 +18,8 @@ export const mockTalents: Talent[] = [
     linkedIn: "https://linkedin.com/in/alexchen",
     location: "New York, NY",
     lastUpdated: "2025-01-10",
+    dataQuality: "parsed",
+    status: "active",
   },
   {
     id: "t2",
@@ -37,6 +39,8 @@ export const mockTalents: Talent[] = [
     linkedIn: "https://linkedin.com/in/mariasantos",
     location: "Chicago, IL",
     lastUpdated: "2025-01-12",
+    dataQuality: "parsed",
+    status: "active",
   },
   {
     id: "t3",
@@ -55,6 +59,8 @@ export const mockTalents: Talent[] = [
     linkedIn: "https://linkedin.com/in/jameswilson",
     location: "San Francisco, CA",
     lastUpdated: "2025-01-08",
+    dataQuality: "parsed",
+    status: "active",
   },
   {
     id: "t4",
@@ -73,6 +79,8 @@ export const mockTalents: Talent[] = [
     linkedIn: "https://linkedin.com/in/priyasharma",
     location: "Austin, TX",
     lastUpdated: "2025-01-15",
+    dataQuality: "needs-review",
+    status: "new",
   },
   {
     id: "t5",
@@ -92,6 +100,8 @@ export const mockTalents: Talent[] = [
     linkedIn: "https://linkedin.com/in/michaelbrown",
     location: "Boston, MA",
     lastUpdated: "2025-01-11",
+    dataQuality: "parsed",
+    status: "active",
   },
   {
     id: "t6",
@@ -110,6 +120,8 @@ export const mockTalents: Talent[] = [
     linkedIn: "https://linkedin.com/in/sarahkim",
     location: "Seattle, WA",
     lastUpdated: "2025-01-13",
+    dataQuality: "parsed",
+    status: "active",
   },
   {
     id: "t7",
@@ -128,6 +140,8 @@ export const mockTalents: Talent[] = [
     linkedIn: "https://linkedin.com/in/davidlee",
     location: "Washington, DC",
     lastUpdated: "2025-01-05",
+    dataQuality: "parsed",
+    status: "active",
   },
   {
     id: "t8",
@@ -146,6 +160,8 @@ export const mockTalents: Talent[] = [
     linkedIn: "https://linkedin.com/in/emmajohnson",
     location: "Denver, CO",
     lastUpdated: "2025-01-14",
+    dataQuality: "needs-review",
+    status: "active",
   },
   {
     id: "t9",
@@ -164,6 +180,8 @@ export const mockTalents: Talent[] = [
     linkedIn: "https://linkedin.com/in/robertgarcia",
     location: "Palo Alto, CA",
     lastUpdated: "2025-01-09",
+    dataQuality: "parsed",
+    status: "active",
   },
   {
     id: "t10",
@@ -182,6 +200,8 @@ export const mockTalents: Talent[] = [
     linkedIn: "https://linkedin.com/in/lisawang",
     location: "Los Angeles, CA",
     lastUpdated: "2025-01-16",
+    dataQuality: "parsed",
+    status: "on-hold",
   },
 ];
 

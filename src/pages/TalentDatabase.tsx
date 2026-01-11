@@ -45,6 +45,7 @@ import { useResizableColumns, ColumnConfig } from "@/hooks/use-resizable-columns
 import { useColumnPinning } from "@/hooks/use-column-pinning";
 import { useViewPresets } from "@/hooks/use-view-presets";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
 import {
   Search,
   Plus,
@@ -145,6 +146,11 @@ export default function TalentDatabase() {
   const [showCVViewer, setShowCVViewer] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [quickViewTalentId, setQuickViewTalentId] = useState<string | null>(null);
+
+  // Permissions
+  const { role, canInsert, canEdit, isLoading: permissionsLoading } = usePermissions();
+  const insertTooltip = getPermissionTooltip("insert", role);
+  const editTooltip = getPermissionTooltip("edit", role);
 
   // Persisted view preferences
   const [viewPreferences, setViewPreferences] = useTableViewPreferences("talent-table-view-prefs");
@@ -599,37 +605,64 @@ export default function TalentDatabase() {
                   <span className="sm:hidden">{responsiveHiddenCount} hidden</span>
                 </Button>
               )}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => setShowImportModal(true)}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Upload CV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => console.log("Batch upload")}>
-                    <Layers className="h-4 w-4 mr-2" />
-                    Batch Upload
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => console.log("Drag & drop")}>
-                    <MousePointer2 className="h-4 w-4 mr-2" />
-                    Drag & Drop
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => console.log("Import from LinkedIn")}>
-                    <Linkedin className="h-4 w-4 mr-2" />
-                    Import from LinkedIn
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button variant="default" size="sm" onClick={handleAddTalent}>
-                <Plus className="h-4 w-4 mr-2" />
-                + Add Candidate
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={!canInsert}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Import
+                          <ChevronDown className="h-4 w-4 ml-2" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem onClick={() => setShowImportModal(true)}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          Upload CV
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => console.log("Batch upload")}>
+                          <Layers className="h-4 w-4 mr-2" />
+                          Batch Upload
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => console.log("Drag & drop")}>
+                          <MousePointer2 className="h-4 w-4 mr-2" />
+                          Drag & Drop
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => console.log("Import from LinkedIn")}>
+                          <Linkedin className="h-4 w-4 mr-2" />
+                          Import from LinkedIn
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </span>
+                </TooltipTrigger>
+                {insertTooltip && (
+                  <TooltipContent side="bottom">
+                    <p className="text-sm">{insertTooltip}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      onClick={handleAddTalent}
+                      disabled={!canInsert}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      + Add Candidate
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {insertTooltip && (
+                  <TooltipContent side="bottom">
+                    <p className="text-sm">{insertTooltip}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             </div>
           </div>
         </div>

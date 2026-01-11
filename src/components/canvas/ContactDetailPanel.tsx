@@ -6,12 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { PhotoCapture } from "./PhotoCapture";
 import { VoiceInput } from "./VoiceInput";
 import { CallActionModal } from "./CallActionModal";
 import { EmailActionModal } from "./EmailActionModal";
 import { ScheduleActionModal } from "./ScheduleActionModal";
 import { useDraggable } from "@/hooks/use-draggable";
+import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
 import { 
   X, 
   Mail, 
@@ -41,7 +47,8 @@ import {
   Camera,
   CreditCard,
   Network,
-  GripHorizontal
+  GripHorizontal,
+  Lock
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -187,6 +194,10 @@ export const ContactDetailPanel = ({
   const [editedContact, setEditedContact] = useState(contact);
   const [openSection, setOpenSection] = useState<string | null>("ai-insights");
   const [focusedSection, setFocusedSection] = useState<string | null>(null);
+  
+  // Permissions
+  const { role, canEdit, isLoading: permissionsLoading } = usePermissions();
+  const editTooltip = getPermissionTooltip("edit", role);
   
   // Notes state
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
@@ -361,6 +372,43 @@ export const ContactDetailPanel = ({
     label?: string;
   }) => {
     const isFieldEditing = isEditing === field;
+
+    // If user can't edit, show locked field
+    if (!canEdit) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className={cn(
+              "rounded-xl transition-all duration-200 bg-muted/40 p-4 cursor-not-allowed opacity-80"
+            )}>
+              {label && (
+                <span className="text-xs text-muted-foreground uppercase tracking-wide mb-2 block">{label}</span>
+              )}
+              <div className="flex items-start gap-4">
+                <div className="p-2 rounded-lg bg-background/50 text-muted-foreground shrink-0 mt-0.5">
+                  {icon}
+                </div>
+                <div className="flex-1 flex items-center justify-between min-h-[32px]">
+                  {field === "email" ? (
+                    <a href={`mailto:${value}`} className="text-primary hover:underline text-base">{value}</a>
+                  ) : field === "linkedIn" ? (
+                    <a href={value} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline text-base">
+                      View LinkedIn Profile
+                    </a>
+                  ) : (
+                    <span className="text-base">{value}</span>
+                  )}
+                  <Lock className="w-4 h-4 text-muted-foreground" />
+                </div>
+              </div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p className="text-sm">{editTooltip || "You don't have permission to edit"}</p>
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
 
     return (
       <div className={cn(

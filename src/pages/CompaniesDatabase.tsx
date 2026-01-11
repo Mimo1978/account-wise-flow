@@ -21,6 +21,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
+import {
   Search,
   Plus,
   ArrowLeft,
@@ -55,6 +61,10 @@ export default function CompaniesDatabase() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<Account | null>(null);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
+
+  // Permissions
+  const { role, canInsert, isLoading: permissionsLoading } = usePermissions();
+  const insertTooltip = getPermissionTooltip("insert", role);
 
   // Check if this is the first visit to show scroll hint
   useEffect(() => {
@@ -125,14 +135,26 @@ export default function CompaniesDatabase() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button 
-                variant="default" 
-                size="sm"
-                onClick={handleAddCompany}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Company
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      onClick={handleAddCompany}
+                      disabled={!canInsert}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Company
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {insertTooltip && (
+                  <TooltipContent side="bottom">
+                    <p className="text-sm">{insertTooltip}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
             </div>
           </div>
         </div>

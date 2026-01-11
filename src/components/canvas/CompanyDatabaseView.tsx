@@ -33,6 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Search,
   CheckCircle2,
@@ -46,6 +47,8 @@ import {
   FileText,
   ClipboardPaste,
   ChevronDown,
+  Building2,
+  Globe,
 } from "lucide-react";
 import {
   departmentOptions,
@@ -59,6 +62,7 @@ import { InlineEditCell } from "./InlineEditCell";
 
 interface CompanyDatabaseViewProps {
   account: Account;
+  allAccounts?: Account[];
   onAccountUpdate: (account: Account) => void;
   onViewCanvas: () => void;
   onContactSelect?: (contact: Contact) => void;
@@ -109,6 +113,7 @@ type SortDirection = "asc" | "desc";
 
 export const CompanyDatabaseView = ({
   account,
+  allAccounts = [],
   onAccountUpdate,
   onViewCanvas,
   onContactSelect,
@@ -121,6 +126,7 @@ export const CompanyDatabaseView = ({
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [searchScope, setSearchScope] = useState<"this" | "all">("this");
   
   // Track edited contacts (staged changes)
   const [editedContacts, setEditedContacts] = useState<Set<string>>(new Set());
@@ -139,25 +145,37 @@ export const CompanyDatabaseView = ({
   const [bulkDepartment, setBulkDepartment] = useState("");
   const [bulkJobTitle, setBulkJobTitle] = useState("");
 
-  const allContacts = account.contacts;
+  // Build contact list with company info for "All Companies" mode
+  const contactsWithCompany = useMemo(() => {
+    if (searchScope === "this") {
+      return account.contacts.map((c) => ({ ...c, companyName: account.name, companyId: account.id }));
+    }
+    // All companies mode
+    return allAccounts.flatMap((acc) =>
+      acc.contacts.map((c) => ({ ...c, companyName: acc.name, companyId: acc.id }))
+    );
+  }, [searchScope, account, allAccounts]);
+
+  const allContacts = searchScope === "this" ? account.contacts : contactsWithCompany;
 
   const departments = useMemo(() => {
-    const depts = new Set(allContacts.map((c) => c.department));
+    const depts = new Set(contactsWithCompany.map((c) => c.department));
     return Array.from(depts).sort();
-  }, [allContacts]);
+  }, [contactsWithCompany]);
 
   const statuses = ["unknown", "new", "warm", "engaged", "champion", "blocker"];
 
   // Filter and sort contacts
   const filteredContacts = useMemo(() => {
-    let result = allContacts.filter((contact) => {
+    let result = contactsWithCompany.filter((contact) => {
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch =
         !searchQuery ||
         contact.name.toLowerCase().includes(searchLower) ||
         contact.department.toLowerCase().includes(searchLower) ||
         contact.title.toLowerCase().includes(searchLower) ||
-        (contact.email?.toLowerCase().includes(searchLower) ?? false);
+        (contact.email?.toLowerCase().includes(searchLower) ?? false) ||
+        (searchScope === "all" && contact.companyName?.toLowerCase().includes(searchLower));
 
       const matchesDepartment =
         departmentFilter === "all" || contact.department === departmentFilter;
@@ -202,12 +220,13 @@ export const CompanyDatabaseView = ({
 
     return result;
   }, [
-    allContacts,
+    contactsWithCompany,
     searchQuery,
     departmentFilter,
     statusFilter,
     sortField,
     sortDirection,
+    searchScope,
   ]);
 
   const handleSort = (field: SortField) => {
@@ -409,14 +428,31 @@ export const CompanyDatabaseView = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="relative flex-1 min-w-[250px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search contacts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex items-center gap-2 flex-1 min-w-[350px]">
+            <ToggleGroup 
+              type="single" 
+              value={searchScope} 
+              onValueChange={(value) => value && setSearchScope(value as "this" | "all")}
+              className="shrink-0"
+            >
+              <ToggleGroupItem value="this" aria-label="This company" className="gap-1.5 text-xs px-3">
+                <Building2 className="h-3.5 w-3.5" />
+                This Company
+              </ToggleGroupItem>
+              <ToggleGroupItem value="all" aria-label="All companies" className="gap-1.5 text-xs px-3">
+                <Globe className="h-3.5 w-3.5" />
+                All Companies
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder={searchScope === "all" ? "Search all contacts..." : "Search contacts..."}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
           </div>
           <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
             <SelectTrigger className="w-[180px]">
@@ -520,6 +556,9 @@ export const CompanyDatabaseView = ({
               <TableHead className="font-semibold w-[100px]">
                 Data Quality
               </TableHead>
+              {searchScope === "all" && (
+                <TableHead className="font-semibold min-w-[150px]">Company</TableHead>
+              )}
               <SortableHeader field="name">Name</SortableHeader>
               <SortableHeader field="department">Department</SortableHeader>
               <SortableHeader field="title">Job Title</SortableHeader>
@@ -731,6 +770,14 @@ export const CompanyDatabaseView = ({
                       </Popover>
                     )}
                   </TableCell>
+                  {searchScope === "all" && (
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-4 w-4 text-muted-foreground" />
+                        <span>{(contact as any).companyName}</span>
+                      </div>
+                    </TableCell>
+                  )}
                   <TableCell className="font-medium">{contact.name}</TableCell>
                   <TableCell>
                     <InlineEditCell
@@ -840,7 +887,8 @@ export const CompanyDatabaseView = ({
       <div className="border-t border-border p-3 bg-muted/30">
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            {filteredContacts.length} of {allContacts.length} contacts
+            {filteredContacts.length} of {contactsWithCompany.length} contacts
+            {searchScope === "all" && ` across ${allAccounts.length} companies`}
           </span>
           <span>
             {filteredContacts.filter(isContactReady).length} ready for canvas

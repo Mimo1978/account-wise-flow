@@ -14,6 +14,15 @@ interface ExtractedExperience {
   description?: string;
 }
 
+interface ExtractedEducation {
+  institution: string;
+  degree: string;
+  field?: string;
+  startDate?: string;
+  endDate?: string;
+  grade?: string;
+}
+
 interface ExtractedTalent {
   name: string;
   email?: string;
@@ -25,6 +34,7 @@ interface ExtractedTalent {
   skills: string[];
   aiOverview: string;
   experience: ExtractedExperience[];
+  education: ExtractedEducation[];
   confidence: 'high' | 'medium' | 'low';
 }
 
@@ -66,7 +76,7 @@ Extract the following information:
 - roleType: Primary professional role/title (e.g., "Data Engineer", "Product Manager", "UX Designer")
 - seniority: Based on years of experience and titles - one of: "executive", "director", "manager", "senior", "mid", "junior"
 - skills: Array of technical and professional skills (extract all mentioned skills, technologies, tools)
-- aiOverview: A 2-3 sentence professional summary describing the candidate's key strengths and experience
+- aiOverview: A 2-3 sentence professional summary describing the candidate's key strengths, experience, and what makes them stand out. This should be compelling and written in third person.
 - experience: Array of work history entries, each with:
   - company: Company name
   - title: Job title at that company
@@ -74,6 +84,13 @@ Extract the following information:
   - endDate: End date (format: "YYYY-MM", or null if current)
   - current: Boolean - true if this is their current position
   - description: Brief description of role/achievements (1-2 sentences)
+- education: Array of education entries, each with:
+  - institution: School/university name
+  - degree: Degree type (e.g., "Bachelor's", "Master's", "PhD", "MBA")
+  - field: Field of study (e.g., "Computer Science", "Business Administration")
+  - startDate: Start date (format: "YYYY" or "YYYY-MM")
+  - endDate: End/graduation date (format: "YYYY" or "YYYY-MM")
+  - grade: GPA or classification if mentioned
 - confidence: Your confidence in the extraction accuracy (high/medium/low)
 
 Return ONLY a valid JSON object with this exact structure:
@@ -87,7 +104,7 @@ Return ONLY a valid JSON object with this exact structure:
     "roleType": "Senior Data Engineer",
     "seniority": "senior",
     "skills": ["Python", "Spark", "AWS", "SQL", "Airflow"],
-    "aiOverview": "Experienced data engineer with 6+ years building scalable data pipelines for financial services. Strong expertise in cloud infrastructure and real-time data processing.",
+    "aiOverview": "Alex is an experienced data engineer with 6+ years building scalable data pipelines for financial services. He brings strong expertise in cloud infrastructure and real-time data processing, with a proven track record of leading platform modernization initiatives.",
     "experience": [
       {
         "company": "DataCorp Inc",
@@ -96,6 +113,16 @@ Return ONLY a valid JSON object with this exact structure:
         "endDate": null,
         "current": true,
         "description": "Leading data platform modernization initiative."
+      }
+    ],
+    "education": [
+      {
+        "institution": "MIT",
+        "degree": "Master's",
+        "field": "Computer Science",
+        "startDate": "2014",
+        "endDate": "2016",
+        "grade": "3.8 GPA"
       }
     ],
     "confidence": "high"

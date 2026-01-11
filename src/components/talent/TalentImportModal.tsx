@@ -36,6 +36,7 @@ import {
   Clock,
   User,
   AlertCircle,
+  GraduationCap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -53,6 +54,15 @@ type FilePreview = {
   type: 'image' | 'pdf' | 'document';
 };
 
+type ExtractedEducation = {
+  institution: string;
+  degree: string;
+  field?: string;
+  startDate?: string;
+  endDate?: string;
+  grade?: string;
+};
+
 type ExtractedTalent = {
   name: string;
   email?: string;
@@ -64,6 +74,7 @@ type ExtractedTalent = {
   skills: string[];
   aiOverview: string;
   experience: TalentExperience[];
+  education: ExtractedEducation[];
   confidence: 'high' | 'medium' | 'low';
 };
 
@@ -249,6 +260,7 @@ export const TalentImportModal = ({
             skills: talent.skills || [],
             aiOverview: talent.aiOverview || '',
             experience: experienceWithIds,
+            education: talent.education || [],
             confidence: talent.confidence || 'medium',
           };
           
@@ -687,6 +699,46 @@ export const TalentImportModal = ({
                     </div>
                   )}
                 </div>
+
+                <Separator />
+
+                {/* Section: Education */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    <GraduationCap className="h-4 w-4" />
+                    Education ({editedTalent.education.length})
+                  </div>
+                  {editedTalent.education.length > 0 ? (
+                    <div className="space-y-2">
+                      {editedTalent.education.map((edu, idx) => (
+                        <div key={idx} className="p-3 rounded-lg bg-muted/30 border hover:bg-muted/50 transition-colors">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">
+                                {edu.degree}{edu.field ? ` in ${edu.field}` : ''}
+                              </p>
+                              <p className="text-sm text-muted-foreground truncate">{edu.institution}</p>
+                              {edu.grade && (
+                                <p className="text-xs text-muted-foreground mt-1">{edu.grade}</p>
+                              )}
+                            </div>
+                            {(edu.startDate || edu.endDate) && (
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
+                                <Clock className="h-3 w-3" />
+                                {edu.startDate ? formatDate(edu.startDate) : ''} 
+                                {edu.endDate ? ` – ${formatDate(edu.endDate)}` : ''}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-lg bg-muted/30 border text-center">
+                      <p className="text-sm text-muted-foreground">No education extracted</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </ScrollArea>
 
@@ -744,6 +796,7 @@ export const TalentImportModal = ({
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Badge variant="outline">{editedTalent.skills.length} skills</Badge>
                   <Badge variant="outline">{editedTalent.experience.length} positions</Badge>
+                  <Badge variant="outline">{editedTalent.education.length} education</Badge>
                   {editedTalent.email && <Badge variant="outline">Email ✓</Badge>}
                   {editedTalent.phone && <Badge variant="outline">Phone ✓</Badge>}
                 </div>

@@ -23,6 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -47,6 +53,9 @@ import {
   Mail,
   Phone,
   GripVertical,
+  ChevronDown,
+  Layers,
+  MousePointer2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -367,17 +376,36 @@ export default function TalentDatabase() {
                 onToggleColumn={toggleColumnVisibility}
                 onToggleAll={setAllColumnsVisibility}
               />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowImportModal(true)}
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Import CV
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setShowImportModal(true)}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Upload CV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => console.log("Batch upload")}>
+                    <Layers className="h-4 w-4 mr-2" />
+                    Batch Upload
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => console.log("Drag & drop")}>
+                    <MousePointer2 className="h-4 w-4 mr-2" />
+                    Drag & Drop
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => console.log("Import from LinkedIn")}>
+                    <Linkedin className="h-4 w-4 mr-2" />
+                    Import from LinkedIn
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button variant="default" size="sm" onClick={handleAddTalent}>
                 <Plus className="h-4 w-4 mr-2" />
-                Add Talent
+                + Add Candidate
               </Button>
             </div>
           </div>

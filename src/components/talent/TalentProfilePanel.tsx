@@ -44,6 +44,7 @@ interface TalentProfilePanelProps {
   open: boolean;
   onClose: () => void;
   onSkillFilter?: (skill: string) => void;
+  onViewCV?: () => void;
 }
 
 const availabilityColors: Record<TalentAvailability, string> = {
@@ -115,6 +116,7 @@ export const TalentProfilePanel = ({
   open,
   onClose,
   onSkillFilter,
+  onViewCV,
 }: TalentProfilePanelProps) => {
   const [isEditingOverview, setIsEditingOverview] = useState(false);
   const [editedOverview, setEditedOverview] = useState("");
@@ -146,7 +148,9 @@ export const TalentProfilePanel = ({
   };
 
   const handleViewCV = () => {
-    if (talent.cvUrl) {
+    if (onViewCV) {
+      onViewCV();
+    } else if (talent.cvUrl) {
       window.open(talent.cvUrl, "_blank");
     } else {
       toast.info("CV not available for this candidate");

@@ -36,6 +36,7 @@ import {
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { TalentImportModal } from "@/components/talent/TalentImportModal";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
+import { CVViewer } from "@/components/talent/CVViewer";
 import { useResizableColumns, ColumnConfig } from "@/hooks/use-resizable-columns";
 import {
   Search,
@@ -129,6 +130,7 @@ export default function TalentDatabase() {
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showCVViewer, setShowCVViewer] = useState(false);
 
   const {
     columns,
@@ -540,9 +542,18 @@ export default function TalentDatabase() {
       {/* Talent Profile Side Panel */}
       <TalentProfilePanel
         talent={selectedTalent}
-        open={!!selectedTalent}
+        open={!!selectedTalent && !showCVViewer}
         onClose={() => setSelectedTalent(null)}
         onSkillFilter={(skill) => setSearchQuery(skill)}
+        onViewCV={() => setShowCVViewer(true)}
+      />
+
+      {/* CV Viewer */}
+      <CVViewer
+        talent={selectedTalent}
+        open={showCVViewer}
+        onClose={() => setShowCVViewer(false)}
+        onBack={() => setShowCVViewer(false)}
       />
 
       {/* CV Import Modal */}

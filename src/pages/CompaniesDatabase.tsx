@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { mockAccounts } from "@/lib/mock-data";
 import { Account } from "@/lib/types";
@@ -32,6 +32,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 
 const getEngagementColor = (score: number) => {
   if (score >= 80) return "bg-green-500/20 text-green-400";
@@ -53,6 +54,16 @@ export default function CompaniesDatabase() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<Account | null>(null);
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
+
+  // Check if this is the first visit to show scroll hint
+  useEffect(() => {
+    const visitedKey = "companies-database-visited";
+    if (!sessionStorage.getItem(visitedKey)) {
+      setIsFirstVisit(true);
+      sessionStorage.setItem(visitedKey, "true");
+    }
+  }, []);
 
   // Filter companies by search
   const filteredCompanies = useMemo(() => {
@@ -143,38 +154,43 @@ export default function CompaniesDatabase() {
 
         {/* Table */}
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    Company Name
-                  </div>
-                </TableHead>
-                <TableHead className="font-semibold">Industry</TableHead>
-                <TableHead className="font-semibold">Region</TableHead>
-                <TableHead className="font-semibold">Account Owner</TableHead>
-                <TableHead className="font-semibold">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4" />
-                    Engagement
-                  </div>
-                </TableHead>
-                <TableHead className="font-semibold">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Last Activity
-                  </div>
-                </TableHead>
-                <TableHead className="font-semibold">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Contacts
-                  </div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
+          <ScrollableTableContainer 
+            showScrollHint={isFirstVisit}
+            stickyHeader
+            maxHeight="calc(100vh - 280px)"
+          >
+            <Table className="min-w-[1000px]">
+              <TableHeader>
+                <TableRow className="bg-muted/95 backdrop-blur-sm">
+                  <TableHead className="font-semibold whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      Company Name
+                    </div>
+                  </TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Industry</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Region</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Account Owner</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      Engagement
+                    </div>
+                  </TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Last Activity
+                    </div>
+                  </TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Contacts
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {filteredCompanies.map((account) => (
                 <TableRow
@@ -236,6 +252,7 @@ export default function CompaniesDatabase() {
               )}
             </TableBody>
           </Table>
+          </ScrollableTableContainer>
         </div>
 
         {/* Footer */}

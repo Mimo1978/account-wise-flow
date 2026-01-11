@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { mockTalents, roleTypeOptions } from "@/lib/mock-talent";
@@ -37,6 +37,7 @@ import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { TalentImportModal } from "@/components/talent/TalentImportModal";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
 import { CVViewer } from "@/components/talent/CVViewer";
+import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { useResizableColumns, ColumnConfig } from "@/hooks/use-resizable-columns";
 import {
   Search,
@@ -131,6 +132,16 @@ export default function TalentDatabase() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showImportModal, setShowImportModal] = useState(false);
   const [showCVViewer, setShowCVViewer] = useState(false);
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
+
+  // Check if this is the first visit to show scroll hint
+  useEffect(() => {
+    const visitedKey = "talent-database-visited";
+    if (!sessionStorage.getItem(visitedKey)) {
+      setIsFirstVisit(true);
+      sessionStorage.setItem(visitedKey, "true");
+    }
+  }, []);
 
   const {
     columns,
@@ -454,10 +465,14 @@ export default function TalentDatabase() {
 
         {/* Table with Resizable Columns */}
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <div className="overflow-x-auto">
+          <ScrollableTableContainer 
+            showScrollHint={isFirstVisit}
+            stickyHeader
+            maxHeight="calc(100vh - 320px)"
+          >
             <Table style={{ minWidth: `${totalTableWidth}px` }}>
               <TableHeader>
-                <TableRow className="bg-muted/50">
+                <TableRow className="bg-muted/95 backdrop-blur-sm">
                   <TableHead className="w-[40px]">
                     <Checkbox
                       checked={isAllSelected}
@@ -469,7 +484,7 @@ export default function TalentDatabase() {
                   {visibleColumns.map((column) => (
                     <TableHead
                       key={column.id}
-                      className="font-semibold relative group"
+                      className="font-semibold relative group whitespace-nowrap"
                       style={{ width: columnWidths[column.id] || column.defaultWidth }}
                     >
                       <div className="flex items-center justify-between pr-2">
@@ -523,9 +538,9 @@ export default function TalentDatabase() {
                     </TableCell>
                   </TableRow>
                 )}
-              </TableBody>
-            </Table>
-          </div>
+            </TableBody>
+          </Table>
+          </ScrollableTableContainer>
         </div>
 
         {/* Footer */}

@@ -24,6 +24,9 @@ interface TalentColumnPickerProps {
   isPinned?: (columnId: string) => PinPosition;
   canPin?: (columnId: string, position: "left" | "right") => boolean;
   onTogglePin?: (columnId: string, position: PinPosition) => void;
+  // External control
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export function TalentColumnPicker({
@@ -33,8 +36,15 @@ export function TalentColumnPicker({
   isPinned,
   canPin,
   onTogglePin,
+  open: externalOpen,
+  onOpenChange,
 }: TalentColumnPickerProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Use external state if provided, otherwise internal
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = onOpenChange || setInternalOpen;
+
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(["Core", "Contact", "AI-Derived", "Operational"])
   );

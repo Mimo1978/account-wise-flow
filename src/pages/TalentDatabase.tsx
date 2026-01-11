@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
+import { TalentImportModal } from "@/components/talent/TalentImportModal";
 import {
   Search,
   Plus,
@@ -31,6 +32,7 @@ import {
   AlertCircle,
   CheckCircle2,
   MapPin,
+  Upload,
 } from "lucide-react";
 
 const availabilityColors: Record<TalentAvailability, string> = {
@@ -75,6 +77,7 @@ export default function TalentDatabase() {
   const [roleTypeFilter, setRoleTypeFilter] = useState<string>("all");
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showImportModal, setShowImportModal] = useState(false);
 
   // Get unique role types from data
   const roleTypes = useMemo(() => {
@@ -184,6 +187,14 @@ export default function TalentDatabase() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowImportModal(true)}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import CV
+              </Button>
               <Button 
                 variant="default" 
                 size="sm"
@@ -360,6 +371,17 @@ export default function TalentDatabase() {
         open={!!selectedTalent}
         onClose={() => setSelectedTalent(null)}
         onSkillFilter={(skill) => setSearchQuery(skill)}
+      />
+
+      {/* CV Import Modal */}
+      <TalentImportModal
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+        onImportComplete={(talent) => {
+          // In a real app, this would add to the database
+          mockTalents.push(talent);
+          setShowImportModal(false);
+        }}
       />
     </div>
   );

@@ -16,6 +16,7 @@ import { VoiceInput } from "./VoiceInput";
 import { CallActionModal } from "./CallActionModal";
 import { EmailActionModal } from "./EmailActionModal";
 import { ScheduleActionModal } from "./ScheduleActionModal";
+import { OwnershipSection } from "./OwnershipSection";
 import { useDraggable } from "@/hooks/use-draggable";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
 import { 
@@ -910,6 +911,22 @@ export const ContactDetailPanel = ({
                   onFocus={() => toggleFocus("engagement")}
                 >
                   <div className="space-y-4">
+                    {/* Ownership Section - Collapsible */}
+                    <OwnershipSection
+                      entityType="contact"
+                      entityId={editedContact.id}
+                      ownerId={null} // In real app, would come from editedContact.owner_id
+                      teamMembers={[]}
+                      onOwnerChange={(newOwnerId) => {
+                        console.log("Owner changed:", newOwnerId);
+                        // In real app, update the contact's owner_id
+                      }}
+                      onTeamChange={(newTeam) => {
+                        console.log("Team changed:", newTeam);
+                        // In real app, update contact_team_members table
+                      }}
+                    />
+
                     {/* Engagement Score */}
                     <div className="p-4 rounded-xl bg-muted/40">
                       <div className="flex justify-between text-sm mb-3">
@@ -943,18 +960,6 @@ export const ContactDetailPanel = ({
                               <Clock className="w-4 h-4" />
                             </div>
                             <span className="text-sm font-medium">{editedContact.nextFollowUp}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {editedContact.contactOwner && (
-                        <div className="rounded-xl bg-muted/40 p-3">
-                          <span className="text-xs text-muted-foreground uppercase tracking-wide block mb-1.5">Contact Owner</span>
-                          <div className="flex items-center gap-3">
-                            <div className="p-1.5 rounded-lg bg-background/50 text-muted-foreground">
-                              <User className="w-4 h-4" />
-                            </div>
-                            <span className="text-sm font-medium">{editedContact.contactOwner}</span>
                           </div>
                         </div>
                       )}

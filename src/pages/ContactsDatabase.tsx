@@ -116,6 +116,7 @@ export default function ContactsDatabase() {
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  const [assignedFilter, setAssignedFilter] = useState<string>("all");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
 
@@ -123,6 +124,9 @@ export default function ContactsDatabase() {
   const { role, canInsert, canEdit, isLoading: permissionsLoading } = usePermissions();
   const insertTooltip = getPermissionTooltip("insert", role);
   const editTooltip = getPermissionTooltip("edit", role);
+  
+  // Mock current user ID (in real app, get from auth)
+  const currentUserId = "user-1"; // Sarah Williams
 
   // Check if this is the first visit to show scroll hint
   useEffect(() => {
@@ -169,9 +173,15 @@ export default function ContactsDatabase() {
       const matchesOwner =
         ownerFilter === "all" || contact.contactOwner === ownerFilter;
 
-      return matchesSearch && matchesDepartment && matchesStatus && matchesOwner;
+      // "Assigned to me" filter - checks if user is owner or team member
+      // In real app, this would check owner_id and contact_team_members table
+      const matchesAssigned =
+        assignedFilter === "all" || 
+        (assignedFilter === "assigned-to-me" && contact.contactOwner === "Sarah Williams");
+
+      return matchesSearch && matchesDepartment && matchesStatus && matchesOwner && matchesAssigned;
     });
-  }, [allContacts, searchQuery, departmentFilter, statusFilter, ownerFilter, companyName]);
+  }, [allContacts, searchQuery, departmentFilter, statusFilter, ownerFilter, assignedFilter, companyName]);
 
   const handleRowClick = (contact: Contact, e: React.MouseEvent) => {
     // Don't open detail if clicking on data quality actions
@@ -429,6 +439,15 @@ export default function ContactsDatabase() {
                   {owner}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+          <Select value={assignedFilter} onValueChange={setAssignedFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Assigned" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Contacts</SelectItem>
+              <SelectItem value="assigned-to-me">Assigned to Me</SelectItem>
             </SelectContent>
           </Select>
         </div>

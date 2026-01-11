@@ -1,4 +1,4 @@
-import { Talent } from "./types";
+import { Talent, TalentEngagement } from "./types";
 
 export const mockTalents: Talent[] = [
   {
@@ -230,4 +230,65 @@ export const skillOptions = [
   "Tableau",
   "Figma",
   "Cybersecurity",
+];
+
+// Mock engagements linking talents to companies
+export const mockEngagements: TalentEngagement[] = [
+  {
+    id: "eng-1",
+    talentId: "t3", // James Wilson - Solutions Architect
+    companyId: "acc-1", // Acme Corp
+    status: "deployed",
+    roleType: "Solutions Architect",
+    department: "Technology",
+    startDate: "2024-11-01",
+    endDate: "2025-03-31",
+    notes: "Leading cloud migration initiative",
+  },
+  {
+    id: "eng-2",
+    talentId: "t2", // Maria Santos - Business Analyst
+    companyId: "acc-1", // Acme Corp
+    status: "interviewing",
+    roleType: "Business Analyst",
+    department: "Product",
+    notes: "Final round scheduled for next week",
+  },
+  {
+    id: "eng-3",
+    talentId: "t1", // Alex Chen - Data Engineer
+    companyId: "acc-1", // Acme Corp
+    status: "proposed",
+    roleType: "Data Engineer",
+    department: "Technology",
+    notes: "Proposed for Q2 data pipeline project",
+  },
+  {
+    id: "eng-4",
+    talentId: "t7", // David Lee - Security Consultant
+    companyId: "acc-3", // Global Solutions
+    status: "deployed",
+    roleType: "Security Consultant",
+    department: "Technology",
+    startDate: "2024-10-15",
+    notes: "Long-term security assessment engagement",
+  },
+  {
+    id: "eng-5",
+    talentId: "t4", // Priya Sharma - Full Stack Developer
+    companyId: "acc-2", // TechStart Inc
+    status: "proposed",
+    roleType: "Full Stack Developer",
+    department: "Engineering",
+    notes: "Proposed for product rebuild project",
+  },
+  {
+    id: "eng-6",
+    talentId: "t8", // Emma Johnson - DevOps Engineer
+    companyId: "acc-1", // Acme Corp
+    status: "proposed",
+    roleType: "DevOps Engineer",
+    department: "Technology",
+    notes: "Proposed to support cloud migration team",
+  },
 ];

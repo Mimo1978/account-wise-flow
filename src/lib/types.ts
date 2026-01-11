@@ -86,6 +86,16 @@ export type TalentAvailability = "available" | "interviewing" | "deployed";
 export type TalentDataQuality = "parsed" | "needs-review";
 export type TalentStatus = "active" | "on-hold" | "archived" | "new";
 
+export interface TalentExperience {
+  id: string;
+  company: string;
+  title: string;
+  startDate: string;
+  endDate?: string;
+  current?: boolean;
+  description?: string;
+}
+
 export interface Talent {
   id: string;
   name: string;
@@ -98,6 +108,8 @@ export interface Talent {
   availability: TalentAvailability;
   rate?: string;
   notes?: string;
+  aiOverview?: string;
+  experience?: TalentExperience[];
   cvUrl?: string;
   linkedIn?: string;
   location?: string;

@@ -22,23 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import {
   Search,
   Plus,
   ArrowLeft,
   Users,
-  Phone,
-  Mail,
-  FileText,
-  ExternalLink,
   AlertCircle,
   CheckCircle2,
   MapPin,
@@ -365,145 +354,13 @@ export default function TalentDatabase() {
         </div>
       </div>
 
-      {/* Talent Detail Side Panel Dialog */}
-      <Dialog open={!!selectedTalent} onOpenChange={(open) => !open && setSelectedTalent(null)}>
-        <DialogContent className="sm:max-w-lg max-h-[85vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <div>{selectedTalent?.name}</div>
-                <div className="text-sm font-normal text-muted-foreground">
-                  {selectedTalent?.roleType}
-                </div>
-              </div>
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[60vh] pr-4">
-            {selectedTalent && (
-              <div className="space-y-6 py-4">
-                {/* Status Row */}
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className={availabilityColors[selectedTalent.availability]}>
-                    {availabilityLabels[selectedTalent.availability]}
-                  </Badge>
-                  <Badge className={statusColors[selectedTalent.status]}>
-                    {statusLabels[selectedTalent.status]}
-                  </Badge>
-                  {getDataQualityBadge(selectedTalent.dataQuality)}
-                </div>
-
-                {/* Seniority & Rate */}
-                <div className="flex items-center gap-3 text-sm">
-                  <span className="text-muted-foreground">
-                    {seniorityLabels[selectedTalent.seniority]}
-                  </span>
-                  {selectedTalent.rate && (
-                    <>
-                      <span className="text-muted-foreground">•</span>
-                      <span className="font-medium text-green-500">
-                        {selectedTalent.rate}
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {/* Contact Info */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Contact</Label>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a 
-                        href={`mailto:${selectedTalent.email}`}
-                        className="text-primary hover:underline"
-                      >
-                        {selectedTalent.email}
-                      </a>
-                    </div>
-                    {selectedTalent.phoneNumbers?.map((phone, idx) => (
-                      <div key={idx} className="flex items-center gap-2 text-sm">
-                        <Phone className="h-4 w-4 text-muted-foreground" />
-                        <span>{phone.value}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {phone.label}
-                        </Badge>
-                        {phone.preferred && (
-                          <Badge variant="secondary" className="text-xs">
-                            Preferred
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                    {selectedTalent.linkedIn && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <ExternalLink className="h-4 w-4 text-muted-foreground" />
-                        <a 
-                          href={selectedTalent.linkedIn}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          LinkedIn Profile
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Location */}
-                {selectedTalent.location && (
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Location</Label>
-                    <div className="flex items-center gap-2 text-sm">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      {selectedTalent.location}
-                    </div>
-                  </div>
-                )}
-
-                {/* Skills */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Skills</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedTalent.skills.map((skill) => (
-                      <Badge key={skill} variant="secondary" className="font-normal">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Notes */}
-                {selectedTalent.notes && (
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Notes</Label>
-                    <div className="text-sm bg-muted/50 rounded-lg p-3">
-                      {selectedTalent.notes}
-                    </div>
-                  </div>
-                )}
-
-                {/* CV Upload Placeholder */}
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">CV / Resume</Label>
-                  <Button variant="outline" className="w-full justify-start gap-2" disabled>
-                    <FileText className="h-4 w-4" />
-                    {selectedTalent.cvUrl ? "View CV" : "Upload CV (Coming Soon)"}
-                  </Button>
-                </div>
-
-                {/* Last Updated */}
-                <div className="pt-2 border-t text-xs text-muted-foreground">
-                  Last updated: {formatDate(selectedTalent.lastUpdated)}
-                </div>
-              </div>
-            )}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
+      {/* Talent Profile Side Panel */}
+      <TalentProfilePanel
+        talent={selectedTalent}
+        open={!!selectedTalent}
+        onClose={() => setSelectedTalent(null)}
+        onSkillFilter={(skill) => setSearchQuery(skill)}
+      />
     </div>
   );
 }

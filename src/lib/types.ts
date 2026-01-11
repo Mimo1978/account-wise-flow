@@ -80,3 +80,23 @@ export interface Department {
   name: string;
   contacts: Contact[];
 }
+
+export type TalentAvailability = "available" | "interviewing" | "deployed";
+
+export interface Talent {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  phoneNumbers?: PhoneNumber[];
+  skills: string[];
+  roleType: string;
+  seniority: "executive" | "director" | "manager" | "senior" | "mid" | "junior";
+  availability: TalentAvailability;
+  rate?: string;
+  notes?: string;
+  cvUrl?: string;
+  linkedIn?: string;
+  location?: string;
+  lastUpdated?: string;
+}

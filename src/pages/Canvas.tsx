@@ -13,7 +13,7 @@ import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
 import { AIInsightsPanel } from "@/components/canvas/AIInsightsPanel";
 import { AIRoleSuggestionsPanel } from "@/components/canvas/AIRoleSuggestionsPanel";
 import { GlobalSearch } from "@/components/canvas/GlobalSearch";
-import { mockAccount } from "@/lib/mock-data";
+import { mockAccount, mockAccounts } from "@/lib/mock-data";
 import { Account, Contact } from "@/lib/types";
 import { toast } from "sonner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -286,6 +286,7 @@ const Canvas = () => {
         ) : (
           <CompanyDatabaseView
             account={account}
+            allAccounts={mockAccounts}
             onAccountUpdate={setAccount}
             onViewCanvas={() => setViewMode("canvas")}
             onAddContact={() => setShowAddContactModal(true)}

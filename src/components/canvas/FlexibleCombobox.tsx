@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Check } from "lucide-react";
@@ -21,8 +21,10 @@ export const FlexibleCombobox = ({
 }: FlexibleComboboxProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value || "");
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Sync external value changes
   useEffect(() => {
@@ -46,11 +48,27 @@ export const FlexibleCombobox = ({
     return [...startsWithMatches, ...includesMatches];
   }, [inputValue, options]);
 
+  const displayedOptions = filteredOptions.slice(0, 20);
+
+  // Reset highlighted index when options change
+  useEffect(() => {
+    setHighlightedIndex(-1);
+  }, [filteredOptions.length]);
+
+  // Scroll highlighted item into view
+  useEffect(() => {
+    if (highlightedIndex >= 0 && listRef.current) {
+      const item = listRef.current.querySelector(`[data-index="${highlightedIndex}"]`);
+      item?.scrollIntoView({ block: "nearest" });
+    }
+  }, [highlightedIndex]);
+
   // Handle click outside - commit value and close
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+        setHighlightedIndex(-1);
         // Commit value on blur if changed
         if (inputValue.trim() !== value) {
           onChange(inputValue.trim());
@@ -68,6 +86,7 @@ export const FlexibleCombobox = ({
     const newValue = e.target.value;
     setInputValue(newValue);
     onChange(newValue); // Live update as user types
+    setHighlightedIndex(-1);
     if (!isOpen) setIsOpen(true);
   };
 
@@ -75,43 +94,56 @@ export const FlexibleCombobox = ({
     setIsOpen(true);
   };
 
-  const handleSelectOption = (option: string) => {
+  const handleSelectOption = useCallback((option: string) => {
     setInputValue(option);
     onChange(option);
     setIsOpen(false);
+    setHighlightedIndex(-1);
     inputRef.current?.blur();
-  };
+  }, [onChange]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
-      // If there are filtered options and user hasn't typed something completely different, select first match
-      if (filteredOptions.length > 0 && filteredOptions[0].toLowerCase().includes(inputValue.toLowerCase().trim())) {
-        // Only auto-select if there's a close match, otherwise keep what user typed
-        const exactMatch = filteredOptions.find(
-          (opt) => opt.toLowerCase() === inputValue.toLowerCase().trim()
-        );
-        if (exactMatch) {
-          handleSelectOption(exactMatch);
-        } else {
-          // User pressed enter with custom value - just close and keep it
-          onChange(inputValue.trim());
-          setIsOpen(false);
-          inputRef.current?.blur();
-        }
+      if (!isOpen) {
+        setIsOpen(true);
       } else {
+        setHighlightedIndex((prev) => 
+          prev < displayedOptions.length - 1 ? prev + 1 : 0
+        );
+      }
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (isOpen) {
+        setHighlightedIndex((prev) => 
+          prev > 0 ? prev - 1 : displayedOptions.length - 1
+        );
+      }
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && displayedOptions[highlightedIndex]) {
+        // Select highlighted option
+        handleSelectOption(displayedOptions[highlightedIndex]);
+      } else {
+        // Accept typed value as-is
         onChange(inputValue.trim());
         setIsOpen(false);
+        setHighlightedIndex(-1);
         inputRef.current?.blur();
       }
     } else if (e.key === "Escape") {
       setIsOpen(false);
+      setHighlightedIndex(-1);
       inputRef.current?.blur();
     } else if (e.key === "Tab") {
       setIsOpen(false);
+      setHighlightedIndex(-1);
       onChange(inputValue.trim());
     }
   };
+
+  const isMatch = (option: string) => 
+    option.toLowerCase() === inputValue.toLowerCase().trim();
 
   return (
     <div ref={containerRef} className={cn("relative", className)}>
@@ -123,30 +155,30 @@ export const FlexibleCombobox = ({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         className="h-7 text-xs"
+        autoComplete="off"
       />
 
-      {isOpen && filteredOptions.length > 0 && (
+      {isOpen && displayedOptions.length > 0 && (
         <div className="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-lg">
           <ScrollArea className="max-h-[200px]">
-            <div className="py-1">
-              {filteredOptions.slice(0, 20).map((option) => (
+            <div ref={listRef} className="py-1">
+              {displayedOptions.map((option, index) => (
                 <button
                   key={option}
                   type="button"
+                  data-index={index}
                   onClick={() => handleSelectOption(option)}
                   className={cn(
-                    "w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors",
-                    option.toLowerCase() === inputValue.toLowerCase().trim() && "bg-accent/50"
+                    "w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left transition-colors",
+                    highlightedIndex === index && "bg-accent",
+                    highlightedIndex !== index && "hover:bg-accent/50",
+                    isMatch(option) && highlightedIndex !== index && "bg-accent/30"
                   )}
                 >
-                  {option.toLowerCase() === inputValue.toLowerCase().trim() && (
+                  {isMatch(option) && (
                     <Check className="h-3 w-3 text-primary flex-shrink-0" />
                   )}
-                  <span
-                    className={cn(
-                      option.toLowerCase() === inputValue.toLowerCase().trim() && "font-medium"
-                    )}
-                  >
+                  <span className={cn(isMatch(option) && "font-medium")}>
                     {option}
                   </span>
                 </button>

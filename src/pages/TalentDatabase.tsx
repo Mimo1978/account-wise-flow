@@ -37,11 +37,13 @@ import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { TalentImportModal } from "@/components/talent/TalentImportModal";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
 import { TalentQuickView } from "@/components/talent/TalentQuickView";
+import { ViewPresetsDropdown } from "@/components/talent/ViewPresetsDropdown";
 import { CVViewer } from "@/components/talent/CVViewer";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { useTableViewPreferences } from "@/components/canvas/TableViewControls";
 import { useResizableColumns, ColumnConfig } from "@/hooks/use-resizable-columns";
 import { useColumnPinning } from "@/hooks/use-column-pinning";
+import { useViewPresets } from "@/hooks/use-view-presets";
 import {
   Search,
   Plus,
@@ -162,7 +164,28 @@ export default function TalentDatabase() {
     handleResizeStart,
     toggleColumnVisibility,
     setAllColumnsVisibility,
+    setColumnsVisibility,
   } = useResizableColumns(initialColumns);
+
+  // View presets
+  const allColumnIds = useMemo(() => initialColumns.map((c) => c.id), []);
+  const {
+    allPresets,
+    activePreset,
+    activePresetId,
+    selectPreset,
+    saveCustomPreset,
+    updateCustomPreset,
+    deleteCustomPreset,
+    isCurrentViewModified,
+  } = useViewPresets(allColumnIds);
+
+  // Apply preset when it changes
+  useEffect(() => {
+    if (activePreset) {
+      setColumnsVisibility(activePreset.columns);
+    }
+  }, [activePresetId, activePreset, setColumnsVisibility]);
 
   // Column pinning
   const {
@@ -531,6 +554,17 @@ export default function TalentDatabase() {
               </Tooltip>
 
               <Separator orientation="vertical" className="h-6" />
+
+              <ViewPresetsDropdown
+                allPresets={allPresets}
+                activePreset={activePreset}
+                activePresetId={activePresetId}
+                isModified={isCurrentViewModified(visibleColumns.map((c) => c.id))}
+                onSelectPreset={selectPreset}
+                onSavePreset={(name) => saveCustomPreset(name, visibleColumns.map((c) => c.id))}
+                onDeletePreset={deleteCustomPreset}
+                onUpdatePreset={(presetId) => updateCustomPreset(presetId, { columns: visibleColumns.map((c) => c.id) })}
+              />
 
               <TalentColumnPicker
                 columns={columns}

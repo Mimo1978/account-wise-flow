@@ -79,6 +79,13 @@ export function useResizableColumns(initialColumns: ColumnConfig[]) {
     setColumns((prev) => prev.map((col) => ({ ...col, visible })));
   }, []);
 
+  const setColumnsVisibility = useCallback((visibleColumnIds: string[]) => {
+    const visibleSet = new Set(visibleColumnIds);
+    setColumns((prev) =>
+      prev.map((col) => ({ ...col, visible: visibleSet.has(col.id) }))
+    );
+  }, []);
+
   const visibleColumns = columns.filter((col) => col.visible);
 
   return {
@@ -88,5 +95,6 @@ export function useResizableColumns(initialColumns: ColumnConfig[]) {
     handleResizeStart,
     toggleColumnVisibility,
     setAllColumnsVisibility,
+    setColumnsVisibility,
   };
 }

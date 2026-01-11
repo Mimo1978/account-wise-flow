@@ -59,6 +59,9 @@ import { toast } from "sonner";
 import { PhoneInlineEditor } from "./PhoneInlineEditor";
 import { PrivateEmailEditor } from "./PrivateEmailEditor";
 import { InlineEditCell } from "./InlineEditCell";
+import { GlobalScopedSearch, SearchScope } from "./GlobalScopedSearch";
+import { mockTalents } from "@/lib/mock-talent";
+import { Talent } from "@/lib/types";
 
 interface CompanyDatabaseViewProps {
   account: Account;
@@ -68,6 +71,7 @@ interface CompanyDatabaseViewProps {
   onContactSelect?: (contact: Contact) => void;
   onAddContact?: () => void;
   onAIImport?: () => void;
+  onSelectTalent?: (talent: Talent) => void;
 }
 
 const isContactReady = (contact: Contact): boolean => {
@@ -119,6 +123,7 @@ export const CompanyDatabaseView = ({
   onContactSelect,
   onAddContact,
   onAIImport,
+  onSelectTalent,
 }: CompanyDatabaseViewProps) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
@@ -428,7 +433,26 @@ export const CompanyDatabaseView = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <div className="flex items-center gap-2 flex-1 min-w-[350px]">
+          {/* Global Scoped Search */}
+          <GlobalScopedSearch
+            currentAccount={account}
+            allAccounts={allAccounts}
+            externalQuery={searchQuery}
+            onQueryChange={setSearchQuery}
+            onSelectContact={(contact, companyId) => {
+              onContactSelect?.(contact);
+            }}
+            onSelectCompany={(company) => {
+              // Could trigger navigation or account switch
+            }}
+            onSelectTalent={(talent) => {
+              onSelectTalent?.(talent);
+            }}
+            className="flex-1 min-w-[400px]"
+          />
+          
+          {/* Scope Toggle for Table View */}
+          <div className="flex items-center gap-2">
             <ToggleGroup 
               type="single" 
               value={searchScope} 
@@ -444,15 +468,6 @@ export const CompanyDatabaseView = ({
                 All Companies
               </ToggleGroupItem>
             </ToggleGroup>
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={searchScope === "all" ? "Search all contacts..." : "Search contacts..."}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
           </div>
           <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
             <SelectTrigger className="w-[180px]">

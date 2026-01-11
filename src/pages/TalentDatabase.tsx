@@ -36,6 +36,7 @@ import {
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { TalentImportModal } from "@/components/talent/TalentImportModal";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
+import { TalentQuickView } from "@/components/talent/TalentQuickView";
 import { CVViewer } from "@/components/talent/CVViewer";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { useTableViewPreferences } from "@/components/canvas/TableViewControls";
@@ -61,6 +62,7 @@ import {
   MousePointer2,
   Maximize2,
   WrapText,
+  Eye,
 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
@@ -138,6 +140,7 @@ export default function TalentDatabase() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showCVViewer, setShowCVViewer] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
+  const [quickViewTalentId, setQuickViewTalentId] = useState<string | null>(null);
 
   // Persisted view preferences
   const [viewPreferences, setViewPreferences] = useTableViewPreferences("talent-table-view-prefs");
@@ -580,17 +583,42 @@ export default function TalentDatabase() {
                 {filteredTalents.map((talent) => (
                   <TableRow
                     key={talent.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    className="cursor-pointer hover:bg-muted/50 transition-colors group/row"
                     onClick={() => handleRowClick(talent)}
                   >
-                    <TableCell onClick={(e) => e.stopPropagation()}>
-                      <Checkbox
-                        checked={selectedIds.has(talent.id)}
-                        onCheckedChange={(checked) =>
-                          handleSelectOne(talent.id, !!checked)
-                        }
-                        aria-label={`Select ${talent.name}`}
-                      />
+                    <TableCell onClick={(e) => e.stopPropagation()} className="relative">
+                      <div className="flex items-center gap-1">
+                        <Checkbox
+                          checked={selectedIds.has(talent.id)}
+                          onCheckedChange={(checked) =>
+                            handleSelectOne(talent.id, !!checked)
+                          }
+                          aria-label={`Select ${talent.name}`}
+                        />
+                        {/* Quick View Icon */}
+                        <TalentQuickView
+                          talent={talent}
+                          open={quickViewTalentId === talent.id}
+                          onOpenChange={(open) => setQuickViewTalentId(open ? talent.id : null)}
+                          onViewFull={() => {
+                            setQuickViewTalentId(null);
+                            setSelectedTalent(talent);
+                          }}
+                          trigger={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setQuickViewTalentId(quickViewTalentId === talent.id ? null : talent.id);
+                              }}
+                            >
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                            </Button>
+                          }
+                        />
+                      </div>
                     </TableCell>
                     {visibleColumns.map((column) => (
                       <TableCell

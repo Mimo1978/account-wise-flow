@@ -30,7 +30,7 @@ const Index = () => {
               </Link>
               <Link to="/talent" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
                 <Users className="w-4 h-4" />
-                Talent
+                Talent Database
               </Link>
               <Link to="/canvas">
                 <Button variant="default" className="gap-2">

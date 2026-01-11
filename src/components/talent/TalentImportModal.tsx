@@ -488,22 +488,38 @@ export const TalentImportModal = ({
           <>
             <ScrollArea className="flex-1 max-h-[60vh]">
               <div className="space-y-6 pr-4 py-4">
-                {/* Confidence Badge */}
-                <div className="flex items-center gap-2">
+                {/* Extraction Status Header */}
+                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">AI Extraction Complete</p>
+                      <p className="text-xs text-muted-foreground">
+                        Review and edit the extracted information before saving
+                      </p>
+                    </div>
+                  </div>
                   <Badge className={confidenceColors[editedTalent.confidence]}>
                     {editedTalent.confidence === 'high' ? <CheckCircle2 className="h-3 w-3 mr-1" /> : <AlertCircle className="h-3 w-3 mr-1" />}
                     {editedTalent.confidence} confidence
                   </Badge>
                 </div>
 
-                {/* Basic Info */}
-                <div className="space-y-4">
+                {/* Section: Personal Information */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    <User className="h-4 w-4" />
+                    Personal Information
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Name *</Label>
                       <Input
                         value={editedTalent.name}
                         onChange={(e) => updateField('name', e.target.value)}
+                        placeholder="Full name"
                       />
                     </div>
                     <div className="space-y-2">
@@ -511,6 +527,7 @@ export const TalentImportModal = ({
                       <Input
                         value={editedTalent.roleType}
                         onChange={(e) => updateField('roleType', e.target.value)}
+                        placeholder="e.g., Senior Software Engineer"
                       />
                     </div>
                   </div>
@@ -522,6 +539,7 @@ export const TalentImportModal = ({
                         type="email"
                         value={editedTalent.email || ''}
                         onChange={(e) => updateField('email', e.target.value)}
+                        placeholder="email@example.com"
                       />
                     </div>
                     <div className="space-y-2">
@@ -529,6 +547,7 @@ export const TalentImportModal = ({
                       <Input
                         value={editedTalent.phone || ''}
                         onChange={(e) => updateField('phone', e.target.value)}
+                        placeholder="+1 555-123-4567"
                       />
                     </div>
                   </div>
@@ -539,72 +558,93 @@ export const TalentImportModal = ({
                       <Input
                         value={editedTalent.location || ''}
                         onChange={(e) => updateField('location', e.target.value)}
+                        placeholder="City, Country"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Seniority</Label>
-                      <Select
-                        value={editedTalent.seniority}
-                        onValueChange={(value) => updateField('seniority', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {seniorityOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label>LinkedIn</Label>
+                      <Input
+                        value={editedTalent.linkedIn || ''}
+                        onChange={(e) => updateField('linkedIn', e.target.value)}
+                        placeholder="https://linkedin.com/in/..."
+                      />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Seniority Level</Label>
+                    <Select
+                      value={editedTalent.seniority}
+                      onValueChange={(value) => updateField('seniority', value)}
+                    >
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {seniorityOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
                 <Separator />
 
-                {/* AI Overview */}
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    AI Overview
-                  </Label>
-                  <Textarea
-                    value={editedTalent.aiOverview}
-                    onChange={(e) => updateField('aiOverview', e.target.value)}
-                    className="min-h-[80px] resize-none"
-                    placeholder="AI-generated candidate summary..."
-                  />
+                {/* Section: AI-Generated Professional Summary */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                    <Sparkles className="h-4 w-4" />
+                    Professional Summary
+                  </div>
+                  <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+                    <Textarea
+                      value={editedTalent.aiOverview}
+                      onChange={(e) => updateField('aiOverview', e.target.value)}
+                      className="min-h-[100px] resize-none bg-transparent border-0 p-0 focus-visible:ring-0"
+                      placeholder="AI-generated professional summary describing the candidate's key strengths, experience, and expertise..."
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    Generated by AI based on the CV — feel free to edit
+                  </p>
                 </div>
 
                 <Separator />
 
-                {/* Skills */}
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2">
-                    <Tags className="h-4 w-4" />
-                    Skills ({editedTalent.skills.length})
-                  </Label>
-                  <div className="flex flex-wrap gap-2 mb-2">
+                {/* Section: Skills */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                      <Tags className="h-4 w-4" />
+                      Skills ({editedTalent.skills.length})
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-muted/30 border min-h-[60px]">
                     {editedTalent.skills.map((skill) => (
-                      <Badge key={skill} variant="secondary" className="gap-1">
+                      <Badge key={skill} variant="secondary" className="gap-1 pr-1">
                         {skill}
                         <button
                           onClick={() => removeSkill(skill)}
-                          className="ml-1 hover:text-destructive"
+                          className="ml-1 p-0.5 rounded-full hover:bg-destructive/20 hover:text-destructive transition-colors"
                         >
                           <X className="h-3 w-3" />
                         </button>
                       </Badge>
-                    ))
-                    }
+                    ))}
+                    {editedTalent.skills.length === 0 && (
+                      <span className="text-sm text-muted-foreground">No skills extracted</span>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Input
                       value={newSkill}
                       onChange={(e) => setNewSkill(e.target.value)}
-                      placeholder="Add skill..."
+                      placeholder="Add a skill..."
+                      className="flex-1"
                       onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
                     />
                     <Button variant="outline" size="sm" onClick={addSkill}>
@@ -615,68 +655,105 @@ export const TalentImportModal = ({
 
                 <Separator />
 
-                {/* Experience */}
+                {/* Section: Work Experience */}
                 <div className="space-y-3">
-                  <Label className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                     <Briefcase className="h-4 w-4" />
-                    Experience ({editedTalent.experience.length})
-                  </Label>
-                  <div className="space-y-3">
-                    {editedTalent.experience.map((exp, idx) => (
-                      <div key={exp.id || idx} className="p-3 rounded-lg bg-muted/50 border space-y-1">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <p className="font-medium text-sm">{exp.title}</p>
-                            <p className="text-sm text-muted-foreground">{exp.company}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            {formatDate(exp.startDate)} - {exp.current ? 'Present' : formatDate(exp.endDate || '')}
+                    Work Experience ({editedTalent.experience.length})
+                  </div>
+                  {editedTalent.experience.length > 0 ? (
+                    <div className="space-y-2">
+                      {editedTalent.experience.map((exp, idx) => (
+                        <div key={exp.id || idx} className="p-3 rounded-lg bg-muted/30 border hover:bg-muted/50 transition-colors">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{exp.title}</p>
+                              <p className="text-sm text-muted-foreground truncate">{exp.company}</p>
+                              {exp.description && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{exp.description}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
+                              <Clock className="h-3 w-3" />
+                              {formatDate(exp.startDate)} – {exp.current ? 'Present' : formatDate(exp.endDate || '')}
+                            </div>
                           </div>
                         </div>
-                        {exp.description && (
-                          <p className="text-xs text-muted-foreground">{exp.description}</p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-lg bg-muted/30 border text-center">
+                      <p className="text-sm text-muted-foreground">No work experience extracted</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </ScrollArea>
 
-            <DialogFooter className="border-t pt-4">
-              <Button variant="outline" onClick={() => setStep('upload')}>
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Back
-              </Button>
-              <Button onClick={handleProceedToFinalize}>
-                Continue
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
+            <DialogFooter className="border-t pt-4 flex-wrap gap-2">
+              <div className="flex-1 flex gap-2">
+                <Button variant="ghost" onClick={handleClose} className="text-muted-foreground">
+                  <X className="h-4 w-4 mr-1" />
+                  Discard
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep('upload')}>
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Re-upload
+                </Button>
+                <Button onClick={handleProceedToFinalize}>
+                  Save to Talent Database
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
             </DialogFooter>
           </>
         ) : step === 'finalize' && editedTalent ? (
           <>
             <div className="flex-1 overflow-auto py-4 space-y-6">
+              {/* Confirmation Header */}
+              <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-green-500/20">
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Ready to Save</p>
+                    <p className="text-xs text-muted-foreground">
+                      Confirm the final settings before adding to your talent database
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Summary Card */}
               <div className="p-4 rounded-lg border bg-muted/30">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                     <User className="h-6 w-6 text-primary" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="font-semibold">{editedTalent.name}</p>
                     <p className="text-sm text-muted-foreground">{editedTalent.roleType}</p>
+                    {editedTalent.location && (
+                      <p className="text-xs text-muted-foreground">{editedTalent.location}</p>
+                    )}
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Badge variant="outline">{editedTalent.skills.length} skills</Badge>
-                  <Badge variant="outline">{editedTalent.experience.length} experiences</Badge>
+                  <Badge variant="outline">{editedTalent.experience.length} positions</Badge>
+                  {editedTalent.email && <Badge variant="outline">Email ✓</Badge>}
+                  {editedTalent.phone && <Badge variant="outline">Phone ✓</Badge>}
                 </div>
               </div>
 
               {/* Final Settings */}
               <div className="space-y-4">
+                <div className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Assign Status
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Availability</Label>
@@ -715,21 +792,29 @@ export const TalentImportModal = ({
                   <Input
                     value={rate}
                     onChange={(e) => setRate(e.target.value)}
-                    placeholder="e.g., $150/hr"
+                    placeholder="e.g., $150/hr or $120k/year"
                   />
                 </div>
               </div>
             </div>
 
-            <DialogFooter className="border-t pt-4">
-              <Button variant="outline" onClick={() => setStep('preview')}>
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Back
-              </Button>
-              <Button onClick={handleConfirmImport}>
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Import Talent
-              </Button>
+            <DialogFooter className="border-t pt-4 flex-wrap gap-2">
+              <div className="flex-1 flex gap-2">
+                <Button variant="ghost" onClick={handleClose} className="text-muted-foreground">
+                  <X className="h-4 w-4 mr-1" />
+                  Discard
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setStep('preview')}>
+                  <Edit2 className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                <Button onClick={handleConfirmImport}>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Save to Talent Database
+                </Button>
+              </div>
             </DialogFooter>
           </>
         ) : null}

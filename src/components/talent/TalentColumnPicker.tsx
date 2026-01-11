@@ -6,20 +6,33 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Columns3, ChevronDown, ChevronRight } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Columns3, ChevronDown, ChevronRight, PinOff, ArrowLeftToLine, ArrowRightToLine } from "lucide-react";
 import { ColumnConfig } from "@/hooks/use-resizable-columns";
+import { PinPosition, PINNABLE_COLUMNS } from "@/hooks/use-column-pinning";
 import { cn } from "@/lib/utils";
 
 interface TalentColumnPickerProps {
   columns: ColumnConfig[];
   onToggleColumn: (columnId: string) => void;
   onToggleAll: (visible: boolean) => void;
+  // Column pinning
+  isPinned?: (columnId: string) => PinPosition;
+  canPin?: (columnId: string, position: "left" | "right") => boolean;
+  onTogglePin?: (columnId: string, position: PinPosition) => void;
 }
 
 export function TalentColumnPicker({
   columns,
   onToggleColumn,
   onToggleAll,
+  isPinned,
+  canPin,
+  onTogglePin,
 }: TalentColumnPickerProps) {
   const [open, setOpen] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
@@ -101,30 +114,119 @@ export function TalentColumnPicker({
                 </button>
                 {isExpanded && (
                   <div className="ml-4 space-y-1 mt-1">
-                    {categoryColumns.map((column) => (
-                      <label
-                        key={column.id}
-                        className={cn(
-                          "flex items-center gap-2 px-2 py-1.5 text-sm rounded-md cursor-pointer transition-colors",
-                          "hover:bg-muted/50"
-                        )}
-                      >
-                        <Checkbox
-                          checked={column.visible}
-                          onCheckedChange={() => onToggleColumn(column.id)}
-                          className="h-4 w-4"
-                        />
-                        <span
+                    {categoryColumns.map((column) => {
+                      const pinPosition = isPinned?.(column.id);
+                      const canPinLeft = canPin?.(column.id, "left");
+                      const canPinRight = canPin?.(column.id, "right");
+                      const hasPinOptions = canPinLeft || canPinRight;
+
+                      return (
+                        <div
+                          key={column.id}
                           className={cn(
-                            column.visible
-                              ? "text-foreground"
-                              : "text-muted-foreground"
+                            "flex items-center justify-between gap-2 px-2 py-1.5 text-sm rounded-md transition-colors",
+                            "hover:bg-muted/50"
                           )}
                         >
-                          {column.label}
-                        </span>
-                      </label>
-                    ))}
+                          <label className="flex items-center gap-2 cursor-pointer flex-1">
+                            <Checkbox
+                              checked={column.visible}
+                              onCheckedChange={() => onToggleColumn(column.id)}
+                              className="h-4 w-4"
+                            />
+                            <span
+                              className={cn(
+                                column.visible
+                                  ? "text-foreground"
+                                  : "text-muted-foreground"
+                              )}
+                            >
+                              {column.label}
+                            </span>
+                          </label>
+                          
+                          {/* Pin controls */}
+                          {hasPinOptions && column.visible && (
+                            <div className="flex items-center gap-0.5">
+                              {canPinLeft && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className={cn(
+                                        "h-6 w-6",
+                                        pinPosition === "left"
+                                          ? "text-primary bg-primary/10"
+                                          : "text-muted-foreground hover:text-foreground"
+                                      )}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onTogglePin?.(column.id, "left");
+                                      }}
+                                    >
+                                      <ArrowLeftToLine className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left">
+                                    <p className="text-xs">
+                                      {pinPosition === "left" ? "Unpin from left" : "Pin to left"}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                              {canPinRight && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className={cn(
+                                        "h-6 w-6",
+                                        pinPosition === "right"
+                                          ? "text-primary bg-primary/10"
+                                          : "text-muted-foreground hover:text-foreground"
+                                      )}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onTogglePin?.(column.id, "right");
+                                      }}
+                                    >
+                                      <ArrowRightToLine className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right">
+                                    <p className="text-xs">
+                                      {pinPosition === "right" ? "Unpin from right" : "Pin to right"}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                              {pinPosition && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onTogglePin?.(column.id, pinPosition);
+                                      }}
+                                    >
+                                      <PinOff className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="text-xs">Unpin column</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

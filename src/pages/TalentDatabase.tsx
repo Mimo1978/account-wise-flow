@@ -41,6 +41,7 @@ import { CVViewer } from "@/components/talent/CVViewer";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { useTableViewPreferences } from "@/components/canvas/TableViewControls";
 import { useResizableColumns, ColumnConfig } from "@/hooks/use-resizable-columns";
+import { useColumnPinning } from "@/hooks/use-column-pinning";
 import {
   Search,
   Plus,
@@ -162,6 +163,15 @@ export default function TalentDatabase() {
     toggleColumnVisibility,
     setAllColumnsVisibility,
   } = useResizableColumns(initialColumns);
+
+  // Column pinning
+  const {
+    isPinned,
+    canPin,
+    togglePin,
+    getLeftPinnedColumns,
+    getRightPinnedColumns,
+  } = useColumnPinning();
 
   // Get unique role types from data
   const roleTypes = useMemo(() => {
@@ -376,24 +386,87 @@ export default function TalentDatabase() {
   // Columns that should wrap text when wrapText is enabled
   const wrappableColumns = new Set(["name", "roleType", "seniority"]);
 
-  // Get cell styles based on view preferences
-  const getCellStyles = (columnId: string) => {
+  // Get pinned columns for positioning calculations
+  const leftPinnedCols = useMemo(() => getLeftPinnedColumns(visibleColumns), [getLeftPinnedColumns, visibleColumns]);
+  const rightPinnedCols = useMemo(() => getRightPinnedColumns(visibleColumns), [getRightPinnedColumns, visibleColumns]);
+
+  // Calculate left offset for each left-pinned column
+  const getLeftOffset = useMemo(() => {
+    const offsets: Record<string, number> = {};
+    let currentOffset = 50; // Start after checkbox column (40px + some padding)
+    
+    visibleColumns.forEach((col) => {
+      if (leftPinnedCols.includes(col.id)) {
+        offsets[col.id] = currentOffset;
+        currentOffset += columnWidths[col.id] || col.defaultWidth;
+      }
+    });
+    
+    return offsets;
+  }, [leftPinnedCols, visibleColumns, columnWidths]);
+
+  // Calculate right offset for each right-pinned column
+  const getRightOffset = useMemo(() => {
+    const offsets: Record<string, number> = {};
+    let currentOffset = 0;
+    
+    // Process right-pinned columns in reverse order
+    const rightPinnedVisible = visibleColumns.filter((col) => rightPinnedCols.includes(col.id)).reverse();
+    
+    rightPinnedVisible.forEach((col) => {
+      offsets[col.id] = currentOffset;
+      currentOffset += columnWidths[col.id] || col.defaultWidth;
+    });
+    
+    return offsets;
+  }, [rightPinnedCols, visibleColumns, columnWidths]);
+
+  // Get cell styles based on view preferences and pinning
+  const getCellStyles = (columnId: string): React.CSSProperties => {
     const baseWidth = columnWidths[columnId] || visibleColumns.find(c => c.id === columnId)?.defaultWidth || 150;
+    const pinPosition = isPinned(columnId);
+    
+    const baseStyles: React.CSSProperties = {};
     
     if (viewPreferences.fitToScreen) {
       // Proportional widths with ellipsis
+      baseStyles.width = "auto";
+      baseStyles.minWidth = Math.min(baseWidth * 0.6, 100);
+      baseStyles.maxWidth = viewPreferences.wrapText && wrappableColumns.has(columnId) ? undefined : baseWidth;
+    } else {
+      baseStyles.width = baseWidth;
+      baseStyles.maxWidth = viewPreferences.wrapText && wrappableColumns.has(columnId) ? undefined : baseWidth;
+    }
+    
+    // Add sticky positioning for pinned columns
+    if (pinPosition === "left") {
       return {
-        width: "auto",
-        minWidth: Math.min(baseWidth * 0.6, 100),
-        maxWidth: viewPreferences.wrapText && wrappableColumns.has(columnId) ? undefined : baseWidth,
+        ...baseStyles,
+        position: "sticky",
+        left: getLeftOffset[columnId],
+        zIndex: 10,
+        backgroundColor: "inherit",
+      };
+    } else if (pinPosition === "right") {
+      return {
+        ...baseStyles,
+        position: "sticky",
+        right: getRightOffset[columnId],
+        zIndex: 10,
+        backgroundColor: "inherit",
       };
     }
     
-    return {
-      width: baseWidth,
-      maxWidth: viewPreferences.wrapText && wrappableColumns.has(columnId) ? undefined : baseWidth,
-    };
+    return baseStyles;
   };
+
+  // Get checkbox column styles (always sticky left)
+  const getCheckboxCellStyles = (): React.CSSProperties => ({
+    position: "sticky",
+    left: 0,
+    zIndex: 10,
+    backgroundColor: "inherit",
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -463,6 +536,9 @@ export default function TalentDatabase() {
                 columns={columns}
                 onToggleColumn={toggleColumnVisibility}
                 onToggleAll={setAllColumnsVisibility}
+                isPinned={isPinned}
+                canPin={canPin}
+                onTogglePin={togglePin}
               />
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -548,7 +624,10 @@ export default function TalentDatabase() {
             <Table style={{ minWidth: viewPreferences.fitToScreen ? undefined : `${totalTableWidth}px`, width: viewPreferences.fitToScreen ? '100%' : undefined }}>
               <TableHeader>
                 <TableRow className="bg-muted/95 backdrop-blur-sm">
-                  <TableHead className="w-[40px]">
+                  <TableHead 
+                    className="w-[50px] bg-muted/95"
+                    style={getCheckboxCellStyles()}
+                  >
                     <Checkbox
                       checked={isAllSelected}
                       onCheckedChange={handleSelectAll}
@@ -556,27 +635,36 @@ export default function TalentDatabase() {
                       className={isSomeSelected ? "opacity-50" : ""}
                     />
                   </TableHead>
-                  {visibleColumns.map((column) => (
-                    <TableHead
-                      key={column.id}
-                      className={cn(
-                        "font-semibold relative group",
-                        viewPreferences.fitToScreen ? "" : "whitespace-nowrap"
-                      )}
-                      style={getCellStyles(column.id)}
-                    >
-                      <div className="flex items-center justify-between pr-2">
-                        <span className="truncate">{column.label}</span>
-                      </div>
-                      {/* Resize handle - hidden when fit to screen is active */}
-                      {!viewPreferences.fitToScreen && (
-                        <div
-                          className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 bg-primary/50 hover:bg-primary transition-opacity"
-                          onMouseDown={(e) => handleResizeStart(column.id, e)}
-                        />
-                      )}
-                    </TableHead>
-                  ))}
+                  {visibleColumns.map((column) => {
+                    const pinPosition = isPinned(column.id);
+                    return (
+                      <TableHead
+                        key={column.id}
+                        className={cn(
+                          "font-semibold relative group",
+                          viewPreferences.fitToScreen ? "" : "whitespace-nowrap",
+                          pinPosition && "bg-muted/95"
+                        )}
+                        style={getCellStyles(column.id)}
+                      >
+                        <div className="flex items-center justify-between pr-2">
+                          <span className="truncate">{column.label}</span>
+                          {pinPosition && (
+                            <span className="ml-1 text-primary/60">
+                              {pinPosition === "left" ? "◀" : "▶"}
+                            </span>
+                          )}
+                        </div>
+                        {/* Resize handle - hidden when fit to screen is active */}
+                        {!viewPreferences.fitToScreen && (
+                          <div
+                            className="absolute right-0 top-0 h-full w-1 cursor-col-resize opacity-0 group-hover:opacity-100 bg-primary/50 hover:bg-primary transition-opacity"
+                            onMouseDown={(e) => handleResizeStart(column.id, e)}
+                          />
+                        )}
+                      </TableHead>
+                    );
+                  })}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -586,7 +674,11 @@ export default function TalentDatabase() {
                     className="cursor-pointer hover:bg-muted/50 transition-colors group/row"
                     onClick={() => handleRowClick(talent)}
                   >
-                    <TableCell onClick={(e) => e.stopPropagation()} className="relative">
+                    <TableCell 
+                      onClick={(e) => e.stopPropagation()} 
+                      className="relative bg-card"
+                      style={getCheckboxCellStyles()}
+                    >
                       <div className="flex items-center gap-1">
                         <Checkbox
                           checked={selectedIds.has(talent.id)}
@@ -620,19 +712,23 @@ export default function TalentDatabase() {
                         />
                       </div>
                     </TableCell>
-                    {visibleColumns.map((column) => (
-                      <TableCell
-                        key={column.id}
-                        className={cn(
-                          viewPreferences.wrapText && wrappableColumns.has(column.id)
-                            ? "whitespace-normal"
-                            : "whitespace-nowrap"
-                        )}
-                        style={getCellStyles(column.id)}
-                      >
-                        {renderCellContent(column.id, talent, viewPreferences.wrapText)}
-                      </TableCell>
-                    ))}
+                    {visibleColumns.map((column) => {
+                      const pinPosition = isPinned(column.id);
+                      return (
+                        <TableCell
+                          key={column.id}
+                          className={cn(
+                            viewPreferences.wrapText && wrappableColumns.has(column.id)
+                              ? "whitespace-normal"
+                              : "whitespace-nowrap",
+                            pinPosition && "bg-card"
+                          )}
+                          style={getCellStyles(column.id)}
+                        >
+                          {renderCellContent(column.id, talent, viewPreferences.wrapText)}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 ))}
                 {filteredTalents.length === 0 && (

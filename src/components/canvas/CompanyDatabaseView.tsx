@@ -60,8 +60,11 @@ import { PhoneInlineEditor } from "./PhoneInlineEditor";
 import { PrivateEmailEditor } from "./PrivateEmailEditor";
 import { InlineEditCell } from "./InlineEditCell";
 import { GlobalScopedSearch, SearchScope } from "./GlobalScopedSearch";
+import { TableViewControls, TableDensity, TableColumnConfig } from "./TableViewControls";
+import { ScrollableTableContainer } from "./ScrollableTableContainer";
 import { mockTalents } from "@/lib/mock-talent";
 import { Talent } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 interface CompanyDatabaseViewProps {
   account: Account;
@@ -133,6 +136,22 @@ export const CompanyDatabaseView = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchScope, setSearchScope] = useState<"this" | "all">("this");
   
+  // View controls state
+  const [tableDensity, setTableDensity] = useState<TableDensity>("comfortable");
+  const [columnConfig, setColumnConfig] = useState<TableColumnConfig[]>([
+    { id: "dataQuality", label: "Data Quality", visible: true, category: "Core" },
+    { id: "company", label: "Company", visible: true, category: "Core" },
+    { id: "name", label: "Name", visible: true, sticky: true, category: "Core" },
+    { id: "department", label: "Department", visible: true, category: "Core" },
+    { id: "title", label: "Job Title", visible: true, category: "Core" },
+    { id: "seniority", label: "Seniority", visible: true, category: "Core" },
+    { id: "email", label: "Email", visible: true, category: "Contact" },
+    { id: "privateEmail", label: "Private Email", visible: true, category: "Contact" },
+    { id: "phone", label: "Phone", visible: true, category: "Contact" },
+    { id: "status", label: "Status", visible: true, sticky: true, category: "Status" },
+    { id: "lastContact", label: "Last Contacted", visible: true, category: "Operational" },
+  ]);
+  
   // Track edited contacts (staged changes)
   const [editedContacts, setEditedContacts] = useState<Set<string>>(new Set());
 
@@ -149,6 +168,27 @@ export const CompanyDatabaseView = ({
   // Bulk edit state
   const [bulkDepartment, setBulkDepartment] = useState("");
   const [bulkJobTitle, setBulkJobTitle] = useState("");
+  
+  // Column visibility helpers
+  const isColumnVisible = (columnId: string) => {
+    const col = columnConfig.find(c => c.id === columnId);
+    return col?.visible ?? true;
+  };
+
+  const handleColumnVisibilityChange = (columnId: string, visible: boolean) => {
+    setColumnConfig(prev => 
+      prev.map(col => col.id === columnId ? { ...col, visible } : col)
+    );
+  };
+
+  const handleResetColumns = () => {
+    setColumnConfig(prev => prev.map(col => ({ ...col, visible: true })));
+  };
+
+  // Density class helper
+  const densityClasses = tableDensity === "compact" 
+    ? "text-xs [&_td]:py-1.5 [&_th]:py-1.5" 
+    : "text-sm [&_td]:py-3 [&_th]:py-3";
 
   // Build contact list with company info for "All Companies" mode
   const contactsWithCompany = useMemo(() => {
@@ -495,6 +535,13 @@ export const CompanyDatabaseView = ({
               ))}
             </SelectContent>
           </Select>
+          <TableViewControls
+            density={tableDensity}
+            onDensityChange={setTableDensity}
+            columns={columnConfig}
+            onColumnVisibilityChange={handleColumnVisibilityChange}
+            onResetColumns={handleResetColumns}
+          />
           <Button onClick={onViewCanvas} className="gap-2">
             <Network className="h-4 w-4" />
             View on Canvas
@@ -555,11 +602,11 @@ export const CompanyDatabaseView = ({
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto">
-        <Table className="min-w-[1400px]">
+      <ScrollableTableContainer className="flex-1">
+        <Table className={cn("min-w-[1400px]", densityClasses)}>
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow className="bg-muted/50">
-              <TableHead className="w-[40px]">
+              <TableHead className="w-[40px] sticky left-0 bg-muted/50 z-20">
                 <Checkbox
                   checked={
                     filteredContacts.length > 0 &&
@@ -568,22 +615,58 @@ export const CompanyDatabaseView = ({
                   onCheckedChange={handleSelectAll}
                 />
               </TableHead>
-              <TableHead className="font-semibold w-[100px]">
-                Data Quality
-              </TableHead>
-              {searchScope === "all" && (
+              {isColumnVisible("dataQuality") && (
+                <TableHead className="font-semibold w-[100px]">
+                  Data Quality
+                </TableHead>
+              )}
+              {searchScope === "all" && isColumnVisible("company") && (
                 <TableHead className="font-semibold min-w-[150px]">Company</TableHead>
               )}
-              <SortableHeader field="name">Name</SortableHeader>
-              <SortableHeader field="department">Department</SortableHeader>
-              <SortableHeader field="title">Job Title</SortableHeader>
-              <TableHead className="font-semibold">Seniority</TableHead>
-              <TableHead className="font-semibold min-w-[200px]">Email</TableHead>
-              <TableHead className="font-semibold min-w-[180px]">Private Email</TableHead>
-              <TableHead className="font-semibold min-w-[200px]">Phone</TableHead>
-              <SortableHeader field="status">Status</SortableHeader>
-              <SortableHeader field="lastContact">Last Contacted</SortableHeader>
-              <TableHead className="font-semibold w-[50px]"></TableHead>
+              {isColumnVisible("name") && (
+                <TableHead className="font-semibold min-w-[160px] sticky left-[40px] bg-muted/50 z-20">
+                  <div 
+                    className="flex items-center gap-1 cursor-pointer" 
+                    onClick={() => handleSort("name")}
+                  >
+                    Name
+                    <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                </TableHead>
+              )}
+              {isColumnVisible("department") && (
+                <SortableHeader field="department">Department</SortableHeader>
+              )}
+              {isColumnVisible("title") && (
+                <SortableHeader field="title">Job Title</SortableHeader>
+              )}
+              {isColumnVisible("seniority") && (
+                <TableHead className="font-semibold">Seniority</TableHead>
+              )}
+              {isColumnVisible("email") && (
+                <TableHead className="font-semibold min-w-[200px]">Email</TableHead>
+              )}
+              {isColumnVisible("privateEmail") && (
+                <TableHead className="font-semibold min-w-[180px]">Private Email</TableHead>
+              )}
+              {isColumnVisible("phone") && (
+                <TableHead className="font-semibold min-w-[200px]">Phone</TableHead>
+              )}
+              {isColumnVisible("status") && (
+                <TableHead className="font-semibold min-w-[100px] sticky right-[50px] bg-muted/50 z-20">
+                  <div 
+                    className="flex items-center gap-1 cursor-pointer" 
+                    onClick={() => handleSort("status")}
+                  >
+                    Status
+                    <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                  </div>
+                </TableHead>
+              )}
+              {isColumnVisible("lastContact") && (
+                <SortableHeader field="lastContact">Last Contacted</SortableHeader>
+              )}
+              <TableHead className="font-semibold w-[50px] sticky right-0 bg-muted/50 z-20"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -594,7 +677,7 @@ export const CompanyDatabaseView = ({
                   key={contact.id}
                   className="hover:bg-muted/50 transition-colors group"
                 >
-                  <TableCell>
+                  <TableCell className="sticky left-0 bg-background z-10">
                     <Checkbox
                       checked={selectedIds.has(contact.id)}
                       onCheckedChange={(checked) =>
@@ -602,190 +685,192 @@ export const CompanyDatabaseView = ({
                       }
                     />
                   </TableCell>
-                  <TableCell>
-                    {isReady ? (
-                      <div className="flex items-center gap-1.5 text-green-500">
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span className="text-xs">Ready</span>
-                      </div>
-                    ) : (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button className="flex items-center gap-1.5 text-yellow-500 hover:text-yellow-400 transition-colors">
-                            <AlertTriangle className="h-4 w-4" />
-                            <span className="text-xs underline underline-offset-2">
-                              Assign
-                            </span>
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-72 p-4" align="start">
-                          <div className="space-y-4">
-                            <div>
-                              <h4 className="font-medium text-sm mb-1">
-                                Complete Contact Data
-                              </h4>
-                              <p className="text-xs text-muted-foreground">
-                                Department and Job Title are required.
-                              </p>
-                            </div>
-                            <div className="space-y-3">
-                              <div className="space-y-1.5">
-                                <Label className="text-xs">Department *</Label>
-                                {showCustomDept &&
-                                assignContact?.id === contact.id ? (
-                                  <Input
-                                    className="h-8 text-xs"
-                                    placeholder="Enter custom department"
-                                    value={customDepartment}
-                                    onChange={(e) =>
-                                      setCustomDepartment(e.target.value)
-                                    }
-                                    autoFocus
-                                  />
-                                ) : (
+                  {isColumnVisible("dataQuality") && (
+                    <TableCell>
+                      {isReady ? (
+                        <div className="flex items-center gap-1.5 text-green-500">
+                          <CheckCircle2 className="h-4 w-4" />
+                          <span className="text-xs">Ready</span>
+                        </div>
+                      ) : (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button className="flex items-center gap-1.5 text-yellow-500 hover:text-yellow-400 transition-colors">
+                              <AlertTriangle className="h-4 w-4" />
+                              <span className="text-xs underline underline-offset-2">
+                                Assign
+                              </span>
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-72 p-4" align="start">
+                            <div className="space-y-4">
+                              <div>
+                                <h4 className="font-medium text-sm mb-1">
+                                  Complete Contact Data
+                                </h4>
+                                <p className="text-xs text-muted-foreground">
+                                  Department and Job Title are required.
+                                </p>
+                              </div>
+                              <div className="space-y-3">
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">Department *</Label>
+                                  {showCustomDept &&
+                                  assignContact?.id === contact.id ? (
+                                    <Input
+                                      className="h-8 text-xs"
+                                      placeholder="Enter custom department"
+                                      value={customDepartment}
+                                      onChange={(e) =>
+                                        setCustomDepartment(e.target.value)
+                                      }
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    <Select
+                                      value={
+                                        assignContact?.id === contact.id
+                                          ? assignDepartment
+                                          : contact.department || ""
+                                      }
+                                      onValueChange={(value) =>
+                                        handleDepartmentChange(value, contact)
+                                      }
+                                    >
+                                      <SelectTrigger className="h-8 text-xs">
+                                        <SelectValue placeholder="Select department" />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-[300px]">
+                                        {departmentOptions.map((dept) => (
+                                          <SelectItem
+                                            key={dept}
+                                            value={dept}
+                                            className="text-xs"
+                                          >
+                                            {dept}
+                                          </SelectItem>
+                                        ))}
+                                        <SelectItem
+                                          value={OTHER_CUSTOM}
+                                          className="text-xs text-muted-foreground italic"
+                                        >
+                                          Other (custom)
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">Job Title *</Label>
+                                  {showCustomTitle &&
+                                  assignContact?.id === contact.id ? (
+                                    <Input
+                                      className="h-8 text-xs"
+                                      placeholder="Enter custom job title"
+                                      value={customJobTitle}
+                                      onChange={(e) =>
+                                        setCustomJobTitle(e.target.value)
+                                      }
+                                      autoFocus
+                                    />
+                                  ) : (
+                                    <Select
+                                      value={
+                                        assignContact?.id === contact.id
+                                          ? assignJobTitle
+                                          : contact.title || ""
+                                      }
+                                      onValueChange={(value) =>
+                                        handleJobTitleChange(value, contact)
+                                      }
+                                    >
+                                      <SelectTrigger className="h-8 text-xs">
+                                        <SelectValue placeholder="Select job title" />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-[300px]">
+                                        {Object.entries(jobTitleOptions).map(
+                                          ([group, titles]) => (
+                                            <SelectGroup key={group}>
+                                              <SelectLabel className="text-xs font-semibold text-muted-foreground">
+                                                {group}
+                                              </SelectLabel>
+                                              {titles.map((title) => (
+                                                <SelectItem
+                                                  key={title}
+                                                  value={title}
+                                                  className="text-xs"
+                                                >
+                                                  {title}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectGroup>
+                                          )
+                                        )}
+                                        <SelectItem
+                                          value={OTHER_CUSTOM}
+                                          className="text-xs text-muted-foreground italic"
+                                        >
+                                          Other (custom)
+                                        </SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  )}
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs">Seniority</Label>
                                   <Select
                                     value={
                                       assignContact?.id === contact.id
-                                        ? assignDepartment
-                                        : contact.department || ""
+                                        ? assignSeniority
+                                        : contact.seniority || ""
                                     }
-                                    onValueChange={(value) =>
-                                      handleDepartmentChange(value, contact)
-                                    }
+                                    onValueChange={(value) => {
+                                      if (assignContact?.id !== contact.id) {
+                                        setAssignContact(contact);
+                                        setAssignDepartment(
+                                          contact.department || ""
+                                        );
+                                        setAssignJobTitle(contact.title || "");
+                                      }
+                                      setAssignSeniority(value);
+                                    }}
                                   >
                                     <SelectTrigger className="h-8 text-xs">
-                                      <SelectValue placeholder="Select department" />
+                                      <SelectValue placeholder="Select seniority" />
                                     </SelectTrigger>
-                                    <SelectContent className="max-h-[300px]">
-                                      {departmentOptions.map((dept) => (
+                                    <SelectContent>
+                                      {seniorityOptions.map((s) => (
                                         <SelectItem
-                                          key={dept}
-                                          value={dept}
+                                          key={s.value}
+                                          value={s.value}
                                           className="text-xs"
                                         >
-                                          {dept}
+                                          {s.label}
                                         </SelectItem>
                                       ))}
-                                      <SelectItem
-                                        value={OTHER_CUSTOM}
-                                        className="text-xs text-muted-foreground italic"
-                                      >
-                                        Other (custom)
-                                      </SelectItem>
                                     </SelectContent>
                                   </Select>
-                                )}
+                                </div>
                               </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-xs">Job Title *</Label>
-                                {showCustomTitle &&
-                                assignContact?.id === contact.id ? (
-                                  <Input
-                                    className="h-8 text-xs"
-                                    placeholder="Enter custom job title"
-                                    value={customJobTitle}
-                                    onChange={(e) =>
-                                      setCustomJobTitle(e.target.value)
-                                    }
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <Select
-                                    value={
-                                      assignContact?.id === contact.id
-                                        ? assignJobTitle
-                                        : contact.title || ""
-                                    }
-                                    onValueChange={(value) =>
-                                      handleJobTitleChange(value, contact)
-                                    }
-                                  >
-                                    <SelectTrigger className="h-8 text-xs">
-                                      <SelectValue placeholder="Select job title" />
-                                    </SelectTrigger>
-                                    <SelectContent className="max-h-[300px]">
-                                      {Object.entries(jobTitleOptions).map(
-                                        ([group, titles]) => (
-                                          <SelectGroup key={group}>
-                                            <SelectLabel className="text-xs font-semibold text-muted-foreground">
-                                              {group}
-                                            </SelectLabel>
-                                            {titles.map((title) => (
-                                              <SelectItem
-                                                key={title}
-                                                value={title}
-                                                className="text-xs"
-                                              >
-                                                {title}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectGroup>
-                                        )
-                                      )}
-                                      <SelectItem
-                                        value={OTHER_CUSTOM}
-                                        className="text-xs text-muted-foreground italic"
-                                      >
-                                        Other (custom)
-                                      </SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-xs">Seniority</Label>
-                                <Select
-                                  value={
-                                    assignContact?.id === contact.id
-                                      ? assignSeniority
-                                      : contact.seniority || ""
-                                  }
-                                  onValueChange={(value) => {
-                                    if (assignContact?.id !== contact.id) {
-                                      setAssignContact(contact);
-                                      setAssignDepartment(
-                                        contact.department || ""
-                                      );
-                                      setAssignJobTitle(contact.title || "");
-                                    }
-                                    setAssignSeniority(value);
-                                  }}
-                                >
-                                  <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue placeholder="Select seniority" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {seniorityOptions.map((s) => (
-                                      <SelectItem
-                                        key={s.value}
-                                        value={s.value}
-                                        className="text-xs"
-                                      >
-                                        {s.label}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
+                              <Button
+                                size="sm"
+                                className="w-full"
+                                onClick={() => handleSaveAssignment(contact.id)}
+                                disabled={
+                                  assignContact?.id !== contact.id ||
+                                  !getFinalDepartment() ||
+                                  !getFinalJobTitle()
+                                }
+                              >
+                                Save
+                              </Button>
                             </div>
-                            <Button
-                              size="sm"
-                              className="w-full"
-                              onClick={() => handleSaveAssignment(contact.id)}
-                              disabled={
-                                assignContact?.id !== contact.id ||
-                                !getFinalDepartment() ||
-                                !getFinalJobTitle()
-                              }
-                            >
-                              Save
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  </TableCell>
-                  {searchScope === "all" && (
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </TableCell>
+                  )}
+                  {searchScope === "all" && isColumnVisible("company") && (
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -793,87 +878,105 @@ export const CompanyDatabaseView = ({
                       </div>
                     </TableCell>
                   )}
-                  <TableCell className="font-medium">{contact.name}</TableCell>
-                  <TableCell>
-                    <InlineEditCell
-                      value={contact.department}
-                      onSave={(value) => updateContact(contact.id, { department: value })}
-                      type="select"
-                      options={[...departmentOptions]}
-                      placeholder="Select department"
-                      isEdited={editedContacts.has(contact.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <InlineEditCell
-                      value={contact.title}
-                      onSave={(value) => updateContact(contact.id, { title: value })}
-                      type="grouped-select"
-                      groupedOptions={Object.fromEntries(
-                        Object.entries(jobTitleOptions).map(([k, v]) => [k, [...v]])
-                      )}
-                      placeholder="Select job title"
-                      isEdited={editedContacts.has(contact.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <InlineEditCell
-                      value={contact.seniority || ""}
-                      displayValue={contact.seniority ? seniorityLabels[contact.seniority] || contact.seniority : ""}
-                      onSave={(value) => updateContact(contact.id, { seniority: value as Contact["seniority"] })}
-                      type="select"
-                      options={seniorityOptions.map(s => ({ value: s.value, label: s.label }))}
-                      placeholder="Select seniority"
-                      isEdited={editedContacts.has(contact.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <InlineEditCell
-                      value={contact.email || ""}
-                      onSave={(value) => updateContact(contact.id, { email: value })}
-                      type="text"
-                      placeholder="Enter email"
-                      isEdited={editedContacts.has(contact.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <PrivateEmailEditor
-                      privateEmail={contact.privateEmail}
-                      onSave={(email) => {
-                        updateContact(contact.id, { privateEmail: email });
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <PhoneInlineEditor
-                      phoneNumbers={contact.phoneNumbers || []}
-                      legacyPhone={contact.phone}
-                      onSave={(phones: PhoneNumber[]) => {
-                        updateContact(contact.id, {
-                          phoneNumbers: phones,
-                          phone: phones.find(p => p.preferred)?.value || phones[0]?.value || "",
-                        });
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <InlineEditCell
-                      value={contact.status}
-                      displayValue={
-                        <Badge className={statusColors[contact.status] || ""}>
-                          {contact.status.charAt(0).toUpperCase() + contact.status.slice(1)}
-                        </Badge>
-                      }
-                      onSave={(value) => updateContact(contact.id, { status: value as Contact["status"] })}
-                      type="select"
-                      options={statusOptions}
-                      placeholder="Select status"
-                      isEdited={editedContacts.has(contact.id)}
-                    />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {contact.lastContact || "-"}
-                  </TableCell>
+                  {isColumnVisible("name") && (
+                    <TableCell className="font-medium sticky left-[40px] bg-background z-10">{contact.name}</TableCell>
+                  )}
+                  {isColumnVisible("department") && (
+                    <TableCell>
+                      <InlineEditCell
+                        value={contact.department}
+                        onSave={(value) => updateContact(contact.id, { department: value })}
+                        type="select"
+                        options={[...departmentOptions]}
+                        placeholder="Select department"
+                        isEdited={editedContacts.has(contact.id)}
+                      />
+                    </TableCell>
+                  )}
+                  {isColumnVisible("title") && (
+                    <TableCell>
+                      <InlineEditCell
+                        value={contact.title}
+                        onSave={(value) => updateContact(contact.id, { title: value })}
+                        type="grouped-select"
+                        groupedOptions={Object.fromEntries(
+                          Object.entries(jobTitleOptions).map(([k, v]) => [k, [...v]])
+                        )}
+                        placeholder="Select job title"
+                        isEdited={editedContacts.has(contact.id)}
+                      />
+                    </TableCell>
+                  )}
+                  {isColumnVisible("seniority") && (
+                    <TableCell>
+                      <InlineEditCell
+                        value={contact.seniority || ""}
+                        displayValue={contact.seniority ? seniorityLabels[contact.seniority] || contact.seniority : ""}
+                        onSave={(value) => updateContact(contact.id, { seniority: value as Contact["seniority"] })}
+                        type="select"
+                        options={seniorityOptions.map(s => ({ value: s.value, label: s.label }))}
+                        placeholder="Select seniority"
+                        isEdited={editedContacts.has(contact.id)}
+                      />
+                    </TableCell>
+                  )}
+                  {isColumnVisible("email") && (
+                    <TableCell>
+                      <InlineEditCell
+                        value={contact.email || ""}
+                        onSave={(value) => updateContact(contact.id, { email: value })}
+                        type="text"
+                        placeholder="Enter email"
+                        isEdited={editedContacts.has(contact.id)}
+                      />
+                    </TableCell>
+                  )}
+                  {isColumnVisible("privateEmail") && (
+                    <TableCell>
+                      <PrivateEmailEditor
+                        privateEmail={contact.privateEmail}
+                        onSave={(email) => {
+                          updateContact(contact.id, { privateEmail: email });
+                        }}
+                      />
+                    </TableCell>
+                  )}
+                  {isColumnVisible("phone") && (
+                    <TableCell>
+                      <PhoneInlineEditor
+                        phoneNumbers={contact.phoneNumbers || []}
+                        legacyPhone={contact.phone}
+                        onSave={(phones: PhoneNumber[]) => {
+                          updateContact(contact.id, {
+                            phoneNumbers: phones,
+                            phone: phones.find(p => p.preferred)?.value || phones[0]?.value || "",
+                          });
+                        }}
+                      />
+                    </TableCell>
+                  )}
+                  {isColumnVisible("status") && (
+                    <TableCell className="sticky right-[50px] bg-background z-10">
+                      <InlineEditCell
+                        value={contact.status}
+                        displayValue={
+                          <Badge className={statusColors[contact.status] || ""}>
+                            {contact.status.charAt(0).toUpperCase() + contact.status.slice(1)}
+                          </Badge>
+                        }
+                        onSave={(value) => updateContact(contact.id, { status: value as Contact["status"] })}
+                        type="select"
+                        options={statusOptions}
+                        placeholder="Select status"
+                        isEdited={editedContacts.has(contact.id)}
+                      />
+                    </TableCell>
+                  )}
+                  {isColumnVisible("lastContact") && (
+                    <TableCell className="text-muted-foreground">
+                      {contact.lastContact || "-"}
+                    </TableCell>
+                  )}
                   <TableCell>
                     {onContactSelect && (
                       <button
@@ -896,7 +999,7 @@ export const CompanyDatabaseView = ({
             No contacts found
           </div>
         )}
-      </div>
+      </ScrollableTableContainer>
 
       {/* Footer */}
       <div className="border-t border-border p-3 bg-muted/30">

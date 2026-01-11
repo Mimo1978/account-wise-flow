@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          changed_at: string
+          changed_by: string | null
+          context: Json
+          diff: Json
+          entity_id: string
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          changed_at?: string
+          changed_by?: string | null
+          context?: Json
+          diff?: Json
+          entity_id: string
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          changed_at?: string
+          changed_by?: string | null
+          context?: Json
+          diff?: Json
+          entity_id?: string
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
       companies: {
         Row: {
           created_at: string
@@ -225,6 +258,14 @@ export type Database = {
       can_insert_with_team: {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
+      }
+      can_view_audit: {
+        Args: { _entity_id: string; _entity_type: string; _user_id: string }
+        Returns: boolean
+      }
+      get_entity_team_id: {
+        Args: { _entity_id: string; _entity_type: string }
+        Returns: string
       }
       get_user_role: {
         Args: { _user_id: string }

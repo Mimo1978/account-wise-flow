@@ -17,6 +17,7 @@ import { CallActionModal } from "./CallActionModal";
 import { EmailActionModal } from "./EmailActionModal";
 import { ScheduleActionModal } from "./ScheduleActionModal";
 import { OwnershipSection } from "./OwnershipSection";
+import { AuditHistorySection } from "@/components/audit/AuditHistorySection";
 import { useDraggable } from "@/hooks/use-draggable";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
 import { 
@@ -925,6 +926,12 @@ export const ContactDetailPanel = ({
                         console.log("Team changed:", newTeam);
                         // In real app, update contact_team_members table
                       }}
+                    />
+
+                    {/* Audit History Section - Collapsible */}
+                    <AuditHistorySection
+                      entityType="contacts"
+                      entityId={editedContact.id}
                     />
 
                     {/* Engagement Score */}

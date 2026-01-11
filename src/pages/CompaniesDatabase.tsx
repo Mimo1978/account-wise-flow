@@ -26,6 +26,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
+import { TeamManagementPanel } from "@/components/admin/TeamManagementPanel";
 import {
   Search,
   Plus,
@@ -135,6 +136,7 @@ export default function CompaniesDatabase() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <TeamManagementPanel />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex">

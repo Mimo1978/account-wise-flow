@@ -22,6 +22,7 @@ export type Database = {
           name: string
           owner_id: string | null
           size: string | null
+          team_id: string | null
           updated_at: string
         }
         Insert: {
@@ -31,6 +32,7 @@ export type Database = {
           name: string
           owner_id?: string | null
           size?: string | null
+          team_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -40,6 +42,7 @@ export type Database = {
           name?: string
           owner_id?: string | null
           size?: string | null
+          team_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -49,18 +52,21 @@ export type Database = {
           company_id: string
           created_at: string
           id: string
+          team_id: string | null
           user_id: string
         }
         Insert: {
           company_id: string
           created_at?: string
           id?: string
+          team_id?: string | null
           user_id: string
         }
         Update: {
           company_id?: string
           created_at?: string
           id?: string
+          team_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -78,18 +84,21 @@ export type Database = {
           contact_id: string
           created_at: string
           id: string
+          team_id: string | null
           user_id: string
         }
         Insert: {
           contact_id: string
           created_at?: string
           id?: string
+          team_id?: string | null
           user_id: string
         }
         Update: {
           contact_id?: string
           created_at?: string
           id?: string
+          team_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -112,6 +121,7 @@ export type Database = {
           name: string
           owner_id: string | null
           phone: string | null
+          team_id: string | null
           title: string | null
           updated_at: string
         }
@@ -124,6 +134,7 @@ export type Database = {
           name: string
           owner_id?: string | null
           phone?: string | null
+          team_id?: string | null
           title?: string | null
           updated_at?: string
         }
@@ -136,6 +147,7 @@ export type Database = {
           name?: string
           owner_id?: string | null
           phone?: string | null
+          team_id?: string | null
           title?: string | null
           updated_at?: string
         }
@@ -148,6 +160,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -189,10 +222,15 @@ export type Database = {
         Args: { _contact_id: string; _user_id: string }
         Returns: boolean
       }
+      can_insert_with_team: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_user_team_id: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

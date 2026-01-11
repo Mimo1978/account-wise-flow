@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { mockAccount } from "@/lib/mock-data";
 import { Contact, PhoneNumber } from "@/lib/types";
 import { Input } from "@/components/ui/input";
@@ -40,6 +40,7 @@ import { PrivateEmailEditor } from "@/components/canvas/PrivateEmailEditor";
 import { InlineEditCell } from "@/components/canvas/InlineEditCell";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { AIImportModal } from "@/components/canvas/AIImportModal";
+import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,11 +105,22 @@ const seniorityLabels: Record<string, string> = {
 
 export default function ContactsDatabase() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [isFirstVisit, setIsFirstVisit] = useState(false);
+
+  // Check if this is the first visit to show scroll hint
+  useEffect(() => {
+    const visitedKey = "contacts-database-visited";
+    if (!sessionStorage.getItem(visitedKey)) {
+      setIsFirstVisit(true);
+      sessionStorage.setItem(visitedKey, "true");
+    }
+  }, []);
 
   const allContacts = mockAccount.contacts;
   const companyName = mockAccount.name;
@@ -389,23 +401,28 @@ export default function ContactsDatabase() {
 
         {/* Table */}
         <div className="rounded-lg border border-border bg-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="font-semibold">Data Quality</TableHead>
-                <TableHead className="font-semibold">Name</TableHead>
-                <TableHead className="font-semibold">Company</TableHead>
-                <TableHead className="font-semibold">Department</TableHead>
-                <TableHead className="font-semibold">Job Title</TableHead>
-                <TableHead className="font-semibold">Seniority</TableHead>
-                <TableHead className="font-semibold">Email</TableHead>
-                <TableHead className="font-semibold">Private Email</TableHead>
-                <TableHead className="font-semibold">Phone</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">Owner</TableHead>
-                <TableHead className="font-semibold">Last Contacted</TableHead>
-              </TableRow>
-            </TableHeader>
+          <ScrollableTableContainer 
+            showScrollHint={isFirstVisit}
+            stickyHeader
+            maxHeight="calc(100vh - 280px)"
+          >
+            <Table className="min-w-[1400px]">
+              <TableHeader>
+                <TableRow className="bg-muted/95 backdrop-blur-sm">
+                  <TableHead className="font-semibold whitespace-nowrap">Data Quality</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Name</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Company</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Department</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Job Title</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Seniority</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Email</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Private Email</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Phone</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Status</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Owner</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Last Contacted</TableHead>
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {filteredContacts.map((contact) => {
                 const isReady = isContactReady(contact);
@@ -644,6 +661,7 @@ export default function ContactsDatabase() {
               )}
             </TableBody>
           </Table>
+          </ScrollableTableContainer>
         </div>
       </div>
 

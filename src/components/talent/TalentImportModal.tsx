@@ -132,6 +132,14 @@ export const TalentImportModal = ({
   const getFileType = (file: File): 'image' | 'pdf' | 'document' => {
     if (file.type.startsWith('image/')) return 'image';
     if (file.type === 'application/pdf') return 'pdf';
+    if (
+      file.type === 'application/msword' ||
+      file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      file.name.endsWith('.doc') ||
+      file.name.endsWith('.docx')
+    ) {
+      return 'document';
+    }
     return 'document';
   };
 
@@ -251,8 +259,8 @@ export const TalentImportModal = ({
         } else {
           toast.error('Could not extract talent information from CV');
         }
-      } else {
-        toast.info('PDF parsing coming soon - please use an image of the CV for now');
+      } else if (fileData.type === 'pdf' || fileData.type === 'document') {
+        toast.info('PDF/DOC parsing coming soon - please use an image or screenshot of the CV for now');
       }
     } catch (err) {
       console.error('Processing error:', err);
@@ -384,7 +392,7 @@ export const TalentImportModal = ({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*,.pdf"
+                  accept="image/*,.pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                   onChange={handleFileSelect}
                   className="hidden"
                   disabled={isProcessing}
@@ -397,8 +405,26 @@ export const TalentImportModal = ({
                   <div>
                     <p className="text-lg font-medium">Drop CV/Resume here</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      or click to browse • Supports images and PDFs
+                      or click to browse
                     </p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2 pt-2">
+                    <Badge variant="outline" className="text-xs">
+                      <FileText className="h-3 w-3 mr-1" />
+                      PDF
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      <FileText className="h-3 w-3 mr-1" />
+                      DOC / DOCX
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      <FileImage className="h-3 w-3 mr-1" />
+                      Image
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      <FileImage className="h-3 w-3 mr-1" />
+                      Screenshot
+                    </Badge>
                   </div>
                 </div>
               </div>

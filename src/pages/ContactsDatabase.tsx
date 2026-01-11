@@ -33,6 +33,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { PhoneInlineEditor } from "@/components/canvas/PhoneInlineEditor";
@@ -47,6 +52,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
 import {
   Search,
   Plus,
@@ -112,6 +118,11 @@ export default function ContactsDatabase() {
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
+
+  // Permissions
+  const { role, canInsert, canEdit, isLoading: permissionsLoading } = usePermissions();
+  const insertTooltip = getPermissionTooltip("insert", role);
+  const editTooltip = getPermissionTooltip("edit", role);
 
   // Check if this is the first visit to show scroll hint
   useEffect(() => {
@@ -298,45 +309,68 @@ export default function ContactsDatabase() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setShowAddContactModal(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Contact
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Upload className="h-4 w-4" />
-                    Import
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Import from CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
-                    <FileImage className="h-4 w-4 mr-2" />
-                    Import from Image
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
-                    <FileText className="h-4 w-4 mr-2" />
-                    Import from Document
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
-                    <Network className="h-4 w-4 mr-2" />
-                    Import from Org Chart
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
-                    <ClipboardPaste className="h-4 w-4 mr-2" />
-                    Import from Clipboard / Screenshot
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setShowAddContactModal(true)}
+                      disabled={!canInsert}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Contact
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                {insertTooltip && (
+                  <TooltipContent side="bottom">
+                    <p className="text-sm">{insertTooltip}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2" disabled={!canInsert}>
+                          <Upload className="h-4 w-4" />
+                          Import
+                          <ChevronDown className="h-3 w-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          Import from CSV
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
+                          <FileImage className="h-4 w-4 mr-2" />
+                          Import from Image
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          Import from Document
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
+                          <Network className="h-4 w-4 mr-2" />
+                          Import from Org Chart
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
+                          <ClipboardPaste className="h-4 w-4 mr-2" />
+                          Import from Clipboard / Screenshot
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </span>
+                </TooltipTrigger>
+                {insertTooltip && (
+                  <TooltipContent side="bottom">
+                    <p className="text-sm">{insertTooltip}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
               <Button variant="default" size="sm" onClick={handleViewOrgChart}>
                 <Network className="h-4 w-4 mr-2" />
                 View Org Chart

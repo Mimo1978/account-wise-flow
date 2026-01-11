@@ -9,8 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { Pencil } from "lucide-react";
+import { Pencil, Lock } from "lucide-react";
 
 type EditType = "text" | "select" | "grouped-select";
 
@@ -34,6 +39,10 @@ interface InlineEditCellProps {
   className?: string;
   isEdited?: boolean;
   maxLength?: number;
+  /** If true, editing is disabled with tooltip */
+  disabled?: boolean;
+  /** Tooltip message when disabled */
+  disabledTooltip?: string;
 }
 
 export const InlineEditCell = ({
@@ -47,6 +56,8 @@ export const InlineEditCell = ({
   className,
   isEdited = false,
   maxLength = 255,
+  disabled = false,
+  disabledTooltip = "You don't have permission to edit this field",
 }: InlineEditCellProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
@@ -179,6 +190,33 @@ export const InlineEditCell = ({
         </Select>
       );
     }
+  }
+
+  // Disabled state - show lock icon with tooltip
+  if (disabled) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            className={cn(
+              "w-full text-left px-1.5 py-0.5 -mx-1.5 rounded transition-colors group cursor-not-allowed opacity-70",
+              isEdited && "bg-amber-500/10 border-l-2 border-amber-500",
+              className
+            )}
+          >
+            <span className="flex items-center gap-1">
+              <span className={cn(!displayValue && !value && "text-muted-foreground italic")}>
+                {displayValue || value || placeholder}
+              </span>
+              <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p className="text-sm">{disabledTooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    );
   }
 
   return (

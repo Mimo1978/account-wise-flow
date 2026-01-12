@@ -13,6 +13,7 @@ import ContactsDatabase from "./pages/ContactsDatabase";
 import CompaniesDatabase from "./pages/CompaniesDatabase";
 import TalentDatabase from "./pages/TalentDatabase";
 import ExecutiveInsights from "./pages/ExecutiveInsights";
+import Demo from "./pages/Demo";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,9 @@ const App = () => (
             {/* Public Marketing Routes */}
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            
+            {/* Public Demo Route - No auth required */}
+            <Route path="/demo" element={<Demo />} />
             
             {/* Protected Product Routes */}
             <Route

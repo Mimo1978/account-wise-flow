@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Contact, Note, Activity } from "@/lib/types";
+import { Contact, Note, Activity, NoteVisibility } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -50,7 +50,11 @@ import {
   CreditCard,
   Network,
   GripHorizontal,
-  Lock
+  Lock,
+  Globe,
+  Users,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -205,6 +209,7 @@ export const ContactDetailPanel = ({
   const [noteSearchQuery, setNoteSearchQuery] = useState("");
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
+  const [newNoteVisibility, setNewNoteVisibility] = useState<NoteVisibility>("team");
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editNoteContent, setEditNoteContent] = useState("");
 
@@ -237,8 +242,9 @@ export const ContactDetailPanel = ({
   const statusInfo = statusConfig[editedContact.status];
 
   const mockNotes: Note[] = editedContact.notes || [
-    { id: "1", date: "2025-01-22", author: "Sarah Williams", content: "Key decision maker for infrastructure projects. Mentioned budget approval needed by Q2.", pinned: true },
-    { id: "2", date: "2025-01-18", author: "Michael Chen", content: "Technical requirements align well with our platform. Should involve in next technical workshop." },
+    { id: "1", date: "2025-01-22", author: "Sarah Williams", content: "Key decision maker for infrastructure projects. Mentioned budget approval needed by Q2.", pinned: true, visibility: "team" },
+    { id: "2", date: "2025-01-18", author: "Michael Chen", content: "Technical requirements align well with our platform. Should involve in next technical workshop.", visibility: "public" },
+    { id: "3", date: "2025-01-15", author: "John Doe", content: "", visibility: "private", isRedacted: true },
   ];
 
   const mockActivities: Activity[] = editedContact.activities || [
@@ -271,8 +277,9 @@ export const ContactDetailPanel = ({
       toast.error("Note cannot be empty");
       return;
     }
-    console.log("Adding note:", newNoteContent);
+    console.log("Adding note:", { content: newNoteContent, visibility: newNoteVisibility });
     setNewNoteContent("");
+    setNewNoteVisibility("team");
     setIsAddingNote(false);
     toast.success("Note added");
   };
@@ -1017,13 +1024,44 @@ export const ContactDetailPanel = ({
                           className="min-h-[120px] text-sm leading-relaxed resize-y p-3"
                           autoFocus
                         />
-                        <div className="flex gap-3">
-                          <Button onClick={handleAddNote} size="sm" className="h-9 px-4">
-                            <Save className="w-3 h-3 mr-1.5" /> Save
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => { setIsAddingNote(false); setNewNoteContent(""); }} className="h-9">
-                            Cancel
-                          </Button>
+                        <div className="flex items-center justify-between">
+                          {/* Visibility Selector */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Visibility:</span>
+                            <Select value={newNoteVisibility} onValueChange={(v) => setNewNoteVisibility(v as NoteVisibility)}>
+                              <SelectTrigger className="h-8 w-28 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="public" className="text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <Globe className="w-3 h-3" />
+                                    <span>Public</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="team" className="text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <Users className="w-3 h-3" />
+                                    <span>Team</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="private" className="text-xs">
+                                  <div className="flex items-center gap-2">
+                                    <Lock className="w-3 h-3" />
+                                    <span>Private</span>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="flex gap-3">
+                            <Button onClick={handleAddNote} size="sm" className="h-9 px-4">
+                              <Save className="w-3 h-3 mr-1.5" /> Save
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => { setIsAddingNote(false); setNewNoteContent(""); setNewNoteVisibility("team"); }} className="h-9">
+                              Cancel
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1039,8 +1077,25 @@ export const ContactDetailPanel = ({
                         </div>
                       ) : (
                         sortedNotes.map((note) => (
-                          <div key={note.id} className="p-4 rounded-xl bg-muted/40 space-y-3">
-                            {editingNoteId === note.id ? (
+                          <div key={note.id} className={cn(
+                            "p-4 rounded-xl space-y-3",
+                            note.isRedacted ? "bg-muted/20 border border-dashed border-muted-foreground/30" : "bg-muted/40"
+                          )}>
+                            {note.isRedacted ? (
+                              /* Redacted Note Display */
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <EyeOff className="w-4 h-4" />
+                                  <span className="text-sm italic">Private note — request access</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground">{note.date}</span>
+                                  <Badge variant="outline" className="h-5 px-2 text-xs text-muted-foreground">
+                                    <Lock className="w-2.5 h-2.5 mr-1" /> Private
+                                  </Badge>
+                                </div>
+                              </div>
+                            ) : editingNoteId === note.id ? (
                               <div className="space-y-4">
                                 <Textarea
                                   value={editNoteContent}
@@ -1065,6 +1120,23 @@ export const ContactDetailPanel = ({
                                     {note.pinned && (
                                       <Badge variant="secondary" className="h-5 px-2 text-xs">
                                         <Pin className="w-2.5 h-2.5 mr-1 fill-current" /> Pinned
+                                      </Badge>
+                                    )}
+                                    {/* Visibility Badge */}
+                                    {note.visibility && (
+                                      <Badge 
+                                        variant="outline" 
+                                        className={cn(
+                                          "h-5 px-2 text-xs",
+                                          note.visibility === "public" && "text-green-600 border-green-600/30",
+                                          note.visibility === "team" && "text-blue-600 border-blue-600/30",
+                                          note.visibility === "private" && "text-orange-600 border-orange-600/30"
+                                        )}
+                                      >
+                                        {note.visibility === "public" && <Globe className="w-2.5 h-2.5 mr-1" />}
+                                        {note.visibility === "team" && <Users className="w-2.5 h-2.5 mr-1" />}
+                                        {note.visibility === "private" && <Lock className="w-2.5 h-2.5 mr-1" />}
+                                        {note.visibility.charAt(0).toUpperCase() + note.visibility.slice(1)}
                                       </Badge>
                                     )}
                                   </div>

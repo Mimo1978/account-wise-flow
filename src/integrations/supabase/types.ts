@@ -194,6 +194,56 @@ export type Database = {
           },
         ]
       }
+      notes: {
+        Row: {
+          content: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          owner_id: string | null
+          pinned: boolean
+          source: string | null
+          team_id: string | null
+          updated_at: string
+          visibility: Database["public"]["Enums"]["note_visibility"]
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          owner_id?: string | null
+          pinned?: boolean
+          source?: string | null
+          team_id?: string | null
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["note_visibility"]
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          owner_id?: string | null
+          pinned?: boolean
+          source?: string | null
+          team_id?: string | null
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["note_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notes_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           created_at: string
@@ -263,6 +313,10 @@ export type Database = {
         Args: { _entity_id: string; _entity_type: string; _user_id: string }
         Returns: boolean
       }
+      can_view_note: {
+        Args: { _note_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_entity_team_id: {
         Args: { _entity_id: string; _entity_type: string }
         Returns: string
@@ -282,6 +336,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "manager" | "contributor" | "viewer"
+      note_visibility: "public" | "team" | "private"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -410,6 +465,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "manager", "contributor", "viewer"],
+      note_visibility: ["public", "team", "private"],
     },
   },
 } as const

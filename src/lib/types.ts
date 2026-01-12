@@ -31,12 +31,19 @@ export interface Contact {
   activities?: Activity[];
 }
 
+export type NoteVisibility = "public" | "team" | "private";
+
 export interface Note {
   id: string;
   date: string;
   author: string;
   content: string;
   pinned?: boolean;
+  visibility?: NoteVisibility;
+  ownerId?: string;
+  teamId?: string;
+  source?: "ui" | "ai_import" | "api" | "voice";
+  isRedacted?: boolean; // For UI display when user can't see content
 }
 
 export interface Activity {

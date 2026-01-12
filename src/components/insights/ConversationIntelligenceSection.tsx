@@ -146,7 +146,7 @@ export const ConversationIntelligenceSection: React.FC<ConversationIntelligenceS
   const generateExecutiveBrief = async () => {
     setIsGeneratingBrief(true);
     try {
-      const { data, error } = await supabase.functions.invoke('executive-insights-analysis', {
+      const { data, error } = await supabase.functions.invoke('ai-insights-analysis', {
         body: { companyId, analysisType: 'brief' }
       });
       

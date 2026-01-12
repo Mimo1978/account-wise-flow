@@ -62,7 +62,7 @@ const Index = () => {
                       Sign Up
                     </Button>
                   </Link>
-                  <Link to="/auth" state={{ demo: true }}>
+                  <Link to="/demo">
                     <Button variant="default" className="gap-2">
                       Try Demo <ArrowRight className="w-4 h-4" />
                     </Button>
@@ -129,7 +129,7 @@ const Index = () => {
                           Sign Up
                         </Button>
                       </Link>
-                      <Link to="/auth" state={{ demo: true }} onClick={() => setMobileMenuOpen(false)}>
+                      <Link to="/demo" onClick={() => setMobileMenuOpen(false)}>
                         <Button className="w-full gap-2">
                           Try Demo <ArrowRight className="w-4 h-4" />
                         </Button>

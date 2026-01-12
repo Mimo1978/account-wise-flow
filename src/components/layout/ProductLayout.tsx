@@ -11,7 +11,8 @@ import {
   Brain,
   BookOpen,
   LogOut,
-  User
+  User,
+  BarChart3
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -33,10 +34,10 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
     { path: '/canvas', label: 'Canvas', icon: LayoutDashboard },
     { path: '/contacts', label: 'Database', icon: Database },
     { path: '/talent', label: 'Talent', icon: Users },
+    { path: '/insights', label: 'Insights', icon: BarChart3 },
   ];
 
   const aiNavItems = [
-    { path: '/canvas', label: 'AI Insights', icon: Brain, hash: '#insights' },
     { path: '/canvas', label: 'Knowledge', icon: BookOpen, hash: '#knowledge' },
   ];
 

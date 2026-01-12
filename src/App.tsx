@@ -12,6 +12,7 @@ import Canvas from "./pages/Canvas";
 import ContactsDatabase from "./pages/ContactsDatabase";
 import CompaniesDatabase from "./pages/CompaniesDatabase";
 import TalentDatabase from "./pages/TalentDatabase";
+import ExecutiveInsights from "./pages/ExecutiveInsights";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -65,6 +66,16 @@ const App = () => (
                 <ProtectedRoute>
                   <ProductLayout>
                     <TalentDatabase />
+                  </ProductLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/insights"
+              element={
+                <ProtectedRoute>
+                  <ProductLayout>
+                    <ExecutiveInsights />
                   </ProductLayout>
                 </ProtectedRoute>
               }

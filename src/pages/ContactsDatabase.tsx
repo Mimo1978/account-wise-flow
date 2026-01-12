@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { PendingRequestsBadge } from "@/components/access/PendingRequestsBadge";
 import { mockAccount } from "@/lib/mock-data";
 import { Contact, PhoneNumber } from "@/lib/types";
 import { Input } from "@/components/ui/input";
@@ -59,7 +58,6 @@ import {
   Plus,
   Upload,
   Network,
-  ArrowLeft,
   CheckCircle2,
   AlertTriangle,
   Mail,
@@ -297,30 +295,20 @@ export default function ContactsDatabase() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
+    <div className="bg-background">
+      {/* Page Sub-header */}
       <div className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/")}
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">
-                  Contacts Database
-                </h1>
-                <p className="text-sm text-muted-foreground">
-                  {companyName} • {filteredContacts.length} contacts
-                </p>
-              </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">
+                Contacts Database
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {companyName} • {filteredContacts.length} contacts
+              </p>
             </div>
             <div className="flex items-center gap-2">
-              <PendingRequestsBadge />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex">

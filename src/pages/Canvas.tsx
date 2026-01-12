@@ -1,8 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users } from "lucide-react";
-import { Link } from "react-router-dom";
-import { PendingRequestsBadge } from "@/components/access/PendingRequestsBadge";
+import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users } from "lucide-react";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
@@ -207,122 +205,112 @@ const Canvas = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <ArrowLeft className="w-4 h-4" />
-                  Back
-                </Button>
-              </Link>
-              <div className="h-6 w-px bg-border" />
-              <div>
-                <h1 className="text-xl font-bold">{account.name}</h1>
-                <p className="text-sm text-muted-foreground">{account.industry}</p>
+    <div className="flex flex-col h-[calc(100vh-65px)]">
+      {/* Sub-header with context controls */}
+      <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-6 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-lg font-bold">{account.name}</h1>
+              <p className="text-sm text-muted-foreground">{account.industry}</p>
+            </div>
+            <div className="h-6 w-px bg-border" />
+            <CompanySwitcher 
+              currentCompany={account.name}
+              onCompanySelect={handleCompanySwitch}
+            />
+            <QRCodeButton 
+              accountId={account.id}
+              accountName={account.name}
+            />
+            <div className="h-6 w-px bg-border" />
+            <GlobalSearch
+              onSelectCompany={handleGlobalSelectCompany}
+              onSelectContact={handleGlobalSelectContact}
+            />
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {/* Talent Overlay Toggle - Only show in canvas mode */}
+            {viewMode === "canvas" && companyEngagements.length > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50">
+                <Users className="w-4 h-4 text-muted-foreground" />
+                <Label htmlFor="talent-overlay" className="text-sm cursor-pointer">
+                  Talent Overlay
+                </Label>
+                <Switch
+                  id="talent-overlay"
+                  checked={showTalentOverlay}
+                  onCheckedChange={setShowTalentOverlay}
+                />
+                {showTalentOverlay && (
+                  <span className="text-xs text-muted-foreground">
+                    ({companyEngagements.length})
+                  </span>
+                )}
               </div>
+            )}
+            {viewMode === "canvas" && companyEngagements.length > 0 && (
               <div className="h-6 w-px bg-border" />
-              <CompanySwitcher 
-                currentCompany={account.name}
-                onCompanySelect={handleCompanySwitch}
-              />
-              <QRCodeButton 
-                accountId={account.id}
-                accountName={account.name}
-              />
-              <div className="h-6 w-px bg-border" />
-              <GlobalSearch
-                onSelectCompany={handleGlobalSelectCompany}
-                onSelectContact={handleGlobalSelectContact}
-              />
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <PendingRequestsBadge />
-              {/* Talent Overlay Toggle - Only show in canvas mode */}
-              {viewMode === "canvas" && companyEngagements.length > 0 && (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50">
-                  <Users className="w-4 h-4 text-muted-foreground" />
-                  <Label htmlFor="talent-overlay" className="text-sm cursor-pointer">
-                    Talent Overlay
-                  </Label>
-                  <Switch
-                    id="talent-overlay"
-                    checked={showTalentOverlay}
-                    onCheckedChange={setShowTalentOverlay}
-                  />
-                  {showTalentOverlay && (
-                    <span className="text-xs text-muted-foreground">
-                      ({companyEngagements.length})
-                    </span>
-                  )}
-                </div>
-              )}
-              {viewMode === "canvas" && companyEngagements.length > 0 && (
-                <div className="h-6 w-px bg-border" />
-              )}
-              {/* View Toggle */}
-              <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as "canvas" | "database")}>
-                <ToggleGroupItem value="canvas" aria-label="Canvas view" className="gap-2">
-                  <Network className="w-4 h-4" />
-                  Canvas
-                </ToggleGroupItem>
-                <ToggleGroupItem value="database" aria-label="Database view" className="gap-2">
-                  <Table2 className="w-4 h-4" />
-                  Database
-                </ToggleGroupItem>
-              </ToggleGroup>
-              <div className="h-6 w-px bg-border" />
-              <Button 
-                variant={isRoleSuggestionsOpen ? "default" : "outline"} 
-                size="sm" 
-                className="gap-2"
-                onClick={() => setIsRoleSuggestionsOpen(!isRoleSuggestionsOpen)}
-              >
-                <UserPlus className="w-4 h-4" />
-                Missing Roles
-              </Button>
-              <Button 
-                variant={isAIInsightsOpen ? "default" : "outline"} 
-                size="sm" 
-                className="gap-2"
-                onClick={() => setIsAIInsightsOpen(!isAIInsightsOpen)}
-              >
-                <Lightbulb className="w-4 h-4" />
-                AI Insights
-              </Button>
-              <Button 
-                variant={isAIKnowledgeOpen ? "default" : "outline"} 
-                size="sm" 
-                className="gap-2"
-                onClick={() => setIsAIKnowledgeOpen(!isAIKnowledgeOpen)}
-              >
-                <Brain className="w-4 h-4" />
-                AI Knowledge
-              </Button>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => setShowAIImportModal(true)}
-                  >
-                    <Upload className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Import Contacts</TooltipContent>
-              </Tooltip>
-              <Button size="sm" className="gap-2" onClick={() => setShowAddContactModal(true)}>
-                <Plus className="w-4 h-4" />
-                Add Contact
-              </Button>
-            </div>
+            )}
+            {/* View Toggle */}
+            <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as "canvas" | "database")}>
+              <ToggleGroupItem value="canvas" aria-label="Canvas view" className="gap-2">
+                <Network className="w-4 h-4" />
+                Canvas
+              </ToggleGroupItem>
+              <ToggleGroupItem value="database" aria-label="Database view" className="gap-2">
+                <Table2 className="w-4 h-4" />
+                Database
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <div className="h-6 w-px bg-border" />
+            <Button 
+              variant={isRoleSuggestionsOpen ? "default" : "outline"} 
+              size="sm" 
+              className="gap-2"
+              onClick={() => setIsRoleSuggestionsOpen(!isRoleSuggestionsOpen)}
+            >
+              <UserPlus className="w-4 h-4" />
+              Missing Roles
+            </Button>
+            <Button 
+              variant={isAIInsightsOpen ? "default" : "outline"} 
+              size="sm" 
+              className="gap-2"
+              onClick={() => setIsAIInsightsOpen(!isAIInsightsOpen)}
+            >
+              <Lightbulb className="w-4 h-4" />
+              AI Insights
+            </Button>
+            <Button 
+              variant={isAIKnowledgeOpen ? "default" : "outline"} 
+              size="sm" 
+              className="gap-2"
+              onClick={() => setIsAIKnowledgeOpen(!isAIKnowledgeOpen)}
+            >
+              <Brain className="w-4 h-4" />
+              AI Knowledge
+            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowAIImportModal(true)}
+                >
+                  <Upload className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Import Contacts</TooltipContent>
+            </Tooltip>
+            <Button size="sm" className="gap-2" onClick={() => setShowAddContactModal(true)}>
+              <Plus className="w-4 h-4" />
+              Add Contact
+            </Button>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Main Content Area */}
       <main className="flex-1 overflow-hidden relative pointer-events-auto">

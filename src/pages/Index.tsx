@@ -1,12 +1,14 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, Users, Zap, Shield, Database } from "lucide-react";
+import { ArrowRight, Sparkles, Users, Zap, Shield, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
-import { PendingRequestsBadge } from "@/components/access/PendingRequestsBadge";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
-      {/* Header */}
+      {/* Marketing Header */}
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -25,20 +27,30 @@ const Index = () => {
               <a href="#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 How It Works
               </a>
-              <Link to="/contacts" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                <Database className="w-4 h-4" />
-                Contacts
-              </Link>
-              <Link to="/talent" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
-                <Users className="w-4 h-4" />
-                Talent Database
-              </Link>
-              <PendingRequestsBadge />
-              <Link to="/canvas">
-                <Button variant="default" className="gap-2">
-                  Try Demo <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
+              <a href="#security" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Security
+              </a>
+              {user ? (
+                <Link to="/canvas">
+                  <Button variant="default" className="gap-2">
+                    Go to App <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/auth">
+                    <Button variant="ghost" className="gap-2">
+                      <LogIn className="w-4 h-4" />
+                      Login
+                    </Button>
+                  </Link>
+                  <Link to="/auth">
+                    <Button variant="default" className="gap-2">
+                      Try Demo <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                </>
+              )}
             </nav>
           </div>
         </div>
@@ -65,9 +77,9 @@ const Index = () => {
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to="/canvas">
+          <Link to={user ? "/canvas" : "/auth"}>
             <Button size="lg" className="gap-2 text-lg px-8">
-              See It In Action <ArrowRight className="w-5 h-5" />
+              {user ? "Go to App" : "Get Started"} <ArrowRight className="w-5 h-5" />
             </Button>
           </Link>
           <Button size="lg" variant="outline" className="text-lg px-8">
@@ -149,6 +161,33 @@ const Index = () => {
         </div>
       </section>
 
+      {/* Security Section */}
+      <section id="security" className="container mx-auto px-6 py-24">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-bold mb-4">Enterprise-Grade Security</h2>
+          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            Your data is protected with industry-leading security measures
+          </p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="text-center p-6">
+            <Shield className="w-12 h-12 text-primary mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Role-Based Access</h3>
+            <p className="text-muted-foreground text-sm">Fine-grained permissions ensure users only see what they should</p>
+          </div>
+          <div className="text-center p-6">
+            <Shield className="w-12 h-12 text-primary mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Data Isolation</h3>
+            <p className="text-muted-foreground text-sm">Demo data is completely isolated from production environments</p>
+          </div>
+          <div className="text-center p-6">
+            <Shield className="w-12 h-12 text-primary mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Audit Logging</h3>
+            <p className="text-muted-foreground text-sm">Every action is logged for compliance and accountability</p>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="container mx-auto px-6 py-24 text-center">
         <div className="max-w-3xl mx-auto">
@@ -158,9 +197,9 @@ const Index = () => {
           <p className="text-xl text-muted-foreground mb-10">
             Experience the visual, AI-powered account planning platform that builds itself.
           </p>
-          <Link to="/canvas">
+          <Link to={user ? "/canvas" : "/auth"}>
             <Button size="lg" className="gap-2 text-lg px-10">
-              Try the Interactive Demo <ArrowRight className="w-5 h-5" />
+              {user ? "Go to App" : "Start Free Trial"} <ArrowRight className="w-5 h-5" />
             </Button>
           </Link>
         </div>

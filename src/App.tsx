@@ -2,12 +2,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ProductLayout } from "@/components/layout/ProductLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import AuthCallback from "./pages/AuthCallback";
 import Canvas from "./pages/Canvas";
 import ContactsDatabase from "./pages/ContactsDatabase";
 import CompaniesDatabase from "./pages/CompaniesDatabase";
@@ -29,10 +30,12 @@ const App = () => (
             {/* Public Marketing Routes */}
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/login" element={<Navigate to="/auth" replace />} />
+            <Route path="/signup" element={<Navigate to="/auth" replace />} />
+
             {/* Public Demo Route - No auth required */}
             <Route path="/demo" element={<Demo />} />
-            
             {/* Protected Product Routes */}
             <Route
               path="/canvas"

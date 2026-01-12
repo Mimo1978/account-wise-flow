@@ -26,6 +26,7 @@ import {
 import { Account, Contact } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useDraggable } from "@/hooks/use-draggable";
+import { SafeAIText } from "./SafeAIText";
 
 interface Message {
   id: string;
@@ -512,15 +513,18 @@ export function AIKnowledgePanel({
                               : "bg-muted"
                           )}
                         >
-                          <div 
-                            className="whitespace-pre-wrap"
-                            dangerouslySetInnerHTML={{
-                              __html: msg.role === "assistant" 
-                                ? formatResponseText(msg.content, account.contacts)
-                                    .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-primary">$1</strong>')
-                                : msg.content
-                            }}
-                          />
+                          {msg.role === "assistant" ? (
+                            <SafeAIText
+                              content={msg.content}
+                              formatText={(text) => formatResponseText(text, account.contacts)}
+                              renderBold={true}
+                            />
+                          ) : (
+                            <SafeAIText
+                              content={msg.content}
+                              renderBold={false}
+                            />
+                          )}
                           {msg.highlightedContacts && msg.highlightedContacts.length > 0 && (
                             <div className="mt-2 pt-2 border-t border-border/50">
                               <p className="text-xs text-muted-foreground">

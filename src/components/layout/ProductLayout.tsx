@@ -31,9 +31,13 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
 
   const navItems = [
     { path: '/canvas', label: 'Canvas', icon: LayoutDashboard },
-    { path: '/contacts', label: 'Contacts', icon: Users },
-    { path: '/companies', label: 'Companies', icon: Building2 },
+    { path: '/contacts', label: 'Database', icon: Database },
     { path: '/talent', label: 'Talent', icon: Users },
+  ];
+
+  const aiNavItems = [
+    { path: '/canvas', label: 'AI Insights', icon: Brain, hash: '#insights' },
+    { path: '/canvas', label: 'Knowledge', icon: BookOpen, hash: '#knowledge' },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -68,6 +72,22 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                   </Button>
                 </Link>
               ))}
+              
+              {/* AI Tools - visual separator */}
+              <div className="w-px h-6 bg-border mx-2" />
+              
+              {aiNavItems.map((item) => (
+                <Link key={item.label} to={item.path}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </Button>
+                </Link>
+              ))}
             </nav>
 
             {/* Right Side Actions */}
@@ -89,8 +109,21 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                 <DropdownMenuContent align="end" className="w-56">
                   <div className="px-2 py-1.5">
                     <p className="text-sm font-medium truncate">{user?.email}</p>
-                    <p className="text-xs text-muted-foreground">Account</p>
+                    <p className="text-xs text-muted-foreground">Workspace</p>
                   </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link to="/canvas" className="flex items-center">
+                      <User className="w-4 h-4 mr-2" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link to="/canvas" className="flex items-center">
+                      <Building2 className="w-4 h-4 mr-2" />
+                      Workspace Settings
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
                     <LogOut className="w-4 h-4 mr-2" />

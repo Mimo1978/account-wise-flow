@@ -339,6 +339,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_with_demo_isolation: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
       can_approve_request: {
         Args: { _entity_id: string; _entity_type: string; _user_id: string }
         Returns: boolean

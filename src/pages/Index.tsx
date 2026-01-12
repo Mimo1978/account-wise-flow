@@ -147,20 +147,20 @@ const Index = () => {
       <section className="container mx-auto px-6 pt-20 pb-32 text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent text-sm font-medium mb-6">
           <Sparkles className="w-4 h-4" />
-          The CRM that builds itself
+          Relationship Intelligence Platform
         </div>
         
         <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-          Stop Managing Data.
+          See Your Relationships.
           <br />
           <span className="bg-gradient-primary bg-clip-text text-transparent">
-            Start Building Relationships.
+            Move With Confidence.
           </span>
         </h1>
         
         <p className="text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
-          CLIENT MAPPER uses AI to automatically capture contacts, visualize org charts, 
-          and generate insights—so you can focus on what matters: your relationships.
+          Transform scattered CRM data into visual org charts and actionable insights. 
+          Spot gaps, prepare for meetings in seconds, and keep your entire team aligned—without replacing your existing tools.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -178,42 +178,42 @@ const Index = () => {
       {/* Features Grid */}
       <section id="features" className="container mx-auto px-6 py-24">
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold mb-4">Zero Manual Work</h2>
+          <h2 className="text-4xl font-bold mb-4">Clarity Over Complexity</h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            AI-powered features that work invisibly in the background
+            Turn fragmented records into shared understanding your whole team can act on
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           <FeatureCard
-            icon={<Zap className="w-6 h-6" />}
-            title="Instant Data Capture"
-            description="Scan business cards, photos, voice notes, and LinkedIn screenshots. AI extracts everything automatically."
+            icon={<Users className="w-6 h-6" />}
+            title="Visual Relationship Mapping"
+            description="See org structures, reporting lines, and department coverage at a glance. Identify missing stakeholders and expansion opportunities instantly."
           />
           <FeatureCard
-            icon={<Users className="w-6 h-6" />}
-            title="Visual Org Charts"
-            description="See relationships at a glance. Drag-and-drop canvas shows who reports to whom, buying roles, and influence."
+            icon={<Zap className="w-6 h-6" />}
+            title="Meeting-Ready in Seconds"
+            description="AI structures your notes into clear summaries, key talking points, and action reminders—so you walk in prepared, not scrambling."
           />
           <FeatureCard
             icon={<Sparkles className="w-6 h-6" />}
-            title="Smart Suggestions"
-            description="AI tells you who to contact next, detects champions and blockers, and warns about risks."
+            title="Your Personal Memory"
+            description="Ask questions across all your notes and contacts. Recall prior discussions, summarise relationship history, and never lose context again."
           />
           <FeatureCard
             icon={<Shield className="w-6 h-6" />}
-            title="Meeting Prep in Seconds"
-            description="Get instant briefings: recent news, org changes, talking points, and strategic questions."
+            title="Risk & Renewal Signals"
+            description="Track contract expiry, relationship health, and key account risks. Spot problems early, not when it's too late."
           />
           <FeatureCard
             icon={<Users className="w-6 h-6" />}
-            title="Relationship Intelligence"
-            description="Engagement scores, sentiment analysis, and risk flags keep you ahead of account changes."
+            title="Shared Team Workspace"
+            description="Sales, consultants, and delivery teams work from the same view. Keep everyone aligned without endless handovers."
           />
           <FeatureCard
             icon={<Zap className="w-6 h-6" />}
-            title="Always Up-to-Date"
-            description="Monitors company news, executive moves, and org changes automatically."
+            title="Capture From Anywhere"
+            description="Voice notes, meeting insights, photos, and external data—structured automatically into your relationship map."
           />
         </div>
       </section>
@@ -222,27 +222,27 @@ const Index = () => {
       <section id="how-it-works" className="bg-muted/30 py-24">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">It Just Works</h2>
+            <h2 className="text-4xl font-bold mb-4">From Data to Decision</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Three simple steps to transform your account planning
+              A simple workflow that fits how your team already operates
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-12">
             <StepCard
               number="01"
-              title="Capture"
-              description="Take a photo of a business card, snap a LinkedIn profile, or record voice notes. CLIENT MAPPER instantly structures everything."
+              title="Connect"
+              description="Bring in contacts, notes, and insights from meetings, voice memos, or existing tools. Everything is structured automatically."
             />
             <StepCard
               number="02"
-              title="Visualize"
-              description="Watch your org chart build itself. See departments, reporting lines, buying roles, and relationships in a clean, interactive canvas."
+              title="Visualise"
+              description="See your accounts as interactive org charts. Understand coverage, identify gaps, and spot opportunities without digging through records."
             />
             <StepCard
               number="03"
-              title="Act"
-              description="Get AI-powered suggestions on who to contact next, pre-meeting briefs, and early warnings on account risks."
+              title="Coordinate"
+              description="Prepare for meetings in seconds, share context across teams, and track renewals and risks—all from one shared workspace."
             />
           </div>
         </div>
@@ -279,10 +279,10 @@ const Index = () => {
       <section className="container mx-auto px-6 py-24 text-center">
         <div className="max-w-3xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Ready to see the future of CRM?
+            Replace spreadsheets. Complement your CRM.
           </h2>
           <p className="text-xl text-muted-foreground mb-10">
-            Experience the visual, AI-powered account planning platform that builds itself.
+            Give your team the visibility and context they need to move faster—without adding complexity.
           </p>
           <Link to={user ? "/canvas" : "/auth"}>
             <Button size="lg" className="gap-2 text-lg px-10">
@@ -303,7 +303,7 @@ const Index = () => {
               <span className="text-lg font-bold">CLIENT MAPPER</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2025 CLIENT MAPPER. The CRM that builds itself.
+              © 2025 CLIENT MAPPER. Relationship intelligence for modern teams.
             </p>
           </div>
         </div>

@@ -88,6 +88,8 @@ async function verifyCompanyAccess(supabase: any, companyId?: string): Promise<b
     return true;
   }
 
+  // RLS will automatically filter based on demo isolation
+  // If the query returns data, user has access
   const { data, error } = await supabase
     .from('companies')
     .select('id')
@@ -99,6 +101,18 @@ async function verifyCompanyAccess(supabase: any, companyId?: string): Promise<b
   }
 
   return true;
+}
+
+// Check if user is in demo mode - demo users can only access demo data
+async function checkDemoIsolation(supabase: any, userId: string): Promise<{ isDemo: boolean }> {
+  const { data, error } = await supabase.rpc('is_demo_user', { _user_id: userId });
+  
+  if (error) {
+    console.error('Failed to check demo status:', error);
+    return { isDemo: false };
+  }
+  
+  return { isDemo: !!data };
 }
 
 async function logAudit(
@@ -233,10 +247,13 @@ serve(async (req) => {
       );
     }
 
-    // 7. Log the request
+    // 7. Check demo isolation and log the request
+    const demoStatus = await checkDemoIsolation(supabase, userId);
+    
     await logAudit(supabase, userId, 'insights_analysis_request', accountContext.accountId || null, {
       accountName: accountContext.accountName,
       contactCount: accountContext.contacts.length,
+      isDemoUser: demoStatus.isDemo,
     });
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');

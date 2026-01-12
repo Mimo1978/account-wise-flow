@@ -287,18 +287,21 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_demo: boolean
           name: string
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_demo?: boolean
           name: string
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_demo?: boolean
           name?: string
           updated_at?: string
         }
@@ -360,6 +363,10 @@ export type Database = {
         Args: { _note_id: string; _user_id: string }
         Returns: boolean
       }
+      check_demo_isolation: {
+        Args: { _team_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_entity_team_id: {
         Args: { _entity_id: string; _entity_type: string }
         Returns: string
@@ -380,6 +387,8 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_demo_team: { Args: { _team_id: string }; Returns: boolean }
+      is_demo_user: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       access_request_status: "pending" | "approved" | "rejected"

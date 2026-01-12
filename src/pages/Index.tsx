@@ -39,6 +39,9 @@ const Index = () => {
               <a href="#security" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Security
               </a>
+              <a href="#pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                Pricing
+              </a>
               {user ? (
                 <Link to="/canvas">
                   <Button variant="default" className="gap-2">
@@ -97,6 +100,13 @@ const Index = () => {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     Security
+                  </a>
+                  <a 
+                    href="#pricing" 
+                    className="text-lg font-medium text-foreground py-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Pricing
                   </a>
                   <div className="border-t border-border my-4" />
                   {user ? (

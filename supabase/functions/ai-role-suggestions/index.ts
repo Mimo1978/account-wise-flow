@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,9 +18,29 @@ interface Contact {
 
 interface AccountContext {
   accountName: string;
+  accountId?: string; // Company ID for permission check
   industry: string;
   companySize?: string;
   contacts: Contact[];
+}
+
+// Verify user has access to the company data
+async function verifyCompanyAccess(supabase: any, userId: string, companyId?: string): Promise<boolean> {
+  if (!companyId) {
+    return true;
+  }
+
+  const { data, error } = await supabase
+    .from('companies')
+    .select('id')
+    .eq('id', companyId)
+    .single();
+
+  if (error || !data) {
+    return false;
+  }
+
+  return true;
 }
 
 serve(async (req) => {
@@ -28,7 +49,41 @@ serve(async (req) => {
   }
 
   try {
+    // Get the authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - No authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create Supabase client with user's auth token
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // Verify the user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { accountContext } = await req.json() as { accountContext: AccountContext };
+
+    // Verify user has access to this company's data
+    const hasAccess = await verifyCompanyAccess(supabase, user.id, accountContext.accountId);
+    if (!hasAccess) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - No access to this company data' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {

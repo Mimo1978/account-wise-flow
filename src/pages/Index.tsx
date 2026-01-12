@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Users, Zap, Shield, Database } from "lucide-react";
 import { Link } from "react-router-dom";
+import { PendingRequestsBadge } from "@/components/access/PendingRequestsBadge";
 
 const Index = () => {
   return (
@@ -32,6 +33,7 @@ const Index = () => {
                 <Users className="w-4 h-4" />
                 Talent Database
               </Link>
+              <PendingRequestsBadge />
               <Link to="/canvas">
                 <Button variant="default" className="gap-2">
                   Try Demo <ArrowRight className="w-4 h-4" />

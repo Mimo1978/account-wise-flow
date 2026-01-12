@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { PendingRequestsBadge } from "@/components/access/PendingRequestsBadge";
 import { mockAccounts } from "@/lib/mock-data";
 import { Account } from "@/lib/types";
 import { Input } from "@/components/ui/input";
@@ -136,6 +137,7 @@ export default function CompaniesDatabase() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <PendingRequestsBadge />
               <TeamManagementPanel />
               <Tooltip>
                 <TooltipTrigger asChild>

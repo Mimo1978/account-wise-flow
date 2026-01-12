@@ -18,6 +18,7 @@ import { EmailActionModal } from "./EmailActionModal";
 import { ScheduleActionModal } from "./ScheduleActionModal";
 import { OwnershipSection } from "./OwnershipSection";
 import { AuditHistorySection } from "@/components/audit/AuditHistorySection";
+import { RequestAccessModal } from "@/components/access/RequestAccessModal";
 import { useDraggable } from "@/hooks/use-draggable";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
 import { 
@@ -541,6 +542,14 @@ export const ContactDetailPanel = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Request Edit Access button - shown when user can view but not edit */}
+            {!canEdit && editedContact.id && (
+              <RequestAccessModal
+                entityType="contact"
+                entityId={editedContact.id}
+                entityName={editedContact.name}
+              />
+            )}
             {onExpandToggle && (
               <Button
                 variant="outline"

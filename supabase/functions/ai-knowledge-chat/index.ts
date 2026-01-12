@@ -195,7 +195,18 @@ serve(async (req) => {
       );
     }
 
-    // 4. Rate limiting
+    // 4. Check user role - all authenticated users can use chat (read-only)
+    const { data: roleData } = await supabase.rpc('get_user_role', { _user_id: userId });
+    const role = roleData as string | null;
+    
+    if (!role) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden - No role assigned' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 5. Rate limiting
     const rateCheck = checkRateLimit(userId);
     if (!rateCheck.allowed) {
       await logAudit(supabase, userId, 'rate_limited', null, { retryAfter: rateCheck.retryAfter });
@@ -259,6 +270,7 @@ serve(async (req) => {
       accountName: accountContext.accountName,
       questionLength: question.length,
       isDemoUser: demoStatus.isDemo,
+      userRole: role,
     });
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');

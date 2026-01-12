@@ -31,8 +31,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
+import { GuidedTooltips } from "@/components/onboarding/GuidedTooltips";
+import { useOnboarding } from "@/hooks/use-onboarding";
 
 const Canvas = () => {
+  const {
+    showOnboardingModal,
+    showTooltips,
+    completeOnboarding,
+    skipOnboarding,
+    completeTooltips,
+    dismissTooltips,
+  } = useOnboarding();
   const [account, setAccount] = useState(mockAccount);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -471,6 +482,21 @@ const Canvas = () => {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Onboarding Modal */}
+      <OnboardingModal
+        open={showOnboardingModal}
+        onComplete={completeOnboarding}
+        onSkip={skipOnboarding}
+      />
+
+      {/* Guided Tooltips */}
+      {showTooltips && (
+        <GuidedTooltips
+          onComplete={completeTooltips}
+          onDismiss={dismissTooltips}
+        />
       )}
     </div>
   );

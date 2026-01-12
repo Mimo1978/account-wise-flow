@@ -1,10 +1,17 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, Users, Zap, Shield, LogIn } from "lucide-react";
+import { ArrowRight, Sparkles, Users, Zap, Shield, LogIn, Menu, X, UserPlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const Index = () => {
   const { user } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -20,6 +27,8 @@ const Index = () => {
                 CLIENT MAPPER
               </span>
             </div>
+
+            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Features
@@ -45,6 +54,12 @@ const Index = () => {
                     </Button>
                   </Link>
                   <Link to="/auth">
+                    <Button variant="outline" className="gap-2">
+                      <UserPlus className="w-4 h-4" />
+                      Sign Up
+                    </Button>
+                  </Link>
+                  <Link to="/auth" state={{ demo: true }}>
                     <Button variant="default" className="gap-2">
                       Try Demo <ArrowRight className="w-4 h-4" />
                     </Button>
@@ -52,6 +67,68 @@ const Index = () => {
                 </>
               )}
             </nav>
+
+            {/* Mobile Menu Button */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetTrigger asChild className="md:hidden">
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-6 w-6" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[300px] sm:w-[350px]">
+                <nav className="flex flex-col gap-4 mt-8">
+                  <a 
+                    href="#features" 
+                    className="text-lg font-medium text-foreground py-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Features
+                  </a>
+                  <a 
+                    href="#how-it-works" 
+                    className="text-lg font-medium text-foreground py-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    How It Works
+                  </a>
+                  <a 
+                    href="#security" 
+                    className="text-lg font-medium text-foreground py-2"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Security
+                  </a>
+                  <div className="border-t border-border my-4" />
+                  {user ? (
+                    <Link to="/canvas" onClick={() => setMobileMenuOpen(false)}>
+                      <Button className="w-full gap-2">
+                        Go to App <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    </Link>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="outline" className="w-full gap-2">
+                          <LogIn className="w-4 h-4" />
+                          Login
+                        </Button>
+                      </Link>
+                      <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="secondary" className="w-full gap-2">
+                          <UserPlus className="w-4 h-4" />
+                          Sign Up
+                        </Button>
+                      </Link>
+                      <Link to="/auth" state={{ demo: true }} onClick={() => setMobileMenuOpen(false)}>
+                        <Button className="w-full gap-2">
+                          Try Demo <ArrowRight className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </nav>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>

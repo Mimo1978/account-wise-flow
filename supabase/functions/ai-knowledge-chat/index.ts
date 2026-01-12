@@ -89,23 +89,50 @@ function validatePayload(payload: unknown): { valid: boolean; error?: string } {
   return { valid: true };
 }
 
-async function verifyCompanyAccess(supabase: any, companyId?: string): Promise<boolean> {
+// Verify the user can access the company data - REQUIRED for BI/insights
+async function verifyCompanyAccess(supabase: any, companyId: string | undefined, userId: string): Promise<{ hasAccess: boolean; reason?: string }> {
+  // SECURITY: companyId is REQUIRED for chat to prevent data leakage
   if (!companyId) {
-    return true;
+    return { hasAccess: false, reason: 'Company ID is required for knowledge chat' };
   }
 
-  // RLS will automatically filter based on demo isolation
+  // RLS will automatically filter based on user's team, ownership, and demo isolation
   const { data, error } = await supabase
     .from('companies')
-    .select('id')
+    .select('id, team_id, owner_id')
     .eq('id', companyId)
     .single();
 
   if (error || !data) {
-    return false;
+    return { hasAccess: false, reason: 'Company not found or access denied by RLS' };
   }
 
-  return true;
+  return { hasAccess: true };
+}
+
+// Verify the user can access the contact data for BI/insights
+async function verifyContactsAccess(supabase: any, contactIds: string[], userId: string): Promise<{ hasAccess: boolean; deniedIds: string[] }> {
+  if (!contactIds || contactIds.length === 0) {
+    return { hasAccess: true, deniedIds: [] };
+  }
+
+  const { data, error } = await supabase
+    .from('contacts')
+    .select('id')
+    .in('id', contactIds);
+
+  if (error) {
+    console.error('Failed to verify contact access:', error);
+    return { hasAccess: false, deniedIds: contactIds };
+  }
+
+  const accessibleIds = new Set((data || []).map((c: { id: string }) => c.id));
+  const deniedIds = contactIds.filter(id => !accessibleIds.has(id));
+
+  return { 
+    hasAccess: deniedIds.length === 0, 
+    deniedIds 
+  };
 }
 
 // Check if user is in demo mode - demo users can only access demo data
@@ -251,16 +278,26 @@ serve(async (req) => {
 
     const { question, accountContext } = payload as { question: string; accountContext: AccountContext };
 
-    // 6. Authorization - verify company access
-    const hasAccess = await verifyCompanyAccess(supabase, accountContext.accountId);
-    if (!hasAccess) {
+    // 6. Authorization - verify company access (REQUIRED for BI/insights)
+    const accessCheck = await verifyCompanyAccess(supabase, accountContext.accountId, userId);
+    if (!accessCheck.hasAccess) {
       await logAudit(supabase, userId, 'access_denied', accountContext.accountId || null, {
-        reason: 'No company access',
+        reason: accessCheck.reason || 'No company access',
       });
       return new Response(
-        JSON.stringify({ error: 'Forbidden - No access to this company data' }),
+        JSON.stringify({ error: `Forbidden - ${accessCheck.reason || 'No access to this company data'}` }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // 6b. Verify access to all contacts in the payload
+    const contactIds = accountContext.contacts.map(c => c.id).filter(Boolean);
+    const contactsCheck = await verifyContactsAccess(supabase, contactIds, userId);
+    if (!contactsCheck.hasAccess && contactsCheck.deniedIds.length > 0) {
+      await logAudit(supabase, userId, 'partial_access_denied', accountContext.accountId || null, {
+        deniedContactIds: contactsCheck.deniedIds,
+      });
+      accountContext.contacts = accountContext.contacts.filter(c => !contactsCheck.deniedIds.includes(c.id));
     }
 
     // 7. Check demo isolation and log the request

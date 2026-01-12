@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_requests: {
+        Row: {
+          decided_at: string | null
+          decided_by: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          message: string | null
+          rejection_reason: string | null
+          requested_at: string
+          requested_by: string
+          status: Database["public"]["Enums"]["access_request_status"]
+        }
+        Insert: {
+          decided_at?: string | null
+          decided_by?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          message?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          requested_by: string
+          status?: Database["public"]["Enums"]["access_request_status"]
+        }
+        Update: {
+          decided_at?: string | null
+          decided_by?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          message?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          requested_by?: string
+          status?: Database["public"]["Enums"]["access_request_status"]
+        }
+        Relationships: []
+      }
       audit_log: {
         Row: {
           action: string
@@ -297,6 +336,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_approve_request: {
+        Args: { _entity_id: string; _entity_type: string; _user_id: string }
+        Returns: boolean
+      }
       can_edit_company: {
         Args: { _company_id: string; _user_id: string }
         Returns: boolean
@@ -321,6 +364,10 @@ export type Database = {
         Args: { _entity_id: string; _entity_type: string }
         Returns: string
       }
+      get_pending_requests_count: {
+        Args: { _user_id: string }
+        Returns: number
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -335,6 +382,7 @@ export type Database = {
       }
     }
     Enums: {
+      access_request_status: "pending" | "approved" | "rejected"
       app_role: "admin" | "manager" | "contributor" | "viewer"
       note_visibility: "public" | "team" | "private"
     }
@@ -464,6 +512,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      access_request_status: ["pending", "approved", "rejected"],
       app_role: ["admin", "manager", "contributor", "viewer"],
       note_visibility: ["public", "team", "private"],
     },

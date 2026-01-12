@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { PendingRequestsBadge } from "@/components/access/PendingRequestsBadge";
 import { mockAccount } from "@/lib/mock-data";
 import { Contact, PhoneNumber } from "@/lib/types";
 import { Input } from "@/components/ui/input";
@@ -319,6 +320,7 @@ export default function ContactsDatabase() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <PendingRequestsBadge />
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex">

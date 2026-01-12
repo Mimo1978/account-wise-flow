@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { PendingRequestsBadge } from "@/components/access/PendingRequestsBadge";
 import { format } from "date-fns";
 import { mockTalents, roleTypeOptions } from "@/lib/mock-talent";
 import { Talent, TalentAvailability, TalentDataQuality, TalentStatus, TalentCvSource } from "@/lib/types";
@@ -532,6 +533,7 @@ export default function TalentDatabase() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <PendingRequestsBadge />
               {/* View Preference Toggles */}
               <Tooltip>
                 <TooltipTrigger asChild>

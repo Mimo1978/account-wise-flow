@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import { PendingRequestsBadge } from "@/components/access/PendingRequestsBadge";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
@@ -240,6 +241,7 @@ const Canvas = () => {
             </div>
             
             <div className="flex items-center gap-3">
+              <PendingRequestsBadge />
               {/* Talent Overlay Toggle - Only show in canvas mode */}
               {viewMode === "canvas" && companyEngagements.length > 0 && (
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50">

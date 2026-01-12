@@ -154,7 +154,7 @@ export const AccountHealthSection: React.FC<AccountHealthSectionProps> = ({
   const runAIAnalysis = async () => {
     setIsAnalyzing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('executive-insights-analysis', {
+      const { data, error } = await supabase.functions.invoke('ai-insights-analysis', {
         body: { companyId, analysisType: 'health' }
       });
       

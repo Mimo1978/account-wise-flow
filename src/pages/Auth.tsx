@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -25,8 +25,21 @@ const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const shownAuthErrorRef = useRef(false);
 
   const from = location.state?.from?.pathname || '/canvas';
+
+  useEffect(() => {
+    const errorMessage = (location.state as any)?.error as string | undefined;
+    if (errorMessage && !shownAuthErrorRef.current) {
+      shownAuthErrorRef.current = true;
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: errorMessage,
+      });
+    }
+  }, [location.state, toast]);
 
   useEffect(() => {
     if (user) {
@@ -57,21 +70,38 @@ const Auth = () => {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    const { error } = await signIn(email, password);
-    setIsLoading(false);
+    try {
+      const { error } = await signIn(email, password);
 
-    if (error) {
-      let message = 'Failed to sign in. Please try again.';
-      if (error.message.includes('Invalid login credentials')) {
-        message = 'Invalid email or password. Please check your credentials.';
-      } else if (error.message.includes('Email not confirmed')) {
-        message = 'Please confirm your email before signing in.';
+      if (error) {
+        let message = 'Failed to sign in. Please try again.';
+        if (error.message.includes('Invalid login credentials')) {
+          message = 'Invalid email or password. Please check your credentials.';
+        } else if (error.message.includes('Email not confirmed')) {
+          message = 'Please confirm your email before signing in.';
+        }
+        toast({
+          variant: 'destructive',
+          title: 'Sign In Failed',
+          description: message,
+        });
+        return;
       }
+
+      toast({
+        title: 'Signed In',
+        description: 'Welcome back.',
+      });
+      navigate(from, { replace: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to sign in. Please try again.';
       toast({
         variant: 'destructive',
         title: 'Sign In Failed',
         description: message,
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -80,26 +110,39 @@ const Auth = () => {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    const { error } = await signUp(email, password);
-    setIsLoading(false);
+    try {
+      const { error } = await signUp(email, password);
 
-    if (error) {
-      let message = 'Failed to create account. Please try again.';
-      if (error.message.includes('User already registered')) {
-        message = 'An account with this email already exists. Please sign in instead.';
-      } else if (error.message.includes('Password')) {
-        message = error.message;
+      if (error) {
+        let message = 'Failed to create account. Please try again.';
+        if (error.message.includes('User already registered')) {
+          message = 'An account with this email already exists. Please sign in instead.';
+        } else if (error.message.includes('Password')) {
+          message = error.message;
+        }
+        toast({
+          variant: 'destructive',
+          title: 'Sign Up Failed',
+          description: message,
+        });
+        return;
       }
+
+      toast({
+        title: 'Account Created',
+        description: 'Your account has been created successfully.',
+      });
+      // If the backend is set to auto-confirm emails, the user will be signed in immediately.
+      // Otherwise, they may need to confirm their email before signing in.
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unable to create account. Please try again.';
       toast({
         variant: 'destructive',
         title: 'Sign Up Failed',
         description: message,
       });
-    } else {
-      toast({
-        title: 'Account Created',
-        description: 'Your account has been created successfully. You can now sign in.',
-      });
+    } finally {
+      setIsLoading(false);
     }
   };
 

@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Rate limiting
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW = 60 * 1000;
+
+// Max payload size: 10MB for images/documents
+const MAX_PAYLOAD_SIZE = 10 * 1024 * 1024;
+const MAX_TEXT_LENGTH = 100000; // 100K chars for text CVs
+const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf'];
+
 interface ExtractedExperience {
   company: string;
   title: string;
@@ -39,57 +49,208 @@ interface ExtractedTalent {
   confidence: 'high' | 'medium' | 'low';
 }
 
+function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(userId);
+
+  if (!userLimit || now > userLimit.resetTime) {
+    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return { allowed: true };
+  }
+
+  if (userLimit.count >= RATE_LIMIT_MAX) {
+    const retryAfter = Math.ceil((userLimit.resetTime - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  userLimit.count++;
+  return { allowed: true };
+}
+
+function validatePayload(payload: unknown): { valid: boolean; error?: string } {
+  if (!payload || typeof payload !== 'object') {
+    return { valid: false, error: 'Invalid payload format' };
+  }
+
+  const p = payload as Record<string, unknown>;
+  
+  // Need either image or text
+  if (!p.imageBase64 && !p.textContent) {
+    return { valid: false, error: 'Missing CV data (imageBase64 or textContent required)' };
+  }
+
+  // Validate image if provided
+  if (p.imageBase64) {
+    if (typeof p.imageBase64 !== 'string') {
+      return { valid: false, error: 'Invalid imageBase64 format' };
+    }
+    const estimatedSize = (p.imageBase64.length * 3) / 4;
+    if (estimatedSize > MAX_PAYLOAD_SIZE) {
+      return { valid: false, error: 'Image too large (max 10MB)' };
+    }
+
+    if (p.mimeType && typeof p.mimeType === 'string') {
+      if (!ALLOWED_MIME_TYPES.includes(p.mimeType.toLowerCase())) {
+        return { valid: false, error: `Invalid file type. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}` };
+      }
+    }
+  }
+
+  // Validate text if provided
+  if (p.textContent) {
+    if (typeof p.textContent !== 'string') {
+      return { valid: false, error: 'Invalid textContent format' };
+    }
+    if (p.textContent.length > MAX_TEXT_LENGTH) {
+      return { valid: false, error: `Text too long (max ${MAX_TEXT_LENGTH} chars)` };
+    }
+  }
+
+  return { valid: true };
+}
+
+async function logAudit(
+  supabase: any,
+  userId: string,
+  action: string,
+  entityId: string | null,
+  context: Record<string, unknown>
+) {
+  try {
+    await supabase.from('audit_log').insert({
+      entity_type: 'ai_function',
+      entity_id: entityId || 'system',
+      action,
+      changed_by: userId,
+      diff: {},
+      context: {
+        ...context,
+        function: 'ai-extract-cv',
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (e) {
+    console.error('Failed to log audit:', e);
+  }
+}
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+
   try {
-    // Get the authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    // 1. Check content length
+    const contentLength = req.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) > MAX_PAYLOAD_SIZE) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized - No authorization header' }),
+        JSON.stringify({ success: false, error: 'Payload too large (max 10MB)' }),
+        { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 2. Require authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized - Missing or invalid authorization header' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create Supabase client with user's auth token
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
-    // Verify the user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    // 3. Validate JWT using getClaims
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized - Invalid token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check if user has insert permission (contributor or above)
-    const { data: roleData } = await supabase.rpc('get_user_role', { _user_id: user.id });
+    const userId = claimsData.claims.sub as string;
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized - No user ID in token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 4. Check user role (contributor or above)
+    const { data: roleData } = await supabase.rpc('get_user_role', { _user_id: userId });
     const role = roleData as string | null;
     
     if (!role || role === 'viewer') {
+      await logAudit(supabase, userId, 'access_denied', null, { reason: 'Insufficient role' });
       return new Response(
         JSON.stringify({ success: false, error: 'Forbidden - Insufficient permissions to import talent' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { imageBase64, mimeType, textContent } = await req.json();
-
-    if (!imageBase64 && !textContent) {
+    // 5. Rate limiting
+    const rateCheck = checkRateLimit(userId);
+    if (!rateCheck.allowed) {
+      await logAudit(supabase, userId, 'rate_limited', null, { retryAfter: rateCheck.retryAfter });
       return new Response(
-        JSON.stringify({ success: false, error: 'No CV data provided' }),
+        JSON.stringify({ success: false, error: 'Rate limit exceeded. Try again later.' }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'Retry-After': String(rateCheck.retryAfter || 60)
+          } 
+        }
+      );
+    }
+
+    // 6. Parse and validate payload
+    let payload: unknown;
+    try {
+      const text = await req.text();
+      if (text.length > MAX_PAYLOAD_SIZE) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Payload too large' }),
+          { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      payload = JSON.parse(text);
+    } catch {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid JSON payload' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const validation = validatePayload(payload);
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({ success: false, error: validation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { imageBase64, mimeType, textContent } = payload as { 
+      imageBase64?: string; 
+      mimeType?: string; 
+      textContent?: string;
+    };
+
+    // 7. Log the request
+    await logAudit(supabase, userId, 'extract_cv_request', null, {
+      inputType: imageBase64 ? 'image' : 'text',
+      mimeType: mimeType || 'text',
+      sizekB: imageBase64 ? Math.round(imageBase64.length / 1024) : Math.round((textContent?.length || 0) / 1024),
+    });
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -255,7 +416,6 @@ Be thorough and accurate. If information is unclear, still include it with lower
 
     console.log('AI response received, parsing...');
 
-    // Parse the JSON response (handle markdown code blocks)
     let extractedData;
     try {
       let jsonStr = content.trim();
@@ -282,7 +442,15 @@ Be thorough and accurate. If information is unclear, still include it with lower
       );
     }
 
-    console.log(`Extracted talent: ${extractedData.talent?.name || 'Unknown'}`);
+    const talentName = extractedData.talent?.name || 'Unknown';
+    console.log(`Extracted talent: ${talentName}`);
+
+    // Log successful completion
+    await logAudit(supabase, userId, 'extract_cv_complete', null, {
+      talentName,
+      skillsCount: extractedData.talent?.skills?.length || 0,
+      experienceCount: extractedData.talent?.experience?.length || 0,
+    });
 
     return new Response(
       JSON.stringify({ 

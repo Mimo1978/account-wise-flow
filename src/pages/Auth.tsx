@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sparkles, ArrowLeft, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
+import { ForgotPasswordModal } from '@/components/auth/ForgotPasswordModal';
 
 const authSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -20,6 +21,7 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
@@ -226,6 +228,15 @@ const Auth = () => {
                       'Sign In'
                     )}
                   </Button>
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => setForgotPasswordOpen(true)}
+                      className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                 </form>
               </TabsContent>
               
@@ -275,6 +286,11 @@ const Auth = () => {
           </CardContent>
         </Card>
       </div>
+
+      <ForgotPasswordModal
+        open={forgotPasswordOpen}
+        onOpenChange={setForgotPasswordOpen}
+      />
     </div>
   );
 };

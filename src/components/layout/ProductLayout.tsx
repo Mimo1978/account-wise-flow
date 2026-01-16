@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { PendingRequestsBadge } from '@/components/access/PendingRequestsBadge';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { 
   Sparkles, 
   LayoutDashboard, 
@@ -12,7 +13,10 @@ import {
   BookOpen,
   LogOut,
   User,
-  BarChart3
+  BarChart3,
+  ArrowRightLeft,
+  FlaskConical,
+  Briefcase
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -20,7 +24,10 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 
 interface ProductLayoutProps {
   children: React.ReactNode;
@@ -28,6 +35,7 @@ interface ProductLayoutProps {
 
 export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const { user, signOut } = useAuth();
+  const { currentWorkspace, isInDemoWorkspace } = useWorkspace();
   const location = useLocation();
 
   const navItems = [
@@ -57,6 +65,11 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
               <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 CLIENT MAPPER
               </span>
+              {isInDemoWorkspace && (
+                <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-800 border-amber-300 text-xs">
+                  Demo
+                </Badge>
+              )}
             </Link>
 
             {/* Main Navigation */}
@@ -107,11 +120,44 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-64">
                   <div className="px-2 py-1.5">
                     <p className="text-sm font-medium truncate">{user?.email}</p>
-                    <p className="text-xs text-muted-foreground">Workspace</p>
+                    <p className="text-xs text-muted-foreground">
+                      {currentWorkspace?.name || 'No workspace'}
+                    </p>
                   </div>
+                  <DropdownMenuSeparator />
+                  
+                  {/* Workspace Switcher */}
+                  <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                    Switch Workspace
+                  </DropdownMenuLabel>
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link to="/demo-workspace" className="flex items-center justify-between">
+                        <span className="flex items-center">
+                          <FlaskConical className="w-4 h-4 mr-2 text-amber-600" />
+                          Demo Workspace
+                        </span>
+                        {isInDemoWorkspace && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Active</Badge>
+                        )}
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link to="/canvas" className="flex items-center justify-between">
+                        <span className="flex items-center">
+                          <Briefcase className="w-4 h-4 mr-2 text-primary" />
+                          My Workspace
+                        </span>
+                        {!isInDemoWorkspace && currentWorkspace && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Active</Badge>
+                        )}
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild className="cursor-pointer">
                     <Link to="/canvas" className="flex items-center">

@@ -28,17 +28,30 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Public Marketing Routes */}
+            {/* ========================================
+                PUBLIC ROUTES - NO AUTH REQUIRED
+                These routes are accessible to everyone
+                ======================================== */}
+            
+            {/* Marketing Pages */}
             <Route path="/" element={<Index />} />
+            
+            {/* Authentication Pages */}
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/login" element={<Navigate to="/auth" replace />} />
             <Route path="/signup" element={<Navigate to="/auth" replace />} />
 
-            {/* Public Demo Route - No auth required */}
+            {/* Demo Route - Public sandbox, no auth required */}
             <Route path="/demo" element={<Demo />} />
-            {/* Protected Product Routes */}
+
+            {/* ========================================
+                PROTECTED ROUTES - AUTH REQUIRED
+                Only authenticated users can access these
+                CRM application routes
+                ======================================== */}
+            
             <Route
               path="/canvas"
               element={
@@ -90,7 +103,7 @@ const App = () => (
               }
             />
             
-            {/* Catch-all */}
+            {/* Catch-all for 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

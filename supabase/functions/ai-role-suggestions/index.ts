@@ -179,47 +179,42 @@ serve(async (req) => {
       );
     }
 
-    // 2. Require authentication
+    // 2. Check for authentication - allow anonymous for demo mode
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - Missing or invalid authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
+    let userId = 'anonymous';
+    let isAuthenticated = false;
+    
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
+      global: { headers: authHeader ? { Authorization: authHeader } : {} }
     });
 
-    // 3. Validate JWT using getClaims
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    
-    if (claimsError || !claimsData?.claims) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - Invalid token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // 3. Try to validate JWT if present
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      try {
+        const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+        
+        if (!claimsError && claimsData?.claims?.sub) {
+          userId = claimsData.claims.sub as string;
+          isAuthenticated = true;
+        }
+      } catch (e) {
+        console.log('Token validation failed, continuing as anonymous:', e);
+      }
     }
 
-    const userId = claimsData.claims.sub as string;
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - No user ID in token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // 4. Check user role - all authenticated users can view role suggestions (read-only)
-    const { data: roleData } = await supabase.rpc('get_user_role', { _user_id: userId });
-    const role = roleData as string | null;
-    
-    if (!role) {
-      return new Response(
-        JSON.stringify({ error: 'Forbidden - No role assigned' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // 4. Check user role - authenticated users need a role, anonymous allowed for demo
+    let role: string | null = null;
+    if (isAuthenticated) {
+      const { data: roleData } = await supabase.rpc('get_user_role', { _user_id: userId });
+      role = roleData as string | null;
+      
+      if (!role) {
+        return new Response(
+          JSON.stringify({ error: 'Forbidden - No role assigned' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // 5. Rate limiting
@@ -267,37 +262,45 @@ serve(async (req) => {
 
     const { accountContext } = payload as { accountContext: AccountContext };
 
-    // 6. Authorization - verify company access (REQUIRED for BI/insights)
-    const accessCheck = await verifyCompanyAccess(supabase, accountContext.accountId, userId);
-    if (!accessCheck.hasAccess) {
-      await logAudit(supabase, userId, 'access_denied', accountContext.accountId || null, {
-        reason: accessCheck.reason || 'No company access',
-      });
-      return new Response(
-        JSON.stringify({ error: `Forbidden - ${accessCheck.reason || 'No access to this company data'}` }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // 6. Authorization - verify company access (skip for anonymous demo users)
+    if (isAuthenticated && accountContext.accountId) {
+      const accessCheck = await verifyCompanyAccess(supabase, accountContext.accountId, userId);
+      if (!accessCheck.hasAccess) {
+        await logAudit(supabase, userId, 'access_denied', accountContext.accountId || null, {
+          reason: accessCheck.reason || 'No company access',
+        });
+        return new Response(
+          JSON.stringify({ error: `Forbidden - ${accessCheck.reason || 'No access to this company data'}` }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // 6b. Verify access to all contacts in the payload (only for authenticated users)
+      const contactIds = accountContext.contacts.map(c => c.id).filter(Boolean);
+      const contactsCheck = await verifyContactsAccess(supabase, contactIds, userId);
+      if (!contactsCheck.hasAccess && contactsCheck.deniedIds.length > 0) {
+        await logAudit(supabase, userId, 'partial_access_denied', accountContext.accountId || null, {
+          deniedContactIds: contactsCheck.deniedIds,
+        });
+        accountContext.contacts = accountContext.contacts.filter(c => !contactsCheck.deniedIds.includes(c.id));
+      }
     }
 
-    // 6b. Verify access to all contacts in the payload
-    const contactIds = accountContext.contacts.map(c => c.id).filter(Boolean);
-    const contactsCheck = await verifyContactsAccess(supabase, contactIds, userId);
-    if (!contactsCheck.hasAccess && contactsCheck.deniedIds.length > 0) {
-      await logAudit(supabase, userId, 'partial_access_denied', accountContext.accountId || null, {
-        deniedContactIds: contactsCheck.deniedIds,
-      });
-      accountContext.contacts = accountContext.contacts.filter(c => !contactsCheck.deniedIds.includes(c.id));
+    // 7. Check demo isolation (only for authenticated users) and log the request
+    let demoStatus = { isDemo: !isAuthenticated }; // Anonymous users are treated as demo
+    if (isAuthenticated) {
+      demoStatus = await checkDemoIsolation(supabase, userId);
     }
-
-    // 7. Check demo isolation and log the request
-    const demoStatus = await checkDemoIsolation(supabase, userId);
     
-    await logAudit(supabase, userId, 'role_suggestions_request', accountContext.accountId || null, {
-      accountName: accountContext.accountName,
-      contactCount: accountContext.contacts.length,
-      isDemoUser: demoStatus.isDemo,
-      userRole: role,
-    });
+    // Only log audit for authenticated users (anonymous demo doesn't have audit access)
+    if (isAuthenticated) {
+      await logAudit(supabase, userId, 'role_suggestions_request', accountContext.accountId || null, {
+        accountName: accountContext.accountName,
+        contactCount: accountContext.contacts.length,
+        isDemoUser: demoStatus.isDemo,
+        userRole: role,
+      });
+    }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {

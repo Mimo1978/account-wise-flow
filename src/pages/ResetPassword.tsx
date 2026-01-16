@@ -9,8 +9,16 @@ import { Sparkles, ArrowLeft, Loader2, CheckCircle, AlertCircle, KeyRound } from
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 
+// Strong password validation schema
+const strongPasswordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[0-9]/, 'Password must contain at least one number');
+
 const passwordSchema = z.object({
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: strongPasswordSchema,
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -199,7 +207,7 @@ const ResetPassword = () => {
 
             {resetState === 'ready' && (
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
+                  <div className="space-y-2">
                   <Label htmlFor="new-password">New Password</Label>
                   <Input
                     id="new-password"
@@ -210,6 +218,9 @@ const ResetPassword = () => {
                     disabled={isLoading}
                     autoComplete="new-password"
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Must be 8+ characters with uppercase, lowercase, and number
+                  </p>
                   {errors.password && (
                     <p className="text-sm text-destructive">{errors.password}</p>
                   )}

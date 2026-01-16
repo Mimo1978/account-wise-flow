@@ -11,9 +11,17 @@ import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { ForgotPasswordModal } from '@/components/auth/ForgotPasswordModal';
 
+// Strong password validation schema
+const passwordSchema = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+  .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+  .regex(/[0-9]/, 'Password must contain at least one number');
+
 const authSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: passwordSchema,
 });
 
 const Auth = () => {
@@ -266,6 +274,9 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       disabled={isLoading}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Must be 8+ characters with uppercase, lowercase, and number
+                    </p>
                     {errors.password && (
                       <p className="text-sm text-destructive">{errors.password}</p>
                     )}

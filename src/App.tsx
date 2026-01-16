@@ -17,6 +17,7 @@ import TalentDatabase from "./pages/TalentDatabase";
 import ExecutiveInsights from "./pages/ExecutiveInsights";
 import Demo from "./pages/Demo";
 import DemoWorkspace from "./pages/DemoWorkspace";
+import WorkspaceSelector from "./pages/WorkspaceSelector";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,16 @@ const App = () => (
                 Only authenticated users can access these
                 CRM application routes
                 ======================================== */}
+            
+            {/* Workspace Selector - Choose between demo and real workspace */}
+            <Route
+              path="/workspace"
+              element={
+                <ProtectedRoute>
+                  <WorkspaceSelector />
+                </ProtectedRoute>
+              }
+            />
             
             {/* Authenticated Demo Workspace - Full features with demo data isolation */}
             <Route

@@ -37,7 +37,7 @@ const Auth = () => {
   const { toast } = useToast();
   const shownAuthErrorRef = useRef(false);
 
-  const from = location.state?.from?.pathname || '/canvas';
+  const from = location.state?.from?.pathname || '/workspace';
 
   useEffect(() => {
     const errorMessage = (location.state as any)?.error as string | undefined;

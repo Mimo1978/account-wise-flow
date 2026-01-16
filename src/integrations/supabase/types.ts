@@ -384,6 +384,7 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_user_team_id: { Args: { _user_id: string }; Returns: string }
+      has_real_workspace: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -393,6 +394,9 @@ export type Database = {
       }
       is_demo_team: { Args: { _team_id: string }; Returns: boolean }
       is_demo_user: { Args: { _user_id: string }; Returns: boolean }
+      join_demo_team: { Args: { _user_id: string }; Returns: string }
+      leave_demo_team: { Args: { _user_id: string }; Returns: boolean }
+      reset_demo_data: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       access_request_status: "pending" | "approved" | "rejected"

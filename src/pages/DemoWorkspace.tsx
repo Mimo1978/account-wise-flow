@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, FlaskConical } from "lucide-react";
+import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, FlaskConical, RotateCcw, ArrowLeft, Loader2 } from "lucide-react";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
@@ -24,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useDemoWorkspace } from "@/hooks/use-demo-workspace";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,7 +48,16 @@ import {
  */
 const DemoWorkspace = () => {
   const { user } = useAuth();
-  const [isDemoUser, setIsDemoUser] = useState<boolean | null>(null);
+  const navigate = useNavigate();
+  const { 
+    isDemoUser, 
+    companies: demoCompanies, 
+    contacts: demoContacts, 
+    isLoading: isDemoLoading,
+    isResetting,
+    resetDemoData,
+  } = useDemoWorkspace();
+  
   const [account, setAccount] = useState(mockAccount);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -65,24 +76,14 @@ const DemoWorkspace = () => {
   const [showTalentOverlay, setShowTalentOverlay] = useState(false);
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [showTalentPanel, setShowTalentPanel] = useState(false);
+  const [showResetDialog, setShowResetDialog] = useState(false);
   const canvasRef = useRef<AccountCanvasRef>(null);
 
-  // Check if user is in demo mode on mount
-  useEffect(() => {
-    const checkDemoStatus = async () => {
-      if (!user) return;
-      
-      const { data, error } = await supabase.rpc('is_demo_user', { _user_id: user.id });
-      if (error) {
-        console.error('Failed to check demo status:', error);
-        setIsDemoUser(false);
-      } else {
-        setIsDemoUser(!!data);
-      }
-    };
-    
-    checkDemoStatus();
-  }, [user]);
+  // Handle reset demo data
+  const handleResetDemo = async () => {
+    await resetDemoData();
+    setShowResetDialog(false);
+  };
 
   // Get engagements for current company with talent data
   const companyEngagements = mockEngagements
@@ -219,18 +220,62 @@ const DemoWorkspace = () => {
     setShowTalentPanel(false);
   };
 
+  // Show loading state
+  if (isDemoLoading) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-amber-600 mb-4" />
+        <p className="text-muted-foreground">Loading demo workspace...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-65px)]">
       {/* Demo Workspace Banner */}
       <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border-b border-amber-500/20 px-6 py-2">
-        <div className="flex items-center justify-center gap-3">
-          <FlaskConical className="w-4 h-4 text-amber-600" />
-          <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
-            Demo Workspace — All changes are isolated to demo data
-          </span>
-          <Badge variant="outline" className="bg-amber-100/50 text-amber-700 border-amber-300 text-xs">
-            {isDemoUser === true ? 'Demo User' : isDemoUser === false ? 'Production User' : 'Checking...'}
-          </Badge>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate('/workspace')}
+              className="gap-1 text-amber-700 hover:text-amber-800 hover:bg-amber-100/50"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Switch Workspace
+            </Button>
+          </div>
+          <div className="flex items-center gap-3">
+            <FlaskConical className="w-4 h-4 text-amber-600" />
+            <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              Demo Workspace — All changes are isolated to demo data
+            </span>
+            <Badge variant="outline" className="bg-amber-100/50 text-amber-700 border-amber-300 text-xs">
+              {isDemoUser === true ? 'Demo User' : isDemoUser === false ? 'Joining Demo...' : 'Checking...'}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowResetDialog(true)}
+                  disabled={isResetting}
+                  className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-100/50"
+                >
+                  {isResetting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RotateCcw className="w-4 h-4" />
+                  )}
+                  Reset Demo
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Reset demo data to default state</TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </div>
 
@@ -505,6 +550,29 @@ const DemoWorkspace = () => {
           </div>
         </div>
       )}
+
+      {/* Reset Demo Data Confirmation Dialog */}
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset Demo Data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete all your demo contacts, companies, and notes created in the demo workspace.
+              The workspace will be reset to its default sample data state.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleResetDemo}
+              className="bg-amber-500 hover:bg-amber-600"
+            >
+              Reset Demo Data
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

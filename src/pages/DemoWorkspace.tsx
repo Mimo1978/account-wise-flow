@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, LogIn } from "lucide-react";
+import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, FlaskConical } from "lucide-react";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
@@ -21,8 +21,9 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,9 +34,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Sparkles } from "lucide-react";
 
-const Demo = () => {
+/**
+ * Authenticated Demo Workspace
+ * 
+ * This page provides full feature access in a sandboxed demo environment.
+ * - Requires authentication (protected route)
+ * - Uses demo team/workspace data isolated by RLS
+ * - All CRUD operations work but only affect demo data
+ * - Real customer data is never accessible from this route
+ */
+const DemoWorkspace = () => {
+  const { user } = useAuth();
+  const [isDemoUser, setIsDemoUser] = useState<boolean | null>(null);
   const [account, setAccount] = useState(mockAccount);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -44,18 +55,83 @@ const Demo = () => {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showAddContactModal, setShowAddContactModal] = useState(false);
   const [showAIImportModal, setShowAIImportModal] = useState(false);
+  const [pendingCompany, setPendingCompany] = useState<Account | null>(null);
+  const [showCompanySaveDialog, setShowCompanySaveDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"canvas" | "database">("canvas");
   const [isAIKnowledgeOpen, setIsAIKnowledgeOpen] = useState(false);
   const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(false);
   const [isRoleSuggestionsOpen, setIsRoleSuggestionsOpen] = useState(false);
+  const [highlightedContactIds, setHighlightedContactIds] = useState<string[]>([]);
+  const [showTalentOverlay, setShowTalentOverlay] = useState(false);
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [showTalentPanel, setShowTalentPanel] = useState(false);
-  const [showTalentOverlay, setShowTalentOverlay] = useState(false);
-  const [highlightedContactIds, setHighlightedContactIds] = useState<string[]>([]);
   const canvasRef = useRef<AccountCanvasRef>(null);
 
-  // Get engagements for current company
-  const companyEngagements = mockEngagements.filter(e => e.companyId === account.id);
+  // Check if user is in demo mode on mount
+  useEffect(() => {
+    const checkDemoStatus = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase.rpc('is_demo_user', { _user_id: user.id });
+      if (error) {
+        console.error('Failed to check demo status:', error);
+        setIsDemoUser(false);
+      } else {
+        setIsDemoUser(!!data);
+      }
+    };
+    
+    checkDemoStatus();
+  }, [user]);
+
+  // Get engagements for current company with talent data
+  const companyEngagements = mockEngagements
+    .filter((eng) => eng.companyId === account.id)
+    .map((eng) => ({
+      ...eng,
+      talent: mockTalents.find((t) => t.id === eng.talentId),
+    }))
+    .filter((eng) => eng.talent) as (TalentEngagement & { talent: Talent })[];
+
+  const handleCompanySwitch = (newAccount: Account) => {
+    if (hasUnsavedChanges) {
+      setPendingCompany(newAccount);
+      setShowCompanySaveDialog(true);
+    } else {
+      performCompanySwitch(newAccount);
+    }
+  };
+
+  const performCompanySwitch = (newAccount: Account) => {
+    setSelectedContact(null);
+    setIsExpanded(false);
+    setHasUnsavedChanges(false);
+    canvasRef.current?.clearSearch();
+    setAccount(newAccount);
+    toast.success(`Switched to ${newAccount.name}`);
+  };
+
+  const handleCompanySaveAndSwitch = () => {
+    toast.success("Changes saved");
+    if (pendingCompany) {
+      performCompanySwitch(pendingCompany);
+    }
+    setPendingCompany(null);
+    setShowCompanySaveDialog(false);
+  };
+
+  const handleCompanyDiscardAndSwitch = () => {
+    if (pendingCompany) {
+      performCompanySwitch(pendingCompany);
+    }
+    setPendingCompany(null);
+    setShowCompanySaveDialog(false);
+  };
+
+  const handleCompanyCancelSwitch = () => {
+    setPendingCompany(null);
+    setShowCompanySaveDialog(false);
+  };
 
   const handleContactClick = (contact: Contact) => {
     if (selectedContact?.id === contact.id) return;
@@ -101,13 +177,7 @@ const Demo = () => {
       ...prev,
       contacts: [...prev.contacts, contact],
     }));
-    toast.success(`Contact "${contact.name}" added successfully`);
-  };
-
-  const handleCompanySwitch = (newAccount: Account) => {
-    setAccount(newAccount);
-    setSelectedContact(null);
-    setIsExpanded(false);
+    toast.success(`Contact "${contact.name}" added to demo workspace`);
   };
 
   const handleHighlightContacts = useCallback((contactIds: string[]) => {
@@ -116,19 +186,28 @@ const Demo = () => {
   }, []);
 
   const handleGlobalSelectCompany = useCallback((selectedAccount: Account) => {
-    handleCompanySwitch(selectedAccount);
-  }, []);
+    if (hasUnsavedChanges) {
+      setPendingCompany(selectedAccount);
+      setShowCompanySaveDialog(true);
+    } else {
+      performCompanySwitch(selectedAccount);
+    }
+  }, [hasUnsavedChanges]);
 
   const handleGlobalSelectContact = useCallback((contact: Contact, selectedAccount: Account) => {
     if (selectedAccount.id !== account.id) {
-      handleCompanySwitch(selectedAccount);
+      if (hasUnsavedChanges) {
+        toast.info("Please save or discard changes before switching companies");
+        return;
+      }
+      performCompanySwitch(selectedAccount);
     }
     setSelectedContact(contact);
     setViewMode("canvas");
     setIsExpanded(false);
     canvasRef.current?.highlightContacts([contact.id]);
     setHighlightedContactIds([contact.id]);
-  }, [account.id]);
+  }, [account.id, hasUnsavedChanges]);
 
   const handleTalentClick = useCallback((talent: Talent, engagement: TalentEngagement) => {
     setSelectedTalent(talent);
@@ -141,41 +220,19 @@ const Demo = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Demo Header */}
-      <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-                CLIENT MAPPER
-              </span>
-            </Link>
-
-            {/* Demo Badge & Actions */}
-            <div className="flex items-center gap-3">
-              <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">
-                Public Demo
-              </Badge>
-              <Link to="/demo-workspace">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <LogIn className="w-4 h-4" />
-                  Full Demo Access
-                </Button>
-              </Link>
-              <Link to="/auth">
-                <Button variant="default" size="sm" className="gap-2">
-                  Sign Up
-                </Button>
-              </Link>
-            </div>
-          </div>
+    <div className="flex flex-col h-[calc(100vh-65px)]">
+      {/* Demo Workspace Banner */}
+      <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border-b border-amber-500/20 px-6 py-2">
+        <div className="flex items-center justify-center gap-3">
+          <FlaskConical className="w-4 h-4 text-amber-600" />
+          <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
+            Demo Workspace — All changes are isolated to demo data
+          </span>
+          <Badge variant="outline" className="bg-amber-100/50 text-amber-700 border-amber-300 text-xs">
+            {isDemoUser === true ? 'Demo User' : isDemoUser === false ? 'Production User' : 'Checking...'}
+          </Badge>
         </div>
-      </header>
+      </div>
 
       {/* Sub-header with context controls */}
       <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-6 py-3">
@@ -214,6 +271,11 @@ const Demo = () => {
                   checked={showTalentOverlay}
                   onCheckedChange={setShowTalentOverlay}
                 />
+                {showTalentOverlay && (
+                  <span className="text-xs text-muted-foreground">
+                    ({companyEngagements.length})
+                  </span>
+                )}
               </div>
             )}
             {viewMode === "canvas" && companyEngagements.length > 0 && (
@@ -239,7 +301,7 @@ const Demo = () => {
               onClick={() => setIsRoleSuggestionsOpen(!isRoleSuggestionsOpen)}
             >
               <UserPlus className="w-4 h-4" />
-              <span className="hidden md:inline">Missing Roles</span>
+              Missing Roles
             </Button>
             <Button 
               variant={isAIInsightsOpen ? "default" : "outline"} 
@@ -248,7 +310,7 @@ const Demo = () => {
               onClick={() => setIsAIInsightsOpen(!isAIInsightsOpen)}
             >
               <Lightbulb className="w-4 h-4" />
-              <span className="hidden md:inline">AI Insights</span>
+              AI Insights
             </Button>
             <Button 
               variant={isAIKnowledgeOpen ? "default" : "outline"} 
@@ -257,7 +319,7 @@ const Demo = () => {
               onClick={() => setIsAIKnowledgeOpen(!isAIKnowledgeOpen)}
             >
               <Brain className="w-4 h-4" />
-              <span className="hidden md:inline">AI Knowledge</span>
+              AI Knowledge
             </Button>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -273,14 +335,14 @@ const Demo = () => {
             </Tooltip>
             <Button size="sm" className="gap-2" onClick={() => setShowAddContactModal(true)}>
               <Plus className="w-4 h-4" />
-              <span className="hidden md:inline">Add Contact</span>
+              Add Contact
             </Button>
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-hidden relative pointer-events-auto" style={{ height: 'calc(100vh - 130px)' }}>
+      <main className="flex-1 overflow-hidden relative pointer-events-auto">
         {viewMode === "canvas" ? (
           <AccountCanvas 
             ref={canvasRef}
@@ -289,10 +351,7 @@ const Demo = () => {
             onTalentClick={handleTalentClick}
             highlightedContactIds={highlightedContactIds}
             showTalentOverlay={showTalentOverlay}
-            talentEngagements={companyEngagements.map(e => ({
-              ...e,
-              talent: mockTalents.find(t => t.id === e.talentId)!
-            })).filter(e => e.talent)}
+            talentEngagements={companyEngagements}
           />
         ) : (
           <CompanyDatabaseView
@@ -317,15 +376,6 @@ const Demo = () => {
         />
       )}
 
-      {/* Talent Profile Panel */}
-      {showTalentPanel && selectedTalent && (
-        <TalentProfilePanel
-          talent={selectedTalent}
-          open={showTalentPanel}
-          onClose={handleCloseTalentPanel}
-        />
-      )}
-
       {/* Save Confirmation Dialog */}
       <AlertDialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
         <AlertDialogContent>
@@ -343,6 +393,29 @@ const Demo = () => {
               Discard & Switch
             </Button>
             <AlertDialogAction onClick={handleSaveAndSwitch}>
+              Save & Switch
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Company Switch Save Confirmation Dialog */}
+      <AlertDialog open={showCompanySaveDialog} onOpenChange={setShowCompanySaveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save Changes Before Switching Company?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. What would you like to do before switching to {pendingCompany?.name}?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCompanyCancelSwitch}>
+              Cancel
+            </AlertDialogCancel>
+            <Button variant="outline" onClick={handleCompanyDiscardAndSwitch}>
+              Discard & Switch
+            </Button>
+            <AlertDialogAction onClick={handleCompanySaveAndSwitch}>
               Save & Switch
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -392,8 +465,48 @@ const Demo = () => {
           onAddContact={handleAddContact}
         />
       )}
+
+      {/* Talent Profile Panel */}
+      <TalentProfilePanel
+        talent={selectedTalent}
+        open={showTalentPanel}
+        onClose={handleCloseTalentPanel}
+      />
+
+      {/* Bottom Info Bar */}
+      {viewMode === "canvas" && (
+        <div className="border-t border-border/50 bg-muted/30 px-6 py-3">
+          <div className="container mx-auto flex items-center justify-between text-sm">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-node-champion" />
+                <span className="text-muted-foreground">Champion</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-node-engaged" />
+                <span className="text-muted-foreground">Engaged</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-node-neutral" />
+                <span className="text-muted-foreground">Neutral</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-node-disengaged" />
+                <span className="text-muted-foreground">Disengaged</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-node-new" />
+                <span className="text-muted-foreground">New Contact</span>
+              </div>
+            </div>
+            <div className="text-muted-foreground">
+              {account.contacts.length} contacts • Click to view details
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default Demo;
+export default DemoWorkspace;

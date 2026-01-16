@@ -16,6 +16,7 @@ import CompaniesDatabase from "./pages/CompaniesDatabase";
 import TalentDatabase from "./pages/TalentDatabase";
 import ExecutiveInsights from "./pages/ExecutiveInsights";
 import Demo from "./pages/Demo";
+import DemoWorkspace from "./pages/DemoWorkspace";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,7 +44,7 @@ const App = () => (
             <Route path="/login" element={<Navigate to="/auth" replace />} />
             <Route path="/signup" element={<Navigate to="/auth" replace />} />
 
-            {/* Demo Route - Public sandbox, no auth required */}
+            {/* Public Demo Route - Sandbox with mock data, no auth required */}
             <Route path="/demo" element={<Demo />} />
 
             {/* ========================================
@@ -51,6 +52,18 @@ const App = () => (
                 Only authenticated users can access these
                 CRM application routes
                 ======================================== */}
+            
+            {/* Authenticated Demo Workspace - Full features with demo data isolation */}
+            <Route
+              path="/demo-workspace"
+              element={
+                <ProtectedRoute>
+                  <ProductLayout>
+                    <DemoWorkspace />
+                  </ProductLayout>
+                </ProtectedRoute>
+              }
+            />
             
             <Route
               path="/canvas"

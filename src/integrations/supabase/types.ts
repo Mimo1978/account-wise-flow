@@ -63,6 +63,7 @@ export type Database = {
           entity_id: string
           entity_type: string
           id: string
+          workspace_id: string | null
         }
         Insert: {
           action: string
@@ -73,6 +74,7 @@ export type Database = {
           entity_id: string
           entity_type: string
           id?: string
+          workspace_id?: string | null
         }
         Update: {
           action?: string
@@ -83,8 +85,17 @@ export type Database = {
           entity_id?: string
           entity_type?: string
           id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       companies: {
         Row: {
@@ -289,6 +300,7 @@ export type Database = {
           id: string
           is_demo: boolean
           name: string
+          type: Database["public"]["Enums"]["workspace_type"] | null
           updated_at: string
         }
         Insert: {
@@ -296,6 +308,7 @@ export type Database = {
           id?: string
           is_demo?: boolean
           name: string
+          type?: Database["public"]["Enums"]["workspace_type"] | null
           updated_at?: string
         }
         Update: {
@@ -303,6 +316,7 @@ export type Database = {
           id?: string
           is_demo?: boolean
           name?: string
+          type?: Database["public"]["Enums"]["workspace_type"] | null
           updated_at?: string
         }
         Relationships: []
@@ -371,6 +385,7 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      get_current_workspace_id: { Args: { _user_id: string }; Returns: string }
       get_entity_team_id: {
         Args: { _entity_id: string; _entity_type: string }
         Returns: string
@@ -384,6 +399,25 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_user_team_id: { Args: { _user_id: string }; Returns: string }
+      get_user_workspaces: {
+        Args: { _user_id: string }
+        Returns: {
+          is_demo: boolean
+          role: Database["public"]["Enums"]["app_role"]
+          workspace_id: string
+          workspace_name: string
+          workspace_type: Database["public"]["Enums"]["workspace_type"]
+        }[]
+      }
+      get_workspace_details: {
+        Args: { _workspace_id: string }
+        Returns: {
+          id: string
+          is_demo: boolean
+          name: string
+          type: Database["public"]["Enums"]["workspace_type"]
+        }[]
+      }
       has_real_workspace: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -402,6 +436,7 @@ export type Database = {
       access_request_status: "pending" | "approved" | "rejected"
       app_role: "admin" | "manager" | "contributor" | "viewer"
       note_visibility: "public" | "team" | "private"
+      workspace_type: "real" | "demo"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -532,6 +567,7 @@ export const Constants = {
       access_request_status: ["pending", "approved", "rejected"],
       app_role: ["admin", "manager", "contributor", "viewer"],
       note_visibility: ["public", "team", "private"],
+      workspace_type: ["real", "demo"],
     },
   },
 } as const

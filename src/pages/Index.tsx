@@ -50,21 +50,14 @@ const Index = () => {
                 </Link>
               ) : (
                 <>
-                  <Link to="/auth">
-                    <Button variant="ghost" className="gap-2">
-                      <LogIn className="w-4 h-4" />
-                      Login
-                    </Button>
-                  </Link>
-                  <Link to="/auth">
-                    <Button variant="outline" className="gap-2">
-                      <UserPlus className="w-4 h-4" />
-                      Sign Up
-                    </Button>
-                  </Link>
                   <Link to="/demo">
+                    <Button variant="ghost" className="gap-2">
+                      Try Public Demo
+                    </Button>
+                  </Link>
+                  <Link to="/auth?next=/demo-workspace">
                     <Button variant="default" className="gap-2">
-                      Try Demo <ArrowRight className="w-4 h-4" />
+                      Sign in for Full Demo <ArrowRight className="w-4 h-4" />
                     </Button>
                   </Link>
                 </>
@@ -116,22 +109,15 @@ const Index = () => {
                       </Button>
                     </Link>
                   ) : (
-                    <div className="flex flex-col gap-3">
-                      <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="outline" className="w-full gap-2">
-                          <LogIn className="w-4 h-4" />
-                          Login
-                        </Button>
-                      </Link>
-                      <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="secondary" className="w-full gap-2">
-                          <UserPlus className="w-4 h-4" />
-                          Sign Up
-                        </Button>
-                      </Link>
+                  <div className="flex flex-col gap-3">
                       <Link to="/demo" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="outline" className="w-full gap-2">
+                          Try Public Demo
+                        </Button>
+                      </Link>
+                      <Link to="/auth?next=/demo-workspace" onClick={() => setMobileMenuOpen(false)}>
                         <Button className="w-full gap-2">
-                          Try Demo <ArrowRight className="w-4 h-4" />
+                          Sign in for Full Demo <ArrowRight className="w-4 h-4" />
                         </Button>
                       </Link>
                     </div>
@@ -164,14 +150,26 @@ const Index = () => {
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to={user ? "/canvas" : "/auth"}>
-            <Button size="lg" className="gap-2 text-lg px-8">
-              {user ? "Go to App" : "Get Started"} <ArrowRight className="w-5 h-5" />
-            </Button>
-          </Link>
-          <Button size="lg" variant="outline" className="text-lg px-8">
-            Watch Demo
-          </Button>
+          {user ? (
+            <Link to="/workspace">
+              <Button size="lg" className="gap-2 text-lg px-8">
+                Go to App <ArrowRight className="w-5 h-5" />
+              </Button>
+            </Link>
+          ) : (
+            <>
+              <Link to="/demo">
+                <Button size="lg" variant="outline" className="text-lg px-8 gap-2">
+                  Try Public Demo
+                </Button>
+              </Link>
+              <Link to="/auth?next=/demo-workspace">
+                <Button size="lg" className="gap-2 text-lg px-8">
+                  Sign in for Full Demo <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </section>
 

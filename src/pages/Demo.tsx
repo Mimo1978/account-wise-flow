@@ -161,21 +161,33 @@ const Demo = () => {
               <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">
                 Public Demo
               </Badge>
-              <Link to="/demo-workspace">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <LogIn className="w-4 h-4" />
-                  Full Demo Access
-                </Button>
-              </Link>
-              <Link to="/auth">
+              <Link to="/auth?next=/demo-workspace">
                 <Button variant="default" size="sm" className="gap-2">
-                  Sign Up
+                  <LogIn className="w-4 h-4" />
+                  Sign in for Full Demo
                 </Button>
               </Link>
             </div>
           </div>
         </div>
       </header>
+
+      {/* Full Demo Callout Banner */}
+      <div className="bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border-b border-border/50">
+        <div className="container mx-auto px-6 py-2.5 flex items-center justify-center gap-3 text-sm">
+          <Sparkles className="w-4 h-4 text-primary" />
+          <span className="text-muted-foreground">
+            Want to try imports, edits, and AI?
+          </span>
+          <Link 
+            to="/auth?next=/demo-workspace" 
+            className="font-medium text-primary hover:underline inline-flex items-center gap-1"
+          >
+            Sign in to the Full Demo Workspace
+            <LogIn className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+      </div>
 
       {/* Sub-header with context controls */}
       <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-6 py-3">
@@ -280,7 +292,7 @@ const Demo = () => {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-hidden relative pointer-events-auto" style={{ height: 'calc(100vh - 130px)' }}>
+      <main className="flex-1 overflow-hidden relative pointer-events-auto" style={{ height: 'calc(100vh - 170px)' }}>
         {viewMode === "canvas" ? (
           <AccountCanvas 
             ref={canvasRef}

@@ -151,7 +151,8 @@ const ResetPassword = () => {
   };
 
   const handleContinue = () => {
-    navigate('/canvas', { replace: true });
+    // Navigate to sign in page so user can log in with new password
+    navigate('/auth', { replace: true });
   };
 
   const handleRequestNewLink = () => {
@@ -261,7 +262,7 @@ const ResetPassword = () => {
                   Your password has been successfully changed. You can now use your new password to sign in.
                 </p>
                 <Button onClick={handleContinue} className="w-full">
-                  Continue to App
+                  Sign In with New Password
                 </Button>
               </div>
             )}

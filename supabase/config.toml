@@ -7,6 +7,8 @@ schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
+# AI functions with JWT verification enabled
+# These functions handle auth internally for demo support
 [functions.ai-knowledge-chat]
 verify_jwt = false
 
@@ -16,8 +18,12 @@ verify_jwt = false
 [functions.ai-role-suggestions]
 verify_jwt = false
 
+# These functions REQUIRE authentication - no demo mode
 [functions.ai-extract-contacts]
-verify_jwt = false
+verify_jwt = true
 
 [functions.ai-extract-cv]
-verify_jwt = false
+verify_jwt = true
+
+[functions.executive-insights]
+verify_jwt = true

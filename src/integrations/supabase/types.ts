@@ -53,6 +53,63 @@ export type Database = {
         }
         Relationships: []
       }
+      activity_summaries: {
+        Row: {
+          ai_summary: string | null
+          company_id: string | null
+          concerns: string[] | null
+          created_at: string
+          highlights: string[] | null
+          id: string
+          metrics: Json
+          period_end: string
+          period_start: string
+          summary_type: string
+          workspace_id: string | null
+        }
+        Insert: {
+          ai_summary?: string | null
+          company_id?: string | null
+          concerns?: string[] | null
+          created_at?: string
+          highlights?: string[] | null
+          id?: string
+          metrics?: Json
+          period_end: string
+          period_start: string
+          summary_type: string
+          workspace_id?: string | null
+        }
+        Update: {
+          ai_summary?: string | null
+          company_id?: string | null
+          concerns?: string[] | null
+          created_at?: string
+          highlights?: string[] | null
+          id?: string
+          metrics?: Json
+          period_end?: string
+          period_start?: string
+          summary_type?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_summaries_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_summaries_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       audit_log: {
         Row: {
           action: string
@@ -244,6 +301,122 @@ export type Database = {
           },
         ]
       }
+      executive_insights: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          data: Json
+          description: string
+          dismissed_at: string | null
+          dismissed_by: string | null
+          expires_at: string | null
+          id: string
+          insight_type: string
+          is_dismissed: boolean
+          related_contact_ids: string[] | null
+          related_entity_ids: string[] | null
+          severity: string
+          title: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          data?: Json
+          description: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          expires_at?: string | null
+          id?: string
+          insight_type: string
+          is_dismissed?: boolean
+          related_contact_ids?: string[] | null
+          related_entity_ids?: string[] | null
+          severity?: string
+          title: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          data?: Json
+          description?: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          expires_at?: string | null
+          id?: string
+          insight_type?: string
+          is_dismissed?: boolean
+          related_contact_ids?: string[] | null
+          related_entity_ids?: string[] | null
+          severity?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "executive_insights_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "executive_insights_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      executive_queries: {
+        Row: {
+          created_at: string
+          feedback_rating: number | null
+          id: string
+          query_text: string
+          query_type: string | null
+          response_data: Json | null
+          response_summary: string | null
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          feedback_rating?: number | null
+          id?: string
+          query_text: string
+          query_type?: string | null
+          response_data?: Json | null
+          response_summary?: string | null
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          feedback_rating?: number | null
+          id?: string
+          query_text?: string
+          query_type?: string | null
+          response_data?: Json | null
+          response_summary?: string | null
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "executive_queries_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notes: {
         Row: {
           content: string
@@ -288,6 +461,157 @@ export type Database = {
           {
             foreignKeyName: "notes_team_id_fkey"
             columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      relationship_coverage: {
+        Row: {
+          blocker_count: number
+          calculated_at: string
+          champion_count: number
+          company_id: string | null
+          coverage_score: number
+          created_at: string
+          department: string | null
+          engaged_contacts: number
+          executive_coverage: boolean
+          gap_analysis: Json
+          id: string
+          last_engagement_date: string | null
+          total_contacts: number
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          blocker_count?: number
+          calculated_at?: string
+          champion_count?: number
+          company_id?: string | null
+          coverage_score?: number
+          created_at?: string
+          department?: string | null
+          engaged_contacts?: number
+          executive_coverage?: boolean
+          gap_analysis?: Json
+          id?: string
+          last_engagement_date?: string | null
+          total_contacts?: number
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          blocker_count?: number
+          calculated_at?: string
+          champion_count?: number
+          company_id?: string | null
+          coverage_score?: number
+          created_at?: string
+          department?: string | null
+          engaged_contacts?: number
+          executive_coverage?: boolean
+          gap_analysis?: Json
+          id?: string
+          last_engagement_date?: string | null
+          total_contacts?: number
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relationship_coverage_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relationship_coverage_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      risk_signals: {
+        Row: {
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          description: string
+          due_date: string | null
+          id: string
+          is_resolved: boolean
+          recommended_actions: string[] | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          risk_level: string
+          risk_type: string
+          title: string
+          trigger_data: Json
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          description: string
+          due_date?: string | null
+          id?: string
+          is_resolved?: boolean
+          recommended_actions?: string[] | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          risk_level?: string
+          risk_type: string
+          title: string
+          trigger_data?: Json
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          is_resolved?: boolean
+          recommended_actions?: string[] | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          risk_level?: string
+          risk_type?: string
+          title?: string
+          trigger_data?: Json
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "risk_signals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_signals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "risk_signals_workspace_id_fkey"
+            columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]

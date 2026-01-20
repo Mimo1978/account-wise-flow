@@ -19,6 +19,7 @@ import ExecutiveInsights from "./pages/ExecutiveInsights";
 import Demo from "./pages/Demo";
 import DemoWorkspace from "./pages/DemoWorkspace";
 import WorkspaceSelector from "./pages/WorkspaceSelector";
+import Pricing from "./pages/Pricing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
             
             {/* Marketing Pages */}
             <Route path="/" element={<Index />} />
+            <Route path="/pricing" element={<Pricing />} />
             
             {/* Authentication Pages */}
             <Route path="/auth" element={<Auth />} />

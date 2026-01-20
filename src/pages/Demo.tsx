@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, LogIn } from "lucide-react";
+import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, LogIn, Lock } from "lucide-react";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
@@ -42,8 +42,9 @@ const Demo = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingContact, setPendingContact] = useState<Contact | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [showAddContactModal, setShowAddContactModal] = useState(false);
-  const [showAIImportModal, setShowAIImportModal] = useState(false);
+  // Note: Modals disabled in public demo - read-only mode
+  const showAddContactModal = false;
+  const showAIImportModal = false;
   const [viewMode, setViewMode] = useState<"canvas" | "database">("canvas");
   const [isAIKnowledgeOpen, setIsAIKnowledgeOpen] = useState(false);
   const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(false);
@@ -271,22 +272,31 @@ const Demo = () => {
               <Brain className="w-4 h-4" />
               <span className="hidden md:inline">AI Knowledge</span>
             </Button>
+            {/* Read-only notice for disabled features */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  onClick={() => setShowAIImportModal(true)}
+                  disabled
+                  className="gap-2 opacity-50"
                 >
+                  <Lock className="w-4 h-4" />
                   <Upload className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Import Contacts</TooltipContent>
+              <TooltipContent>Sign in for Full Demo to import contacts</TooltipContent>
             </Tooltip>
-            <Button size="sm" className="gap-2" onClick={() => setShowAddContactModal(true)}>
-              <Plus className="w-4 h-4" />
-              <span className="hidden md:inline">Add Contact</span>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button size="sm" className="gap-2 opacity-50" disabled>
+                  <Lock className="w-4 h-4" />
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden md:inline">Add Contact</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Sign in for Full Demo to add contacts</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>
@@ -312,13 +322,13 @@ const Demo = () => {
             allAccounts={mockAccounts}
             onAccountUpdate={setAccount}
             onViewCanvas={() => setViewMode("canvas")}
-            onAddContact={() => setShowAddContactModal(true)}
-            onAIImport={() => setShowAIImportModal(true)}
+            onAddContact={() => {}}
+            onAIImport={() => {}}
           />
         )}
       </main>
 
-      {/* Floating Contact Panel */}
+      {/* Floating Contact Panel - Read-only in public demo */}
       {viewMode === "canvas" && selectedContact && (
         <ContactDetailPanel 
           contact={selectedContact} 
@@ -326,6 +336,7 @@ const Demo = () => {
           isExpanded={isExpanded}
           onExpandToggle={() => setIsExpanded(!isExpanded)}
           onUnsavedChanges={setHasUnsavedChanges}
+          readOnly={true}
         />
       )}
 
@@ -361,19 +372,7 @@ const Demo = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Add Contact Modal */}
-      <AddContactModal
-        open={showAddContactModal}
-        onOpenChange={setShowAddContactModal}
-        onAddContact={handleAddContact}
-        companyName={account.name}
-      />
-
-      {/* AI Import Modal */}
-      <AIImportModal
-        open={showAIImportModal}
-        onOpenChange={setShowAIImportModal}
-      />
+      {/* Modals disabled in public demo - read-only mode */}
 
       {/* AI Knowledge Panel */}
       {viewMode === "canvas" && (

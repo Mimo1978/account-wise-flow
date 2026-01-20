@@ -72,6 +72,7 @@ interface ContactDetailPanelProps {
   isExpanded?: boolean;
   onExpandToggle?: () => void;
   onUnsavedChanges?: (hasChanges: boolean) => void;
+  readOnly?: boolean;
 }
 
 const statusConfig = {
@@ -195,7 +196,8 @@ export const ContactDetailPanel = ({
   onClose, 
   isExpanded = false, 
   onExpandToggle,
-  onUnsavedChanges 
+  onUnsavedChanges,
+  readOnly = false
 }: ContactDetailPanelProps) => {
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [editedContact, setEditedContact] = useState(contact);

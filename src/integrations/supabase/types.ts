@@ -681,6 +681,10 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      can_access_executive_features: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       can_approve_request: {
         Args: { _entity_id: string; _entity_type: string; _user_id: string }
         Returns: boolean

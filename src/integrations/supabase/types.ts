@@ -626,6 +626,7 @@ export type Database = {
           name: string
           type: Database["public"]["Enums"]["workspace_type"] | null
           updated_at: string
+          workspace_mode: Database["public"]["Enums"]["workspace_mode"]
         }
         Insert: {
           created_at?: string
@@ -634,6 +635,7 @@ export type Database = {
           name: string
           type?: Database["public"]["Enums"]["workspace_type"] | null
           updated_at?: string
+          workspace_mode?: Database["public"]["Enums"]["workspace_mode"]
         }
         Update: {
           created_at?: string
@@ -642,6 +644,7 @@ export type Database = {
           name?: string
           type?: Database["public"]["Enums"]["workspace_type"] | null
           updated_at?: string
+          workspace_mode?: Database["public"]["Enums"]["workspace_mode"]
         }
         Relationships: []
       }
@@ -746,6 +749,7 @@ export type Database = {
           type: Database["public"]["Enums"]["workspace_type"]
         }[]
       }
+      get_workspace_mode: { Args: { _user_id: string }; Returns: string }
       has_real_workspace: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -756,14 +760,23 @@ export type Database = {
       }
       is_demo_team: { Args: { _team_id: string }; Returns: boolean }
       is_demo_user: { Args: { _user_id: string }; Returns: boolean }
+      is_public_demo_workspace: {
+        Args: { workspace_uuid: string }
+        Returns: boolean
+      }
       join_demo_team: { Args: { _user_id: string }; Returns: string }
       leave_demo_team: { Args: { _user_id: string }; Returns: boolean }
       reset_demo_data: { Args: { _user_id: string }; Returns: boolean }
+      seed_demo_workspace: {
+        Args: { workspace_uuid: string }
+        Returns: undefined
+      }
     }
     Enums: {
       access_request_status: "pending" | "approved" | "rejected"
       app_role: "admin" | "manager" | "contributor" | "viewer"
       note_visibility: "public" | "team" | "private"
+      workspace_mode: "public_demo" | "demo" | "production"
       workspace_type: "real" | "demo"
     }
     CompositeTypes: {
@@ -895,6 +908,7 @@ export const Constants = {
       access_request_status: ["pending", "approved", "rejected"],
       app_role: ["admin", "manager", "contributor", "viewer"],
       note_visibility: ["public", "team", "private"],
+      workspace_mode: ["public_demo", "demo", "production"],
       workspace_type: ["real", "demo"],
     },
   },

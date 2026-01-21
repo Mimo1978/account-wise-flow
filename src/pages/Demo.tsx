@@ -12,8 +12,6 @@ import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
 import { AIInsightsPanel } from "@/components/canvas/AIInsightsPanel";
 import { AIRoleSuggestionsPanel } from "@/components/canvas/AIRoleSuggestionsPanel";
 import { GlobalSearch } from "@/components/canvas/GlobalSearch";
-import { mockAccount, mockAccounts } from "@/lib/mock-data";
-import { mockTalents, mockEngagements } from "@/lib/mock-talent";
 import { Account, Contact, Talent, TalentEngagement } from "@/lib/types";
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { toast } from "sonner";
@@ -23,6 +21,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { DemoScenarioSelector } from "@/components/demo/DemoScenarioSelector";
+import { DemoInsightsPanel } from "@/components/demo/DemoInsightsPanel";
+import { useDemoScenario } from "@/hooks/use-demo-scenario";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,7 +37,19 @@ import {
 import { Sparkles } from "lucide-react";
 
 const Demo = () => {
-  const [account, setAccount] = useState(mockAccount);
+  // Use scenario-based data instead of static mock data
+  const {
+    scenarioId,
+    scenario,
+    accounts: scenarioAccounts,
+    currentAccount,
+    talents: scenarioTalents,
+    engagements: scenarioEngagements,
+    setScenarioId,
+    updateAccount,
+  } = useDemoScenario();
+
+  const [account, setAccount] = useState(currentAccount);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -49,11 +62,29 @@ const Demo = () => {
   const [isAIKnowledgeOpen, setIsAIKnowledgeOpen] = useState(false);
   const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(false);
   const [isRoleSuggestionsOpen, setIsRoleSuggestionsOpen] = useState(false);
+  const [isDemoInsightsOpen, setIsDemoInsightsOpen] = useState(false);
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [showTalentPanel, setShowTalentPanel] = useState(false);
   const [showTalentOverlay, setShowTalentOverlay] = useState(false);
   const [highlightedContactIds, setHighlightedContactIds] = useState<string[]>([]);
   const canvasRef = useRef<AccountCanvasRef>(null);
+
+  // Handle scenario change - reset state and load new data
+  const handleScenarioChange = useCallback((newScenarioId: typeof scenarioId) => {
+    setScenarioId(newScenarioId);
+    setSelectedContact(null);
+    setIsExpanded(false);
+    setHighlightedContactIds([]);
+    setIsDemoInsightsOpen(true); // Show insights for new scenario
+  }, [setScenarioId]);
+
+  // Sync account when scenario changes
+  useState(() => {
+    setAccount(currentAccount);
+  });
+
+  // Get engagements for current company
+  const companyEngagements = scenarioEngagements.filter(e => e.companyId === account.id);
 
   // Get engagements for current company
   const companyEngagements = mockEngagements.filter(e => e.companyId === account.id);

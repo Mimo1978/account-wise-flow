@@ -49,43 +49,64 @@ import {
   MapPin,
   Briefcase,
   HelpCircle,
+  FileUser,
+  Network,
+  StickyNote,
+  CreditCard,
+  ChevronDown,
+  AlertCircle,
+  UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Contact, Account } from "@/lib/types";
+import { Contact, Account, Talent } from "@/lib/types";
 import { mockAccount, mockAccounts } from "@/lib/mock-data";
 import {
   departmentOptions,
   jobTitleOptionsFlat,
   seniorityOptions,
 } from "@/lib/dropdown-options";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface AIImportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImportComplete?: (contacts: Contact[]) => void;
+  onTalentImportComplete?: (talent: Talent) => void;
   existingContacts?: Contact[];
   currentCompany?: string;
 }
+
+type FileType = 'CV_RESUME' | 'BUSINESS_CARD' | 'ORG_CHART' | 'NOTES_DOCUMENT' | 'UNKNOWN';
 
 type FilePreview = {
   file: File;
   preview: string;
   type: 'image' | 'pdf' | 'document';
+  detectedType?: FileType;
+  detectedConfidence?: number;
+  detectedReasoning?: string;
+  userOverrideType?: FileType;
+  isProcessed?: boolean;
+  processingError?: string;
 };
 
-type ExtractedContact = {
+type EntityType = 'candidate' | 'contact' | 'org_node' | 'notes';
+
+type ExtractedEntity = {
   id: string;
-  name: string;
-  title?: string;
-  department?: string;
-  email?: string;
-  phone?: string;
-  reportsTo?: string;
-  confidence: 'high' | 'medium' | 'low';
+  sourceFileIndex: number;
+  type: EntityType;
+  data: any;
+  confidence: number;
+  missingFields: string[];
   selected: boolean;
-  duplicateOf?: string; // ID of existing contact if potential duplicate
-  isEditing?: boolean;
+  destination: 'talent' | 'contact' | 'org_chart' | 'notes' | 'skip';
+  duplicateOf?: string;
 };
 
 type ImportAction = 'new' | 'merge' | 'database-only' | 'database-and-chart' | 'notes-only';
@@ -98,6 +119,14 @@ type NewCompanyData = {
   location: string;
 };
 
+const fileTypeLabels: Record<FileType, { label: string; icon: React.ReactNode; color: string }> = {
+  CV_RESUME: { label: 'CV / Resume', icon: <FileUser className="h-4 w-4" />, color: 'text-blue-500' },
+  BUSINESS_CARD: { label: 'Business Card', icon: <CreditCard className="h-4 w-4" />, color: 'text-green-500' },
+  ORG_CHART: { label: 'Org Chart', icon: <Network className="h-4 w-4" />, color: 'text-purple-500' },
+  NOTES_DOCUMENT: { label: 'Meeting Notes', icon: <StickyNote className="h-4 w-4" />, color: 'text-amber-500' },
+  UNKNOWN: { label: 'Unknown', icon: <HelpCircle className="h-4 w-4" />, color: 'text-muted-foreground' },
+};
+
 const confidenceColors: Record<string, string> = {
   high: 'bg-green-500/20 text-green-400',
   medium: 'bg-yellow-500/20 text-yellow-400',
@@ -108,17 +137,18 @@ export const AIImportModal = ({
   open,
   onOpenChange,
   onImportComplete,
+  onTalentImportComplete,
   existingContacts = mockAccount.contacts,
   currentCompany,
 }: AIImportModalProps) => {
   const [files, setFiles] = useState<FilePreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [extractedContacts, setExtractedContacts] = useState<ExtractedContact[]>([]);
-  const [sourceType, setSourceType] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
-  const [step, setStep] = useState<'upload' | 'preview' | 'company'>('upload');
+  const [extractedEntities, setExtractedEntities] = useState<ExtractedEntity[]>([]);
+  const [step, setStep] = useState<'upload' | 'review' | 'routing' | 'company'>('upload');
   const [selectedAction, setSelectedAction] = useState<ImportAction>('database-and-chart');
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
   
   // Company assignment state
   const [companyAssignment, setCompanyAssignment] = useState<CompanyAssignment>('existing');
@@ -131,6 +161,12 @@ export const AIImportModal = ({
   });
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const addDebugLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    console.log(`[AIImport] ${message}`);
+    setDebugLogs(prev => [...prev, `[${timestamp}] ${message}`]);
+  };
 
   // Filter companies based on search
   const filteredCompanies = useMemo(() => {
@@ -151,15 +187,14 @@ export const AIImportModal = ({
     setFiles([]);
     setIsDragging(false);
     setIsProcessing(false);
-    setExtractedContacts([]);
-    setSourceType('');
-    setNotes('');
+    setExtractedEntities([]);
     setStep('upload');
     setSelectedAction('database-and-chart');
     setCompanyAssignment('existing');
     setSelectedCompanyId(currentCompany || mockAccount.id);
     setCompanySearch('');
     setNewCompanyData({ name: '', industry: '', location: '' });
+    setDebugLogs([]);
     onOpenChange(false);
   };
 
@@ -222,12 +257,17 @@ export const AIImportModal = ({
     });
   };
 
+  const setFileTypeOverride = (index: number, type: FileType) => {
+    setFiles(prev => prev.map((f, i) => 
+      i === index ? { ...f, userOverrideType: type } : f
+    ));
+  };
+
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
         const result = reader.result as string;
-        // Remove data URL prefix to get just the base64
         const base64 = result.split(',')[1];
         resolve(base64);
       };
@@ -236,117 +276,202 @@ export const AIImportModal = ({
     });
   };
 
-  const findDuplicate = (name: string): Contact | undefined => {
+  const findDuplicate = (name: string, email?: string): Contact | undefined => {
     const normalizedName = name.toLowerCase().trim();
-    return existingContacts.find(c => 
-      c.name.toLowerCase().trim() === normalizedName ||
-      c.name.toLowerCase().includes(normalizedName) ||
-      normalizedName.includes(c.name.toLowerCase())
-    );
+    return existingContacts.find(c => {
+      if (email && c.email && c.email.toLowerCase() === email.toLowerCase()) {
+        return true;
+      }
+      return c.name.toLowerCase().trim() === normalizedName ||
+        c.name.toLowerCase().includes(normalizedName) ||
+        normalizedName.includes(c.name.toLowerCase());
+    });
   };
 
   const handleProcess = async () => {
     if (files.length === 0) return;
 
     setIsProcessing(true);
-    const allExtracted: ExtractedContact[] = [];
+    setDebugLogs([]);
+    addDebugLog(`Starting processing of ${files.length} files`);
 
     try {
-      // Process each image file
-      for (const fileData of files) {
-        if (fileData.type === 'image') {
-          const base64 = await fileToBase64(fileData.file);
+      // Prepare files for API
+      const filePayloads = await Promise.all(files.map(async (f, idx) => {
+        const base64 = await fileToBase64(f.file);
+        addDebugLog(`File ${idx + 1}: ${f.file.name} (${f.file.type}, ${(f.file.size / 1024).toFixed(1)}KB)`);
+        return {
+          base64,
+          mimeType: f.file.type,
+          fileName: f.file.name,
+          userOverrideType: f.userOverrideType,
+        };
+      }));
+
+      addDebugLog('Calling ai-unified-import edge function...');
+      
+      const { data, error } = await supabase.functions.invoke('ai-unified-import', {
+        body: { files: filePayloads }
+      });
+
+      if (error) {
+        addDebugLog(`ERROR: ${error.message}`);
+        toast.error(`Processing failed: ${error.message}`);
+        setIsProcessing(false);
+        return;
+      }
+
+      if (!data?.success) {
+        addDebugLog(`ERROR: ${data?.error || 'Unknown error'}`);
+        toast.error(data?.error || 'Processing failed');
+        setIsProcessing(false);
+        return;
+      }
+
+      addDebugLog(`Processing complete: ${data.data.summary.files_succeeded}/${data.data.summary.files_processed} files, ${data.data.summary.total_entities_extracted} entities`);
+
+      // Update file states with detection results
+      const results = data.data.results;
+      setFiles(prev => prev.map((f, idx) => {
+        const result = results[idx];
+        if (result) {
+          addDebugLog(`File "${f.file.name}": detected=${result.classification.detectedType}, confidence=${result.classification.confidence.toFixed(2)}, text_length=${result.extracted_text_length}, ocr=${result.ocr_used}`);
+          addDebugLog(`  → Debug: emails=${result.debug_info.emails_found}, phones=${result.debug_info.phones_found}, names=${result.debug_info.names_found}`);
+          return {
+            ...f,
+            detectedType: result.classification.detectedType,
+            detectedConfidence: result.classification.confidence,
+            detectedReasoning: result.classification.reasoning,
+            isProcessed: true,
+            processingError: result.parse_success ? undefined : result.error_message,
+          };
+        }
+        return f;
+      }));
+
+      // Convert results to extracted entities
+      const allEntities: ExtractedEntity[] = [];
+      results.forEach((result: any, fileIdx: number) => {
+        result.entities.forEach((entity: any, entityIdx: number) => {
+          const entityId = `entity-${fileIdx}-${entityIdx}-${Date.now()}`;
           
-          const { data, error } = await supabase.functions.invoke('ai-extract-contacts', {
-            body: { 
-              imageBase64: base64,
-              mimeType: fileData.file.type 
-            }
+          // Determine default destination based on type
+          let destination: ExtractedEntity['destination'] = 'contact';
+          if (entity.type === 'candidate') destination = 'talent';
+          else if (entity.type === 'org_node') destination = 'org_chart';
+          else if (entity.type === 'notes') destination = 'notes';
+
+          // Check for duplicates
+          let duplicateOf: string | undefined;
+          if (entity.type === 'candidate' || entity.type === 'contact') {
+            const name = entity.data.personal?.full_name || entity.data.name;
+            const email = entity.data.personal?.email || entity.data.email;
+            const dup = findDuplicate(name, email);
+            if (dup) duplicateOf = dup.id;
+          }
+
+          allEntities.push({
+            id: entityId,
+            sourceFileIndex: fileIdx,
+            type: entity.type,
+            data: entity.data,
+            confidence: entity.confidence,
+            missingFields: entity.missing_fields || [],
+            selected: true,
+            destination,
+            duplicateOf,
           });
 
-          if (error) {
-            console.error('AI extraction error:', error);
-            toast.error(`Failed to process ${fileData.file.name}`);
-            continue;
-          }
+          addDebugLog(`  Entity: type=${entity.type}, confidence=${entity.confidence.toFixed(2)}, missing=[${entity.missing_fields?.join(', ') || 'none'}]`);
+        });
 
-          if (data?.success && data?.data?.contacts) {
-            const contacts = data.data.contacts.map((c: any, idx: number) => {
-              const duplicate = findDuplicate(c.name);
-              return {
-                id: `extracted-${Date.now()}-${idx}`,
-                name: c.name || 'Unknown',
-                title: c.title,
-                department: c.department,
-                email: c.email,
-                phone: c.phone,
-                reportsTo: c.reportsTo,
-                confidence: c.confidence || 'medium',
-                selected: true,
-                duplicateOf: duplicate?.id,
-                isEditing: false,
-              };
-            });
-            
-            allExtracted.push(...contacts);
-            
-            if (data.data.sourceType) {
-              setSourceType(data.data.sourceType);
-            }
-            if (data.data.notes) {
-              setNotes(data.data.notes);
-            }
-          }
-        } else {
-          toast.info(`${fileData.file.name} is not an image - PDF extraction coming soon`);
+        if (result.entities.length === 0 && !result.parse_success) {
+          addDebugLog(`  WARNING: No entities extracted from ${files[fileIdx].file.name}: ${result.error_message}`);
         }
+      });
+
+      setExtractedEntities(allEntities);
+
+      if (allEntities.length > 0) {
+        setStep('review');
+        toast.success(`Extracted ${allEntities.length} entities from ${results.filter((r: any) => r.parse_success).length} files`);
+      } else {
+        // Even with no entities, show what we found
+        const failedFiles = results.filter((r: any) => !r.parse_success);
+        if (failedFiles.length > 0) {
+          toast.error(`Could not extract data from ${failedFiles.length} file(s). Check the debug panel for details.`);
+        } else {
+          toast.warning('No structured data could be extracted from the uploaded files');
+        }
+        setStep('review'); // Still show review so user can see debug info
       }
 
-      if (allExtracted.length > 0) {
-        setExtractedContacts(allExtracted);
-        setStep('preview');
-        toast.success(`Found ${allExtracted.length} contacts`);
-      } else {
-        toast.error('No contacts found in the uploaded files');
-      }
     } catch (err) {
       console.error('Processing error:', err);
+      addDebugLog(`EXCEPTION: ${err instanceof Error ? err.message : 'Unknown error'}`);
       toast.error('Failed to process files');
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const toggleContactSelection = (id: string) => {
-    setExtractedContacts(prev => 
-      prev.map(c => c.id === id ? { ...c, selected: !c.selected } : c)
+  const toggleEntitySelection = (id: string) => {
+    setExtractedEntities(prev => 
+      prev.map(e => e.id === id ? { ...e, selected: !e.selected } : e)
     );
   };
 
   const toggleAllSelection = (selected: boolean) => {
-    setExtractedContacts(prev => prev.map(c => ({ ...c, selected })));
+    setExtractedEntities(prev => prev.map(e => ({ ...e, selected })));
   };
 
-  const updateContactField = (id: string, field: keyof ExtractedContact, value: string) => {
-    setExtractedContacts(prev =>
-      prev.map(c => c.id === id ? { ...c, [field]: value } : c)
+  const updateEntityDestination = (id: string, destination: ExtractedEntity['destination']) => {
+    setExtractedEntities(prev =>
+      prev.map(e => e.id === id ? { ...e, destination } : e)
     );
   };
 
-  const handleProceedToCompany = () => {
-    const selectedContacts = extractedContacts.filter(c => c.selected);
+  const updateEntityData = (id: string, field: string, value: any) => {
+    setExtractedEntities(prev =>
+      prev.map(e => {
+        if (e.id !== id) return e;
+        return {
+          ...e,
+          data: { ...e.data, [field]: value }
+        };
+      })
+    );
+  };
+
+  const handleProceedToRouting = () => {
+    const selectedEntities = extractedEntities.filter(e => e.selected);
     
-    if (selectedContacts.length === 0) {
-      toast.error('Please select at least one contact to import');
+    if (selectedEntities.length === 0) {
+      toast.error('Please select at least one entity to import');
       return;
     }
 
-    // Show warning but don't block if fields are missing
-    if (selectedAction === 'database-and-chart') {
-      const incomplete = selectedContacts.filter(c => !c.department || !c.title);
-      if (incomplete.length > 0) {
-        toast.warning(`${incomplete.length} contacts missing Department or Job Title will be flagged for review`);
-      }
+    // Check for missing required fields
+    const candidatesWithNoName = selectedEntities.filter(
+      e => e.type === 'candidate' && !e.data.personal?.full_name
+    );
+    if (candidatesWithNoName.length > 0) {
+      toast.error('Some candidates are missing names. Please add names before continuing.');
+      return;
+    }
+
+    setStep('routing');
+  };
+
+  const handleProceedToCompany = () => {
+    const contactsNeedingCompany = extractedEntities.filter(
+      e => e.selected && (e.destination === 'contact' || e.destination === 'org_chart')
+    );
+
+    if (contactsNeedingCompany.length === 0) {
+      // No contacts need company assignment, proceed directly
+      handleConfirmImport();
+      return;
     }
 
     setStep('company');
@@ -365,7 +490,7 @@ export const AIImportModal = ({
       return;
     }
 
-    const selectedContacts = extractedContacts.filter(c => c.selected);
+    const selectedEntities = extractedEntities.filter(e => e.selected && e.destination !== 'skip');
 
     // Determine target account
     let targetAccount: Account | undefined;
@@ -375,7 +500,6 @@ export const AIImportModal = ({
       targetAccount = mockAccounts.find(acc => acc.id === selectedCompanyId);
       companyName = targetAccount?.name || mockAccount.name;
     } else if (companyAssignment === 'new') {
-      // Create new company (in real implementation, this would persist)
       const newCompany: Account = {
         id: `acc-${Date.now()}`,
         name: newCompanyData.name,
@@ -390,48 +514,112 @@ export const AIImportModal = ({
       companyName = newCompanyData.name;
     }
 
-    // Convert to Contact type and add to mock data
-    const newContacts: Contact[] = selectedContacts.map(ec => ({
-      id: `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      name: ec.name,
-      title: ec.title || '',
-      department: ec.department || '',
-      seniority: 'mid' as const,
-      email: ec.email || '',
-      phone: ec.phone || '',
-      phoneNumbers: ec.phone ? [{ value: ec.phone, label: 'Work' as const, preferred: true }] : [],
-      status: 'new' as const,
-      reportsTo: ec.reportsTo,
-      lastContact: new Date().toISOString().split('T')[0],
-    }));
+    // Process entities by destination
+    const newContacts: Contact[] = [];
+    const newTalent: Talent[] = [];
 
-    // Add to target account based on action
-    if (selectedAction !== 'notes-only' && targetAccount) {
+    selectedEntities.forEach(entity => {
+      if (entity.destination === 'talent') {
+        // Create Talent record
+        const candidateData = entity.data;
+        const talent: Talent = {
+          id: `talent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: candidateData.personal?.full_name || 'Unknown',
+          email: candidateData.personal?.email || '',
+          phone: candidateData.personal?.phone || '',
+          skills: [...(candidateData.skills?.primary_skills || []), ...(candidateData.skills?.secondary_skills || [])],
+          roleType: candidateData.headline?.current_title || '',
+          seniority: candidateData.headline?.seniority_level || 'mid',
+          availability: 'available',
+          notes: candidateData.notes?.gaps?.join(', '),
+          experience: candidateData.experience?.map((exp: any, idx: number) => ({
+            id: `exp-${idx}`,
+            company: exp.company,
+            title: exp.title,
+            startDate: exp.start_date || '',
+            endDate: exp.end_date,
+            current: !exp.end_date || exp.end_date.toLowerCase() === 'present',
+            description: exp.summary,
+          })),
+          linkedIn: candidateData.personal?.linkedin_url,
+          location: candidateData.personal?.location,
+          lastUpdated: new Date().toISOString(),
+          dataQuality: entity.missingFields.length > 2 ? 'needs-review' : 'parsed',
+          status: 'new',
+          cvSource: 'upload',
+        };
+        newTalent.push(talent);
+        
+        if (onTalentImportComplete) {
+          onTalentImportComplete(talent);
+        }
+      } else if (entity.destination === 'contact' || entity.destination === 'org_chart') {
+        // Create Contact record
+        let contactData: any;
+        if (entity.type === 'candidate') {
+          contactData = {
+            name: entity.data.personal?.full_name,
+            email: entity.data.personal?.email,
+            phone: entity.data.personal?.phone,
+            title: entity.data.headline?.current_title,
+          };
+        } else if (entity.type === 'org_node') {
+          const nodes = entity.data.nodes || [];
+          nodes.forEach((node: any) => {
+            const contact: Contact = {
+              id: `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              name: node.name || 'Unknown',
+              title: node.title || '',
+              department: node.department || '',
+              seniority: 'mid',
+              email: '',
+              phone: '',
+              status: 'new',
+              reportsTo: node.reports_to,
+              lastContact: new Date().toISOString().split('T')[0],
+            };
+            newContacts.push(contact);
+          });
+          return; // Already processed
+        } else {
+          contactData = entity.data;
+        }
+
+        const contact: Contact = {
+          id: `contact-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          name: contactData.name || 'Unknown',
+          title: contactData.title || '',
+          department: contactData.department || '',
+          seniority: 'mid',
+          email: contactData.email || '',
+          phone: contactData.phone || '',
+          phoneNumbers: contactData.phone ? [{ value: contactData.phone, label: 'Work' as const, preferred: true }] : [],
+          status: 'new',
+          reportsTo: contactData.reportsTo,
+          lastContact: new Date().toISOString().split('T')[0],
+        };
+        newContacts.push(contact);
+      }
+      // Notes destination - just log for now
+      else if (entity.destination === 'notes') {
+        addDebugLog(`Notes saved: ${JSON.stringify(entity.data).slice(0, 100)}...`);
+      }
+    });
+
+    // Add contacts to target account
+    if (newContacts.length > 0 && targetAccount) {
       newContacts.forEach(contact => {
         targetAccount!.contacts.push(contact);
       });
-    } else if (selectedAction !== 'notes-only' && companyAssignment !== 'unassigned') {
-      // Fallback to current mockAccount
-      newContacts.forEach(contact => {
-        mockAccount.contacts.push(contact);
-      });
     }
 
-    const assignmentText = companyAssignment === 'unassigned' 
-      ? ' (unassigned)' 
-      : ` to ${companyName}`;
+    const summaryParts = [];
+    if (newTalent.length > 0) summaryParts.push(`${newTalent.length} candidate(s) to Talent`);
+    if (newContacts.length > 0) summaryParts.push(`${newContacts.length} contact(s) to ${companyName}`);
 
-    const actionMessages: Record<ImportAction, string> = {
-      'new': `Added ${newContacts.length} new contacts${assignmentText}`,
-      'merge': `Merged ${newContacts.length} contacts${assignmentText}`,
-      'database-only': `Added ${newContacts.length} contacts to database${assignmentText}`,
-      'database-and-chart': `Added ${newContacts.length} contacts to database and org chart${assignmentText}`,
-      'notes-only': `Saved ${newContacts.length} contacts as notes`,
-    };
-
-    toast.success(actionMessages[selectedAction]);
+    toast.success(`Imported: ${summaryParts.join(', ')}`);
     
-    if (onImportComplete) {
+    if (onImportComplete && newContacts.length > 0) {
       onImportComplete(newContacts);
     }
 
@@ -449,24 +637,46 @@ export const AIImportModal = ({
     }
   };
 
-  const selectedCount = extractedContacts.filter(c => c.selected).length;
-  const duplicateCount = extractedContacts.filter(c => c.duplicateOf).length;
+  const selectedCount = extractedEntities.filter(e => e.selected).length;
+  const duplicateCount = extractedEntities.filter(e => e.duplicateOf).length;
+  const candidateCount = extractedEntities.filter(e => e.selected && e.type === 'candidate').length;
+  const contactCount = extractedEntities.filter(e => e.selected && (e.type === 'contact' || e.type === 'org_node')).length;
+
+  // Render entity name for display
+  const getEntityName = (entity: ExtractedEntity): string => {
+    if (entity.type === 'candidate') {
+      return entity.data.personal?.full_name || 'Unknown Candidate';
+    } else if (entity.type === 'contact') {
+      return entity.data.name || 'Unknown Contact';
+    } else if (entity.type === 'org_node') {
+      return `Org Chart (${entity.data.nodes?.length || 0} people)`;
+    } else if (entity.type === 'notes') {
+      return `Meeting Notes (${entity.data.participants?.length || 0} participants)`;
+    }
+    return 'Unknown';
+  };
+
+  const getConfidenceLabel = (confidence: number): 'high' | 'medium' | 'low' => {
+    if (confidence >= 0.8) return 'high';
+    if (confidence >= 0.5) return 'medium';
+    return 'low';
+  };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[900px] max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[950px] max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             AI Import
-            {(step === 'preview' || step === 'company') && (
+            {step !== 'upload' && (
               <Badge variant="secondary" className="ml-2">
-                {extractedContacts.length} contacts detected
+                {extractedEntities.length} entities detected
               </Badge>
             )}
-            {step === 'company' && (
-              <Badge variant="outline" className="ml-2">
-                Step 3: Assign Company
+            {step === 'review' && candidateCount > 0 && (
+              <Badge variant="outline" className="ml-2 border-blue-500 text-blue-500">
+                {candidateCount} CV{candidateCount > 1 ? 's' : ''}
               </Badge>
             )}
           </DialogTitle>
@@ -494,7 +704,7 @@ export const AIImportModal = ({
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                  accept="image/*,.pdf,.doc,.docx,.pptx,.txt"
                   onChange={handleFileSelect}
                   className="hidden"
                   disabled={isProcessing}
@@ -503,16 +713,16 @@ export const AIImportModal = ({
                 <div className="flex flex-col items-center gap-4 text-center">
                   <div className="flex items-center gap-3">
                     <div className="p-3 rounded-full bg-blue-500/10">
-                      <Image className="h-6 w-6 text-blue-500" />
-                    </div>
-                    <div className="p-3 rounded-full bg-red-500/10">
-                      <FileText className="h-6 w-6 text-red-500" />
-                    </div>
-                    <div className="p-3 rounded-full bg-purple-500/10">
-                      <Building2 className="h-6 w-6 text-purple-500" />
+                      <FileUser className="h-6 w-6 text-blue-500" />
                     </div>
                     <div className="p-3 rounded-full bg-green-500/10">
-                      <Camera className="h-6 w-6 text-green-500" />
+                      <CreditCard className="h-6 w-6 text-green-500" />
+                    </div>
+                    <div className="p-3 rounded-full bg-purple-500/10">
+                      <Network className="h-6 w-6 text-purple-500" />
+                    </div>
+                    <div className="p-3 rounded-full bg-amber-500/10">
+                      <StickyNote className="h-6 w-6 text-amber-500" />
                     </div>
                   </div>
                   
@@ -521,19 +731,19 @@ export const AIImportModal = ({
                       Drop files here or click to browse
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Supports images, PDFs, screenshots, org charts, and business cards
+                      CVs, business cards, org charts, meeting notes • PDF, DOCX, images
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* File Previews */}
+              {/* File Previews with Type Override */}
               {files.length > 0 && (
                 <div className="mt-4 space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">
                     {files.length} file{files.length > 1 ? 's' : ''} selected
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     {files.map((file, index) => (
                       <div
                         key={index}
@@ -556,15 +766,52 @@ export const AIImportModal = ({
                             {(file.file.size / 1024).toFixed(1)} KB
                           </p>
                         </div>
+                        
+                        {/* Type override selector */}
+                        <Select
+                          value={file.userOverrideType || ''}
+                          onValueChange={(v) => setFileTypeOverride(index, v as FileType)}
+                        >
+                          <SelectTrigger className="w-[160px] h-8 text-xs">
+                            <SelectValue placeholder="Auto-detect type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="CV_RESUME">
+                              <div className="flex items-center gap-2">
+                                <FileUser className="h-3 w-3" />
+                                CV / Resume
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="BUSINESS_CARD">
+                              <div className="flex items-center gap-2">
+                                <CreditCard className="h-3 w-3" />
+                                Business Card
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="ORG_CHART">
+                              <div className="flex items-center gap-2">
+                                <Network className="h-3 w-3" />
+                                Org Chart
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="NOTES_DOCUMENT">
+                              <div className="flex items-center gap-2">
+                                <StickyNote className="h-3 w-3" />
+                                Meeting Notes
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+
                         {!isProcessing && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               removeFile(index);
                             }}
-                            className="absolute top-1 right-1 p-1 rounded-full bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+                            className="p-1 rounded-full bg-background/80 hover:bg-destructive hover:text-destructive-foreground transition-colors"
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-4 w-4" />
                           </button>
                         )}
                       </div>
@@ -576,7 +823,7 @@ export const AIImportModal = ({
               {/* Info */}
               <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border">
                 <p className="text-xs text-muted-foreground">
-                  <strong className="text-foreground">AI will extract:</strong> Names, job titles, departments, emails, phone numbers, and reporting relationships from your files. Review and confirm before saving.
+                  <strong className="text-foreground">AI will extract:</strong> Candidate profiles from CVs, contacts from business cards, org structures from charts, and action items from notes. Each entity can be routed to the appropriate destination.
                 </p>
               </div>
             </div>
@@ -604,18 +851,39 @@ export const AIImportModal = ({
               </Button>
             </DialogFooter>
           </>
-        ) : step === 'preview' ? (
+        ) : step === 'review' ? (
           <>
-            {/* Preview Step */}
+            {/* Review Step */}
             <div className="flex-1 overflow-hidden flex flex-col py-2">
-              {/* Source info */}
-              {sourceType && (
-                <div className="flex items-center gap-2 mb-3 text-sm text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  <span>Detected source: <strong className="text-foreground capitalize">{sourceType.replace('_', ' ')}</strong></span>
-                  {notes && <span className="text-xs">• {notes}</span>}
+              {/* File Detection Summary */}
+              <div className="mb-4 space-y-2">
+                <p className="text-sm font-medium">Detected Content:</p>
+                <div className="flex flex-wrap gap-2">
+                  {files.map((file, idx) => (
+                    <div 
+                      key={idx}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border ${
+                        file.processingError ? 'border-red-500/50 bg-red-500/10' : 'border-border bg-muted/50'
+                      }`}
+                    >
+                      {file.detectedType && fileTypeLabels[file.detectedType] && (
+                        <span className={fileTypeLabels[file.detectedType].color}>
+                          {fileTypeLabels[file.detectedType].icon}
+                        </span>
+                      )}
+                      <span className="truncate max-w-[150px]">{file.file.name}</span>
+                      {file.detectedConfidence && (
+                        <Badge variant="outline" className="text-[10px] px-1">
+                          {Math.round(file.detectedConfidence * 100)}%
+                        </Badge>
+                      )}
+                      {file.processingError && (
+                        <AlertCircle className="h-3 w-3 text-red-500" />
+                      )}
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
 
               {/* Warnings */}
               {duplicateCount > 0 && (
@@ -627,154 +895,145 @@ export const AIImportModal = ({
                 </div>
               )}
 
+              {/* Missing contact info warning for CVs */}
+              {extractedEntities.some(e => e.type === 'candidate' && e.missingFields.includes('email') && e.missingFields.includes('phone')) && (
+                <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <AlertCircle className="h-4 w-4 text-blue-500" />
+                  <span className="text-sm text-blue-500">
+                    Some CVs have no email/phone — you can add these manually or continue without
+                  </span>
+                </div>
+              )}
+
               {/* Selection controls */}
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <Checkbox 
-                    checked={selectedCount === extractedContacts.length}
+                    checked={selectedCount === extractedEntities.length}
                     onCheckedChange={(checked) => toggleAllSelection(!!checked)}
                   />
                   <span className="text-sm text-muted-foreground">
-                    {selectedCount} of {extractedContacts.length} selected
+                    {selectedCount} of {extractedEntities.length} selected
                   </span>
                 </div>
               </div>
 
-              {/* Contacts Table */}
+              {/* Entities Table */}
               <ScrollArea className="flex-1 border rounded-lg">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
                       <TableHead className="w-10"></TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Job Title</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Name / Content</TableHead>
+                      <TableHead>Details</TableHead>
                       <TableHead>Confidence</TableHead>
-                      <TableHead className="w-10"></TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {extractedContacts.map((contact) => (
-                      <TableRow 
-                        key={contact.id}
-                        className={contact.duplicateOf ? 'bg-yellow-500/5' : ''}
-                      >
-                        <TableCell>
-                          <Checkbox 
-                            checked={contact.selected}
-                            onCheckedChange={() => toggleContactSelection(contact.id)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <Input
-                              value={contact.name}
-                              onChange={(e) => updateContactField(contact.id, 'name', e.target.value)}
-                              className="h-7 text-sm font-medium"
-                            />
-                            {contact.duplicateOf && (
-                              <span className="text-xs text-yellow-500 mt-1">
-                                Possible duplicate
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <FlexibleCombobox
-                            value={contact.department || ''}
-                            onChange={(v) => updateContactField(contact.id, 'department', v)}
-                            options={departmentOptions}
-                            placeholder="Type department..."
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <FlexibleCombobox
-                            value={contact.title || ''}
-                            onChange={(v) => updateContactField(contact.id, 'title', v)}
-                            options={jobTitleOptionsFlat}
-                            placeholder="Type job title..."
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            value={contact.email || ''}
-                            onChange={(e) => updateContactField(contact.id, 'email', e.target.value)}
-                            className="h-7 text-xs"
-                            placeholder="—"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Input
-                            value={contact.phone || ''}
-                            onChange={(e) => updateContactField(contact.id, 'phone', e.target.value)}
-                            className="h-7 text-xs"
-                            placeholder="—"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={confidenceColors[contact.confidence]}>
-                            {contact.confidence}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {contact.selected && (!contact.department || !contact.title) && (
-                            <span title="Needs review after import">
-                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-yellow-500 text-yellow-500">
-                                Needs Review
-                              </Badge>
-                            </span>
-                          )}
+                    {extractedEntities.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                          No entities could be extracted. Check the debug panel below for details.
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      extractedEntities.map((entity) => (
+                        <TableRow 
+                          key={entity.id}
+                          className={entity.duplicateOf ? 'bg-yellow-500/5' : ''}
+                        >
+                          <TableCell>
+                            <Checkbox 
+                              checked={entity.selected}
+                              onCheckedChange={() => toggleEntitySelection(entity.id)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {entity.type === 'candidate' && <FileUser className="h-4 w-4 text-blue-500" />}
+                              {entity.type === 'contact' && <Users className="h-4 w-4 text-green-500" />}
+                              {entity.type === 'org_node' && <Network className="h-4 w-4 text-purple-500" />}
+                              {entity.type === 'notes' && <StickyNote className="h-4 w-4 text-amber-500" />}
+                              <span className="text-xs capitalize">{entity.type.replace('_', ' ')}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span className="font-medium">{getEntityName(entity)}</span>
+                              {entity.duplicateOf && (
+                                <span className="text-xs text-yellow-500">Possible duplicate</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-xs text-muted-foreground space-y-0.5">
+                              {entity.type === 'candidate' && (
+                                <>
+                                  {entity.data.headline?.current_title && (
+                                    <div>{entity.data.headline.current_title}</div>
+                                  )}
+                                  {entity.data.personal?.email && (
+                                    <div>{entity.data.personal.email}</div>
+                                  )}
+                                  {entity.data.skills?.primary_skills?.slice(0, 3).join(', ')}
+                                </>
+                              )}
+                              {entity.type === 'contact' && (
+                                <>
+                                  {entity.data.title && <div>{entity.data.title}</div>}
+                                  {entity.data.company && <div>{entity.data.company}</div>}
+                                  {entity.data.email && <div>{entity.data.email}</div>}
+                                </>
+                              )}
+                              {entity.type === 'org_node' && (
+                                <div>{entity.data.company_name || 'Unknown company'}</div>
+                              )}
+                              {entity.type === 'notes' && (
+                                <div>{entity.data.summary?.slice(0, 60)}...</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={confidenceColors[getConfidenceLabel(entity.confidence)]}>
+                              {Math.round(entity.confidence * 100)}%
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {entity.missingFields.length > 0 ? (
+                              <Badge variant="outline" className="text-[10px] border-yellow-500 text-yellow-500">
+                                Missing: {entity.missingFields.slice(0, 2).join(', ')}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] border-green-500 text-green-500">
+                                Complete
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </ScrollArea>
 
-              {/* Action Selection */}
-              <div className="mt-4 p-4 rounded-lg bg-muted/50 border border-border space-y-3">
-                <p className="text-sm font-medium">What would you like to do?</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant={selectedAction === 'database-and-chart' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedAction('database-and-chart')}
-                    className="justify-start gap-2"
-                  >
-                    <Building2 className="h-4 w-4" />
-                    Add to Database + Org Chart
+              {/* Debug Panel */}
+              <Collapsible open={debugOpen} onOpenChange={setDebugOpen} className="mt-4">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between">
+                    <span className="text-xs text-muted-foreground">Debug Logs ({debugLogs.length})</span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${debugOpen ? 'rotate-180' : ''}`} />
                   </Button>
-                  <Button
-                    variant={selectedAction === 'database-only' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedAction('database-only')}
-                    className="justify-start gap-2"
-                  >
-                    <Users className="h-4 w-4" />
-                    Add to Database Only
-                  </Button>
-                  <Button
-                    variant={selectedAction === 'new' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedAction('new')}
-                    className="justify-start gap-2"
-                  >
-                    <CheckCircle2 className="h-4 w-4" />
-                    Add as New Contacts
-                  </Button>
-                  <Button
-                    variant={selectedAction === 'notes-only' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setSelectedAction('notes-only')}
-                    className="justify-start gap-2"
-                  >
-                    <FileText className="h-4 w-4" />
-                    Save as Notes Only
-                  </Button>
-                </div>
-              </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-2 p-3 rounded-lg bg-black/80 border border-border max-h-[150px] overflow-auto">
+                    <pre className="text-[10px] text-green-400 font-mono whitespace-pre-wrap">
+                      {debugLogs.length > 0 ? debugLogs.join('\n') : 'No logs yet'}
+                    </pre>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
 
             <DialogFooter className="gap-2">
@@ -790,12 +1049,160 @@ export const AIImportModal = ({
                 Cancel
               </Button>
               <Button 
-                onClick={handleProceedToCompany}
+                onClick={handleProceedToRouting}
                 disabled={selectedCount === 0}
                 className="gap-2"
               >
-                Next: Assign Company
+                Next: Route Entities
                 <ChevronRight className="h-4 w-4" />
+              </Button>
+            </DialogFooter>
+          </>
+        ) : step === 'routing' ? (
+          <>
+            {/* Routing Step */}
+            <div className="flex-1 overflow-hidden flex flex-col py-2">
+              <div className="mb-4">
+                <h3 className="text-lg font-medium flex items-center gap-2">
+                  <HelpCircle className="h-5 w-5 text-muted-foreground" />
+                  Where should each entity go?
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Choose the destination for each extracted entity
+                </p>
+              </div>
+
+              <ScrollArea className="flex-1">
+                <div className="space-y-3">
+                  {extractedEntities.filter(e => e.selected).map((entity) => (
+                    <div 
+                      key={entity.id}
+                      className="p-4 rounded-lg border border-border bg-muted/30"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {entity.type === 'candidate' && <FileUser className="h-4 w-4 text-blue-500" />}
+                            {entity.type === 'contact' && <Users className="h-4 w-4 text-green-500" />}
+                            {entity.type === 'org_node' && <Network className="h-4 w-4 text-purple-500" />}
+                            {entity.type === 'notes' && <StickyNote className="h-4 w-4 text-amber-500" />}
+                            <span className="font-medium">{getEntityName(entity)}</span>
+                            <Badge variant="outline" className="text-[10px]">
+                              from {files[entity.sourceFileIndex]?.file.name}
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {entity.type === 'candidate' && (
+                              <>
+                                {entity.data.headline?.current_title && `${entity.data.headline.current_title} • `}
+                                {entity.data.personal?.email || 'No email'}
+                                {entity.missingFields.length > 0 && (
+                                  <span className="text-yellow-500 ml-2">
+                                    (Missing: {entity.missingFields.join(', ')})
+                                  </span>
+                                )}
+                              </>
+                            )}
+                            {entity.type === 'contact' && (
+                              <>
+                                {entity.data.company && `${entity.data.company} • `}
+                                {entity.data.email || entity.data.phone || 'No contact info'}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <Select
+                          value={entity.destination}
+                          onValueChange={(v) => updateEntityDestination(entity.id, v as ExtractedEntity['destination'])}
+                        >
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="talent">
+                              <div className="flex items-center gap-2">
+                                <UserPlus className="h-4 w-4 text-blue-500" />
+                                Save as Candidate
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="contact">
+                              <div className="flex items-center gap-2">
+                                <Users className="h-4 w-4 text-green-500" />
+                                Save as Contact
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="org_chart">
+                              <div className="flex items-center gap-2">
+                                <Network className="h-4 w-4 text-purple-500" />
+                                Add to Org Chart
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="notes">
+                              <div className="flex items-center gap-2">
+                                <StickyNote className="h-4 w-4 text-amber-500" />
+                                Save as Notes
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="skip">
+                              <div className="flex items-center gap-2">
+                                <X className="h-4 w-4 text-muted-foreground" />
+                                Skip
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              {/* Summary */}
+              <div className="mt-4 p-3 rounded-lg bg-muted/50 border border-border">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Import summary:</span>
+                  <div className="flex gap-4">
+                    <span className="flex items-center gap-1">
+                      <UserPlus className="h-4 w-4 text-blue-500" />
+                      {extractedEntities.filter(e => e.selected && e.destination === 'talent').length} candidates
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Users className="h-4 w-4 text-green-500" />
+                      {extractedEntities.filter(e => e.selected && (e.destination === 'contact' || e.destination === 'org_chart')).length} contacts
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => setStep('review')}
+                className="mr-auto gap-2"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Back
+              </Button>
+              <Button variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleProceedToCompany}
+                className="gap-2"
+              >
+                {extractedEntities.some(e => e.selected && (e.destination === 'contact' || e.destination === 'org_chart')) ? (
+                  <>
+                    Next: Assign Company
+                    <ChevronRight className="h-4 w-4" />
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Confirm Import
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </>
@@ -805,11 +1212,11 @@ export const AIImportModal = ({
             <div className="flex-1 overflow-hidden flex flex-col py-2">
               <div className="mb-4">
                 <h3 className="text-lg font-medium flex items-center gap-2">
-                  <HelpCircle className="h-5 w-5 text-muted-foreground" />
-                  Where should these contacts be added?
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  Which company should these contacts belong to?
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {selectedCount} contact{selectedCount > 1 ? 's' : ''} selected for import
+                  {extractedEntities.filter(e => e.selected && (e.destination === 'contact' || e.destination === 'org_chart')).length} contact(s) need company assignment
                 </p>
               </div>
 
@@ -827,7 +1234,7 @@ export const AIImportModal = ({
                     </Label>
                     
                     {companyAssignment === 'existing' && (
-                      <div className="space-y-2 pl-0">
+                      <div className="space-y-2">
                         <div className="relative">
                           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                           <Input
@@ -869,11 +1276,6 @@ export const AIImportModal = ({
                                 )}
                               </button>
                             ))}
-                            {filteredCompanies.length === 0 && (
-                              <p className="text-sm text-muted-foreground text-center py-4">
-                                No companies found
-                              </p>
-                            )}
                           </div>
                         </ScrollArea>
                       </div>
@@ -885,89 +1287,60 @@ export const AIImportModal = ({
                 <div className="flex items-start space-x-3">
                   <RadioGroupItem value="new" id="new" className="mt-1" />
                   <div className="flex-1 space-y-3">
-                    <Label htmlFor="new" className="text-sm font-medium cursor-pointer flex items-center gap-2">
-                      <Plus className="h-4 w-4" />
+                    <Label htmlFor="new" className="text-sm font-medium cursor-pointer">
                       Create new company
                     </Label>
                     
                     {companyAssignment === 'new' && (
-                      <div className="space-y-3 pl-0">
-                        <div className="space-y-2">
-                          <Label htmlFor="company-name" className="text-xs text-muted-foreground">
-                            Company Name <span className="text-destructive">*</span>
-                          </Label>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Company Name *</Label>
                           <Input
-                            id="company-name"
-                            placeholder="Enter company name..."
+                            placeholder="Company name"
                             value={newCompanyData.name}
                             onChange={(e) => setNewCompanyData(prev => ({ ...prev, name: e.target.value }))}
                           />
                         </div>
-                        
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-2">
-                            <Label htmlFor="company-industry" className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Briefcase className="h-3 w-3" />
-                              Industry (optional)
-                            </Label>
-                            <Input
-                              id="company-industry"
-                              placeholder="e.g., Software, Finance..."
-                              value={newCompanyData.industry}
-                              onChange={(e) => setNewCompanyData(prev => ({ ...prev, industry: e.target.value }))}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="company-location" className="text-xs text-muted-foreground flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              Location (optional)
-                            </Label>
-                            <Input
-                              id="company-location"
-                              placeholder="e.g., New York, NY..."
-                              value={newCompanyData.location}
-                              onChange={(e) => setNewCompanyData(prev => ({ ...prev, location: e.target.value }))}
-                            />
-                          </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Industry</Label>
+                          <Input
+                            placeholder="Industry"
+                            value={newCompanyData.industry}
+                            onChange={(e) => setNewCompanyData(prev => ({ ...prev, industry: e.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Location</Label>
+                          <Input
+                            placeholder="Location"
+                            value={newCompanyData.location}
+                            onChange={(e) => setNewCompanyData(prev => ({ ...prev, location: e.target.value }))}
+                          />
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* Option 3: Save as unassigned */}
+                {/* Option 3: Unassigned */}
                 <div className="flex items-start space-x-3">
                   <RadioGroupItem value="unassigned" id="unassigned" className="mt-1" />
                   <div className="flex-1">
                     <Label htmlFor="unassigned" className="text-sm font-medium cursor-pointer">
-                      Save as unassigned contacts
+                      Leave unassigned
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Contacts remain searchable and can be linked to a company later
+                      Contacts will be saved without a company association
                     </p>
                   </div>
                 </div>
               </RadioGroup>
-
-              {/* Summary */}
-              <div className="mt-auto pt-4 p-3 rounded-lg bg-muted/50 border border-border">
-                <div className="flex items-center gap-2 text-sm">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">Action:</span>
-                  <span className="font-medium">
-                    {selectedAction === 'database-and-chart' && 'Add to Database + Org Chart'}
-                    {selectedAction === 'database-only' && 'Add to Database Only'}
-                    {selectedAction === 'new' && 'Add as New Contacts'}
-                    {selectedAction === 'notes-only' && 'Save as Notes Only'}
-                  </span>
-                </div>
-              </div>
             </div>
 
             <DialogFooter className="gap-2">
               <Button 
                 variant="ghost" 
-                onClick={() => setStep('preview')}
+                onClick={() => setStep('routing')}
                 className="mr-auto gap-2"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -982,7 +1355,7 @@ export const AIImportModal = ({
                 className="gap-2"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                Confirm Import ({selectedCount})
+                Confirm Import
               </Button>
             </DialogFooter>
           </>

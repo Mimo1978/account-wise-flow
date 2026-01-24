@@ -25,9 +25,16 @@ verify_jwt = true
 [functions.ai-extract-cv]
 verify_jwt = true
 
+[functions.ai-unified-import]
+verify_jwt = true
+
 [functions.executive-insights]
 verify_jwt = true
 
 # Workspace management - handles its own auth
 [functions.workspace-management]
 verify_jwt = false
+
+# CV batch import
+[functions.cv-batch-import]
+verify_jwt = true

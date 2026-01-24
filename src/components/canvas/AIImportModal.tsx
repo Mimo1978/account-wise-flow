@@ -293,13 +293,16 @@ export const AIImportModal = ({
 
     setIsProcessing(true);
     setDebugLogs([]);
-    addDebugLog(`Starting processing of ${files.length} files`);
+    
+    // Generate client-side request ID for correlation
+    const requestId = `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    addDebugLog(`[${requestId}] Starting processing of ${files.length} files`);
 
     try {
       // Prepare files for API
       const filePayloads = await Promise.all(files.map(async (f, idx) => {
         const base64 = await fileToBase64(f.file);
-        addDebugLog(`File ${idx + 1}: ${f.file.name} (${f.file.type}, ${(f.file.size / 1024).toFixed(1)}KB)`);
+        addDebugLog(`[${requestId}] File ${idx + 1}: ${f.file.name} (${f.file.type}, ${(f.file.size / 1024).toFixed(1)}KB)`);
         return {
           base64,
           mimeType: f.file.type,
@@ -308,42 +311,76 @@ export const AIImportModal = ({
         };
       }));
 
-      addDebugLog('Calling ai-unified-import edge function...');
+      addDebugLog(`[${requestId}] Calling ai-unified-import edge function...`);
       
       const { data, error } = await supabase.functions.invoke('ai-unified-import', {
-        body: { files: filePayloads }
+        body: { files: filePayloads },
+        headers: { 'x-request-id': requestId }
       });
 
+      // Handle network/invocation errors
       if (error) {
-        addDebugLog(`ERROR: ${error.message}`);
-        toast.error(`Processing failed: ${error.message}`);
+        const errorMsg = error.message || 'Unknown network error';
+        addDebugLog(`[${requestId}] NETWORK ERROR: ${errorMsg}`);
+        addDebugLog(`[${requestId}] Error context: ${JSON.stringify(error)}`);
+        toast.error(`Processing failed: ${errorMsg}`, {
+          description: 'Check the debug panel for details',
+          action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
+        });
         setIsProcessing(false);
         return;
       }
 
-      if (!data?.success) {
-        addDebugLog(`ERROR: ${data?.error || 'Unknown error'}`);
-        toast.error(data?.error || 'Processing failed');
-        setIsProcessing(false);
-        return;
+      // Handle structured API errors (ok: false)
+      if (!data?.ok) {
+        const serverRequestId = data?.request_id || requestId;
+        const errorCode = data?.error_code || 'UNKNOWN_ERROR';
+        const errorMsg = data?.message || 'Processing failed';
+        const details = data?.details || '';
+        
+        addDebugLog(`[${serverRequestId}] API ERROR: ${errorCode}`);
+        addDebugLog(`[${serverRequestId}] Message: ${errorMsg}`);
+        if (details) addDebugLog(`[${serverRequestId}] Details: ${details}`);
+        
+        // Check if we have partial results
+        if (data?.data?.results) {
+          addDebugLog(`[${serverRequestId}] Partial results available, processing...`);
+        } else {
+          toast.error(errorMsg, {
+            description: details || `Error code: ${errorCode}`,
+            action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
+          });
+          setIsProcessing(false);
+          return;
+        }
       }
 
-      addDebugLog(`Processing complete: ${data.data.summary.files_succeeded}/${data.data.summary.files_processed} files, ${data.data.summary.total_entities_extracted} entities`);
+      const serverRequestId = data?.request_id || requestId;
+      const summary = data?.data?.summary || { files_succeeded: 0, files_processed: 0, total_entities_extracted: 0, files_failed: 0 };
+      
+      addDebugLog(`[${serverRequestId}] Processing complete: ${summary.files_succeeded}/${summary.files_processed} files succeeded, ${summary.files_failed} failed, ${summary.total_entities_extracted} entities`);
 
       // Update file states with detection results
-      const results = data.data.results;
+      const results = data?.data?.results || [];
       setFiles(prev => prev.map((f, idx) => {
         const result = results[idx];
         if (result) {
-          addDebugLog(`File "${f.file.name}": detected=${result.classification.detectedType}, confidence=${result.classification.confidence.toFixed(2)}, text_length=${result.extracted_text_length}, ocr=${result.ocr_used}`);
-          addDebugLog(`  → Debug: emails=${result.debug_info.emails_found}, phones=${result.debug_info.phones_found}, names=${result.debug_info.names_found}`);
+          addDebugLog(`[${serverRequestId}] File "${f.file.name}": ${result.ok ? 'OK' : 'FAILED'}`);
+          addDebugLog(`  → Type: ${result.classification?.detectedType}, confidence=${(result.classification?.confidence || 0).toFixed(2)}`);
+          addDebugLog(`  → Method: ${result.extraction_method}, text_length=${result.extracted_text_length}, ocr=${result.ocr_used}`);
+          addDebugLog(`  → Debug: emails=${result.debug_info?.emails_found || 0}, phones=${result.debug_info?.phones_found || 0}, names=${result.debug_info?.names_found || 0}, time=${result.debug_info?.processing_time_ms || 0}ms`);
+          
+          if (!result.ok && result.error_message) {
+            addDebugLog(`  → ERROR: [${result.error_code}] ${result.error_message}`);
+          }
+          
           return {
             ...f,
-            detectedType: result.classification.detectedType,
-            detectedConfidence: result.classification.confidence,
-            detectedReasoning: result.classification.reasoning,
+            detectedType: result.classification?.detectedType,
+            detectedConfidence: result.classification?.confidence,
+            detectedReasoning: result.classification?.reasoning,
             isProcessed: true,
-            processingError: result.parse_success ? undefined : result.error_message,
+            processingError: result.ok ? undefined : `[${result.error_code}] ${result.error_message}`,
           };
         }
         return f;
@@ -352,6 +389,8 @@ export const AIImportModal = ({
       // Convert results to extracted entities
       const allEntities: ExtractedEntity[] = [];
       results.forEach((result: any, fileIdx: number) => {
+        if (!result.entities) return;
+        
         result.entities.forEach((entity: any, entityIdx: number) => {
           const entityId = `entity-${fileIdx}-${entityIdx}-${Date.now()}`;
           
@@ -364,10 +403,12 @@ export const AIImportModal = ({
           // Check for duplicates
           let duplicateOf: string | undefined;
           if (entity.type === 'candidate' || entity.type === 'contact') {
-            const name = entity.data.personal?.full_name || entity.data.name;
-            const email = entity.data.personal?.email || entity.data.email;
-            const dup = findDuplicate(name, email);
-            if (dup) duplicateOf = dup.id;
+            const name = entity.data?.personal?.full_name || entity.data?.name;
+            const email = entity.data?.personal?.email || entity.data?.email;
+            if (name) {
+              const dup = findDuplicate(name, email);
+              if (dup) duplicateOf = dup.id;
+            }
           }
 
           allEntities.push({
@@ -375,31 +416,36 @@ export const AIImportModal = ({
             sourceFileIndex: fileIdx,
             type: entity.type,
             data: entity.data,
-            confidence: entity.confidence,
+            confidence: entity.confidence || 0.5,
             missingFields: entity.missing_fields || [],
             selected: true,
             destination,
             duplicateOf,
           });
 
-          addDebugLog(`  Entity: type=${entity.type}, confidence=${entity.confidence.toFixed(2)}, missing=[${entity.missing_fields?.join(', ') || 'none'}]`);
+          addDebugLog(`  Entity: type=${entity.type}, confidence=${(entity.confidence || 0).toFixed(2)}, missing=[${entity.missing_fields?.join(', ') || 'none'}]`);
         });
-
-        if (result.entities.length === 0 && !result.parse_success) {
-          addDebugLog(`  WARNING: No entities extracted from ${files[fileIdx].file.name}: ${result.error_message}`);
-        }
       });
 
       setExtractedEntities(allEntities);
 
+      // Show appropriate toast based on results
       if (allEntities.length > 0) {
         setStep('review');
-        toast.success(`Extracted ${allEntities.length} entities from ${results.filter((r: any) => r.parse_success).length} files`);
+        if (summary.files_failed > 0) {
+          toast.warning(`Extracted ${allEntities.length} entities. ${summary.files_failed} file(s) had issues.`, {
+            action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
+          });
+        } else {
+          toast.success(`Extracted ${allEntities.length} entities from ${summary.files_succeeded} file(s)`);
+        }
       } else {
-        // Even with no entities, show what we found
-        const failedFiles = results.filter((r: any) => !r.parse_success);
-        if (failedFiles.length > 0) {
-          toast.error(`Could not extract data from ${failedFiles.length} file(s). Check the debug panel for details.`);
+        // No entities extracted
+        if (summary.files_failed > 0) {
+          toast.error(`Could not extract data from ${summary.files_failed} file(s)`, {
+            description: 'Check the debug panel for details',
+            action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
+          });
         } else {
           toast.warning('No structured data could be extracted from the uploaded files');
         }
@@ -408,8 +454,12 @@ export const AIImportModal = ({
 
     } catch (err) {
       console.error('Processing error:', err);
-      addDebugLog(`EXCEPTION: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      toast.error('Failed to process files');
+      addDebugLog(`[${requestId}] EXCEPTION: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      addDebugLog(`[${requestId}] Stack: ${err instanceof Error ? err.stack : 'N/A'}`);
+      toast.error('Failed to process files', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+        action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
+      });
     } finally {
       setIsProcessing(false);
     }

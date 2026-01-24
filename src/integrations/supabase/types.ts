@@ -370,11 +370,14 @@ export type Database = {
           dedupe_candidate_ids: Json | null
           error_message: string | null
           extracted_data: Json | null
+          field_confidence: Json | null
           file_name: string
           file_size_bytes: number
           file_type: string
           id: string
           parse_confidence: number | null
+          search_tags: string[] | null
+          search_vector: unknown
           started_at: string | null
           status: Database["public"]["Enums"]["cv_item_status"]
           storage_path: string | null
@@ -390,11 +393,14 @@ export type Database = {
           dedupe_candidate_ids?: Json | null
           error_message?: string | null
           extracted_data?: Json | null
+          field_confidence?: Json | null
           file_name: string
           file_size_bytes?: number
           file_type: string
           id?: string
           parse_confidence?: number | null
+          search_tags?: string[] | null
+          search_vector?: unknown
           started_at?: string | null
           status?: Database["public"]["Enums"]["cv_item_status"]
           storage_path?: string | null
@@ -410,11 +416,14 @@ export type Database = {
           dedupe_candidate_ids?: Json | null
           error_message?: string | null
           extracted_data?: Json | null
+          field_confidence?: Json | null
           file_name?: string
           file_size_bytes?: number
           file_type?: string
           id?: string
           parse_confidence?: number | null
+          search_tags?: string[] | null
+          search_vector?: unknown
           started_at?: string | null
           status?: Database["public"]["Enums"]["cv_item_status"]
           storage_path?: string | null

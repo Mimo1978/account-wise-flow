@@ -299,6 +299,20 @@ export const AIImportModal = ({
     addDebugLog(`[${requestId}] Starting processing of ${files.length} files`);
 
     try {
+      // Get the current session for authentication
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        addDebugLog(`[${requestId}] Session error: ${sessionError.message}`);
+      }
+      
+      // Log auth state for debugging
+      if (session?.access_token) {
+        addDebugLog(`[${requestId}] Auth: Using authenticated session (user: ${session.user?.email || session.user?.id})`);
+      } else {
+        addDebugLog(`[${requestId}] Auth: No active session, proceeding in demo mode`);
+      }
+
       // Prepare files for API
       const filePayloads = await Promise.all(files.map(async (f, idx) => {
         const base64 = await fileToBase64(f.file);
@@ -313,9 +327,19 @@ export const AIImportModal = ({
 
       addDebugLog(`[${requestId}] Calling ai-unified-import edge function...`);
       
+      // Build headers with auth token if available
+      const headers: Record<string, string> = { 
+        'x-request-id': requestId,
+      };
+      
+      // Explicitly pass the Authorization header if we have a session
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+      
       const { data, error } = await supabase.functions.invoke('ai-unified-import', {
         body: { files: filePayloads },
-        headers: { 'x-request-id': requestId }
+        headers
       });
 
       // Handle network/invocation errors
@@ -323,10 +347,19 @@ export const AIImportModal = ({
         const errorMsg = error.message || 'Unknown network error';
         addDebugLog(`[${requestId}] NETWORK ERROR: ${errorMsg}`);
         addDebugLog(`[${requestId}] Error context: ${JSON.stringify(error)}`);
-        toast.error(`Processing failed: ${errorMsg}`, {
-          description: 'Check the debug panel for details',
-          action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
-        });
+        
+        // Check for specific auth errors
+        if (errorMsg.includes('JWT') || errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
+          toast.error('Session expired. Please sign in again.', {
+            description: 'Your authentication session has expired.',
+            action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
+          });
+        } else {
+          toast.error(`Processing failed: ${errorMsg}`, {
+            description: 'Check the debug panel for details',
+            action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
+          });
+        }
         setIsProcessing(false);
         return;
       }

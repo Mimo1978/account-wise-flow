@@ -17,6 +17,8 @@ const MAX_PAYLOAD_SIZE = 15 * 1024 * 1024;
 // Error codes for structured responses
 const ErrorCodes = {
   PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
+  AUTH_MISSING: 'AUTH_MISSING',
+  AUTH_INVALID: 'AUTH_INVALID',
   UNAUTHORIZED: 'UNAUTHORIZED',
   INVALID_TOKEN: 'INVALID_TOKEN',
   INSUFFICIENT_PERMISSIONS: 'INSUFFICIENT_PERMISSIONS',
@@ -29,6 +31,7 @@ const ErrorCodes = {
   FILE_TOO_LARGE: 'FILE_TOO_LARGE',
   FILE_EXTRACTION_FAILED: 'FILE_EXTRACTION_FAILED',
   PARSE_ERROR: 'PARSE_ERROR',
+  CONFIG_MISSING: 'CONFIG_MISSING',
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
 } as const;
 
@@ -1047,9 +1050,17 @@ serve(async (req) => {
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
+  // Log env var presence (not values) for debugging
+  log(requestId, 'info', 'Environment check', {
+    hasSupabaseUrl: !!supabaseUrl,
+    hasAnonKey: !!supabaseAnonKey,
+    hasServiceKey: !!supabaseServiceKey,
+    hasLovableKey: !!Deno.env.get('LOVABLE_API_KEY'),
+  });
+
   if (!supabaseUrl || !supabaseAnonKey) {
     log(requestId, 'error', 'Missing Supabase configuration');
-    return createErrorResponse(requestId, ErrorCodes.AI_CONFIG_ERROR, 'Server configuration error', 'Missing SUPABASE_URL or SUPABASE_ANON_KEY');
+    return createErrorResponse(requestId, ErrorCodes.CONFIG_MISSING, 'Server configuration error', 'Missing SUPABASE_URL or SUPABASE_ANON_KEY');
   }
 
   try {
@@ -1064,35 +1075,74 @@ serve(async (req) => {
     let userId: string | null = null;
     let isDemo = false;
     
+    log(requestId, 'info', 'Auth header check', { 
+      hasAuthHeader: !!authHeader, 
+      headerPrefix: authHeader?.substring(0, 15) + '...' 
+    });
+    
     if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      
+      // Create client with the user's token
       const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } }
       });
 
-      // Get user from session
+      // Validate the token and get user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
-      if (userError || !user) {
-        log(requestId, 'warn', 'Auth failed, checking demo mode', { error: userError?.message });
-        // Check if this might be a demo workspace request
+      if (userError) {
+        log(requestId, 'warn', 'JWT validation failed', { 
+          error: userError.message,
+          status: userError.status,
+        });
+        
+        // Check if this is an expired token vs invalid token
+        if (userError.message?.includes('expired') || userError.status === 401) {
+          return createErrorResponse(
+            requestId, 
+            ErrorCodes.AUTH_INVALID, 
+            'Session expired', 
+            'Your session has expired. Please sign in again.'
+          );
+        }
+        
+        // For other auth errors in demo context, allow through
+        log(requestId, 'info', 'Auth failed but allowing demo mode');
+        isDemo = true;
+      } else if (!user) {
+        log(requestId, 'warn', 'No user returned from token validation');
         isDemo = true;
       } else {
         userId = user.id;
+        log(requestId, 'info', 'User authenticated', { userId, email: user.email });
+        
+        // Use service role client for RPC calls to avoid RLS issues
+        const adminClient = supabaseServiceKey 
+          ? createClient(supabaseUrl, supabaseServiceKey)
+          : supabase;
         
         // Check role
-        const { data: roleData } = await supabase.rpc('get_user_role', { _user_id: userId });
-        if (roleData === 'viewer') {
+        const { data: roleData, error: roleError } = await adminClient.rpc('get_user_role', { _user_id: userId });
+        
+        if (roleError) {
+          log(requestId, 'warn', 'Role check failed', { error: roleError.message });
+        } else if (roleData === 'viewer') {
           return createErrorResponse(requestId, ErrorCodes.INSUFFICIENT_PERMISSIONS, 'Insufficient permissions', 'Viewer role cannot use AI import');
         }
         
         // Check if demo user
-        const { data: workspaceMode } = await supabase.rpc('get_workspace_mode', { _user_id: userId });
+        const { data: workspaceMode, error: modeError } = await adminClient.rpc('get_workspace_mode', { _user_id: userId });
+        if (modeError) {
+          log(requestId, 'warn', 'Workspace mode check failed', { error: modeError.message });
+        }
         isDemo = workspaceMode === 'demo' || workspaceMode === 'public_demo';
+        log(requestId, 'info', 'Workspace mode', { workspaceMode, isDemo });
       }
     } else {
-      // No auth header - allow for demo mode
+      // No auth header - allow for demo mode with warning
       isDemo = true;
-      log(requestId, 'info', 'No auth header, running in demo mode');
+      log(requestId, 'info', 'No auth header provided, running in demo mode');
     }
 
     // Rate limiting (use IP for anonymous, userId for authenticated)

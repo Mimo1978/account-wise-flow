@@ -33,6 +33,9 @@ const ErrorCodes = {
   PARSE_ERROR: 'PARSE_ERROR',
   CONFIG_MISSING: 'CONFIG_MISSING',
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+  DOCX_TEXT_EMPTY: 'DOCX_TEXT_EMPTY',
+  PDF_TEXT_EMPTY: 'PDF_TEXT_EMPTY',
+  UNSUPPORTED_FORMAT: 'UNSUPPORTED_FORMAT',
 } as const;
 
 type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];
@@ -133,7 +136,7 @@ interface FileResult {
   ok: boolean;
   classification: FileClassification;
   extracted_text_length: number;
-  extraction_method: 'text' | 'xml_parse' | 'ai_vision' | 'ocr_fallback';
+  extraction_method: 'docx_text' | 'pptx_text' | 'pdf_text' | 'pdf_ocr' | 'ai_vision' | 'text' | 'ocr_fallback';
   ocr_used: boolean;
   entities: ExtractedEntity[];
   error_code?: ErrorCode;
@@ -307,95 +310,308 @@ function classifyFileHeuristic(text: string, fileName: string): FileClassificati
   return { detectedType, confidence, reasoning };
 }
 
-// Extract text from various file types
+// Import JSZip for DOCX/PPTX extraction (they are ZIP archives)
+import JSZip from "https://esm.sh/jszip@3.10.1";
+
+// Extraction method types
+type ExtractionMethod = 'docx_text' | 'pptx_text' | 'pdf_text' | 'pdf_ocr' | 'ai_vision' | 'text' | 'ocr_fallback';
+
+interface ExtractionResult {
+  text: string;
+  needsOcr: boolean;
+  imageBase64?: string;
+  method: ExtractionMethod;
+  errorCode?: string;
+  errorMessage?: string;
+}
+
+// Extract text from DOCX (which is a ZIP containing XML)
+async function extractTextFromDocx(base64Data: string): Promise<{ text: string; success: boolean; error?: string }> {
+  try {
+    // Decode base64 to binary
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    // Load as ZIP
+    const zip = await JSZip.loadAsync(bytes);
+    
+    // DOCX stores main content in word/document.xml
+    const documentXml = await zip.file('word/document.xml')?.async('string');
+    
+    if (!documentXml) {
+      return { text: '', success: false, error: 'No document.xml found in DOCX' };
+    }
+    
+    // Extract text from <w:t> tags (Word text elements)
+    const textParts: string[] = [];
+    
+    // Match all text nodes - handle both <w:t>text</w:t> and <w:t xml:space="preserve">text</w:t>
+    const textRegex = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+    let match;
+    while ((match = textRegex.exec(documentXml)) !== null) {
+      if (match[1]) {
+        textParts.push(match[1]);
+      }
+    }
+    
+    // Also check for paragraph breaks to add newlines
+    let processedText = documentXml;
+    
+    // Add newlines for paragraph ends
+    processedText = processedText.replace(/<\/w:p>/g, '\n');
+    
+    // Now extract just the text content
+    const paragraphTexts: string[] = [];
+    const paragraphs = documentXml.split(/<\/w:p>/);
+    
+    for (const para of paragraphs) {
+      const paraText: string[] = [];
+      const textMatches = para.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g);
+      for (const m of textMatches) {
+        if (m[1]) {
+          paraText.push(m[1]);
+        }
+      }
+      if (paraText.length > 0) {
+        paragraphTexts.push(paraText.join(''));
+      }
+    }
+    
+    const finalText = paragraphTexts.join('\n').trim();
+    
+    if (finalText.length === 0) {
+      return { text: '', success: false, error: 'No text content found in DOCX' };
+    }
+    
+    return { text: finalText, success: true };
+    
+  } catch (error) {
+    console.error('DOCX extraction error:', error);
+    return { text: '', success: false, error: `DOCX parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
+  }
+}
+
+// Extract text from PPTX (also a ZIP)
+async function extractTextFromPptx(base64Data: string): Promise<{ text: string; success: boolean; error?: string }> {
+  try {
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    const zip = await JSZip.loadAsync(bytes);
+    const allTexts: string[] = [];
+    
+    // PPTX stores slides in ppt/slides/slide1.xml, slide2.xml, etc.
+    const slideFiles = Object.keys(zip.files).filter(f => f.startsWith('ppt/slides/slide') && f.endsWith('.xml'));
+    
+    for (const slideFile of slideFiles.sort()) {
+      const slideXml = await zip.file(slideFile)?.async('string');
+      if (slideXml) {
+        // Extract text from <a:t> tags (PowerPoint text elements)
+        const textMatches = slideXml.matchAll(/<a:t>([^<]*)<\/a:t>/g);
+        for (const m of textMatches) {
+          if (m[1]?.trim()) {
+            allTexts.push(m[1]);
+          }
+        }
+      }
+    }
+    
+    const finalText = allTexts.join(' ').replace(/\s+/g, ' ').trim();
+    
+    if (finalText.length === 0) {
+      return { text: '', success: false, error: 'No text content found in PPTX' };
+    }
+    
+    return { text: finalText, success: true };
+    
+  } catch (error) {
+    console.error('PPTX extraction error:', error);
+    return { text: '', success: false, error: `PPTX parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}` };
+  }
+}
+
+// Extract text from PDF using basic text extraction
+// For scanned PDFs, this will return minimal text and we'll need OCR
+function extractTextFromPdf(bytes: Uint8Array): { text: string; isScanned: boolean } {
+  try {
+    const textDecoder = new TextDecoder('utf-8', { fatal: false });
+    const rawContent = textDecoder.decode(bytes);
+    
+    // Look for text streams in PDF
+    const textParts: string[] = [];
+    
+    // Pattern 1: Text in parentheses after Tj operator
+    const tjMatches = rawContent.matchAll(/\(([^)]+)\)\s*Tj/g);
+    for (const m of tjMatches) {
+      const decoded = m[1]
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r')
+        .replace(/\\t/g, '\t')
+        .replace(/\\\(/g, '(')
+        .replace(/\\\)/g, ')')
+        .replace(/\\\\/g, '\\');
+      textParts.push(decoded);
+    }
+    
+    // Pattern 2: Text arrays with TJ operator
+    const tjArrayMatches = rawContent.matchAll(/\[((?:[^[\]]+|\[[^\]]*\])*)\]\s*TJ/gi);
+    for (const m of tjArrayMatches) {
+      const arrayContent = m[1];
+      const stringMatches = arrayContent.matchAll(/\(([^)]*)\)/g);
+      for (const sm of stringMatches) {
+        textParts.push(sm[1]);
+      }
+    }
+    
+    // Pattern 3: Unicode text streams (common in modern PDFs)
+    const unicodeMatches = rawContent.matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g);
+    for (const m of unicodeMatches) {
+      try {
+        const hex = m[1];
+        let str = '';
+        for (let i = 0; i < hex.length; i += 4) {
+          const charCode = parseInt(hex.substring(i, i + 4), 16);
+          if (charCode > 31 && charCode < 127) {
+            str += String.fromCharCode(charCode);
+          }
+        }
+        if (str.trim()) {
+          textParts.push(str);
+        }
+      } catch {}
+    }
+    
+    const extractedText = textParts.join(' ')
+      .replace(/\s+/g, ' ')
+      .replace(/[^\x20-\x7E\n\r\t]/g, ' ')
+      .trim();
+    
+    // If very little text extracted, likely a scanned PDF
+    const isScanned = extractedText.length < 200;
+    
+    return { text: extractedText, isScanned };
+    
+  } catch (error) {
+    console.error('PDF text extraction error:', error);
+    return { text: '', isScanned: true };
+  }
+}
+
+// Main extraction function with deterministic extractor selection
 async function extractTextFromFile(
   base64Data: string,
   mimeType: string,
-  fileName: string
-): Promise<{ text: string; needsOcr: boolean; imageBase64?: string; method: string }> {
+  fileName: string,
+  requestId: string
+): Promise<ExtractionResult> {
+  const lowerFileName = fileName.toLowerCase();
   
   try {
+    // Decode base64 to bytes for non-ZIP formats
     const bytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
     
-    // For images, we'll need OCR/AI vision
+    // ============= DETERMINISTIC EXTRACTION SELECTION =============
+    
+    // 1. DOCX - ALWAYS use docx_text extractor (never OCR/vision)
+    if (lowerFileName.endsWith('.docx') || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      console.log(`[${requestId}] Using DOCX text extractor for ${fileName}`);
+      const result = await extractTextFromDocx(base64Data);
+      
+      if (result.success && result.text.length > 0) {
+        console.log(`[${requestId}] DOCX extracted ${result.text.length} chars`);
+        return { text: result.text, needsOcr: false, method: 'docx_text' };
+      }
+      
+      // DOCX extraction failed - return error, don't fall back to OCR
+      console.log(`[${requestId}] DOCX extraction failed: ${result.error}`);
+      return {
+        text: '',
+        needsOcr: false,
+        method: 'docx_text',
+        errorCode: 'DOCX_TEXT_EMPTY',
+        errorMessage: result.error || 'Could not read text from DOCX. Please re-export as PDF or DOCX without protection.'
+      };
+    }
+    
+    // 2. PPTX - Use pptx_text extractor
+    if (lowerFileName.endsWith('.pptx') || mimeType === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+      console.log(`[${requestId}] Using PPTX text extractor for ${fileName}`);
+      const result = await extractTextFromPptx(base64Data);
+      
+      if (result.success && result.text.length > 0) {
+        console.log(`[${requestId}] PPTX extracted ${result.text.length} chars`);
+        return { text: result.text, needsOcr: false, method: 'pptx_text' };
+      }
+      
+      // PPTX with no text - might have images, use AI vision
+      console.log(`[${requestId}] PPTX no text, falling back to AI vision`);
+      return { text: '', needsOcr: true, imageBase64: base64Data, method: 'ai_vision' };
+    }
+    
+    // 3. PDF - Try text extraction first, OCR only if scanned
+    if (lowerFileName.endsWith('.pdf') || mimeType === 'application/pdf') {
+      console.log(`[${requestId}] Trying PDF text extraction for ${fileName}`);
+      const pdfResult = extractTextFromPdf(bytes);
+      
+      if (!pdfResult.isScanned && pdfResult.text.length >= 200) {
+        console.log(`[${requestId}] PDF text extracted ${pdfResult.text.length} chars`);
+        return { text: pdfResult.text, needsOcr: false, method: 'pdf_text' };
+      }
+      
+      // Scanned PDF or very little text - use AI vision for OCR
+      console.log(`[${requestId}] PDF appears scanned (${pdfResult.text.length} chars), using AI vision OCR`);
+      return { text: pdfResult.text, needsOcr: true, imageBase64: base64Data, method: 'pdf_ocr' };
+    }
+    
+    // 4. Images - OCR/AI vision is appropriate
     if (mimeType.startsWith('image/')) {
+      console.log(`[${requestId}] Image file, using AI vision`);
       return { text: '', needsOcr: true, imageBase64: base64Data, method: 'ai_vision' };
     }
     
-    // For PDF - send to AI vision for best results
-    if (mimeType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
-      return { text: '', needsOcr: true, imageBase64: base64Data, method: 'ai_vision' };
+    // 5. DOC (older Word format) - unsupported, suggest conversion
+    if (lowerFileName.endsWith('.doc')) {
+      console.log(`[${requestId}] Old .doc format not supported`);
+      return {
+        text: '',
+        needsOcr: false,
+        method: 'text',
+        errorCode: 'UNSUPPORTED_FORMAT',
+        errorMessage: 'Old .doc format not supported. Please convert to .docx or PDF.'
+      };
     }
     
-    // For DOCX - try to extract text from XML
-    if (fileName.toLowerCase().endsWith('.docx') || mimeType.includes('word')) {
+    // 6. Plain text files
+    if (mimeType.startsWith('text/') || lowerFileName.endsWith('.txt') || lowerFileName.endsWith('.md')) {
       const textDecoder = new TextDecoder('utf-8', { fatal: false });
-      const rawText = textDecoder.decode(bytes);
-      
-      // Extract text from XML tags
-      const textMatches = rawText.match(/<w:t[^>]*>([^<]*)<\/w:t>/g);
-      if (textMatches) {
-        const extractedText = textMatches
-          .map(match => match.replace(/<[^>]+>/g, ''))
-          .join(' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        
-        if (extractedText.length > 100) {
-          return { text: extractedText, needsOcr: false, method: 'xml_parse' };
-        }
-      }
-      
-      // Fallback to vision for complex DOCX
-      return { text: '', needsOcr: true, imageBase64: base64Data, method: 'ai_vision' };
+      const text = textDecoder.decode(bytes);
+      console.log(`[${requestId}] Plain text file, ${text.length} chars`);
+      return { text, needsOcr: false, method: 'text' };
     }
     
-    // For DOC (older format) - send to vision
-    if (fileName.toLowerCase().endsWith('.doc')) {
-      return { text: '', needsOcr: true, imageBase64: base64Data, method: 'ai_vision' };
-    }
-    
-    // For plain text
-    if (mimeType.startsWith('text/') || fileName.endsWith('.txt')) {
-      const textDecoder = new TextDecoder('utf-8', { fatal: false });
-      return { text: textDecoder.decode(bytes), needsOcr: false, method: 'text' };
-    }
-    
-    // For PPTX - extract slide text
-    if (fileName.toLowerCase().endsWith('.pptx')) {
-      const textDecoder = new TextDecoder('utf-8', { fatal: false });
-      const rawText = textDecoder.decode(bytes);
-      
-      const textMatches = rawText.match(/<a:t>([^<]*)<\/a:t>/g);
-      if (textMatches) {
-        const extractedText = textMatches
-          .map(match => match.replace(/<[^>]+>/g, ''))
-          .join(' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        
-        if (extractedText.length > 50) {
-          return { text: extractedText, needsOcr: false, method: 'xml_parse' };
-        }
-      }
-      
-      return { text: '', needsOcr: true, imageBase64: base64Data, method: 'ai_vision' };
-    }
-    
-    // Unknown format - try as text
+    // 7. Unknown format - try to read as text
     const textDecoder = new TextDecoder('utf-8', { fatal: false });
     const rawText = textDecoder.decode(bytes);
     
     // Check if it looks like readable text
     const printableRatio = (rawText.match(/[\x20-\x7E\n\r\t]/g) || []).length / rawText.length;
     if (printableRatio > 0.8 && rawText.length > 50) {
+      console.log(`[${requestId}] Unknown format but readable text, ${rawText.length} chars`);
       return { text: rawText, needsOcr: false, method: 'text' };
     }
     
+    // Can't read - try AI vision as last resort
+    console.log(`[${requestId}] Unknown format, unreadable, trying AI vision`);
     return { text: '', needsOcr: true, imageBase64: base64Data, method: 'ai_vision' };
     
   } catch (error) {
-    console.error('Text extraction error:', error);
+    console.error(`[${requestId}] Text extraction error:`, error);
     return { text: '', needsOcr: true, imageBase64: base64Data, method: 'ocr_fallback' };
   }
 }
@@ -870,10 +1086,18 @@ async function processFile(
   try {
     // Step 1: Extract text
     log(requestId, 'info', `Extracting text from ${file.fileName}`, { mimeType: file.mimeType, size: fileSize });
-    const extraction = await extractTextFromFile(file.base64, file.mimeType, file.fileName);
+    const extraction = await extractTextFromFile(file.base64, file.mimeType, file.fileName, requestId);
     result.extracted_text_length = extraction.text.length;
     result.ocr_used = extraction.needsOcr;
-    result.extraction_method = extraction.method as any;
+    result.extraction_method = extraction.method;
+    
+    // Check for extraction errors
+    if (extraction.errorCode) {
+      result.error_code = extraction.errorCode as ErrorCode;
+      result.error_message = extraction.errorMessage || 'Text extraction failed';
+      result.debug_info.processing_time_ms = Date.now() - startTime;
+      return result;
+    }
 
     // Step 2: Classify file
     let classification: FileClassification;

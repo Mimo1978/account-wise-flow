@@ -18,23 +18,22 @@ verify_jwt = false
 [functions.ai-role-suggestions]
 verify_jwt = false
 
-# These functions REQUIRE authentication - no demo mode
+# All functions handle JWT verification in code for better error messages
+# This allows proper structured JSON errors instead of opaque 401s
 [functions.ai-extract-contacts]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-extract-cv]
-verify_jwt = true
+verify_jwt = false
 
 [functions.ai-unified-import]
-verify_jwt = true
+verify_jwt = false
 
 [functions.executive-insights]
-verify_jwt = true
+verify_jwt = false
 
-# Workspace management - handles its own auth
 [functions.workspace-management]
 verify_jwt = false
 
-# CV batch import
 [functions.cv-batch-import]
-verify_jwt = true
+verify_jwt = false

@@ -27,8 +27,9 @@ export function useDemoWorkspace() {
   const [contacts, setContacts] = useState<DemoContact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
-  // Check if user is in demo mode
+  // Check if user is in demo mode and get workspace ID
   useEffect(() => {
     const checkDemoStatus = async () => {
       if (!user) {
@@ -38,11 +39,30 @@ export function useDemoWorkspace() {
       }
       
       try {
-        const { data, error } = await supabase.rpc('is_demo_user', { _user_id: user.id });
-        if (error) throw error;
-        setIsDemoUser(!!data);
+        console.log('[useDemoWorkspace] Checking demo status for user:', user.id);
+        
+        // First check if user is a demo user
+        const { data: isDemoData, error: demoError } = await supabase.rpc('is_demo_user', { _user_id: user.id });
+        if (demoError) {
+          console.error('[useDemoWorkspace] Error checking demo status:', demoError);
+          throw demoError;
+        }
+        
+        console.log('[useDemoWorkspace] Is demo user:', isDemoData);
+        setIsDemoUser(!!isDemoData);
+        
+        // Get the workspace ID
+        if (isDemoData) {
+          const { data: wsId, error: wsError } = await supabase.rpc('get_current_workspace_id', { _user_id: user.id });
+          if (wsError) {
+            console.error('[useDemoWorkspace] Error getting workspace ID:', wsError);
+          } else {
+            console.log('[useDemoWorkspace] Workspace ID:', wsId);
+            setWorkspaceId(wsId);
+          }
+        }
       } catch (error) {
-        console.error('Failed to check demo status:', error);
+        console.error('[useDemoWorkspace] Failed to check demo status:', error);
         setIsDemoUser(false);
       }
     };
@@ -50,19 +70,50 @@ export function useDemoWorkspace() {
     checkDemoStatus();
   }, [user]);
 
+  // Ensure demo data is seeded
+  const ensureDemoSeeded = useCallback(async () => {
+    if (!workspaceId) return;
+    
+    console.log('[useDemoWorkspace] Ensuring demo data is seeded for workspace:', workspaceId);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('workspace-management/seed-demo', {
+        body: { workspaceId }
+      });
+      
+      if (error) {
+        console.error('[useDemoWorkspace] Error seeding demo:', error);
+      } else {
+        console.log('[useDemoWorkspace] Seed result:', data);
+      }
+    } catch (error) {
+      console.error('[useDemoWorkspace] Failed to seed demo:', error);
+    }
+  }, [workspaceId]);
+
   // Load demo data when user is confirmed as demo user
   const loadDemoData = useCallback(async () => {
     if (!user || isDemoUser !== true) return;
     
+    console.log('[useDemoWorkspace] Loading demo data...');
     setIsLoading(true);
+    
     try {
+      // First ensure data is seeded
+      await ensureDemoSeeded();
+      
       // Load companies
       const { data: companiesData, error: companiesError } = await supabase
         .from('companies')
         .select('id, name, industry, size')
         .order('name');
       
-      if (companiesError) throw companiesError;
+      if (companiesError) {
+        console.error('[useDemoWorkspace] Error loading companies:', companiesError);
+        throw companiesError;
+      }
+      
+      console.log('[useDemoWorkspace] Loaded companies:', companiesData?.length);
       setCompanies(companiesData || []);
       
       // Load contacts
@@ -71,22 +122,27 @@ export function useDemoWorkspace() {
         .select('id, name, title, department, email, phone, company_id')
         .order('name');
       
-      if (contactsError) throw contactsError;
+      if (contactsError) {
+        console.error('[useDemoWorkspace] Error loading contacts:', contactsError);
+        throw contactsError;
+      }
+      
+      console.log('[useDemoWorkspace] Loaded contacts:', contactsData?.length);
       setContacts(contactsData || []);
       
     } catch (error) {
-      console.error('Failed to load demo data:', error);
+      console.error('[useDemoWorkspace] Failed to load demo data:', error);
       toast.error('Failed to load demo data');
     } finally {
       setIsLoading(false);
     }
-  }, [user, isDemoUser]);
+  }, [user, isDemoUser, ensureDemoSeeded]);
 
   useEffect(() => {
-    if (isDemoUser === true) {
+    if (isDemoUser === true && workspaceId) {
       loadDemoData();
     }
-  }, [isDemoUser, loadDemoData]);
+  }, [isDemoUser, workspaceId, loadDemoData]);
 
   // Reset demo data to default state
   const resetDemoData = useCallback(async () => {

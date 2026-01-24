@@ -7,8 +7,7 @@ schemas = ["public", "graphql_public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
-# AI functions with JWT verification enabled
-# These functions handle auth internally for demo support
+# AI functions with JWT verification disabled - auth handled in code
 [functions.ai-knowledge-chat]
 verify_jwt = false
 
@@ -18,8 +17,6 @@ verify_jwt = false
 [functions.ai-role-suggestions]
 verify_jwt = false
 
-# All functions handle JWT verification in code for better error messages
-# This allows proper structured JSON errors instead of opaque 401s
 [functions.ai-extract-contacts]
 verify_jwt = false
 
@@ -27,6 +24,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.ai-unified-import]
+verify_jwt = false
+
+[functions.ai-import-worker]
 verify_jwt = false
 
 [functions.executive-insights]

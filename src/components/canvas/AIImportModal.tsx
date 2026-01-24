@@ -145,10 +145,21 @@ export const AIImportModal = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedEntities, setExtractedEntities] = useState<ExtractedEntity[]>([]);
-  const [step, setStep] = useState<'upload' | 'review' | 'routing' | 'company'>('upload');
+  const [step, setStep] = useState<'upload' | 'processing' | 'review' | 'routing' | 'company'>('upload');
   const [selectedAction, setSelectedAction] = useState<ImportAction>('database-and-chart');
   const [debugOpen, setDebugOpen] = useState(false);
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  
+  // Batch processing state
+  const [batchId, setBatchId] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{
+    total: number;
+    processed: number;
+    succeeded: number;
+    failed: number;
+    status: string;
+  } | null>(null);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
   // Company assignment state
   const [companyAssignment, setCompanyAssignment] = useState<CompanyAssignment>('existing');
@@ -184,6 +195,12 @@ export const AIImportModal = ({
   );
 
   const handleClose = () => {
+    // Clear any polling interval
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    
     setFiles([]);
     setIsDragging(false);
     setIsProcessing(false);
@@ -195,6 +212,8 @@ export const AIImportModal = ({
     setCompanySearch('');
     setNewCompanyData({ name: '', industry: '', location: '' });
     setDebugLogs([]);
+    setBatchId(null);
+    setBatchProgress(null);
     onOpenChange(false);
   };
 
@@ -293,10 +312,11 @@ export const AIImportModal = ({
 
     setIsProcessing(true);
     setDebugLogs([]);
+    setStep('processing');
     
     // Generate client-side request ID for correlation
     const requestId = `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-    addDebugLog(`[${requestId}] Starting processing of ${files.length} files`);
+    addDebugLog(`[${requestId}] Starting async processing of ${files.length} files`);
 
     try {
       // Get the current session for authentication
@@ -325,14 +345,13 @@ export const AIImportModal = ({
         };
       }));
 
-      addDebugLog(`[${requestId}] Calling ai-unified-import edge function...`);
+      addDebugLog(`[${requestId}] Calling ai-unified-import to enqueue files...`);
       
       // Build headers with auth token if available
       const headers: Record<string, string> = { 
         'x-request-id': requestId,
       };
       
-      // Explicitly pass the Authorization header if we have a session
       if (session?.access_token) {
         headers['Authorization'] = `Bearer ${session.access_token}`;
       }
@@ -346,155 +365,223 @@ export const AIImportModal = ({
       if (error) {
         const errorMsg = error.message || 'Unknown network error';
         addDebugLog(`[${requestId}] NETWORK ERROR: ${errorMsg}`);
-        addDebugLog(`[${requestId}] Error context: ${JSON.stringify(error)}`);
         
-        // Check for specific auth errors
         if (errorMsg.includes('JWT') || errorMsg.includes('401') || errorMsg.includes('Unauthorized')) {
-          toast.error('Session expired. Please sign in again.', {
-            description: 'Your authentication session has expired.',
-            action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
-          });
+          toast.error('Session expired. Please sign in again.');
         } else {
-          toast.error(`Processing failed: ${errorMsg}`, {
-            description: 'Check the debug panel for details',
+          toast.error(`Enqueue failed: ${errorMsg}`, {
             action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
           });
         }
         setIsProcessing(false);
+        setStep('upload');
         return;
       }
 
-      // Handle structured API errors (ok: false)
+      // Handle structured API errors
       if (!data?.ok) {
-        const serverRequestId = data?.request_id || requestId;
         const errorCode = data?.error_code || 'UNKNOWN_ERROR';
-        const errorMsg = data?.message || 'Processing failed';
-        const details = data?.details || '';
+        const errorMsg = data?.message || 'Enqueue failed';
+        addDebugLog(`[${requestId}] API ERROR: ${errorCode} - ${errorMsg}`);
         
-        addDebugLog(`[${serverRequestId}] API ERROR: ${errorCode}`);
-        addDebugLog(`[${serverRequestId}] Message: ${errorMsg}`);
-        if (details) addDebugLog(`[${serverRequestId}] Details: ${details}`);
-        
-        // Check if we have partial results
-        if (data?.data?.results) {
-          addDebugLog(`[${serverRequestId}] Partial results available, processing...`);
-        } else {
-          toast.error(errorMsg, {
-            description: details || `Error code: ${errorCode}`,
-            action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
-          });
-          setIsProcessing(false);
-          return;
-        }
-      }
-
-      const serverRequestId = data?.request_id || requestId;
-      const summary = data?.data?.summary || { files_succeeded: 0, files_processed: 0, total_entities_extracted: 0, files_failed: 0 };
-      
-      addDebugLog(`[${serverRequestId}] Processing complete: ${summary.files_succeeded}/${summary.files_processed} files succeeded, ${summary.files_failed} failed, ${summary.total_entities_extracted} entities`);
-
-      // Update file states with detection results
-      const results = data?.data?.results || [];
-      setFiles(prev => prev.map((f, idx) => {
-        const result = results[idx];
-        if (result) {
-          addDebugLog(`[${serverRequestId}] File "${f.file.name}": ${result.ok ? 'OK' : 'FAILED'}`);
-          addDebugLog(`  → Type: ${result.classification?.detectedType}, confidence=${(result.classification?.confidence || 0).toFixed(2)}`);
-          addDebugLog(`  → Method: ${result.extraction_method}, text_length=${result.extracted_text_length}, ocr=${result.ocr_used}`);
-          addDebugLog(`  → Debug: emails=${result.debug_info?.emails_found || 0}, phones=${result.debug_info?.phones_found || 0}, names=${result.debug_info?.names_found || 0}, time=${result.debug_info?.processing_time_ms || 0}ms`);
-          
-          if (!result.ok && result.error_message) {
-            addDebugLog(`  → ERROR: [${result.error_code}] ${result.error_message}`);
-          }
-          
-          return {
-            ...f,
-            detectedType: result.classification?.detectedType,
-            detectedConfidence: result.classification?.confidence,
-            detectedReasoning: result.classification?.reasoning,
-            isProcessed: true,
-            processingError: result.ok ? undefined : `[${result.error_code}] ${result.error_message}`,
-          };
-        }
-        return f;
-      }));
-
-      // Convert results to extracted entities
-      const allEntities: ExtractedEntity[] = [];
-      results.forEach((result: any, fileIdx: number) => {
-        if (!result.entities) return;
-        
-        result.entities.forEach((entity: any, entityIdx: number) => {
-          const entityId = `entity-${fileIdx}-${entityIdx}-${Date.now()}`;
-          
-          // Determine default destination based on type
-          let destination: ExtractedEntity['destination'] = 'contact';
-          if (entity.type === 'candidate') destination = 'talent';
-          else if (entity.type === 'org_node') destination = 'org_chart';
-          else if (entity.type === 'notes') destination = 'notes';
-
-          // Check for duplicates
-          let duplicateOf: string | undefined;
-          if (entity.type === 'candidate' || entity.type === 'contact') {
-            const name = entity.data?.personal?.full_name || entity.data?.name;
-            const email = entity.data?.personal?.email || entity.data?.email;
-            if (name) {
-              const dup = findDuplicate(name, email);
-              if (dup) duplicateOf = dup.id;
-            }
-          }
-
-          allEntities.push({
-            id: entityId,
-            sourceFileIndex: fileIdx,
-            type: entity.type,
-            data: entity.data,
-            confidence: entity.confidence || 0.5,
-            missingFields: entity.missing_fields || [],
-            selected: true,
-            destination,
-            duplicateOf,
-          });
-
-          addDebugLog(`  Entity: type=${entity.type}, confidence=${(entity.confidence || 0).toFixed(2)}, missing=[${entity.missing_fields?.join(', ') || 'none'}]`);
+        toast.error(errorMsg, {
+          description: data?.details,
+          action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
         });
-      });
-
-      setExtractedEntities(allEntities);
-
-      // Show appropriate toast based on results
-      if (allEntities.length > 0) {
-        setStep('review');
-        if (summary.files_failed > 0) {
-          toast.warning(`Extracted ${allEntities.length} entities. ${summary.files_failed} file(s) had issues.`, {
-            action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
-          });
-        } else {
-          toast.success(`Extracted ${allEntities.length} entities from ${summary.files_succeeded} file(s)`);
-        }
-      } else {
-        // No entities extracted
-        if (summary.files_failed > 0) {
-          toast.error(`Could not extract data from ${summary.files_failed} file(s)`, {
-            description: 'Check the debug panel for details',
-            action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
-          });
-        } else {
-          toast.warning('No structured data could be extracted from the uploaded files');
-        }
-        setStep('review'); // Still show review so user can see debug info
+        setIsProcessing(false);
+        setStep('upload');
+        return;
       }
+
+      // Successfully enqueued
+      const newBatchId = data.batch_id;
+      const queuedCount = data.queued || 0;
+      
+      addDebugLog(`[${requestId}] Batch created: ${newBatchId}, ${queuedCount} files queued`);
+      setBatchId(newBatchId);
+      setBatchProgress({
+        total: queuedCount,
+        processed: 0,
+        succeeded: 0,
+        failed: 0,
+        status: 'processing'
+      });
+      
+      toast.info(`${queuedCount} files queued for processing`);
+      
+      // Start polling for progress
+      startPolling(newBatchId, requestId);
 
     } catch (err) {
       console.error('Processing error:', err);
       addDebugLog(`[${requestId}] EXCEPTION: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      addDebugLog(`[${requestId}] Stack: ${err instanceof Error ? err.stack : 'N/A'}`);
-      toast.error('Failed to process files', {
+      toast.error('Failed to enqueue files', {
         description: err instanceof Error ? err.message : 'Unknown error',
         action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
       });
-    } finally {
       setIsProcessing(false);
+      setStep('upload');
+    }
+  };
+
+  const startPolling = (currentBatchId: string, requestId: string) => {
+    addDebugLog(`[${requestId}] Starting progress polling for batch ${currentBatchId}`);
+    
+    const pollProgress = async () => {
+      try {
+        // Query batch progress
+        const { data: batch, error: batchError } = await supabase
+          .from('cv_import_batches')
+          .select('*')
+          .eq('id', currentBatchId)
+          .single();
+        
+        if (batchError || !batch) {
+          addDebugLog(`[${requestId}] Batch fetch error: ${batchError?.message}`);
+          return;
+        }
+        
+        setBatchProgress({
+          total: batch.total_files,
+          processed: batch.processed_files,
+          succeeded: batch.success_count,
+          failed: batch.fail_count,
+          status: batch.status
+        });
+        
+        addDebugLog(`[${requestId}] Progress: ${batch.processed_files}/${batch.total_files} (${batch.status})`);
+        
+        // Check if complete
+        if (batch.status === 'completed' || batch.status === 'partial' || batch.status === 'failed') {
+          // Stop polling
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+          
+          addDebugLog(`[${requestId}] Batch complete with status: ${batch.status}`);
+          
+          // Fetch parsed items
+          const { data: items, error: itemsError } = await supabase
+            .from('cv_import_items')
+            .select('*')
+            .eq('batch_id', currentBatchId);
+          
+          if (itemsError) {
+            addDebugLog(`[${requestId}] Items fetch error: ${itemsError.message}`);
+          }
+          
+          // Convert items to extracted entities
+          processCompletedItems(items || [], requestId);
+        }
+        
+      } catch (err) {
+        addDebugLog(`[${requestId}] Poll error: ${err instanceof Error ? err.message : 'Unknown'}`);
+      }
+    };
+    
+    // Poll immediately then every 2 seconds
+    pollProgress();
+    pollIntervalRef.current = setInterval(pollProgress, 2000);
+  };
+
+  const processCompletedItems = (items: any[], requestId: string) => {
+    addDebugLog(`[${requestId}] Processing ${items.length} completed items`);
+    
+    // Update file states
+    setFiles(prev => prev.map((f, idx) => {
+      const item = items.find(i => i.file_name === f.file.name);
+      if (item) {
+        const extractedData = item.extracted_data || {};
+        return {
+          ...f,
+          detectedType: extractedData.classification?.type || 'UNKNOWN',
+          detectedConfidence: extractedData.classification?.confidence || 0.5,
+          detectedReasoning: `Processed via ${extractedData.extraction_method}`,
+          isProcessed: true,
+          processingError: item.status === 'failed' ? item.error_message : undefined,
+        };
+      }
+      return f;
+    }));
+
+    // Convert to extracted entities
+    const allEntities: ExtractedEntity[] = [];
+    
+    items.forEach((item, idx) => {
+      if (item.status !== 'parsed' || !item.extracted_data?.parsed_data) {
+        addDebugLog(`[${requestId}] Skipping ${item.file_name}: status=${item.status}`);
+        return;
+      }
+      
+      const parsedData = item.extracted_data.parsed_data;
+      const classification = item.extracted_data.classification;
+      const entityId = `entity-${idx}-${Date.now()}`;
+      
+      // Determine type and destination
+      let entityType: EntityType = 'candidate';
+      let destination: ExtractedEntity['destination'] = 'talent';
+      
+      if (classification?.type === 'BUSINESS_CARD') {
+        entityType = 'contact';
+        destination = 'contact';
+      } else if (classification?.type === 'ORG_CHART') {
+        entityType = 'org_node';
+        destination = 'org_chart';
+      } else if (classification?.type === 'NOTES_DOCUMENT') {
+        entityType = 'notes';
+        destination = 'notes';
+      }
+      
+      // Check for duplicates
+      let duplicateOf: string | undefined;
+      const name = parsedData.personal?.full_name || parsedData.name;
+      const email = parsedData.personal?.email || parsedData.email;
+      if (name) {
+        const dup = findDuplicate(name, email);
+        if (dup) duplicateOf = dup.id;
+      }
+
+      allEntities.push({
+        id: entityId,
+        sourceFileIndex: idx,
+        type: entityType,
+        data: parsedData,
+        confidence: item.parse_confidence || 0.5,
+        missingFields: item.extracted_data.missing_fields || [],
+        selected: true,
+        destination,
+        duplicateOf,
+      });
+
+      addDebugLog(`[${requestId}] Entity: ${name || 'Unknown'}, type=${entityType}, confidence=${(item.parse_confidence || 0).toFixed(2)}`);
+    });
+
+    setExtractedEntities(allEntities);
+    setIsProcessing(false);
+
+    // Show appropriate toast
+    const succeeded = items.filter(i => i.status === 'parsed').length;
+    const failed = items.filter(i => i.status === 'failed').length;
+    
+    if (allEntities.length > 0) {
+      setStep('review');
+      if (failed > 0) {
+        toast.warning(`Extracted ${allEntities.length} entities. ${failed} file(s) had issues.`, {
+          action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
+        });
+      } else {
+        toast.success(`Extracted ${allEntities.length} entities from ${succeeded} file(s)`);
+      }
+    } else {
+      if (failed > 0) {
+        toast.error(`Could not extract data from ${failed} file(s)`, {
+          action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
+        });
+      } else {
+        toast.warning('No structured data could be extracted from the uploaded files');
+      }
+      setStep('review');
     }
   };
 

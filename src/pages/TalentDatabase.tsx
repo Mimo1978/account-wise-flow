@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/tooltip";
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { TalentImportModal } from "@/components/talent/TalentImportModal";
+import { BatchImportModal } from "@/components/talent/BatchImportModal";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
 import { TalentQuickView } from "@/components/talent/TalentQuickView";
 import { ViewPresetsDropdown } from "@/components/talent/ViewPresetsDropdown";
@@ -142,6 +143,7 @@ export default function TalentDatabase() {
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showBatchImportModal, setShowBatchImportModal] = useState(false);
   const [showCVViewer, setShowCVViewer] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [quickViewTalentId, setQuickViewTalentId] = useState<string | null>(null);
@@ -611,7 +613,7 @@ export default function TalentDatabase() {
                           <FileText className="h-4 w-4 mr-2" />
                           Upload CV
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => console.log("Batch upload")}>
+                        <DropdownMenuItem onClick={() => setShowBatchImportModal(true)}>
                           <Layers className="h-4 w-4 mr-2" />
                           Batch Upload
                         </DropdownMenuItem>
@@ -861,9 +863,17 @@ export default function TalentDatabase() {
         open={showImportModal}
         onOpenChange={setShowImportModal}
         onImportComplete={(talent) => {
-          // In a real app, this would add to the database
           mockTalents.push(talent);
           setShowImportModal(false);
+        }}
+      />
+
+      {/* Batch Import Modal */}
+      <BatchImportModal
+        open={showBatchImportModal}
+        onOpenChange={setShowBatchImportModal}
+        onImportComplete={() => {
+          // Refresh talent list after batch import
         }}
       />
     </div>

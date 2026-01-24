@@ -19,7 +19,7 @@ interface CanvasSearchProps {
 
 // Height of the header + toolbar ribbon (approximately)
 const RIBBON_BOTTOM_OFFSET = 140;
-const SAFE_MARGIN = 28; // Increased to provide clear visual separation from ribbon
+const SAFE_MARGIN = 48; // Provides clear visual separation from ribbon
 const BAR_WIDTH = 560; // Approximate width of the search bar
 
 export const CanvasSearch = ({

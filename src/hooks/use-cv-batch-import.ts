@@ -38,6 +38,8 @@ export interface CVImportItem {
   dedupe_candidate_ids: string[] | null;
   error_message: string | null;
   extracted_data: Record<string, unknown> | null;
+  field_confidence: Record<string, number> | null;
+  search_tags: string[] | null;
   created_at: string;
   updated_at: string;
   started_at: string | null;

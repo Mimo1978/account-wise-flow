@@ -5,84 +5,191 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, FlaskConical, Briefcase, ArrowRight, Sparkles } from 'lucide-react';
+import { Loader2, FlaskConical, Briefcase, ArrowRight, Sparkles, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
+
+interface WorkspaceInfo {
+  id: string;
+  name: string;
+  isDemo: boolean;
+  workspaceMode: string;
+  type: string;
+  role: string;
+}
 
 /**
  * Workspace Selector Page
  * 
  * After login, users can choose between:
- * - Demo Workspace: Sandboxed environment with full features, isolated data
- * - My Workspace: Real production workspace (if they have one)
+ * - Demo Workspace: Sandboxed environment with full features, seeded data
+ * - My Workspace: Real production workspace (create if none exists)
  */
 const WorkspaceSelector = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   
   const [isLoading, setIsLoading] = useState(true);
-  const [hasRealWorkspace, setHasRealWorkspace] = useState(false);
-  const [isDemoUser, setIsDemoUser] = useState(false);
+  const [workspaces, setWorkspaces] = useState<WorkspaceInfo[]>([]);
   const [joiningDemo, setJoiningDemo] = useState(false);
+  const [creatingWorkspace, setCreatingWorkspace] = useState(false);
+
+  // Derived state
+  const demoWorkspace = workspaces.find(w => w.isDemo);
+  const realWorkspace = workspaces.find(w => !w.isDemo);
+  const hasRealWorkspace = !!realWorkspace;
+  const isDemoUser = !!demoWorkspace;
 
   useEffect(() => {
-    const checkWorkspaces = async () => {
+    const fetchWorkspaces = async () => {
       if (!user) return;
       
+      console.log('[WorkspaceSelector] Fetching workspaces for user:', user.id);
+      
       try {
-        // Check if user has a real workspace
-        const { data: hasReal, error: realError } = await supabase.rpc('has_real_workspace', { 
-          _user_id: user.id 
-        });
-        if (realError) throw realError;
-        setHasRealWorkspace(!!hasReal);
+        const { data, error } = await supabase.functions.invoke('workspace-management/get-user-workspaces');
         
-        // Check if user is already a demo user
-        const { data: isDemo, error: demoError } = await supabase.rpc('is_demo_user', { 
-          _user_id: user.id 
-        });
-        if (demoError) throw demoError;
-        setIsDemoUser(!!isDemo);
+        if (error) {
+          console.error('[WorkspaceSelector] Error fetching workspaces:', error);
+          throw error;
+        }
         
+        console.log('[WorkspaceSelector] Workspaces response:', data);
+        
+        if (data?.success && data?.workspaces) {
+          setWorkspaces(data.workspaces);
+        }
       } catch (error) {
-        console.error('Error checking workspaces:', error);
+        console.error('[WorkspaceSelector] Failed to fetch workspaces:', error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    if (!authLoading) {
-      checkWorkspaces();
+    if (!authLoading && user) {
+      fetchWorkspaces();
+    } else if (!authLoading && !user) {
+      setIsLoading(false);
     }
   }, [user, authLoading]);
 
-  const handleJoinDemo = async () => {
-    if (!user) return;
+  const handleEnterDemo = async () => {
+    if (!user) {
+      console.error('[WorkspaceSelector] No user found');
+      toast.error('Please log in to continue');
+      return;
+    }
+    
+    console.log('[WorkspaceSelector] Enter Demo clicked');
+    console.log('[WorkspaceSelector] User ID:', user.id);
+    console.log('[WorkspaceSelector] Is already demo user:', isDemoUser);
     
     setJoiningDemo(true);
+    const loadingToast = toast.loading('Preparing demo workspace...');
+    
     try {
-      const { data, error } = await supabase.rpc('join_demo_team', { 
-        _user_id: user.id 
+      // Step 1: Join demo workspace (idempotent - creates membership if needed)
+      console.log('[WorkspaceSelector] Step 1: Calling join-demo...');
+      const { data, error } = await supabase.functions.invoke('workspace-management/join-demo');
+      
+      console.log('[WorkspaceSelector] Join demo response:', { data, error });
+      
+      if (error) {
+        console.error('[WorkspaceSelector] Edge function error:', error);
+        throw new Error(error.message || 'Failed to connect to demo workspace service');
+      }
+      
+      if (!data?.success) {
+        console.error('[WorkspaceSelector] Join demo failed:', data);
+        throw new Error(data?.error || 'Failed to join demo workspace');
+      }
+      
+      console.log('[WorkspaceSelector] Successfully joined demo workspace:', data.workspaceId);
+      
+      // Step 2: Store active workspace in localStorage for persistence
+      if (data.workspaceId) {
+        localStorage.setItem('lovable_current_workspace', data.workspaceId);
+        console.log('[WorkspaceSelector] Stored workspace ID in localStorage');
+      }
+      
+      // Step 3: Navigate to demo workspace
+      toast.dismiss(loadingToast);
+      toast.success('Welcome to the Demo Workspace!');
+      console.log('[WorkspaceSelector] Navigating to /demo-workspace');
+      navigate('/demo-workspace');
+      
+    } catch (error: any) {
+      console.error('[WorkspaceSelector] Demo join failed:', error);
+      toast.dismiss(loadingToast);
+      
+      // Show detailed error for debugging
+      const errorMessage = error?.message || 'Unknown error occurred';
+      console.error('[WorkspaceSelector] Error details:', {
+        message: errorMessage,
+        userId: user.id,
+        stack: error?.stack
       });
       
-      if (error) throw error;
-      
-      toast.success('Welcome to the Demo Workspace!');
-      navigate('/demo-workspace');
-    } catch (error) {
-      console.error('Failed to join demo:', error);
-      toast.error('Failed to join demo workspace. Please try again.');
+      toast.error(`Demo workspace could not be accessed: ${errorMessage}`);
     } finally {
       setJoiningDemo(false);
     }
   };
 
-  const handleEnterDemo = () => {
-    navigate('/demo-workspace');
-  };
+  const handleEnterWorkspace = async () => {
+    if (!user) {
+      toast.error('Please log in to continue');
+      return;
+    }
 
-  const handleEnterWorkspace = () => {
-    navigate('/canvas');
+    if (realWorkspace) {
+      // User has a real workspace, navigate to it
+      console.log('[WorkspaceSelector] Entering real workspace:', realWorkspace.id);
+      localStorage.setItem('lovable_current_workspace', realWorkspace.id);
+      navigate('/canvas');
+      return;
+    }
+
+    // User doesn't have a workspace, create one
+    console.log('[WorkspaceSelector] Creating new workspace for user:', user.id);
+    setCreatingWorkspace(true);
+    const loadingToast = toast.loading('Creating your workspace...');
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('workspace-management/create-workspace', {
+        body: { name: 'My Workspace' }
+      });
+      
+      console.log('[WorkspaceSelector] Create workspace response:', { data, error });
+      
+      if (error) {
+        console.error('[WorkspaceSelector] Edge function error:', error);
+        throw new Error(error.message || 'Failed to create workspace');
+      }
+      
+      if (!data?.success) {
+        console.error('[WorkspaceSelector] Create workspace failed:', data);
+        throw new Error(data?.error || 'Failed to create workspace');
+      }
+      
+      console.log('[WorkspaceSelector] Successfully created workspace:', data.workspaceId);
+      
+      // Store active workspace
+      if (data.workspaceId) {
+        localStorage.setItem('lovable_current_workspace', data.workspaceId);
+      }
+      
+      toast.dismiss(loadingToast);
+      toast.success('Workspace created successfully!');
+      navigate('/canvas');
+      
+    } catch (error: any) {
+      console.error('[WorkspaceSelector] Workspace creation failed:', error);
+      toast.dismiss(loadingToast);
+      toast.error(`Failed to create workspace: ${error?.message || 'Unknown error'}`);
+    } finally {
+      setCreatingWorkspace(false);
+    }
   };
 
   if (authLoading || isLoading) {
@@ -165,14 +272,14 @@ const WorkspaceSelector = () => {
                   </li>
                 </ul>
                 <Button 
-                  onClick={isDemoUser ? handleEnterDemo : handleJoinDemo}
+                  onClick={handleEnterDemo}
                   className="w-full gap-2 bg-amber-500 hover:bg-amber-600"
                   disabled={joiningDemo}
                 >
                   {joiningDemo ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Setting up...
+                      {isDemoUser ? 'Entering...' : 'Setting up...'}
                     </>
                   ) : (
                     <>
@@ -185,11 +292,7 @@ const WorkspaceSelector = () => {
             </Card>
 
             {/* Real Workspace Card */}
-            <Card className={`relative overflow-hidden border-2 transition-colors ${
-              hasRealWorkspace 
-                ? 'hover:border-primary/50 cursor-pointer' 
-                : 'opacity-60'
-            }`}>
+            <Card className="relative overflow-hidden border-2 hover:border-primary/50 transition-colors cursor-pointer">
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-primary" />
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -201,16 +304,17 @@ const WorkspaceSelector = () => {
                       Active
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="bg-muted text-muted-foreground">
-                      Not Set Up
+                    <Badge variant="outline" className="bg-blue-100/50 text-blue-700 border-blue-300">
+                      <Plus className="w-3 h-3 mr-1" />
+                      New
                     </Badge>
                   )}
                 </div>
                 <CardTitle className="text-xl mt-4">My Workspace</CardTitle>
                 <CardDescription>
                   {hasRealWorkspace 
-                    ? 'Access your real company data and contacts.'
-                    : 'Your production workspace for real customer data.'
+                    ? `Access your workspace: ${realWorkspace.name}`
+                    : 'Start fresh with a blank CRM. Add your own companies and contacts.'
                   }
                 </CardDescription>
               </CardHeader>
@@ -218,7 +322,7 @@ const WorkspaceSelector = () => {
                 <ul className="text-sm text-muted-foreground space-y-2 mb-6">
                   <li className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                    Real customer relationship data
+                    {hasRealWorkspace ? 'Real customer relationship data' : 'Start from scratch'}
                   </li>
                   <li className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary" />
@@ -235,17 +339,24 @@ const WorkspaceSelector = () => {
                 </ul>
                 <Button 
                   onClick={handleEnterWorkspace}
-                  variant={hasRealWorkspace ? "default" : "outline"}
                   className="w-full gap-2"
-                  disabled={!hasRealWorkspace}
+                  disabled={creatingWorkspace}
                 >
-                  {hasRealWorkspace ? (
+                  {creatingWorkspace ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Creating workspace...
+                    </>
+                  ) : hasRealWorkspace ? (
                     <>
                       Enter My Workspace
                       <ArrowRight className="w-4 h-4" />
                     </>
                   ) : (
-                    'Contact Admin to Set Up'
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Create My Workspace
+                    </>
                   )}
                 </Button>
               </CardContent>

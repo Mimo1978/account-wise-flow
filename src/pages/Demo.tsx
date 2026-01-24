@@ -86,9 +86,6 @@ const Demo = () => {
   // Get engagements for current company
   const companyEngagements = scenarioEngagements.filter(e => e.companyId === account.id);
 
-  // Get engagements for current company
-  const companyEngagements = mockEngagements.filter(e => e.companyId === account.id);
-
   const handleContactClick = (contact: Contact) => {
     if (selectedContact?.id === contact.id) return;
     if (hasUnsavedChanges) {
@@ -344,13 +341,13 @@ const Demo = () => {
             showTalentOverlay={showTalentOverlay}
             talentEngagements={companyEngagements.map(e => ({
               ...e,
-              talent: mockTalents.find(t => t.id === e.talentId)!
+              talent: scenarioTalents.find(t => t.id === e.talentId)!
             })).filter(e => e.talent)}
           />
         ) : (
           <CompanyDatabaseView
             account={account}
-            allAccounts={mockAccounts}
+            allAccounts={scenarioAccounts}
             onAccountUpdate={setAccount}
             onViewCanvas={() => setViewMode("canvas")}
             onAddContact={() => {}}

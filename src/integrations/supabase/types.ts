@@ -301,6 +301,143 @@ export type Database = {
           },
         ]
       }
+      cv_import_batches: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by_user_id: string
+          error_summary: string | null
+          fail_count: number
+          id: string
+          processed_files: number
+          source: Database["public"]["Enums"]["cv_batch_source"]
+          started_at: string | null
+          status: Database["public"]["Enums"]["cv_batch_status"]
+          success_count: number
+          tenant_id: string
+          total_files: number
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id: string
+          error_summary?: string | null
+          fail_count?: number
+          id?: string
+          processed_files?: number
+          source?: Database["public"]["Enums"]["cv_batch_source"]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["cv_batch_status"]
+          success_count?: number
+          tenant_id: string
+          total_files?: number
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          error_summary?: string | null
+          fail_count?: number
+          id?: string
+          processed_files?: number
+          source?: Database["public"]["Enums"]["cv_batch_source"]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["cv_batch_status"]
+          success_count?: number
+          tenant_id?: string
+          total_files?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_import_batches_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cv_import_items: {
+        Row: {
+          batch_id: string
+          candidate_id: string | null
+          checksum_sha256: string | null
+          completed_at: string | null
+          created_at: string
+          dedupe_candidate_ids: Json | null
+          error_message: string | null
+          extracted_data: Json | null
+          file_name: string
+          file_size_bytes: number
+          file_type: string
+          id: string
+          parse_confidence: number | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["cv_item_status"]
+          storage_path: string | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          batch_id: string
+          candidate_id?: string | null
+          checksum_sha256?: string | null
+          completed_at?: string | null
+          created_at?: string
+          dedupe_candidate_ids?: Json | null
+          error_message?: string | null
+          extracted_data?: Json | null
+          file_name: string
+          file_size_bytes?: number
+          file_type: string
+          id?: string
+          parse_confidence?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["cv_item_status"]
+          storage_path?: string | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          batch_id?: string
+          candidate_id?: string | null
+          checksum_sha256?: string | null
+          completed_at?: string | null
+          created_at?: string
+          dedupe_candidate_ids?: Json | null
+          error_message?: string | null
+          extracted_data?: Json | null
+          file_name?: string
+          file_size_bytes?: number
+          file_type?: string
+          id?: string
+          parse_confidence?: number | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["cv_item_status"]
+          storage_path?: string | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_import_items_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "cv_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cv_import_items_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       executive_insights: {
         Row: {
           company_id: string | null
@@ -775,6 +912,20 @@ export type Database = {
     Enums: {
       access_request_status: "pending" | "approved" | "rejected"
       app_role: "admin" | "manager" | "contributor" | "viewer"
+      cv_batch_source: "ui_upload" | "background_import"
+      cv_batch_status:
+        | "queued"
+        | "processing"
+        | "completed"
+        | "failed"
+        | "partial"
+      cv_item_status:
+        | "queued"
+        | "processing"
+        | "parsed"
+        | "dedupe_review"
+        | "merged"
+        | "failed"
       note_visibility: "public" | "team" | "private"
       workspace_mode: "public_demo" | "demo" | "production"
       workspace_type: "real" | "demo"
@@ -907,6 +1058,22 @@ export const Constants = {
     Enums: {
       access_request_status: ["pending", "approved", "rejected"],
       app_role: ["admin", "manager", "contributor", "viewer"],
+      cv_batch_source: ["ui_upload", "background_import"],
+      cv_batch_status: [
+        "queued",
+        "processing",
+        "completed",
+        "failed",
+        "partial",
+      ],
+      cv_item_status: [
+        "queued",
+        "processing",
+        "parsed",
+        "dedupe_review",
+        "merged",
+        "failed",
+      ],
       note_visibility: ["public", "team", "private"],
       workspace_mode: ["public_demo", "demo", "production"],
       workspace_type: ["real", "demo"],

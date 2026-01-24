@@ -17,10 +17,12 @@ interface CanvasSearchProps {
   userId?: string;
 }
 
-// Height of the header + toolbar ribbon (approximately)
-const RIBBON_BOTTOM_OFFSET = 140;
-const SAFE_MARGIN = 48; // Provides clear visual separation from ribbon
+// Hard default (only used when there is NO saved position)
+// Requirement: start well below the ribbon, anchored to the canvas experience.
+const DEFAULT_LEFT = 24;
+const DEFAULT_TOP = 140;
 const BAR_WIDTH = 560; // Approximate width of the search bar
+const BAR_HEIGHT = 56; // Approximate height of the search bar
 
 export const CanvasSearch = ({
   onSearch,
@@ -44,22 +46,17 @@ export const CanvasSearch = ({
     ? `canvasSearchBarHintShown:${workspaceId}:${userId}` 
     : 'canvasSearchBarHintShown:default';
 
-  // Calculate safe default position below the ribbon
+  // Calculate safe default position (ONLY when there's no saved position)
   const getDefaultPosition = useCallback(() => {
     if (typeof window === 'undefined') {
-      return { x: 16, y: RIBBON_BOTTOM_OFFSET };
+      return { x: DEFAULT_LEFT, y: DEFAULT_TOP };
     }
-    
-    // Find the toolbar/ribbon element to get its actual bottom position
-    const toolbar = document.querySelector('[data-toolbar-ribbon]');
-    const ribbonBottom = toolbar 
-      ? toolbar.getBoundingClientRect().bottom 
-      : RIBBON_BOTTOM_OFFSET;
-    
-    // Position: left-aligned with some margin, below the ribbon
-    const x = Math.max(12, Math.min(window.innerWidth - BAR_WIDTH - 12, 16));
-    const y = ribbonBottom + SAFE_MARGIN;
-    
+
+    // Hard requirement (no dynamic ribbon calculation):
+    // top: 140px; left: 24px; (with viewport clamping)
+    const x = Math.max(12, Math.min(window.innerWidth - BAR_WIDTH - 12, DEFAULT_LEFT));
+    const y = Math.max(12, Math.min(window.innerHeight - BAR_HEIGHT - 12, DEFAULT_TOP));
+
     return { x, y };
   }, []);
 

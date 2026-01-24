@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users } from "lucide-react";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
@@ -12,6 +12,7 @@ import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
 import { AIInsightsPanel } from "@/components/canvas/AIInsightsPanel";
 import { AIRoleSuggestionsPanel } from "@/components/canvas/AIRoleSuggestionsPanel";
 import { GlobalSearch } from "@/components/canvas/GlobalSearch";
+import { ResponsiveToolbar, ToolbarAction } from "@/components/canvas/ResponsiveToolbar";
 import { mockAccount, mockAccounts } from "@/lib/mock-data";
 import { mockTalents, mockEngagements } from "@/lib/mock-talent";
 import { Account, Contact, Talent, TalentEngagement } from "@/lib/types";
@@ -215,112 +216,133 @@ const Canvas = () => {
     setShowTalentPanel(false);
   };
 
+  // Build toolbar actions with proper priority grouping
+  const toolbarActions: ToolbarAction[] = useMemo(() => {
+    const actions: ToolbarAction[] = [];
+
+    // Secondary actions (can overflow into "More" menu)
+    actions.push({
+      id: "missing-roles",
+      label: "Missing Roles",
+      icon: <UserPlus className="w-4 h-4" />,
+      onClick: () => setIsRoleSuggestionsOpen(!isRoleSuggestionsOpen),
+      isActive: isRoleSuggestionsOpen,
+      priority: "secondary",
+    });
+
+    actions.push({
+      id: "ai-insights",
+      label: "AI Insights",
+      icon: <Lightbulb className="w-4 h-4" />,
+      onClick: () => setIsAIInsightsOpen(!isAIInsightsOpen),
+      isActive: isAIInsightsOpen,
+      priority: "secondary",
+    });
+
+    actions.push({
+      id: "ai-knowledge",
+      label: "AI Knowledge",
+      icon: <Brain className="w-4 h-4" />,
+      onClick: () => setIsAIKnowledgeOpen(!isAIKnowledgeOpen),
+      isActive: isAIKnowledgeOpen,
+      priority: "secondary",
+    });
+
+    // Critical actions (always visible)
+    actions.push({
+      id: "import",
+      label: "Import Contacts",
+      icon: <Upload className="w-4 h-4" />,
+      onClick: () => setShowAIImportModal(true),
+      priority: "critical",
+      hideLabel: true,
+    });
+
+    actions.push({
+      id: "add-contact",
+      label: "Add Contact",
+      icon: <Plus className="w-4 h-4" />,
+      onClick: () => setShowAddContactModal(true),
+      variant: "default",
+      priority: "critical",
+    });
+
+    return actions;
+  }, [isRoleSuggestionsOpen, isAIInsightsOpen, isAIKnowledgeOpen]);
+
+  // Left side content for the toolbar
+  const toolbarLeftContent = (
+    <>
+      <div className="min-w-0 shrink-0">
+        <h1 className="text-lg font-bold truncate">{account.name}</h1>
+        <p className="text-sm text-muted-foreground truncate">{account.industry}</p>
+      </div>
+      <div className="h-6 w-px bg-border shrink-0" />
+      <CompanySwitcher 
+        currentCompany={account.name}
+        onCompanySelect={handleCompanySwitch}
+      />
+      <QRCodeButton 
+        accountId={account.id}
+        accountName={account.name}
+      />
+      <div className="h-6 w-px bg-border shrink-0" />
+      <GlobalSearch
+        onSelectCompany={handleGlobalSelectCompany}
+        onSelectContact={handleGlobalSelectContact}
+      />
+      <div className="h-6 w-px bg-border shrink-0" />
+      
+      {/* Talent Overlay Toggle - Only show in canvas mode */}
+      {viewMode === "canvas" && companyEngagements.length > 0 && (
+        <>
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50 shrink-0">
+            <Users className="w-4 h-4 text-muted-foreground" />
+            <Label htmlFor="talent-overlay" className="text-sm cursor-pointer whitespace-nowrap">
+              Talent Overlay
+            </Label>
+            <Switch
+              id="talent-overlay"
+              checked={showTalentOverlay}
+              onCheckedChange={setShowTalentOverlay}
+            />
+            {showTalentOverlay && (
+              <span className="text-xs text-muted-foreground">
+                ({companyEngagements.length})
+              </span>
+            )}
+          </div>
+          <div className="h-6 w-px bg-border shrink-0" />
+        </>
+      )}
+      
+      {/* View Toggle */}
+      <ToggleGroup 
+        type="single" 
+        value={viewMode} 
+        onValueChange={(value) => value && setViewMode(value as "canvas" | "database")}
+        className="shrink-0"
+      >
+        <ToggleGroupItem value="canvas" aria-label="Canvas view" className="gap-2">
+          <Network className="w-4 h-4" />
+          <span className="hidden lg:inline">Canvas</span>
+        </ToggleGroupItem>
+        <ToggleGroupItem value="database" aria-label="Database view" className="gap-2">
+          <Table2 className="w-4 h-4" />
+          <span className="hidden lg:inline">Database</span>
+        </ToggleGroupItem>
+      </ToggleGroup>
+    </>
+  );
+
   return (
     <div className="flex flex-col h-[calc(100vh-65px)]">
       {/* Sub-header with context controls */}
-      <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-6 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div>
-              <h1 className="text-lg font-bold">{account.name}</h1>
-              <p className="text-sm text-muted-foreground">{account.industry}</p>
-            </div>
-            <div className="h-6 w-px bg-border" />
-            <CompanySwitcher 
-              currentCompany={account.name}
-              onCompanySelect={handleCompanySwitch}
-            />
-            <QRCodeButton 
-              accountId={account.id}
-              accountName={account.name}
-            />
-            <div className="h-6 w-px bg-border" />
-            <GlobalSearch
-              onSelectCompany={handleGlobalSelectCompany}
-              onSelectContact={handleGlobalSelectContact}
-            />
-          </div>
-          
-          <div className="flex items-center gap-3">
-            {/* Talent Overlay Toggle - Only show in canvas mode */}
-            {viewMode === "canvas" && companyEngagements.length > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50">
-                <Users className="w-4 h-4 text-muted-foreground" />
-                <Label htmlFor="talent-overlay" className="text-sm cursor-pointer">
-                  Talent Overlay
-                </Label>
-                <Switch
-                  id="talent-overlay"
-                  checked={showTalentOverlay}
-                  onCheckedChange={setShowTalentOverlay}
-                />
-                {showTalentOverlay && (
-                  <span className="text-xs text-muted-foreground">
-                    ({companyEngagements.length})
-                  </span>
-                )}
-              </div>
-            )}
-            {viewMode === "canvas" && companyEngagements.length > 0 && (
-              <div className="h-6 w-px bg-border" />
-            )}
-            {/* View Toggle */}
-            <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as "canvas" | "database")}>
-              <ToggleGroupItem value="canvas" aria-label="Canvas view" className="gap-2">
-                <Network className="w-4 h-4" />
-                Canvas
-              </ToggleGroupItem>
-              <ToggleGroupItem value="database" aria-label="Database view" className="gap-2">
-                <Table2 className="w-4 h-4" />
-                Database
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <div className="h-6 w-px bg-border" />
-            <Button 
-              variant={isRoleSuggestionsOpen ? "default" : "outline"} 
-              size="sm" 
-              className="gap-2"
-              onClick={() => setIsRoleSuggestionsOpen(!isRoleSuggestionsOpen)}
-            >
-              <UserPlus className="w-4 h-4" />
-              Missing Roles
-            </Button>
-            <Button 
-              variant={isAIInsightsOpen ? "default" : "outline"} 
-              size="sm" 
-              className="gap-2"
-              onClick={() => setIsAIInsightsOpen(!isAIInsightsOpen)}
-            >
-              <Lightbulb className="w-4 h-4" />
-              AI Insights
-            </Button>
-            <Button 
-              variant={isAIKnowledgeOpen ? "default" : "outline"} 
-              size="sm" 
-              className="gap-2"
-              onClick={() => setIsAIKnowledgeOpen(!isAIKnowledgeOpen)}
-            >
-              <Brain className="w-4 h-4" />
-              AI Knowledge
-            </Button>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowAIImportModal(true)}
-                >
-                  <Upload className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Import Contacts</TooltipContent>
-            </Tooltip>
-            <Button size="sm" className="gap-2" onClick={() => setShowAddContactModal(true)}>
-              <Plus className="w-4 h-4" />
-              Add Contact
-            </Button>
-          </div>
-        </div>
+      <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-4 py-3 overflow-hidden">
+        <ResponsiveToolbar
+          leftContent={toolbarLeftContent}
+          actions={toolbarActions}
+        />
       </div>
 
       {/* Main Content Area */}

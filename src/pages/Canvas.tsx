@@ -338,7 +338,10 @@ const Canvas = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-65px)]">
       {/* Sub-header with context controls */}
-      <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-4 py-3 overflow-hidden">
+      <div 
+        data-toolbar-ribbon
+        className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-4 py-3 overflow-hidden"
+      >
         <ResponsiveToolbar
           leftContent={toolbarLeftContent}
           actions={toolbarActions}

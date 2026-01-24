@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, ChevronLeft, ChevronRight, X, RotateCcw, GripVertical } from "lucide-react";
@@ -13,7 +13,14 @@ interface CanvasSearchProps {
   onNextMatch: () => void;
   onPrevMatch: () => void;
   onReset: () => void;
+  workspaceId?: string;
+  userId?: string;
 }
+
+// Height of the header + toolbar ribbon (approximately)
+const RIBBON_BOTTOM_OFFSET = 140;
+const SAFE_MARGIN = 16;
+const BAR_WIDTH = 560; // Approximate width of the search bar
 
 export const CanvasSearch = ({
   onSearch,
@@ -23,19 +30,65 @@ export const CanvasSearch = ({
   onNextMatch,
   onPrevMatch,
   onReset,
+  workspaceId,
+  userId,
 }: CanvasSearchProps) => {
   const [query, setQuery] = useState("");
+  const [showHint, setShowHint] = useState(false);
 
-  // Calculate initial position (top center)
-  const getInitialPosition = () => ({
-    x: typeof window !== 'undefined' ? (window.innerWidth / 2) - 280 : 0,
-    y: 80, // Below header
-  });
+  // Generate storage keys
+  const storageKey = workspaceId && userId 
+    ? `canvasSearchBarPos:${workspaceId}:${userId}` 
+    : 'canvasSearchBarPos:default';
+  const hintShownKey = workspaceId && userId 
+    ? `canvasSearchBarHintShown:${workspaceId}:${userId}` 
+    : 'canvasSearchBarHintShown:default';
 
-  const { position, dragRef, dragHandleProps, isDragging } = useDraggable({
-    initialPosition: getInitialPosition(),
+  // Calculate safe default position below the ribbon
+  const getDefaultPosition = useCallback(() => {
+    if (typeof window === 'undefined') {
+      return { x: 16, y: RIBBON_BOTTOM_OFFSET };
+    }
+    
+    // Find the toolbar/ribbon element to get its actual bottom position
+    const toolbar = document.querySelector('[data-toolbar-ribbon]');
+    const ribbonBottom = toolbar 
+      ? toolbar.getBoundingClientRect().bottom 
+      : RIBBON_BOTTOM_OFFSET;
+    
+    // Position: left-aligned with some margin, below the ribbon
+    const x = Math.max(12, Math.min(window.innerWidth - BAR_WIDTH - 12, 16));
+    const y = ribbonBottom + SAFE_MARGIN;
+    
+    return { x, y };
+  }, []);
+
+  const { position, dragRef, dragHandleProps, isDragging, isPositioned, resetToDefault } = useDraggable({
     bounds: "viewport",
+    storageKey,
+    getDefaultPosition,
   });
+
+  // Check if we should show the hint animation (first time in this workspace)
+  useEffect(() => {
+    try {
+      const hintShown = localStorage.getItem(hintShownKey);
+      const hasSavedPosition = localStorage.getItem(storageKey);
+      
+      if (!hintShown && !hasSavedPosition) {
+        setShowHint(true);
+        // Mark hint as shown
+        localStorage.setItem(hintShownKey, 'true');
+        // Stop the hint after 3 seconds
+        const timer = setTimeout(() => {
+          setShowHint(false);
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      // Ignore storage errors
+    }
+  }, [hintShownKey, storageKey]);
 
   const handleSearch = (value: string) => {
     setQuery(value);
@@ -47,14 +100,28 @@ export const CanvasSearch = ({
     onClear();
   };
 
+  const handleReset = () => {
+    resetToDefault();
+    onReset();
+  };
+
   return (
     <div 
       ref={dragRef}
-      className="fixed z-10 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-2"
+      className={cn(
+        "fixed z-10 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-2",
+        // Hide until positioned to prevent flash
+        !isPositioned && "opacity-0",
+        isPositioned && "animate-fade-in",
+        // Subtle hint glow effect
+        showHint && "ring-2 ring-primary/40 ring-offset-2 ring-offset-background"
+      )}
       style={{
         left: position.x,
         top: position.y,
-        transition: isDragging ? 'none' : 'box-shadow 0.2s ease',
+        transition: isDragging 
+          ? 'none' 
+          : 'box-shadow 0.2s ease, opacity 0.15s ease, ring-color 0.3s ease',
       }}
     >
       <div className="flex items-center gap-2">
@@ -121,7 +188,7 @@ export const CanvasSearch = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={onReset}
+            onClick={handleReset}
             className="h-8 gap-2"
           >
             <RotateCcw className="w-4 h-4" />

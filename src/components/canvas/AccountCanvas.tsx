@@ -830,6 +830,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         onNextMatch={handleNextMatch}
         onPrevMatch={handlePrevMatch}
         onReset={handleResetPositions}
+        workspaceId={account.id}
+        userId="current-user"
       />
       <canvas ref={canvasRef} className="w-full h-full block" />
       <CanvasMinimap mainCanvas={fabricCanvas} />

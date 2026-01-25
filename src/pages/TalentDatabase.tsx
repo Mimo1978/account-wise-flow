@@ -310,7 +310,21 @@ export default function TalentDatabase() {
           </div>
         );
       case "roleType":
-        return <span className={cn("text-sm", wrapText ? "" : "truncate")}>{talent.roleType}</span>;
+        return (
+          <span 
+            className="text-sm line-clamp-2 break-words"
+            style={{ 
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              lineHeight: '1.3',
+              maxHeight: '2.6em'
+            }}
+          >
+            {talent.roleType}
+          </span>
+        );
       case "seniority":
         return (
           <span className="text-muted-foreground text-sm">

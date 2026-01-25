@@ -34,8 +34,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
-import { TalentImportModal } from "@/components/talent/TalentImportModal";
-import { BatchImportModal } from "@/components/talent/BatchImportModal";
+import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
 import { TalentQuickView } from "@/components/talent/TalentQuickView";
 import { ViewPresetsDropdown } from "@/components/talent/ViewPresetsDropdown";
@@ -143,7 +142,6 @@ export default function TalentDatabase() {
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showBatchImportModal, setShowBatchImportModal] = useState(false);
   const [showCVViewer, setShowCVViewer] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [quickViewTalentId, setQuickViewTalentId] = useState<string | null>(null);
@@ -613,11 +611,11 @@ export default function TalentDatabase() {
                           <FileText className="h-4 w-4 mr-2" />
                           Upload CV
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setShowBatchImportModal(true)}>
+                        <DropdownMenuItem onClick={() => setShowImportModal(true)}>
                           <Layers className="h-4 w-4 mr-2" />
                           Batch Upload
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => console.log("Drag & drop")}>
+                        <DropdownMenuItem onClick={() => setShowImportModal(true)}>
                           <MousePointer2 className="h-4 w-4 mr-2" />
                           Drag & Drop
                         </DropdownMenuItem>
@@ -858,22 +856,15 @@ export default function TalentDatabase() {
         onBack={() => setShowCVViewer(false)}
       />
 
-      {/* CV Import Modal */}
-      <TalentImportModal
+      {/* Smart Import Modal */}
+      <SmartImportModal
         open={showImportModal}
         onOpenChange={setShowImportModal}
-        onImportComplete={(talent) => {
-          mockTalents.push(talent);
-          setShowImportModal(false);
+        context={{
+          source: 'TALENT',
         }}
-      />
-
-      {/* Batch Import Modal */}
-      <BatchImportModal
-        open={showBatchImportModal}
-        onOpenChange={setShowBatchImportModal}
-        onImportComplete={() => {
-          // Refresh talent list after batch import
+        onComplete={() => {
+          // Refresh talent list after import
         }}
       />
     </div>

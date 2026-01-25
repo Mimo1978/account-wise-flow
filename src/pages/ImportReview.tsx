@@ -55,6 +55,8 @@ export default function ImportReview() {
     approveAll,
   } = useImportReview(batchId);
 
+  const isStillProcessing = batch?.status === 'queued' || batch?.status === 'processing';
+
   const handleApproveAll = async () => {
     setIsApprovingAll(true);
     await approveAll();
@@ -130,9 +132,18 @@ export default function ImportReview() {
             </Button>
             <Separator orientation="vertical" className="h-6" />
             <div>
-              <h1 className="text-lg font-semibold">Review Imported Data</h1>
+              <h1 className="text-lg font-semibold flex items-center gap-2">
+                Review Imported Data
+                {isStillProcessing && (
+                  <Badge variant="outline" className="gap-1 animate-pulse">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Processing...
+                  </Badge>
+                )}
+              </h1>
               <p className="text-sm text-muted-foreground">
                 {statusCounts.total} entities from {batch.total_files} file(s)
+                {isStillProcessing && " (more may appear as processing completes)"}
               </p>
             </div>
           </div>
@@ -246,8 +257,19 @@ export default function ImportReview() {
 
               {entities.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
-                  <FileUser className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No entities extracted yet</p>
+                  {isStillProcessing ? (
+                    <>
+                      <Loader2 className="h-8 w-8 mx-auto mb-2 opacity-50 animate-spin" />
+                      <p className="text-sm">Extracting data from files...</p>
+                      <p className="text-xs mt-1">Entities will appear here as processing completes</p>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm font-medium">No entities extracted</p>
+                      <p className="text-xs mt-1">The files may not contain extractable data</p>
+                    </>
+                  )}
                 </div>
               )}
             </div>

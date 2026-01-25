@@ -487,42 +487,89 @@ async function processItem(
           parsed_data: parsedData,
           missing_fields: missingFields,
           processing_time_ms: processingTime,
+          raw_text_preview: textContent.slice(0, 500),
         },
         search_tags: parsedData?.skills?.primary_skills || [],
       })
       .eq('id', item.id);
     
-    // Create import_entity for review if parsed successfully
-    if (parsedData) {
-      const entityType = docType === 'CV_RESUME' ? 'candidate' 
-        : docType === 'BUSINESS_CARD' ? 'contact'
-        : docType === 'ORG_CHART' ? 'org_node'
-        : docType === 'NOTES_DOCUMENT' ? 'note'
-        : 'candidate';
-      
-      const name = parsedData.personal?.full_name || parsedData.name;
-      const status = name ? 'pending_review' : 'needs_input';
-      
+    // ALWAYS create import_entity for review - even if parsing is partial
+    // This ensures users can manually input data if AI extraction failed
+    const entityType = docType === 'CV_RESUME' ? 'candidate' 
+      : docType === 'BUSINESS_CARD' ? 'contact'
+      : docType === 'ORG_CHART' ? 'org_node'
+      : docType === 'NOTES_DOCUMENT' ? 'note'
+      : 'candidate';
+    
+    // Determine entity status and name
+    const name = parsedData?.personal?.full_name || parsedData?.name;
+    const entityStatus = parsedData && name ? 'pending_review' : 'needs_input';
+    
+    // Build entity JSON with whatever data we have
+    const entityJson = parsedData || {
+      personal: { full_name: null, email: null, phone: null, location: null },
+      headline: { current_title: null, seniority_level: null },
+      skills: { primary_skills: [], secondary_skills: [] },
+      experience: [],
+      education: [],
+      _source_file: item.file_name,
+      _raw_text_length: textContent.length,
+      _raw_text_preview: textContent.slice(0, 500),
+      _extraction_failed: !parsedData,
+    };
+    
+    // Calculate missing fields
+    const allMissingFields = [...missingFields];
+    if (!name) allMissingFields.push('name');
+    if (!parsedData?.personal?.email) allMissingFields.push('email');
+    if (!parsedData?.personal?.phone) allMissingFields.push('phone');
+    
+    const { error: entityError } = await adminClient
+      .from('import_entities')
+      .insert({
+        batch_id: item.batch_id,
+        item_id: item.id,
+        tenant_id: item.tenant_id,
+        entity_type: entityType,
+        status: entityStatus,
+        extracted_json: entityJson,
+        confidence: parsedData ? parseConfidence : 0.1,
+        missing_fields: allMissingFields.length > 0 ? allMissingFields : null,
+      });
+    
+    if (entityError) {
+      log(requestId, 'error', `Failed to create import_entity for ${item.file_name}`, { error: entityError.message });
+    } else {
+      log(requestId, 'info', `Created import_entity for ${item.file_name}: type=${entityType}, status=${entityStatus}`);
+    }
+    
+    log(requestId, 'info', `Completed ${item.file_name} in ${processingTime}ms: ${parsedData ? 'SUCCESS' : 'NEEDS_INPUT'}`);
+    
+  } catch (error) {
+    log(requestId, 'error', `Error processing ${item.file_name}`, { error: String(error) });
+    
+    // Even on error, create an import_entity so user can manually input
+    try {
       await adminClient
         .from('import_entities')
         .insert({
           batch_id: item.batch_id,
           item_id: item.id,
           tenant_id: item.tenant_id,
-          entity_type: entityType,
-          status: status,
-          extracted_json: parsedData,
-          confidence: parseConfidence,
-          missing_fields: missingFields,
+          entity_type: 'candidate',
+          status: 'needs_input',
+          extracted_json: {
+            personal: { full_name: null, email: null, phone: null, location: null },
+            _source_file: item.file_name,
+            _extraction_error: error instanceof Error ? error.message : 'Unknown error',
+          },
+          confidence: 0,
+          missing_fields: ['name', 'email', 'phone'],
         });
-      
-      log(requestId, 'info', `Created import_entity for ${item.file_name}: type=${entityType}, status=${status}`);
+      log(requestId, 'info', `Created fallback import_entity for failed ${item.file_name}`);
+    } catch (entityError) {
+      log(requestId, 'error', `Failed to create fallback entity`, { error: String(entityError) });
     }
-    
-    log(requestId, 'info', `Completed ${item.file_name} in ${processingTime}ms: ${parsedData ? 'SUCCESS' : 'FAILED'}`);
-    
-  } catch (error) {
-    log(requestId, 'error', `Error processing ${item.file_name}`, { error: String(error) });
     
     await adminClient
       .from('cv_import_items')

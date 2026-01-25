@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -141,6 +142,7 @@ export const AIImportModal = ({
   existingContacts = mockAccount.contacts,
   currentCompany,
 }: AIImportModalProps) => {
+  const navigate = useNavigate();
   const [files, setFiles] = useState<FilePreview[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -564,7 +566,12 @@ export const AIImportModal = ({
     const succeeded = items.filter(i => i.status === 'parsed').length;
     const failed = items.filter(i => i.status === 'failed').length;
     
-    if (allEntities.length > 0) {
+    // Redirect to Import Review page
+    if (batchId) {
+      toast.success(`Import ready — ${succeeded} file(s) processed. Redirecting to review...`);
+      handleClose();
+      navigate(`/imports/${batchId}/review`);
+    } else if (allEntities.length > 0) {
       setStep('review');
       if (failed > 0) {
         toast.warning(`Extracted ${allEntities.length} entities. ${failed} file(s) had issues.`, {

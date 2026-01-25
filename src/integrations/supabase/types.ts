@@ -154,6 +154,83 @@ export type Database = {
           },
         ]
       }
+      candidates: {
+        Row: {
+          created_at: string
+          current_company: string | null
+          current_title: string | null
+          cv_storage_path: string | null
+          education: Json | null
+          email: string | null
+          experience: Json | null
+          headline: string | null
+          id: string
+          linkedin_url: string | null
+          location: string | null
+          name: string
+          owner_id: string | null
+          phone: string | null
+          raw_cv_text: string | null
+          skills: Json | null
+          source: string | null
+          status: string | null
+          tenant_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_company?: string | null
+          current_title?: string | null
+          cv_storage_path?: string | null
+          education?: Json | null
+          email?: string | null
+          experience?: Json | null
+          headline?: string | null
+          id?: string
+          linkedin_url?: string | null
+          location?: string | null
+          name: string
+          owner_id?: string | null
+          phone?: string | null
+          raw_cv_text?: string | null
+          skills?: Json | null
+          source?: string | null
+          status?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_company?: string | null
+          current_title?: string | null
+          cv_storage_path?: string | null
+          education?: Json | null
+          email?: string | null
+          experience?: Json | null
+          headline?: string | null
+          id?: string
+          linkedin_url?: string | null
+          location?: string | null
+          name?: string
+          owner_id?: string | null
+          phone?: string | null
+          raw_cv_text?: string | null
+          skills?: Json | null
+          source?: string | null
+          status?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string
@@ -563,6 +640,94 @@ export type Database = {
           },
         ]
       }
+      import_entities: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          batch_id: string
+          confidence: number | null
+          created_at: string
+          created_record_id: string | null
+          created_record_type: string | null
+          duplicate_of_id: string | null
+          duplicate_of_type: string | null
+          edited_json: Json | null
+          entity_type: Database["public"]["Enums"]["import_entity_type"]
+          extracted_json: Json
+          id: string
+          item_id: string | null
+          missing_fields: string[] | null
+          rejected_reason: string | null
+          status: Database["public"]["Enums"]["import_entity_status"]
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id: string
+          confidence?: number | null
+          created_at?: string
+          created_record_id?: string | null
+          created_record_type?: string | null
+          duplicate_of_id?: string | null
+          duplicate_of_type?: string | null
+          edited_json?: Json | null
+          entity_type: Database["public"]["Enums"]["import_entity_type"]
+          extracted_json?: Json
+          id?: string
+          item_id?: string | null
+          missing_fields?: string[] | null
+          rejected_reason?: string | null
+          status?: Database["public"]["Enums"]["import_entity_status"]
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          batch_id?: string
+          confidence?: number | null
+          created_at?: string
+          created_record_id?: string | null
+          created_record_type?: string | null
+          duplicate_of_id?: string | null
+          duplicate_of_type?: string | null
+          edited_json?: Json | null
+          entity_type?: Database["public"]["Enums"]["import_entity_type"]
+          extracted_json?: Json
+          id?: string
+          item_id?: string | null
+          missing_fields?: string[] | null
+          rejected_reason?: string | null
+          status?: Database["public"]["Enums"]["import_entity_status"]
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_entities_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "cv_import_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_entities_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "cv_import_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_entities_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notes: {
         Row: {
           content: string
@@ -935,6 +1100,12 @@ export type Database = {
         | "dedupe_review"
         | "merged"
         | "failed"
+      import_entity_status:
+        | "pending_review"
+        | "approved"
+        | "rejected"
+        | "needs_input"
+      import_entity_type: "candidate" | "contact" | "org_node" | "note"
       note_visibility: "public" | "team" | "private"
       workspace_mode: "public_demo" | "demo" | "production"
       workspace_type: "real" | "demo"
@@ -1083,6 +1254,13 @@ export const Constants = {
         "merged",
         "failed",
       ],
+      import_entity_status: [
+        "pending_review",
+        "approved",
+        "rejected",
+        "needs_input",
+      ],
+      import_entity_type: ["candidate", "contact", "org_node", "note"],
       note_visibility: ["public", "team", "private"],
       workspace_mode: ["public_demo", "demo", "production"],
       workspace_type: ["real", "demo"],

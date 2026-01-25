@@ -260,7 +260,8 @@ export default function TalentDatabase() {
   }, [searchQuery, availabilityFilter, roleTypeFilter, allTalents]);
 
   const handleRowClick = (talent: Talent) => {
-    setSelectedTalent(talent);
+    // Navigate to the full profile page
+    navigate(`/talent/${talent.id}`);
   };
 
   const handleAddTalent = () => {

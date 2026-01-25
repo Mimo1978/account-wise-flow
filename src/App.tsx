@@ -21,6 +21,7 @@ import DemoWorkspace from "./pages/DemoWorkspace";
 import WorkspaceSelector from "./pages/WorkspaceSelector";
 import Pricing from "./pages/Pricing";
 import ImportReview from "./pages/ImportReview";
+import CandidateProfile from "./pages/CandidateProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -117,6 +118,16 @@ const App = () => (
                 <ProtectedRoute>
                   <ProductLayout>
                     <TalentDatabase />
+                  </ProductLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/talent/:candidateId"
+              element={
+                <ProtectedRoute>
+                  <ProductLayout>
+                    <CandidateProfile />
                   </ProductLayout>
                 </ProtectedRoute>
               }

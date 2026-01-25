@@ -154,6 +154,207 @@ export type Database = {
           },
         ]
       }
+      candidate_interviews: {
+        Row: {
+          candidate_id: string
+          company_id: string | null
+          completed_at: string | null
+          created_at: string
+          id: string
+          interviewer: string | null
+          interviewer_user_id: string | null
+          next_action: string | null
+          notes: string | null
+          opportunity_id: string | null
+          outcome: Database["public"]["Enums"]["interview_outcome"] | null
+          owner_id: string | null
+          scheduled_at: string | null
+          stage: Database["public"]["Enums"]["interview_stage"]
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          interviewer?: string | null
+          interviewer_user_id?: string | null
+          next_action?: string | null
+          notes?: string | null
+          opportunity_id?: string | null
+          outcome?: Database["public"]["Enums"]["interview_outcome"] | null
+          owner_id?: string | null
+          scheduled_at?: string | null
+          stage: Database["public"]["Enums"]["interview_stage"]
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          company_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          interviewer?: string | null
+          interviewer_user_id?: string | null
+          next_action?: string | null
+          notes?: string | null
+          opportunity_id?: string | null
+          outcome?: Database["public"]["Enums"]["interview_outcome"] | null
+          owner_id?: string | null
+          scheduled_at?: string | null
+          stage?: Database["public"]["Enums"]["interview_stage"]
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_interviews_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_interviews_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_interviews_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "candidate_opportunities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_notes: {
+        Row: {
+          body: string
+          candidate_id: string
+          created_at: string
+          deletion_requested_at: string | null
+          deletion_requested_by: string | null
+          id: string
+          is_deleted: boolean | null
+          owner_id: string | null
+          tags: string[] | null
+          team_id: string | null
+          title: string | null
+          updated_at: string
+          visibility: Database["public"]["Enums"]["note_visibility"] | null
+        }
+        Insert: {
+          body: string
+          candidate_id: string
+          created_at?: string
+          deletion_requested_at?: string | null
+          deletion_requested_by?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          owner_id?: string | null
+          tags?: string[] | null
+          team_id?: string | null
+          title?: string | null
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["note_visibility"] | null
+        }
+        Update: {
+          body?: string
+          candidate_id?: string
+          created_at?: string
+          deletion_requested_at?: string | null
+          deletion_requested_by?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          owner_id?: string | null
+          tags?: string[] | null
+          team_id?: string | null
+          title?: string | null
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["note_visibility"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidate_opportunities: {
+        Row: {
+          candidate_id: string
+          company_id: string | null
+          created_at: string
+          end_date: string | null
+          id: string
+          notes: string | null
+          owner_id: string | null
+          project_name: string | null
+          rate: string | null
+          role_name: string
+          start_date: string | null
+          status: Database["public"]["Enums"]["opportunity_status"] | null
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          candidate_id: string
+          company_id?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          owner_id?: string | null
+          project_name?: string | null
+          rate?: string | null
+          role_name: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["opportunity_status"] | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          candidate_id?: string
+          company_id?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          owner_id?: string | null
+          project_name?: string | null
+          rate?: string | null
+          role_name?: string
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["opportunity_status"] | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidate_opportunities_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "candidate_opportunities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidates: {
         Row: {
           created_at: string
@@ -1106,7 +1307,24 @@ export type Database = {
         | "rejected"
         | "needs_input"
       import_entity_type: "candidate" | "contact" | "org_node" | "note"
+      interview_outcome: "pending" | "passed" | "failed" | "hold" | "cancelled"
+      interview_stage:
+        | "screening"
+        | "first"
+        | "second"
+        | "final"
+        | "offer"
+        | "rejected"
+        | "withdrawn"
       note_visibility: "public" | "team" | "private"
+      opportunity_status:
+        | "submitted"
+        | "shortlisted"
+        | "interviewing"
+        | "offered"
+        | "placed"
+        | "dropped"
+        | "rejected"
       workspace_mode: "public_demo" | "demo" | "production"
       workspace_type: "real" | "demo"
     }
@@ -1261,7 +1479,26 @@ export const Constants = {
         "needs_input",
       ],
       import_entity_type: ["candidate", "contact", "org_node", "note"],
+      interview_outcome: ["pending", "passed", "failed", "hold", "cancelled"],
+      interview_stage: [
+        "screening",
+        "first",
+        "second",
+        "final",
+        "offer",
+        "rejected",
+        "withdrawn",
+      ],
       note_visibility: ["public", "team", "private"],
+      opportunity_status: [
+        "submitted",
+        "shortlisted",
+        "interviewing",
+        "offered",
+        "placed",
+        "dropped",
+        "rejected",
+      ],
       workspace_mode: ["public_demo", "demo", "production"],
       workspace_type: ["real", "demo"],
     },

@@ -492,6 +492,33 @@ async function processItem(
       })
       .eq('id', item.id);
     
+    // Create import_entity for review if parsed successfully
+    if (parsedData) {
+      const entityType = docType === 'CV_RESUME' ? 'candidate' 
+        : docType === 'BUSINESS_CARD' ? 'contact'
+        : docType === 'ORG_CHART' ? 'org_node'
+        : docType === 'NOTES_DOCUMENT' ? 'note'
+        : 'candidate';
+      
+      const name = parsedData.personal?.full_name || parsedData.name;
+      const status = name ? 'pending_review' : 'needs_input';
+      
+      await adminClient
+        .from('import_entities')
+        .insert({
+          batch_id: item.batch_id,
+          item_id: item.id,
+          tenant_id: item.tenant_id,
+          entity_type: entityType,
+          status: status,
+          extracted_json: parsedData,
+          confidence: parseConfidence,
+          missing_fields: missingFields,
+        });
+      
+      log(requestId, 'info', `Created import_entity for ${item.file_name}: type=${entityType}, status=${status}`);
+    }
+    
     log(requestId, 'info', `Completed ${item.file_name} in ${processingTime}ms: ${parsedData ? 'SUCCESS' : 'FAILED'}`);
     
   } catch (error) {

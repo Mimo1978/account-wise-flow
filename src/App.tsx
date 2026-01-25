@@ -20,6 +20,7 @@ import Demo from "./pages/Demo";
 import DemoWorkspace from "./pages/DemoWorkspace";
 import WorkspaceSelector from "./pages/WorkspaceSelector";
 import Pricing from "./pages/Pricing";
+import ImportReview from "./pages/ImportReview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -126,6 +127,18 @@ const App = () => (
                 <ProtectedRoute>
                   <ProductLayout>
                     <ExecutiveInsights />
+                  </ProductLayout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Import Review Page */}
+            <Route
+              path="/imports/:batchId/review"
+              element={
+                <ProtectedRoute>
+                  <ProductLayout>
+                    <ImportReview />
                   </ProductLayout>
                 </ProtectedRoute>
               }

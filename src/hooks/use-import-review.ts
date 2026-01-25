@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "sonner";
@@ -72,6 +73,7 @@ export interface ApprovalResult {
 
 export function useImportReview(batchId: string | undefined) {
   const { currentWorkspace } = useWorkspace();
+  const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(true);
   const [batch, setBatch] = useState<ImportBatchDetails | null>(null);
   const [entities, setEntities] = useState<ImportEntity[]>([]);
@@ -434,6 +436,16 @@ export function useImportReview(batchId: string | undefined) {
           : e
       ));
 
+      // Invalidate relevant caches for immediate visibility
+      if (candidateId) {
+        console.log("[useImportReview] Invalidating candidates cache after approval, candidateId:", candidateId);
+        queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      }
+      if (contactId) {
+        console.log("[useImportReview] Invalidating contacts cache after approval, contactId:", contactId);
+        queryClient.invalidateQueries({ queryKey: ["contacts"] });
+      }
+
       // Show success message
       const destinations: string[] = [];
       if (candidateId) destinations.push("Talent Database");
@@ -447,7 +459,7 @@ export function useImportReview(batchId: string | undefined) {
       toast.error("Failed to approve entity");
       return { success: false, error: String(error) };
     }
-  }, [entities]);
+  }, [entities, queryClient]);
 
   // Reject an entity
   const rejectEntity = useCallback(async (entityId: string, reason?: string): Promise<boolean> => {

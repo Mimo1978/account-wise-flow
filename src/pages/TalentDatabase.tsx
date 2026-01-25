@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { useCandidates } from "@/hooks/use-candidates";
 import { mockTalents, roleTypeOptions } from "@/lib/mock-talent";
 import { Talent, TalentAvailability, TalentDataQuality, TalentStatus, TalentCvSource } from "@/lib/types";
 import { Input } from "@/components/ui/input";
@@ -146,6 +147,24 @@ export default function TalentDatabase() {
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [quickViewTalentId, setQuickViewTalentId] = useState<string | null>(null);
 
+  // Fetch real candidates from database
+  const { 
+    candidates: dbCandidates, 
+    isLoading: candidatesLoading, 
+    refetch: refetchCandidates,
+    invalidateCandidates 
+  } = useCandidates();
+
+  // Use real data if available, fallback to mock for demo
+  const allTalents = useMemo(() => {
+    // If we have real candidates, use them; otherwise use mock data for demo purposes
+    if (dbCandidates.length > 0) {
+      return dbCandidates;
+    }
+    // Fallback to mock data when no real candidates (for demo workspace)
+    return mockTalents;
+  }, [dbCandidates]);
+
   // Permissions
   const { role, canInsert, canEdit, isLoading: permissionsLoading } = usePermissions();
   const insertTooltip = getPermissionTooltip("insert", role);
@@ -213,13 +232,13 @@ export default function TalentDatabase() {
 
   // Get unique role types from data
   const roleTypes = useMemo(() => {
-    const types = new Set(mockTalents.map((t) => t.roleType));
+    const types = new Set(allTalents.map((t) => t.roleType));
     return Array.from(types).sort();
-  }, []);
+  }, [allTalents]);
 
   // Filter talents
   const filteredTalents = useMemo(() => {
-    return mockTalents.filter((talent) => {
+    return allTalents.filter((talent) => {
       const searchLower = searchQuery.toLowerCase();
       const matchesSearch =
         !searchQuery ||
@@ -238,7 +257,7 @@ export default function TalentDatabase() {
 
       return matchesSearch && matchesAvailability && matchesRoleType;
     });
-  }, [searchQuery, availabilityFilter, roleTypeFilter]);
+  }, [searchQuery, availabilityFilter, roleTypeFilter, allTalents]);
 
   const handleRowClick = (talent: Talent) => {
     setSelectedTalent(talent);
@@ -831,7 +850,7 @@ export default function TalentDatabase() {
         {/* Footer */}
         <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            Showing {filteredTalents.length} of {mockTalents.length} candidates
+            {candidatesLoading ? "Loading..." : `Showing ${filteredTalents.length} of ${allTalents.length} candidates`}
           </span>
           <span className="text-xs">
             {visibleColumns.length} of {columns.length} columns visible
@@ -864,7 +883,10 @@ export default function TalentDatabase() {
           source: 'TALENT',
         }}
         onComplete={() => {
-          // Refresh talent list after import
+          // Refresh talent list after import completes
+          console.log("[TalentDatabase] Import complete, invalidating candidates cache");
+          invalidateCandidates();
+          refetchCandidates();
         }}
       />
     </div>

@@ -53,6 +53,8 @@ export default function ImportReview() {
     approveEntity,
     rejectEntity,
     approveAll,
+    checkDuplicates,
+    fetchCompanies,
   } = useImportReview(batchId);
 
   const isStillProcessing = batch?.status === 'queued' || batch?.status === 'processing';
@@ -284,6 +286,8 @@ export default function ImportReview() {
               onUpdate={updateEntity}
               onApprove={approveEntity}
               onReject={rejectEntity}
+              onCheckDuplicates={checkDuplicates}
+              onFetchCompanies={fetchCompanies}
             />
           ) : (
             <div className="h-full flex items-center justify-center text-muted-foreground">

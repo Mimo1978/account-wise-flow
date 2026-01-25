@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 export type ImportEntityType = "candidate" | "contact" | "org_node" | "note";
 export type ImportEntityStatus = "pending_review" | "approved" | "rejected" | "needs_input";
+export type StoreDestination = "candidate" | "contact" | "both";
 
 export interface ImportEntity {
   id: string;
@@ -30,6 +31,25 @@ export interface ImportEntity {
   file_name?: string;
 }
 
+export interface DuplicateMatch {
+  id: string;
+  name: string;
+  email?: string;
+  type: "candidate" | "contact";
+  matchReason: string;
+  matchScore: number;
+}
+
+export interface ApprovalOptions {
+  destination: StoreDestination;
+  companyId?: string;
+  companyName?: string;
+  createNewCompany?: boolean;
+  addToOrgChart?: boolean;
+  mergeWithExisting?: string;
+  mergeType?: "candidate" | "contact";
+}
+
 export interface ImportBatchDetails {
   id: string;
   tenant_id: string;
@@ -42,10 +62,11 @@ export interface ImportBatchDetails {
   completed_at: string | null;
 }
 
-interface ApprovalResult {
+export interface ApprovalResult {
   success: boolean;
-  recordId?: string;
-  recordType?: string;
+  candidateId?: string;
+  contactId?: string;
+  companyId?: string;
   error?: string;
 }
 
@@ -164,99 +185,240 @@ export function useImportReview(batchId: string | undefined) {
     }
   }, [selectedEntity]);
 
-  // Approve a single entity - write to real table
-  const approveEntity = useCallback(async (entityId: string): Promise<ApprovalResult> => {
+  // Check for duplicate matches
+  const checkDuplicates = useCallback(async (entity: ImportEntity): Promise<DuplicateMatch[]> => {
+    const data = entity.edited_json || entity.extracted_json;
+    const email = (data as any).personal?.email || (data as any).email;
+    const linkedin = (data as any).personal?.linkedin || (data as any).linkedin;
+    const phone = (data as any).personal?.phone || (data as any).phone;
+    const name = (data as any).personal?.full_name || (data as any).name;
+
+    const matches: DuplicateMatch[] = [];
+
+    // Check candidates
+    if (email || linkedin || phone) {
+      let candidateQuery = supabase.from("candidates").select("id, name, email, linkedin_url, phone");
+      
+      const conditions: string[] = [];
+      if (email) conditions.push(`email.eq.${email}`);
+      if (linkedin) conditions.push(`linkedin_url.eq.${linkedin}`);
+      
+      const { data: candidateMatches } = await supabase
+        .from("candidates")
+        .select("id, name, email, linkedin_url, phone")
+        .or(conditions.join(","));
+
+      if (candidateMatches) {
+        for (const match of candidateMatches) {
+          let reason = "";
+          let score = 0;
+          
+          if (email && match.email === email) {
+            reason = "Email match";
+            score = 0.95;
+          } else if (linkedin && match.linkedin_url === linkedin) {
+            reason = "LinkedIn match";
+            score = 0.9;
+          } else if (phone && match.phone === phone) {
+            reason = "Phone match";
+            score = 0.85;
+          }
+          
+          if (reason) {
+            matches.push({
+              id: match.id,
+              name: match.name,
+              email: match.email || undefined,
+              type: "candidate",
+              matchReason: reason,
+              matchScore: score,
+            });
+          }
+        }
+      }
+    }
+
+    // Check contacts
+    if (email || phone) {
+      const conditions: string[] = [];
+      if (email) conditions.push(`email.eq.${email}`);
+      
+      const { data: contactMatches } = await supabase
+        .from("contacts")
+        .select("id, name, email, phone")
+        .or(conditions.join(",") || "id.is.null");
+
+      if (contactMatches && conditions.length > 0) {
+        for (const match of contactMatches) {
+          let reason = "";
+          let score = 0;
+          
+          if (email && match.email === email) {
+            reason = "Email match";
+            score = 0.95;
+          } else if (phone && match.phone === phone) {
+            reason = "Phone match";
+            score = 0.85;
+          }
+          
+          if (reason) {
+            matches.push({
+              id: match.id,
+              name: match.name,
+              email: match.email || undefined,
+              type: "contact",
+              matchReason: reason,
+              matchScore: score,
+            });
+          }
+        }
+      }
+    }
+
+    return matches.sort((a, b) => b.matchScore - a.matchScore);
+  }, []);
+
+  // Approve a single entity with options - write to real table(s)
+  const approveEntity = useCallback(async (
+    entityId: string,
+    options: ApprovalOptions = { destination: "candidate" }
+  ): Promise<ApprovalResult> => {
     const entity = entities.find(e => e.id === entityId);
     if (!entity) return { success: false, error: "Entity not found" };
 
     const data = entity.edited_json || entity.extracted_json;
     const tenantId = entity.tenant_id;
+    const userId = (await supabase.auth.getUser()).data.user?.id;
 
     try {
-      let recordId: string | undefined;
-      let recordType: string | undefined;
+      let candidateId: string | undefined;
+      let contactId: string | undefined;
+      let companyId: string | undefined = options.companyId;
 
-      // Write to appropriate table based on entity type
-      if (entity.entity_type === "candidate") {
-        // Write to candidates table
-        const candidateData = {
-          tenant_id: tenantId,
-          name: (data as any).personal?.full_name || (data as any).name || "Unknown",
-          email: (data as any).personal?.email,
-          phone: (data as any).personal?.phone,
-          location: (data as any).personal?.location,
-          linkedin_url: (data as any).personal?.linkedin,
-          headline: (data as any).headline?.current_title,
-          current_title: (data as any).headline?.current_title,
-          current_company: (data as any).headline?.current_company,
-          skills: (data as any).skills || {},
-          experience: (data as any).experience || [],
-          education: (data as any).education || [],
-          source: "import",
-          status: "active",
-          owner_id: (await supabase.auth.getUser()).data.user?.id,
-        };
-
-        const { data: inserted, error } = await supabase
-          .from("candidates")
-          .insert(candidateData)
+      // Handle company creation if needed
+      if (options.createNewCompany && options.companyName) {
+        const { data: newCompany, error: companyError } = await supabase
+          .from("companies")
+          .insert({
+            name: options.companyName,
+            team_id: tenantId,
+            owner_id: userId,
+          })
           .select("id")
           .single();
 
-        if (error) throw error;
-        recordId = inserted.id;
-        recordType = "candidate";
-
-      } else if (entity.entity_type === "contact") {
-        // Write to contacts table
-        const contactData = {
-          team_id: tenantId,
-          name: (data as any).name || (data as any).full_name || "Unknown",
-          email: (data as any).email,
-          phone: (data as any).phone,
-          title: (data as any).title || (data as any).job_title,
-          department: (data as any).department,
-          owner_id: (await supabase.auth.getUser()).data.user?.id,
-        };
-
-        const { data: inserted, error } = await supabase
-          .from("contacts")
-          .insert(contactData)
-          .select("id")
-          .single();
-
-        if (error) throw error;
-        recordId = inserted.id;
-        recordType = "contact";
-
-      } else if (entity.entity_type === "note") {
-        // Write to notes table
-        const noteData = {
-          team_id: tenantId,
-          entity_type: "import",
-          entity_id: entity.batch_id,
-          content: (data as any).summary || (data as any).content || JSON.stringify(data),
-          visibility: "team" as const,
-          owner_id: (await supabase.auth.getUser()).data.user?.id,
-        };
-
-        const { data: inserted, error } = await supabase
-          .from("notes")
-          .insert(noteData)
-          .select("id")
-          .single();
-
-        if (error) throw error;
-        recordId = inserted.id;
-        recordType = "note";
+        if (companyError) throw companyError;
+        companyId = newCompany.id;
       }
+
+      // Extract common fields
+      const name = (data as any).personal?.full_name || (data as any).name || "Unknown";
+      const email = (data as any).personal?.email || (data as any).email;
+      const phone = (data as any).personal?.phone || (data as any).phone;
+      const location = (data as any).personal?.location || (data as any).location;
+      const linkedin = (data as any).personal?.linkedin || (data as any).linkedin;
+      const title = (data as any).headline?.current_title || (data as any).title;
+
+      // Handle merge with existing
+      if (options.mergeWithExisting) {
+        if (options.mergeType === "candidate") {
+          // Update existing candidate
+          const { error } = await supabase
+            .from("candidates")
+            .update({
+              email: email || undefined,
+              phone: phone || undefined,
+              location: location || undefined,
+              linkedin_url: linkedin || undefined,
+              headline: title || undefined,
+              skills: (data as any).skills || {},
+              experience: (data as any).experience || [],
+              education: (data as any).education || [],
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", options.mergeWithExisting);
+
+          if (error) throw error;
+          candidateId = options.mergeWithExisting;
+        } else if (options.mergeType === "contact") {
+          // Update existing contact
+          const { error } = await supabase
+            .from("contacts")
+            .update({
+              email: email || undefined,
+              phone: phone || undefined,
+              title: title || undefined,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", options.mergeWithExisting);
+
+          if (error) throw error;
+          contactId = options.mergeWithExisting;
+        }
+      } else {
+        // Create new records based on destination
+        if (options.destination === "candidate" || options.destination === "both") {
+          const candidateData = {
+            tenant_id: tenantId,
+            name,
+            email,
+            phone,
+            location,
+            linkedin_url: linkedin,
+            headline: title,
+            current_title: title,
+            current_company: (data as any).headline?.current_company,
+            skills: (data as any).skills || {},
+            experience: (data as any).experience || [],
+            education: (data as any).education || [],
+            source: "import",
+            status: "active",
+            owner_id: userId,
+          };
+
+          const { data: inserted, error } = await supabase
+            .from("candidates")
+            .insert(candidateData)
+            .select("id")
+            .single();
+
+          if (error) throw error;
+          candidateId = inserted.id;
+        }
+
+        if (options.destination === "contact" || options.destination === "both") {
+          const contactData = {
+            team_id: tenantId,
+            name,
+            email,
+            phone,
+            title,
+            department: (data as any).department,
+            company_id: companyId || null,
+            owner_id: userId,
+          };
+
+          const { data: inserted, error } = await supabase
+            .from("contacts")
+            .insert(contactData)
+            .select("id")
+            .single();
+
+          if (error) throw error;
+          contactId = inserted.id;
+        }
+      }
+
+      // Determine record type for import_entities
+      let recordType = options.destination;
+      let recordId = candidateId || contactId;
 
       // Update entity status
       const { error: updateError } = await supabase
         .from("import_entities")
         .update({
           status: "approved",
-          approved_by: (await supabase.auth.getUser()).data.user?.id,
+          approved_by: userId,
           approved_at: new Date().toISOString(),
           created_record_id: recordId,
           created_record_type: recordType,
@@ -272,8 +434,13 @@ export function useImportReview(batchId: string | undefined) {
           : e
       ));
 
-      toast.success(`Saved to ${recordType === "candidate" ? "Talent Database" : recordType === "contact" ? "Contacts" : "Notes"}`);
-      return { success: true, recordId, recordType };
+      // Show success message
+      const destinations: string[] = [];
+      if (candidateId) destinations.push("Talent Database");
+      if (contactId) destinations.push("Contacts");
+      toast.success(`Saved to ${destinations.join(" & ")}`);
+
+      return { success: true, candidateId, contactId, companyId };
 
     } catch (error) {
       console.error("Failed to approve entity:", error);
@@ -308,8 +475,10 @@ export function useImportReview(batchId: string | undefined) {
     }
   }, []);
 
-  // Approve all entities that have required fields
-  const approveAll = useCallback(async (): Promise<{ approved: number; skipped: number }> => {
+  // Approve all entities that have required fields (defaults to candidate)
+  const approveAll = useCallback(async (
+    defaultOptions: ApprovalOptions = { destination: "candidate" }
+  ): Promise<{ approved: number; skipped: number }> => {
     const pending = entities.filter(e => e.status === "pending_review");
     let approved = 0;
     let skipped = 0;
@@ -329,7 +498,7 @@ export function useImportReview(batchId: string | undefined) {
         continue;
       }
 
-      const result = await approveEntity(entity.id);
+      const result = await approveEntity(entity.id, defaultOptions);
       if (result.success) {
         approved++;
       } else {
@@ -358,6 +527,15 @@ export function useImportReview(batchId: string | undefined) {
     total: entities.length,
   };
 
+  // Fetch companies for selector
+  const fetchCompanies = useCallback(async () => {
+    const { data } = await supabase
+      .from("companies")
+      .select("id, name")
+      .order("name");
+    return data || [];
+  }, []);
+
   return {
     isLoading,
     batch,
@@ -369,6 +547,8 @@ export function useImportReview(batchId: string | undefined) {
     approveEntity,
     rejectEntity,
     approveAll,
+    checkDuplicates,
+    fetchCompanies,
     refreshData: fetchBatchData,
   };
 }

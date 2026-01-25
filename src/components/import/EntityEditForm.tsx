@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { ImportEntity, ImportEntityStatus } from "@/hooks/use-import-review";
+import { useState, useEffect, useCallback } from "react";
+import { ImportEntity, ImportEntityStatus, StoreDestination, DuplicateMatch, ApprovalOptions } from "@/hooks/use-import-review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -28,29 +30,114 @@ import {
   Award,
   Linkedin,
   ExternalLink,
+  Users,
+  Building2,
+  UserPlus,
+  Merge,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
+
+interface Company {
+  id: string;
+  name: string;
+}
 
 interface EntityEditFormProps {
   entity: ImportEntity;
   onUpdate: (entityId: string, updates: Partial<ImportEntity>) => Promise<boolean>;
-  onApprove: (entityId: string) => Promise<{ success: boolean; recordId?: string; recordType?: string; error?: string }>;
+  onApprove: (entityId: string, options?: ApprovalOptions) => Promise<{ success: boolean; candidateId?: string; contactId?: string; companyId?: string; error?: string }>;
   onReject: (entityId: string, reason?: string) => Promise<boolean>;
+  onCheckDuplicates: (entity: ImportEntity) => Promise<DuplicateMatch[]>;
+  onFetchCompanies: () => Promise<Company[]>;
 }
 
-export function EntityEditForm({ entity, onUpdate, onApprove, onReject }: EntityEditFormProps) {
+export function EntityEditForm({ 
+  entity, 
+  onUpdate, 
+  onApprove, 
+  onReject, 
+  onCheckDuplicates,
+  onFetchCompanies 
+}: EntityEditFormProps) {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Destination and company state
+  const [destination, setDestination] = useState<StoreDestination>("candidate");
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("");
+  const [newCompanyName, setNewCompanyName] = useState("");
+  const [createNewCompany, setCreateNewCompany] = useState(false);
+  const [addToOrgChart, setAddToOrgChart] = useState(true);
+  
+  // Duplicate checking state
+  const [duplicates, setDuplicates] = useState<DuplicateMatch[]>([]);
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [mergeChoice, setMergeChoice] = useState<"create" | "merge" | "link">("create");
+  const [mergeTargetId, setMergeTargetId] = useState<string>("");
+  const [mergeTargetType, setMergeTargetType] = useState<"candidate" | "contact">("candidate");
+  
+  // Approval progress state
+  const [approvalStep, setApprovalStep] = useState<string>("");
+  
+  // Approval result state
+  const [approvalResult, setApprovalResult] = useState<{
+    candidateId?: string;
+    contactId?: string;
+    companyId?: string;
+  } | null>(null);
 
   // Initialize form data from entity
   useEffect(() => {
     const data = entity.edited_json || entity.extracted_json;
     setFormData(JSON.parse(JSON.stringify(data)));
     setHasChanges(false);
+    setApprovalResult(null);
+    
+    // Set default destination based on entity type and data
+    if (entity.entity_type === "candidate") {
+      const headline = (data as any).headline || {};
+      if (headline.current_company) {
+        setDestination("both"); // Has company info, suggest both
+      } else {
+        setDestination("candidate");
+      }
+    } else if (entity.entity_type === "contact") {
+      setDestination("contact");
+    }
   }, [entity]);
+
+  // Load companies on mount
+  useEffect(() => {
+    onFetchCompanies().then(setCompanies);
+  }, [onFetchCompanies]);
+
+  // Check for duplicates when entity changes
+  useEffect(() => {
+    const checkDups = async () => {
+      if (entity.status !== "pending_review" && entity.status !== "needs_input") return;
+      
+      setIsCheckingDuplicates(true);
+      const dups = await onCheckDuplicates(entity);
+      setDuplicates(dups);
+      setIsCheckingDuplicates(false);
+      
+      // Auto-select merge if high confidence match found
+      if (dups.length > 0 && dups[0].matchScore >= 0.9) {
+        setMergeChoice("merge");
+        setMergeTargetId(dups[0].id);
+        setMergeTargetType(dups[0].type);
+      }
+    };
+    
+    checkDups();
+  }, [entity.id, onCheckDuplicates]);
 
   const updateField = (path: string, value: any) => {
     setFormData((prev) => {
@@ -83,9 +170,45 @@ export function EntityEditForm({ entity, onUpdate, onApprove, onReject }: Entity
     if (hasChanges) {
       await onUpdate(entity.id, { edited_json: formData });
     }
+    
     setIsApproving(true);
-    await onApprove(entity.id);
+    
+    // Show progress steps
+    if (duplicates.length > 0 && mergeChoice !== "create") {
+      setApprovalStep("Checking for duplicates...");
+      await new Promise(r => setTimeout(r, 500));
+    }
+    
+    if (destination === "contact" || destination === "both") {
+      setApprovalStep("Linking to company...");
+      await new Promise(r => setTimeout(r, 500));
+    }
+    
+    setApprovalStep(destination === "both" ? "Saving to Talent & Contacts..." : 
+                    destination === "candidate" ? "Saving to Talent..." : "Saving to Contacts...");
+    
+    const options: ApprovalOptions = {
+      destination,
+      companyId: createNewCompany ? undefined : selectedCompanyId || undefined,
+      companyName: createNewCompany ? newCompanyName : undefined,
+      createNewCompany,
+      addToOrgChart,
+      mergeWithExisting: mergeChoice === "merge" ? mergeTargetId : undefined,
+      mergeType: mergeChoice === "merge" ? mergeTargetType : undefined,
+    };
+    
+    const result = await onApprove(entity.id, options);
+    
+    setApprovalStep("");
     setIsApproving(false);
+    
+    if (result.success) {
+      setApprovalResult({
+        candidateId: result.candidateId,
+        contactId: result.contactId,
+        companyId: result.companyId,
+      });
+    }
   };
 
   const handleReject = async () => {
@@ -101,6 +224,10 @@ export function EntityEditForm({ entity, onUpdate, onApprove, onReject }: Entity
   // Check for missing required fields
   const name = formData.personal?.full_name || formData.name;
   const hasMissingRequired = !name && entity.entity_type !== "note";
+  
+  // Check if company is required (destination includes contact)
+  const needsCompany = (destination === "contact" || destination === "both") && 
+                       !selectedCompanyId && !createNewCompany;
 
   return (
     <div className="h-full flex flex-col">
@@ -162,17 +289,28 @@ export function EntityEditForm({ entity, onUpdate, onApprove, onReject }: Entity
                   disabled={isApproving || hasMissingRequired}
                   className="bg-green-600 hover:bg-green-700"
                 >
-                  {isApproving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                  <span className="ml-2">Approve</span>
+                  {isApproving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="ml-2">{approvalStep || "Approving..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span className="ml-2">Approve</span>
+                    </>
+                  )}
                 </Button>
               </>
             )}
 
-            {isApproved && entity.created_record_id && (
-              <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
-                <CheckCircle2 className="h-3 w-3 mr-1" />
-                Saved to {entity.created_record_type}
-              </Badge>
+            {isApproved && (approvalResult || entity.created_record_id) && (
+              <div className="flex items-center gap-2">
+                <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  Approved
+                </Badge>
+              </div>
             )}
 
             {isRejected && (
@@ -192,11 +330,226 @@ export function EntityEditForm({ entity, onUpdate, onApprove, onReject }: Entity
             </span>
           </div>
         )}
+
+        {/* Post-approval links */}
+        {isApproved && (approvalResult || entity.created_record_id) && (
+          <div className="mt-4 p-4 rounded-lg bg-green-500/10 border border-green-500/30">
+            <p className="text-sm font-medium text-green-600 mb-3">Successfully saved!</p>
+            <div className="flex items-center gap-3 flex-wrap">
+              {(approvalResult?.candidateId || entity.created_record_type === "candidate" || entity.created_record_type === "both") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/talent")}
+                  className="gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Open in Talent
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+              )}
+              {(approvalResult?.contactId || entity.created_record_type === "contact" || entity.created_record_type === "both") && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/contacts")}
+                  className="gap-2"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Open in Contacts
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+              )}
+              {approvalResult?.companyId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate("/companies")}
+                  className="gap-2"
+                >
+                  <Building2 className="h-4 w-4" />
+                  Open Company
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Form content */}
       <ScrollArea className="flex-1">
         <div className="p-6 space-y-6">
+          {/* Destination selector - only for candidates */}
+          {entity.entity_type === "candidate" && !isDisabled && (
+            <section className="p-4 rounded-lg border bg-muted/30">
+              <h3 className="font-medium mb-4 flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Store as
+              </h3>
+              <RadioGroup
+                value={destination}
+                onValueChange={(v) => setDestination(v as StoreDestination)}
+                className="flex flex-wrap gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="candidate" id="dest-candidate" />
+                  <Label htmlFor="dest-candidate" className="cursor-pointer">
+                    Candidate (Talent)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="contact" id="dest-contact" />
+                  <Label htmlFor="dest-contact" className="cursor-pointer">
+                    Contact (Company)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="both" id="dest-both" />
+                  <Label htmlFor="dest-both" className="cursor-pointer">
+                    Both Candidate + Contact
+                  </Label>
+                </div>
+              </RadioGroup>
+
+              {/* Company selector when Contact or Both */}
+              {(destination === "contact" || destination === "both") && (
+                <div className="mt-4 pt-4 border-t space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <Label>Select Company</Label>
+                  </div>
+                  
+                  {!createNewCompany ? (
+                    <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose existing company..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {companies.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input
+                      placeholder="Enter new company name..."
+                      value={newCompanyName}
+                      onChange={(e) => setNewCompanyName(e.target.value)}
+                    />
+                  )}
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="create-company"
+                      checked={createNewCompany}
+                      onCheckedChange={(checked) => {
+                        setCreateNewCompany(!!checked);
+                        if (checked) setSelectedCompanyId("");
+                      }}
+                    />
+                    <Label htmlFor="create-company" className="text-sm cursor-pointer">
+                      Create new company instead
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="add-orgchart"
+                      checked={addToOrgChart}
+                      onCheckedChange={(checked) => setAddToOrgChart(!!checked)}
+                    />
+                    <Label htmlFor="add-orgchart" className="text-sm cursor-pointer">
+                      Add to org chart
+                    </Label>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* Duplicate warning section */}
+          {!isDisabled && duplicates.length > 0 && (
+            <section className="p-4 rounded-lg border border-orange-500/30 bg-orange-500/5">
+              <h3 className="font-medium mb-3 flex items-center gap-2 text-orange-600">
+                <AlertCircle className="h-4 w-4" />
+                Potential Duplicates Found
+              </h3>
+              
+              <div className="space-y-2 mb-4">
+                {duplicates.slice(0, 3).map((dup) => (
+                  <div
+                    key={`${dup.type}-${dup.id}`}
+                    className={cn(
+                      "p-3 rounded-lg border cursor-pointer transition-colors",
+                      mergeChoice === "merge" && mergeTargetId === dup.id
+                        ? "border-primary bg-primary/5"
+                        : "border-muted hover:bg-muted/50"
+                    )}
+                    onClick={() => {
+                      setMergeChoice("merge");
+                      setMergeTargetId(dup.id);
+                      setMergeTargetType(dup.type);
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{dup.name}</p>
+                        {dup.email && (
+                          <p className="text-sm text-muted-foreground">{dup.email}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="capitalize text-xs">
+                          {dup.type}
+                        </Badge>
+                        <Badge 
+                          variant="outline" 
+                          className={cn(
+                            "text-xs",
+                            dup.matchScore >= 0.9 ? "bg-red-500/10 text-red-600" : "bg-orange-500/10 text-orange-600"
+                          )}
+                        >
+                          {dup.matchReason}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <RadioGroup
+                value={mergeChoice}
+                onValueChange={(v) => setMergeChoice(v as "create" | "merge" | "link")}
+                className="space-y-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="merge" id="dup-merge" />
+                  <Label htmlFor="dup-merge" className="cursor-pointer flex items-center gap-2">
+                    <Merge className="h-4 w-4" />
+                    Merge into existing (update record with new data)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="create" id="dup-create" />
+                  <Label htmlFor="dup-create" className="cursor-pointer flex items-center gap-2">
+                    <UserPlus className="h-4 w-4" />
+                    Create new anyway (keep both records)
+                  </Label>
+                </div>
+              </RadioGroup>
+            </section>
+          )}
+
+          {isCheckingDuplicates && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Checking for duplicates...
+            </div>
+          )}
+
           {entity.entity_type === "candidate" && (
             <CandidateForm
               data={formData}

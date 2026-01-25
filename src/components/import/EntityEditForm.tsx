@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { ImportEntity, ImportEntityStatus, StoreDestination, DuplicateMatch, ApprovalOptions } from "@/hooks/use-import-review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
+import { BestNextActionsPanel } from "./BestNextActionsPanel";
 
 interface Company {
   id: string;
@@ -333,46 +334,73 @@ export function EntityEditForm({
 
         {/* Post-approval links */}
         {isApproved && (approvalResult || entity.created_record_id) && (
-          <div className="mt-4 p-4 rounded-lg bg-green-500/10 border border-green-500/30">
-            <p className="text-sm font-medium text-green-600 mb-3">Successfully saved!</p>
-            <div className="flex items-center gap-3 flex-wrap">
-              {(approvalResult?.candidateId || entity.created_record_type === "candidate" || entity.created_record_type === "both") && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate("/talent")}
-                  className="gap-2"
-                >
-                  <Users className="h-4 w-4" />
-                  Open in Talent
-                  <ExternalLink className="h-3 w-3" />
-                </Button>
-              )}
-              {(approvalResult?.contactId || entity.created_record_type === "contact" || entity.created_record_type === "both") && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate("/contacts")}
-                  className="gap-2"
-                >
-                  <UserPlus className="h-4 w-4" />
-                  Open in Contacts
-                  <ExternalLink className="h-3 w-3" />
-                </Button>
-              )}
-              {approvalResult?.companyId && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate("/companies")}
-                  className="gap-2"
-                >
-                  <Building2 className="h-4 w-4" />
-                  Open Company
-                  <ExternalLink className="h-3 w-3" />
-                </Button>
-              )}
+          <div className="mt-4 space-y-4">
+            <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
+              <p className="text-sm font-medium text-green-600 mb-3">Successfully saved!</p>
+              <div className="flex items-center gap-3 flex-wrap">
+                {(approvalResult?.candidateId || entity.created_record_type === "candidate" || entity.created_record_type === "both") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/talent")}
+                    className="gap-2"
+                  >
+                    <Users className="h-4 w-4" />
+                    Open in Talent
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
+                )}
+                {(approvalResult?.contactId || entity.created_record_type === "contact" || entity.created_record_type === "both") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/contacts")}
+                    className="gap-2"
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Open in Contacts
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
+                )}
+                {approvalResult?.companyId && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/companies")}
+                    className="gap-2"
+                  >
+                    <Building2 className="h-4 w-4" />
+                    Open Company
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </div>
+
+            {/* AI Best Next Actions Panel - shows after approval */}
+            <BestNextActionsPanel
+              entityContext={{
+                entityType: destination,
+                entityId: entity.id,
+                name: name || "Unknown",
+                email: formData.contact?.email || formData.email,
+                phone: formData.contact?.phones?.[0]?.number || formData.phone,
+                title: formData.headline?.current_title || formData.title,
+                headline: formData.headline?.current_title,
+                skills: formData.skills?.primary_skills || formData.skills || [],
+                experience: formData.experience || [],
+                linkedIn: formData.contact?.linkedin || formData.linkedIn,
+                location: formData.personal?.location || formData.location,
+                company: selectedCompanyId 
+                  ? { id: selectedCompanyId, name: companies.find(c => c.id === selectedCompanyId)?.name || "" }
+                  : newCompanyName 
+                    ? { name: newCompanyName }
+                    : formData.headline?.current_company 
+                      ? { name: formData.headline.current_company }
+                      : undefined,
+                cvAttached: !!entity.item_id,
+              }}
+            />
           </div>
         )}
       </div>

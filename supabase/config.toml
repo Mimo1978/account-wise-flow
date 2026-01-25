@@ -37,3 +37,6 @@ verify_jwt = false
 
 [functions.cv-batch-import]
 verify_jwt = false
+
+[functions.ai-next-actions]
+verify_jwt = false

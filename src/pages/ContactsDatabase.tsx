@@ -44,7 +44,7 @@ import { PhoneInlineEditor } from "@/components/canvas/PhoneInlineEditor";
 import { PrivateEmailEditor } from "@/components/canvas/PrivateEmailEditor";
 import { InlineEditCell } from "@/components/canvas/InlineEditCell";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
-import { AIImportModal } from "@/components/canvas/AIImportModal";
+import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import {
   DropdownMenu,
@@ -735,13 +735,13 @@ export default function ContactsDatabase() {
         companyName={companyName}
       />
 
-      {/* AI Import Modal */}
-      <AIImportModal
+      {/* Smart Import Modal */}
+      <SmartImportModal
         open={showAIImportModal}
         onOpenChange={setShowAIImportModal}
-        onImportComplete={(data) => {
-          toast.info("AI processing will be connected soon. Files received.");
-          setShowAIImportModal(false);
+        context={{
+          source: 'CONTACT',
+          companyName: companyName,
         }}
       />
     </div>

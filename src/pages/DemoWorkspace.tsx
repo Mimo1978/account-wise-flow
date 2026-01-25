@@ -7,7 +7,7 @@ import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
 import { QRCodeButton } from "@/components/canvas/QRCodeButton";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
-import { AIImportModal } from "@/components/canvas/AIImportModal";
+import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { CompanyDatabaseView } from "@/components/canvas/CompanyDatabaseView";
 import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
 import { AIInsightsPanel } from "@/components/canvas/AIInsightsPanel";
@@ -475,10 +475,15 @@ const DemoWorkspace = () => {
         companyName={account.name}
       />
 
-      {/* AI Import Modal */}
-      <AIImportModal
+      {/* Smart Import Modal */}
+      <SmartImportModal
         open={showAIImportModal}
         onOpenChange={setShowAIImportModal}
+        context={{
+          source: 'CANVAS',
+          companyId: account.id,
+          companyName: account.name,
+        }}
       />
 
       {/* AI Knowledge Panel */}

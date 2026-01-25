@@ -57,6 +57,7 @@ import {
   ChevronDown,
   AlertCircle,
   UserPlus,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -453,28 +454,42 @@ export const AIImportModal = ({
         
         addDebugLog(`[${requestId}] Progress: ${batch.processed_files}/${batch.total_files} (${batch.status})`);
         
-        // Check if complete
-        if (batch.status === 'completed' || batch.status === 'partial' || batch.status === 'failed') {
+        // Check for import_entities - they may be created before batch is complete
+        const { data: entities, error: entitiesError } = await supabase
+          .from('import_entities')
+          .select('id, entity_type, status')
+          .eq('batch_id', currentBatchId);
+        
+        const entityCount = entities?.length || 0;
+        
+        if (entityCount > 0) {
+          addDebugLog(`[${requestId}] Found ${entityCount} entities in staging`);
+        }
+        
+        // Check if complete OR if we have entities ready
+        const isComplete = batch.status === 'completed' || batch.status === 'partial' || batch.status === 'failed';
+        const hasEntities = entityCount > 0;
+        
+        if (isComplete || (hasEntities && batch.processed_files > 0)) {
           // Stop polling
           if (pollIntervalRef.current) {
             clearInterval(pollIntervalRef.current);
             pollIntervalRef.current = null;
           }
           
-          addDebugLog(`[${requestId}] Batch complete with status: ${batch.status}`);
+          addDebugLog(`[${requestId}] Batch ready: status=${batch.status}, entities=${entityCount}`);
           
-          // Fetch parsed items
-          const { data: items, error: itemsError } = await supabase
-            .from('cv_import_items')
-            .select('*')
-            .eq('batch_id', currentBatchId);
+          // Redirect to review page
+          setIsProcessing(false);
           
-          if (itemsError) {
-            addDebugLog(`[${requestId}] Items fetch error: ${itemsError.message}`);
+          if (entityCount > 0) {
+            toast.success(`Import ready — ${entityCount} entities detected. Redirecting to review...`);
+          } else {
+            toast.info(`Processing complete. Open review to add data manually.`);
           }
           
-          // Convert items to extracted entities
-          processCompletedItems(items || [], requestId);
+          handleClose();
+          navigate(`/imports/${currentBatchId}/review`);
         }
         
       } catch (err) {
@@ -487,107 +502,17 @@ export const AIImportModal = ({
     pollIntervalRef.current = setInterval(pollProgress, 2000);
   };
 
+  // Legacy function - now we redirect to review page instead
   const processCompletedItems = (items: any[], requestId: string) => {
-    addDebugLog(`[${requestId}] Processing ${items.length} completed items`);
+    addDebugLog(`[${requestId}] Processing ${items.length} completed items (legacy path)`);
     
-    // Update file states
-    setFiles(prev => prev.map((f, idx) => {
-      const item = items.find(i => i.file_name === f.file.name);
-      if (item) {
-        const extractedData = item.extracted_data || {};
-        return {
-          ...f,
-          detectedType: extractedData.classification?.type || 'UNKNOWN',
-          detectedConfidence: extractedData.classification?.confidence || 0.5,
-          detectedReasoning: `Processed via ${extractedData.extraction_method}`,
-          isProcessed: true,
-          processingError: item.status === 'failed' ? item.error_message : undefined,
-        };
-      }
-      return f;
-    }));
-
-    // Convert to extracted entities
-    const allEntities: ExtractedEntity[] = [];
-    
-    items.forEach((item, idx) => {
-      if (item.status !== 'parsed' || !item.extracted_data?.parsed_data) {
-        addDebugLog(`[${requestId}] Skipping ${item.file_name}: status=${item.status}`);
-        return;
-      }
-      
-      const parsedData = item.extracted_data.parsed_data;
-      const classification = item.extracted_data.classification;
-      const entityId = `entity-${idx}-${Date.now()}`;
-      
-      // Determine type and destination
-      let entityType: EntityType = 'candidate';
-      let destination: ExtractedEntity['destination'] = 'talent';
-      
-      if (classification?.type === 'BUSINESS_CARD') {
-        entityType = 'contact';
-        destination = 'contact';
-      } else if (classification?.type === 'ORG_CHART') {
-        entityType = 'org_node';
-        destination = 'org_chart';
-      } else if (classification?.type === 'NOTES_DOCUMENT') {
-        entityType = 'notes';
-        destination = 'notes';
-      }
-      
-      // Check for duplicates
-      let duplicateOf: string | undefined;
-      const name = parsedData.personal?.full_name || parsedData.name;
-      const email = parsedData.personal?.email || parsedData.email;
-      if (name) {
-        const dup = findDuplicate(name, email);
-        if (dup) duplicateOf = dup.id;
-      }
-
-      allEntities.push({
-        id: entityId,
-        sourceFileIndex: idx,
-        type: entityType,
-        data: parsedData,
-        confidence: item.parse_confidence || 0.5,
-        missingFields: item.extracted_data.missing_fields || [],
-        selected: true,
-        destination,
-        duplicateOf,
-      });
-
-      addDebugLog(`[${requestId}] Entity: ${name || 'Unknown'}, type=${entityType}, confidence=${(item.parse_confidence || 0).toFixed(2)}`);
-    });
-
-    setExtractedEntities(allEntities);
+    // This function is kept for compatibility but the main flow now redirects to /imports/:batchId/review
     setIsProcessing(false);
-
-    // Show appropriate toast
-    const succeeded = items.filter(i => i.status === 'parsed').length;
-    const failed = items.filter(i => i.status === 'failed').length;
     
-    // Redirect to Import Review page
     if (batchId) {
-      toast.success(`Import ready — ${succeeded} file(s) processed. Redirecting to review...`);
       handleClose();
       navigate(`/imports/${batchId}/review`);
-    } else if (allEntities.length > 0) {
-      setStep('review');
-      if (failed > 0) {
-        toast.warning(`Extracted ${allEntities.length} entities. ${failed} file(s) had issues.`, {
-          action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
-        });
-      } else {
-        toast.success(`Extracted ${allEntities.length} entities from ${succeeded} file(s)`);
-      }
     } else {
-      if (failed > 0) {
-        toast.error(`Could not extract data from ${failed} file(s)`, {
-          action: { label: 'Show Logs', onClick: () => setDebugOpen(true) }
-        });
-      } else {
-        toast.warning('No structured data could be extracted from the uploaded files');
-      }
       setStep('review');
     }
   };
@@ -1025,6 +950,102 @@ export const AIImportModal = ({
                     Process with AI
                   </>
                 )}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : step === 'processing' ? (
+          <>
+            {/* Processing Step - Show progress and allow viewing review */}
+            <div className="flex-1 overflow-hidden flex flex-col py-4">
+              <div className="flex flex-col items-center justify-center gap-6 py-8">
+                <div className="relative">
+                  <Loader2 className="h-16 w-16 animate-spin text-primary" />
+                  <Sparkles className="h-6 w-6 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-primary" />
+                </div>
+                
+                <div className="text-center space-y-2">
+                  <h3 className="text-lg font-semibold">Processing your files...</h3>
+                  <p className="text-muted-foreground">
+                    AI is extracting data from your documents
+                  </p>
+                </div>
+                
+                {batchProgress && (
+                  <div className="w-full max-w-sm space-y-3">
+                    {/* Progress bar */}
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all duration-300"
+                        style={{ 
+                          width: `${batchProgress.total > 0 
+                            ? (batchProgress.processed / batchProgress.total) * 100 
+                            : 0}%` 
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Status counts */}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {batchProgress.processed} of {batchProgress.total} files
+                      </span>
+                      <div className="flex items-center gap-3">
+                        {batchProgress.succeeded > 0 && (
+                          <span className="flex items-center gap-1 text-green-500">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {batchProgress.succeeded}
+                          </span>
+                        )}
+                        {batchProgress.failed > 0 && (
+                          <span className="flex items-center gap-1 text-destructive">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            {batchProgress.failed}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* View Review button - always available when we have a batchId */}
+                {batchId && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      handleClose();
+                      navigate(`/imports/${batchId}/review`);
+                    }}
+                    className="gap-2"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    View Import Review
+                  </Button>
+                )}
+              </div>
+              
+              {/* Debug logs collapsible */}
+              <Collapsible open={debugOpen} onOpenChange={setDebugOpen} className="mt-4">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2 w-full">
+                    <ChevronDown className={`h-4 w-4 transition-transform ${debugOpen ? 'rotate-180' : ''}`} />
+                    {debugOpen ? 'Hide' : 'Show'} Debug Logs
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <ScrollArea className="h-32 mt-2 border rounded-lg p-2 bg-muted/30">
+                    <div className="space-y-1 font-mono text-xs">
+                      {debugLogs.map((log, idx) => (
+                        <div key={idx} className="text-muted-foreground">{log}</div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={handleClose}>
+                Cancel
               </Button>
             </DialogFooter>
           </>

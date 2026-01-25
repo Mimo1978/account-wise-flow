@@ -55,12 +55,12 @@ export function useImportReview(batchId: string | undefined) {
   const [batch, setBatch] = useState<ImportBatchDetails | null>(null);
   const [entities, setEntities] = useState<ImportEntity[]>([]);
   const [selectedEntity, setSelectedEntity] = useState<ImportEntity | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
 
   // Fetch batch and entities
   const fetchBatchData = useCallback(async () => {
     if (!batchId) return;
 
-    setIsLoading(true);
     try {
       // Fetch batch details
       const { data: batchData, error: batchError } = await supabase
@@ -92,13 +92,19 @@ export function useImportReview(batchId: string | undefined) {
 
       setEntities(transformedEntities);
 
-      // Select first pending entity
-      const firstPending = transformedEntities.find(e => e.status === "pending_review");
-      if (firstPending) {
-        setSelectedEntity(firstPending);
-      } else if (transformedEntities.length > 0) {
-        setSelectedEntity(transformedEntities[0]);
+      // Select first pending entity if none selected
+      if (!selectedEntity || !transformedEntities.find(e => e.id === selectedEntity.id)) {
+        const firstPending = transformedEntities.find(e => e.status === "pending_review");
+        if (firstPending) {
+          setSelectedEntity(firstPending);
+        } else if (transformedEntities.length > 0) {
+          setSelectedEntity(transformedEntities[0]);
+        }
       }
+
+      // Check if batch is still processing - if so, keep polling
+      const stillProcessing = batchData.status === 'queued' || batchData.status === 'processing';
+      setIsPolling(stillProcessing);
 
     } catch (error) {
       console.error("Failed to fetch batch data:", error);
@@ -106,11 +112,23 @@ export function useImportReview(batchId: string | undefined) {
     } finally {
       setIsLoading(false);
     }
-  }, [batchId]);
+  }, [batchId, selectedEntity]);
 
+  // Initial fetch
   useEffect(() => {
     fetchBatchData();
   }, [fetchBatchData]);
+
+  // Polling for updates when batch is still processing
+  useEffect(() => {
+    if (!isPolling || !batchId) return;
+
+    const interval = setInterval(() => {
+      fetchBatchData();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isPolling, batchId, fetchBatchData]);
 
   // Update entity fields
   const updateEntity = useCallback(async (

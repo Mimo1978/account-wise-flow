@@ -5,6 +5,7 @@ import { Account } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -14,36 +15,32 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
 import { TeamManagementPanel } from "@/components/admin/TeamManagementPanel";
+import { CompanyOverviewPanel } from "@/components/company/CompanyOverviewPanel";
 import {
   Search,
   Plus,
   Building2,
   Network,
-  Database,
   Users,
   TrendingUp,
   Calendar,
+  ExternalLink,
+  X,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
+import { cn } from "@/lib/utils";
 
 const getEngagementColor = (score: number) => {
-  if (score >= 80) return "bg-green-500/20 text-green-400";
-  if (score >= 60) return "bg-blue-500/20 text-blue-400";
-  if (score >= 40) return "bg-yellow-500/20 text-yellow-400";
+  if (score >= 80) return "bg-accent text-accent-foreground";
+  if (score >= 60) return "bg-primary/10 text-primary";
+  if (score >= 40) return "bg-secondary text-secondary-foreground";
   return "bg-muted text-muted-foreground";
 };
 
@@ -60,6 +57,7 @@ export default function CompaniesDatabase() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<Account | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isFirstVisit, setIsFirstVisit] = useState(false);
 
   // Permissions
@@ -86,29 +84,64 @@ export default function CompaniesDatabase() {
     );
   }, [searchQuery]);
 
-  const handleRowClick = (account: Account) => {
+  // Selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredCompanies.map((c) => c.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    const newSelection = new Set(selectedIds);
+    if (checked) {
+      newSelection.add(id);
+    } else {
+      newSelection.delete(id);
+    }
+    setSelectedIds(newSelection);
+  };
+
+  const isAllSelected = filteredCompanies.length > 0 && 
+    filteredCompanies.every((c) => selectedIds.has(c.id));
+
+  const isSomeSelected = selectedIds.size > 0 && !isAllSelected;
+
+  // Row click opens overview panel
+  const handleRowClick = (account: Account, e: React.MouseEvent) => {
+    // Don't open panel if clicking checkbox
+    if ((e.target as HTMLElement).closest('[data-checkbox]')) {
+      return;
+    }
     setSelectedCompany(account);
   };
 
-  const handleViewCanvas = () => {
-    if (selectedCompany) {
-      // Navigate to canvas with company context
-      navigate(`/canvas?company=${encodeURIComponent(selectedCompany.id)}`);
-    }
+  // Canvas navigation
+  const handleOpenCanvas = (account: Account) => {
+    navigate(`/canvas?company=${encodeURIComponent(account.id)}`);
     setSelectedCompany(null);
   };
 
-  const handleViewDatabase = () => {
-    if (selectedCompany) {
-      // Navigate to canvas database view with company context
-      navigate(`/canvas?company=${encodeURIComponent(selectedCompany.id)}&view=database`);
-    }
+  const handleViewOnCanvas = () => {
+    if (selectedIds.size === 0) return;
+    
+    // Navigate to canvas with selected companies
+    const companyIds = Array.from(selectedIds).join(",");
+    navigate(`/canvas?companies=${encodeURIComponent(companyIds)}`);
+  };
+
+  const handleViewContacts = (account: Account) => {
+    navigate(`/canvas?company=${encodeURIComponent(account.id)}&view=database`);
     setSelectedCompany(null);
   };
 
   const handleAddCompany = () => {
-    // Placeholder for add company functionality
     console.log("Add company clicked");
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
   };
 
   return (
@@ -152,7 +185,7 @@ export default function CompaniesDatabase() {
         </div>
       </div>
 
-      {/* Search */}
+      {/* Search and Selection Bar */}
       <div className="container mx-auto px-4 py-4">
         <div className="flex flex-wrap items-center gap-4 mb-4">
           <div className="relative flex-1 min-w-[250px] max-w-md">
@@ -164,6 +197,33 @@ export default function CompaniesDatabase() {
               className="pl-10"
             />
           </div>
+          
+          {/* Selection Actions */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 px-4 py-2 rounded-lg border border-primary/20 bg-primary/5">
+              <span className="text-sm font-medium">
+                {selectedIds.size} selected
+              </span>
+              <div className="h-4 w-px bg-border" />
+              <Button
+                size="sm"
+                onClick={handleViewOnCanvas}
+                className="gap-2"
+              >
+                <Network className="h-4 w-4" />
+                View on Canvas
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearSelection}
+                className="gap-1"
+              >
+                <X className="h-4 w-4" />
+                Clear
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Table */}
@@ -173,9 +233,17 @@ export default function CompaniesDatabase() {
             stickyHeader
             maxHeight="calc(100vh - 280px)"
           >
-            <Table className="min-w-[1000px]">
+            <Table className="min-w-[1100px]">
               <TableHeader>
                 <TableRow className="bg-muted/95 backdrop-blur-sm">
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={isAllSelected}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                      className={cn(isSomeSelected && "data-[state=checked]:bg-primary/50")}
+                    />
+                  </TableHead>
                   <TableHead className="font-semibold whitespace-nowrap">
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
@@ -183,7 +251,6 @@ export default function CompaniesDatabase() {
                     </div>
                   </TableHead>
                   <TableHead className="font-semibold whitespace-nowrap">Industry</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Region</TableHead>
                   <TableHead className="font-semibold whitespace-nowrap">Account Owner</TableHead>
                   <TableHead className="font-semibold whitespace-nowrap">
                     <div className="flex items-center gap-2">
@@ -203,69 +270,94 @@ export default function CompaniesDatabase() {
                       Contacts
                     </div>
                   </TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
-            <TableBody>
-              {filteredCompanies.map((account) => (
-                <TableRow
-                  key={account.id}
-                  className="cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleRowClick(account)}
-                >
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Building2 className="h-4 w-4 text-primary" />
-                      </div>
-                      {account.name}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="font-normal">
-                      {account.industry}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {/* Region not in current data model, showing placeholder */}
-                    —
-                  </TableCell>
-                  <TableCell>
-                    {account.accountManager ? (
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs">
-                          {account.accountManager.name.charAt(0)}
-                        </div>
-                        <span className="text-sm">{account.accountManager.name}</span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
+              <TableBody>
+                {filteredCompanies.map((account) => (
+                  <TableRow
+                    key={account.id}
+                    className={cn(
+                      "cursor-pointer hover:bg-muted/50 transition-colors group",
+                      selectedIds.has(account.id) && "bg-primary/5"
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getEngagementColor(account.engagementScore)}>
-                      {account.engagementScore}%
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {formatDate(account.lastInteraction || account.lastUpdated)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1.5">
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                      <span>{account.contacts.length}</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredCompanies.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No companies found matching "{searchQuery}"
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                    onClick={(e) => handleRowClick(account, e)}
+                  >
+                    <TableCell data-checkbox>
+                      <Checkbox
+                        checked={selectedIds.has(account.id)}
+                        onCheckedChange={(checked) => 
+                          handleSelectRow(account.id, checked as boolean)
+                        }
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Select ${account.name}`}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Building2 className="h-4 w-4 text-primary" />
+                        </div>
+                        <span className="hover:text-primary transition-colors">
+                          {account.name}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-normal">
+                        {account.industry}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {account.accountManager ? (
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs">
+                            {account.accountManager.name.charAt(0)}
+                          </div>
+                          <span className="text-sm">{account.accountManager.name}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getEngagementColor(account.engagementScore)}>
+                        {account.engagementScore}%
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDate(account.lastInteraction || account.lastUpdated)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span>{account.contacts.length}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedCompany(account);
+                        }}
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredCompanies.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      No companies found matching "{searchQuery}"
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </ScrollableTableContainer>
         </div>
 
@@ -275,50 +367,14 @@ export default function CompaniesDatabase() {
         </div>
       </div>
 
-      {/* Company Context Dialog */}
-      <Dialog open={!!selectedCompany} onOpenChange={(open) => !open && setSelectedCompany(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Building2 className="h-5 w-5 text-primary" />
-              </div>
-              {selectedCompany?.name}
-            </DialogTitle>
-            <DialogDescription>
-              {selectedCompany?.industry} • {selectedCompany?.contacts.length} contacts
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-3 py-4">
-            <Button
-              className="w-full justify-start gap-3 h-12"
-              variant="outline"
-              onClick={handleViewCanvas}
-            >
-              <Network className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">View on Canvas</div>
-                <div className="text-xs text-muted-foreground">
-                  Visual org chart view
-                </div>
-              </div>
-            </Button>
-            <Button
-              className="w-full justify-start gap-3 h-12"
-              variant="outline"
-              onClick={handleViewDatabase}
-            >
-              <Database className="h-5 w-5" />
-              <div className="text-left">
-                <div className="font-medium">View Database</div>
-                <div className="text-xs text-muted-foreground">
-                  Table view with all contacts
-                </div>
-              </div>
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Company Overview Panel */}
+      <CompanyOverviewPanel
+        company={selectedCompany}
+        open={!!selectedCompany}
+        onClose={() => setSelectedCompany(null)}
+        onOpenCanvas={handleOpenCanvas}
+        onViewContacts={handleViewContacts}
+      />
     </div>
   );
 }

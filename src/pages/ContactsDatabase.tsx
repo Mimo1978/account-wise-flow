@@ -23,12 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -39,13 +33,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
-import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { PhoneInlineEditor } from "@/components/canvas/PhoneInlineEditor";
 import { PrivateEmailEditor } from "@/components/canvas/PrivateEmailEditor";
 import { InlineEditCell } from "@/components/canvas/InlineEditCell";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
+import { ContactRecordPanel } from "@/components/contact/ContactRecordPanel";
+import { CompanyOverviewPanel } from "@/components/company/CompanyOverviewPanel";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -60,12 +55,11 @@ import {
   Network,
   CheckCircle2,
   AlertTriangle,
-  Mail,
-  Sparkles,
   FileImage,
   FileText,
   ClipboardPaste,
   ChevronDown,
+  ExternalLink,
 } from "lucide-react";
 import {
   departmentOptions,
@@ -73,6 +67,7 @@ import {
   seniorityOptions,
 } from "@/lib/dropdown-options";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 // Helper to check data quality
 const isContactReady = (contact: Contact): boolean => {
@@ -117,8 +112,10 @@ export default function ContactsDatabase() {
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [assignedFilter, setAssignedFilter] = useState<string>("all");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [contactRecordOpen, setContactRecordOpen] = useState(false);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [companyPanelOpen, setCompanyPanelOpen] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
-
   // Permissions
   const { role, canInsert, canEdit, isLoading: permissionsLoading } = usePermissions();
   const insertTooltip = getPermissionTooltip("insert", role);
@@ -182,12 +179,40 @@ export default function ContactsDatabase() {
     });
   }, [allContacts, searchQuery, departmentFilter, statusFilter, ownerFilter, assignedFilter, companyName]);
 
+  // Single click = select row
   const handleRowClick = (contact: Contact, e: React.MouseEvent) => {
-    // Don't open detail if clicking on data quality actions
+    // Don't select if clicking on data quality actions or name link
+    if ((e.target as HTMLElement).closest('[data-quality-action]') ||
+        (e.target as HTMLElement).closest('[data-contact-name]') ||
+        (e.target as HTMLElement).closest('[data-open-icon]')) {
+      return;
+    }
+    setSelectedRowId(contact.id === selectedRowId ? null : contact.id);
+  };
+
+  // Double click = open Contact Record
+  const handleRowDoubleClick = (contact: Contact, e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('[data-quality-action]')) {
       return;
     }
+    openContactRecord(contact);
+  };
+
+  // Click on name = open Contact Record
+  const handleNameClick = (contact: Contact, e: React.MouseEvent) => {
+    e.stopPropagation();
+    openContactRecord(contact);
+  };
+
+  // Open Contact Record panel
+  const openContactRecord = (contact: Contact) => {
     setSelectedContact(contact);
+    setContactRecordOpen(true);
+  };
+
+  // Open Company panel from Contact Record
+  const handleOpenCompany = () => {
+    setCompanyPanelOpen(true);
   };
 
   const handleViewOrgChart = () => {
@@ -472,8 +497,14 @@ export default function ContactsDatabase() {
                 return (
                   <TableRow
                     key={contact.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    className={cn(
+                      "cursor-pointer transition-colors group",
+                      selectedRowId === contact.id 
+                        ? "bg-primary/10 hover:bg-primary/15" 
+                        : "hover:bg-muted/50"
+                    )}
                     onClick={(e) => handleRowClick(contact, e)}
+                    onDoubleClick={(e) => handleRowDoubleClick(contact, e)}
                   >
                     <TableCell data-quality-action>
                       {isReady ? (
@@ -615,7 +646,25 @@ export default function ContactsDatabase() {
                         </Popover>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">{contact.name}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2 group/name">
+                        <button
+                          data-contact-name
+                          onClick={(e) => handleNameClick(contact, e)}
+                          className="text-foreground hover:text-primary hover:underline underline-offset-2 transition-colors text-left"
+                        >
+                          {contact.name}
+                        </button>
+                        <button
+                          data-open-icon
+                          onClick={(e) => handleNameClick(contact, e)}
+                          className="opacity-0 group-hover/name:opacity-100 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-all"
+                          title="Open contact record"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                      </div>
+                    </TableCell>
                     <TableCell>{companyName}</TableCell>
                     <TableCell>{contact.department || <span className="text-muted-foreground italic">—</span>}</TableCell>
                     <TableCell>{contact.title || <span className="text-muted-foreground italic">—</span>}</TableCell>
@@ -708,24 +757,27 @@ export default function ContactsDatabase() {
         </div>
       </div>
 
-      {/* Contact Detail Dialog */}
-      <Dialog
-        open={!!selectedContact}
-        onOpenChange={(open) => !open && setSelectedContact(null)}
-      >
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
-          <DialogHeader className="sr-only">
-            <DialogTitle>Contact Details</DialogTitle>
-          </DialogHeader>
-          {selectedContact && (
-            <ContactDetailPanel
-              contact={selectedContact}
-              onClose={() => setSelectedContact(null)}
-              isExpanded={false}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Contact Record Panel */}
+      <ContactRecordPanel
+        contact={selectedContact}
+        companyName={companyName}
+        company={mockAccount}
+        open={contactRecordOpen}
+        onOpenChange={(open) => {
+          setContactRecordOpen(open);
+          if (!open) setSelectedContact(null);
+        }}
+        onOpenCompany={handleOpenCompany}
+      />
+
+      {/* Company Overview Panel */}
+      <CompanyOverviewPanel
+        company={mockAccount}
+        open={companyPanelOpen}
+        onClose={() => setCompanyPanelOpen(false)}
+        onOpenCanvas={() => navigate("/canvas")}
+        onViewContacts={() => setCompanyPanelOpen(false)}
+      />
 
       {/* Add Contact Modal */}
       <AddContactModal

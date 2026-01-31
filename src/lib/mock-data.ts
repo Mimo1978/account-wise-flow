@@ -514,6 +514,20 @@ export const mockAccount: Account = {
       summary: "Company plans to open three new regional offices in Singapore, Tokyo, and Sydney.",
     },
   ],
+  // New company-level fields
+  headquarters: "San Francisco, CA",
+  switchboard: "+1 (555) 100-0000",
+  regions: ["North America", "Europe", "APAC"],
+  website: "https://acmecorp.com",
+  relationshipStatus: "active",
+  dataQuality: "complete",
+  aiSummary: "Strong presence in Technology & Executive teams. Active champion in CTO. Finance coverage weak. Procurement blocker identified.",
+  locations: [
+    { id: "loc-1", country: "United States", city: "San Francisco", type: "headquarters", switchboard: "+1 (555) 100-0000", address: "100 Market Street, San Francisco, CA 94105", employeeCount: 2500 },
+    { id: "loc-2", country: "United Kingdom", city: "London", type: "regional", switchboard: "+44 20 7946 0958", address: "30 St Mary Axe, London EC3A 8BF", employeeCount: 800 },
+    { id: "loc-3", country: "Germany", city: "Berlin", type: "branch", switchboard: "+49 30 12345678", address: "Unter den Linden 1, 10117 Berlin", employeeCount: 400 },
+    { id: "loc-4", country: "Singapore", city: "Singapore", type: "regional", switchboard: "+65 6123 4567", address: "1 Raffles Place, Singapore 048616", employeeCount: 600 },
+  ],
 };
 
 // Additional mock accounts for company switching
@@ -600,6 +614,16 @@ export const mockAccounts: Account[] = [
     knownBlockers: [],
     importantNote: "Fast-growing startup, very receptive to new solutions.",
     recentNews: [],
+    // Company-level fields
+    headquarters: "Austin, TX",
+    switchboard: "+1 (555) 800-0000",
+    regions: ["North America"],
+    relationshipStatus: "active",
+    dataQuality: "partial",
+    aiSummary: "Strong executive sponsorship. Growing technology team. Early-stage relationship with high potential.",
+    locations: [
+      { id: "ts-loc-1", country: "United States", city: "Austin", type: "headquarters", switchboard: "+1 (555) 800-0000", employeeCount: 600 },
+    ],
   },
   {
     id: "acc-3",
@@ -696,6 +720,19 @@ export const mockAccounts: Account[] = [
     knownBlockers: ["Richard Torres"],
     importantNote: "CFO is resistant to new vendors. Focus on building relationship with Technology team.",
     recentNews: [],
+    // Company-level fields
+    headquarters: "New York, NY",
+    switchboard: "+1 (555) 900-0000",
+    regions: ["North America", "Europe", "APAC", "LATAM"],
+    relationshipStatus: "warm",
+    dataQuality: "complete",
+    aiSummary: "Technology champion identified. CFO blocker requires senior executive engagement. Strong consulting presence globally.",
+    locations: [
+      { id: "gs-loc-1", country: "United States", city: "New York", type: "headquarters", switchboard: "+1 (555) 900-0000", employeeCount: 4000 },
+      { id: "gs-loc-2", country: "United Kingdom", city: "London", type: "regional", switchboard: "+44 20 7946 1234", employeeCount: 2500 },
+      { id: "gs-loc-3", country: "Australia", city: "Sydney", type: "regional", switchboard: "+61 2 9876 5432", employeeCount: 1500 },
+      { id: "gs-loc-4", country: "Brazil", city: "São Paulo", type: "branch", switchboard: "+55 11 1234 5678", employeeCount: 800 },
+    ],
   },
   {
     id: "acc-4",
@@ -763,6 +800,16 @@ export const mockAccounts: Account[] = [
     knownBlockers: [],
     importantNote: "Very engaged account. Looking to expand partnership.",
     recentNews: [],
+    // Company-level fields
+    headquarters: "Boston, MA",
+    switchboard: "+1 (555) 700-0000",
+    regions: ["North America"],
+    relationshipStatus: "active",
+    dataQuality: "complete",
+    aiSummary: "Highly engaged R&D-focused account. CEO and Head of Research are strong champions. Partnership expansion opportunity.",
+    locations: [
+      { id: "il-loc-1", country: "United States", city: "Boston", type: "headquarters", switchboard: "+1 (555) 700-0000", employeeCount: 350 },
+    ],
   },
   {
     id: "acc-5",
@@ -844,5 +891,16 @@ export const mockAccounts: Account[] = [
     knownBlockers: [],
     importantNote: "Needs more engagement. Schedule follow-up with CIO.",
     recentNews: [],
+    // Company-level fields
+    headquarters: "Chicago, IL",
+    switchboard: "+1 (555) 600-0000",
+    regions: ["North America", "Europe"],
+    relationshipStatus: "cooling",
+    dataQuality: "partial",
+    aiSummary: "Relationship cooling. CIO engaged but needs executive reinforcement. Procurement contact new and untested.",
+    locations: [
+      { id: "es-loc-1", country: "United States", city: "Chicago", type: "headquarters", switchboard: "+1 (555) 600-0000", employeeCount: 2800 },
+      { id: "es-loc-2", country: "Ireland", city: "Dublin", type: "regional", switchboard: "+353 1 234 5678", employeeCount: 800 },
+    ],
   },
 ];

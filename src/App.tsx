@@ -92,15 +92,12 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            
+            {/* Database Routes - Company-First Architecture */}
+            {/* /database redirects to /companies as the primary landing */}
             <Route
-              path="/contacts"
-              element={
-                <ProtectedRoute>
-                  <ProductLayout>
-                    <ContactsDatabase />
-                  </ProductLayout>
-                </ProtectedRoute>
-              }
+              path="/database"
+              element={<Navigate to="/companies" replace />}
             />
             <Route
               path="/companies"
@@ -108,6 +105,16 @@ const App = () => (
                 <ProtectedRoute>
                   <ProductLayout>
                     <CompaniesDatabase />
+                  </ProductLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/contacts"
+              element={
+                <ProtectedRoute>
+                  <ProductLayout>
+                    <ContactsDatabase />
                   </ProductLayout>
                 </ProtectedRoute>
               }

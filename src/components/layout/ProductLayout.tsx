@@ -40,8 +40,9 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
 
   const navItems = [
     { path: '/canvas', label: 'Canvas', icon: LayoutDashboard },
-    { path: '/contacts', label: 'Database', icon: Database },
-    { path: '/talent', label: 'Talent', icon: Users },
+    { path: '/companies', label: 'Companies', icon: Building2 },
+    { path: '/contacts', label: 'Contacts', icon: Users },
+    { path: '/talent', label: 'Talent', icon: Briefcase },
     { path: '/insights', label: 'Insights', icon: BarChart3 },
   ];
 
@@ -66,7 +67,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                 CLIENT MAPPER
               </span>
               {isInDemoWorkspace && (
-                <Badge variant="secondary" className="ml-2 bg-amber-100 text-amber-800 border-amber-300 text-xs">
+                <Badge variant="secondary" className="ml-2 bg-secondary text-secondary-foreground border-border text-xs">
                   Demo
                 </Badge>
               )}
@@ -137,7 +138,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                     <DropdownMenuItem asChild className="cursor-pointer">
                       <Link to="/demo-workspace" className="flex items-center justify-between">
                         <span className="flex items-center">
-                          <FlaskConical className="w-4 h-4 mr-2 text-amber-600" />
+                          <FlaskConical className="w-4 h-4 mr-2 text-primary" />
                           Demo Workspace
                         </span>
                         {isInDemoWorkspace && (

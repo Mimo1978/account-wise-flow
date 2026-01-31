@@ -67,6 +67,19 @@ export interface NewsItem {
   summary?: string;
 }
 
+export interface CompanyLocation {
+  id: string;
+  country: string;
+  city: string;
+  type: "headquarters" | "regional" | "branch" | "satellite";
+  switchboard?: string;
+  address?: string;
+  employeeCount?: number;
+}
+
+export type RelationshipStatus = "active" | "warm" | "cooling" | "dormant";
+export type DataQuality = "complete" | "partial" | "minimal";
+
 export interface Account {
   id: string;
   name: string;
@@ -81,6 +94,16 @@ export interface Account {
   knownBlockers?: string[];
   importantNote?: string;
   recentNews?: NewsItem[];
+  // New company-level fields for company-first architecture
+  headquarters?: string;
+  switchboard?: string;
+  regions?: string[];
+  locations?: CompanyLocation[];
+  website?: string;
+  relationshipStatus?: RelationshipStatus;
+  dataQuality?: DataQuality;
+  aiSummary?: string;
+  logo?: string;
 }
 
 export interface Department {

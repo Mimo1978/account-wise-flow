@@ -493,6 +493,22 @@ export default function TalentDatabase() {
     return offsets;
   }, [rightPinnedCols, visibleColumns, columnWidths]);
 
+  // Check if a column is the last left-pinned or first right-pinned (for shadow dividers)
+  const isLastLeftPinned = useMemo(() => {
+    if (leftPinnedCols.length === 0) return () => false;
+    const lastLeftPinned = visibleColumns
+      .filter(col => leftPinnedCols.includes(col.id))
+      .pop()?.id;
+    return (columnId: string) => columnId === lastLeftPinned;
+  }, [leftPinnedCols, visibleColumns]);
+
+  const isFirstRightPinned = useMemo(() => {
+    if (rightPinnedCols.length === 0) return () => false;
+    const firstRightPinned = visibleColumns
+      .find(col => rightPinnedCols.includes(col.id))?.id;
+    return (columnId: string) => columnId === firstRightPinned;
+  }, [rightPinnedCols, visibleColumns]);
+
   // Get cell styles based on view preferences and pinning
   const getCellStyles = (columnId: string): React.CSSProperties => {
     const baseWidth = columnWidths[columnId] || visibleColumns.find(c => c.id === columnId)?.defaultWidth || 150;
@@ -510,7 +526,7 @@ export default function TalentDatabase() {
       baseStyles.maxWidth = viewPreferences.wrapText && wrappableColumns.has(columnId) ? undefined : baseWidth;
     }
     
-    // Add sticky positioning for pinned columns
+    // Add sticky positioning for pinned columns with subtle shadow dividers
     if (pinPosition === "left") {
       return {
         ...baseStyles,
@@ -518,6 +534,10 @@ export default function TalentDatabase() {
         left: getLeftOffset[columnId],
         zIndex: 10,
         backgroundColor: "inherit",
+        // Add shadow divider for last left-pinned column
+        ...(isLastLeftPinned(columnId) && {
+          boxShadow: "2px 0 8px -4px hsl(var(--border) / 0.5)",
+        }),
       };
     } else if (pinPosition === "right") {
       return {
@@ -526,6 +546,10 @@ export default function TalentDatabase() {
         right: getRightOffset[columnId],
         zIndex: 10,
         backgroundColor: "inherit",
+        // Add shadow divider for first right-pinned column
+        ...(isFirstRightPinned(columnId) && {
+          boxShadow: "-2px 0 8px -4px hsl(var(--border) / 0.5)",
+        }),
       };
     }
     

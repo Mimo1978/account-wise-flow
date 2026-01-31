@@ -1,9 +1,9 @@
 import { useRef, useState, useEffect, ReactNode, useCallback } from "react";
-import { ChevronLeft, ChevronRight, ArrowRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-const SCROLL_HINT_STORAGE_KEY = "database-table-scroll-hint-dismissed";
+const SCROLL_HINT_STORAGE_KEY = "database-table-scroll-hint-dismissed-v2";
 
 interface ScrollableTableContainerProps {
   children: ReactNode;
@@ -24,21 +24,22 @@ export const ScrollableTableContainer = ({
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [hasScrollableContent, setHasScrollableContent] = useState(false);
 
   // Check if hint should be shown
   useEffect(() => {
-    if (showScrollHint) {
+    if (showScrollHint && hasScrollableContent) {
       const dismissed = localStorage.getItem(SCROLL_HINT_STORAGE_KEY);
       if (!dismissed) {
         setShowHint(true);
-        // Auto-dismiss after 8 seconds
+        // Auto-dismiss after 6 seconds
         const timeout = setTimeout(() => {
           dismissHint();
-        }, 8000);
+        }, 6000);
         return () => clearTimeout(timeout);
       }
     }
-  }, [showScrollHint]);
+  }, [showScrollHint, hasScrollableContent]);
 
   const dismissHint = useCallback(() => {
     setShowHint(false);
@@ -49,9 +50,11 @@ export const ScrollableTableContainer = ({
     if (!scrollRef.current) return;
     
     const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+    const isScrollable = scrollWidth > clientWidth + 5;
     
-    setShowLeftFade(scrollLeft > 10);
-    setShowRightFade(scrollLeft < scrollWidth - clientWidth - 10);
+    setHasScrollableContent(isScrollable);
+    setShowLeftFade(scrollLeft > 5);
+    setShowRightFade(isScrollable && scrollLeft < scrollWidth - clientWidth - 5);
   }, []);
 
   useEffect(() => {
@@ -60,16 +63,19 @@ export const ScrollableTableContainer = ({
 
     updateScrollIndicators();
     
-    scrollEl.addEventListener("scroll", updateScrollIndicators);
+    scrollEl.addEventListener("scroll", updateScrollIndicators, { passive: true });
     window.addEventListener("resize", updateScrollIndicators);
     
     // Initial check with delay for content to render
     const timeout = setTimeout(updateScrollIndicators, 100);
+    // Re-check after fonts/images load
+    const lateTimeout = setTimeout(updateScrollIndicators, 500);
 
     return () => {
       scrollEl.removeEventListener("scroll", updateScrollIndicators);
       window.removeEventListener("resize", updateScrollIndicators);
       clearTimeout(timeout);
+      clearTimeout(lateTimeout);
     };
   }, [updateScrollIndicators]);
 
@@ -89,10 +95,30 @@ export const ScrollableTableContainer = ({
     };
   }, [showHint, dismissHint]);
 
+  // Shift + scroll for horizontal scrolling
+  useEffect(() => {
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // If shift is held, scroll horizontally
+      if (e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        scrollEl.scrollLeft += e.deltaY;
+      }
+    };
+
+    scrollEl.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      scrollEl.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
+
   const scrollTo = (direction: "left" | "right") => {
     if (!scrollRef.current) return;
     
-    const scrollAmount = scrollRef.current.clientWidth * 0.5;
+    const scrollAmount = scrollRef.current.clientWidth * 0.4;
     scrollRef.current.scrollBy({
       left: direction === "left" ? -scrollAmount : scrollAmount,
       behavior: "smooth",
@@ -101,68 +127,77 @@ export const ScrollableTableContainer = ({
 
   return (
     <div className={cn("relative flex-1", className)}>
-      {/* Left Fade & Arrow */}
+      {/* Left Fade Gradient - Premium subtle effect */}
       <div
         className={cn(
-          "absolute left-0 top-0 bottom-0 w-20 pointer-events-none z-20 transition-opacity duration-300",
-          "bg-gradient-to-r from-card via-card/80 to-transparent",
+          "absolute left-0 top-0 bottom-0 w-16 pointer-events-none z-20 transition-opacity duration-500 ease-out",
+          "bg-gradient-to-r from-card via-card/60 to-transparent",
           showLeftFade ? "opacity-100" : "opacity-0"
         )}
       />
+      
+      {/* Left Scroll Nudger */}
       <button
         onClick={() => scrollTo("left")}
         className={cn(
-          "absolute left-2 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-card border border-border shadow-lg",
-          "hover:bg-muted hover:scale-105 transition-all duration-200",
-          showLeftFade ? "opacity-100" : "opacity-0 pointer-events-none"
+          "absolute left-1.5 top-1/2 -translate-y-1/2 z-30",
+          "p-1.5 rounded-full",
+          "bg-background/90 backdrop-blur-sm border border-border/50 shadow-md",
+          "hover:bg-muted hover:scale-110 hover:shadow-lg",
+          "transition-all duration-200 ease-out",
+          showLeftFade ? "opacity-80 hover:opacity-100" : "opacity-0 pointer-events-none scale-90"
         )}
         aria-label="Scroll left"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
       </button>
 
-      {/* Right Fade & Arrow */}
+      {/* Right Fade Gradient - Premium subtle effect */}
       <div
         className={cn(
-          "absolute right-0 top-0 bottom-0 w-20 pointer-events-none z-20 transition-opacity duration-300",
-          "bg-gradient-to-l from-card via-card/80 to-transparent",
+          "absolute right-0 top-0 bottom-0 w-16 pointer-events-none z-20 transition-opacity duration-500 ease-out",
+          "bg-gradient-to-l from-card via-card/60 to-transparent",
           showRightFade ? "opacity-100" : "opacity-0"
         )}
       />
+      
+      {/* Right Scroll Nudger */}
       <button
         onClick={() => scrollTo("right")}
         className={cn(
-          "absolute right-2 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-card border border-border shadow-lg",
-          "hover:bg-muted hover:scale-105 transition-all duration-200",
-          showRightFade ? "opacity-100" : "opacity-0 pointer-events-none"
+          "absolute right-1.5 top-1/2 -translate-y-1/2 z-30",
+          "p-1.5 rounded-full",
+          "bg-background/90 backdrop-blur-sm border border-border/50 shadow-md",
+          "hover:bg-muted hover:scale-110 hover:shadow-lg",
+          "transition-all duration-200 ease-out",
+          showRightFade ? "opacity-80 hover:opacity-100" : "opacity-0 pointer-events-none scale-90"
         )}
         aria-label="Scroll right"
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
       </button>
 
-      {/* Scroll Hint Toast */}
+      {/* First-time Scroll Hint - Auto-dismisses */}
       {showHint && showRightFade && (
         <div
           className={cn(
-            "absolute right-4 bottom-4 z-40",
-            "animate-in slide-in-from-right-4 fade-in duration-300"
+            "absolute right-12 bottom-3 z-40",
+            "animate-in slide-in-from-right-2 fade-in duration-500"
           )}
         >
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground shadow-lg text-sm">
-            <ArrowRight className="h-4 w-4 animate-pulse" />
-            <span>Scroll for more columns</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5 ml-1 hover:bg-primary-foreground/20 text-primary-foreground"
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-foreground/90 text-background shadow-xl text-xs font-medium">
+            <ChevronsRight className="h-3.5 w-3.5 animate-pulse" />
+            <span>Scroll to see more columns</span>
+            <button
+              className="ml-1 p-0.5 rounded-full hover:bg-background/20 transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 dismissHint();
               }}
+              aria-label="Dismiss hint"
             >
               <X className="h-3 w-3" />
-            </Button>
+            </button>
           </div>
         </div>
       )}
@@ -171,12 +206,15 @@ export const ScrollableTableContainer = ({
       <div
         ref={scrollRef}
         className={cn(
-          "overflow-x-auto scroll-smooth",
-          stickyHeader ? "overflow-y-auto" : "overflow-y-visible"
+          "overflow-x-auto overflow-y-auto scroll-smooth",
+          // Hide scrollbar but keep functionality for cleaner look
+          "scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent"
         )}
-        style={stickyHeader ? { maxHeight } : undefined}
+        style={{ maxHeight }}
       >
-        <div className={cn(stickyHeader && "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead_tr]:bg-muted/95 [&_thead_tr]:backdrop-blur-sm")}>
+        <div className={cn(
+          stickyHeader && "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead_tr]:bg-muted/95 [&_thead_tr]:backdrop-blur-sm [&_thead_tr]:shadow-[0_1px_3px_-1px_hsl(var(--border)/0.3)]"
+        )}>
           {children}
         </div>
       </div>

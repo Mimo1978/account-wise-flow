@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { mockAccounts } from "@/lib/mock-data";
-import { Account } from "@/lib/types";
+import { Account, RelationshipStatus, DataQuality } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,26 +27,55 @@ import {
   Plus,
   Building2,
   Network,
-  Users,
+  MapPin,
+  Phone,
+  Globe,
   TrendingUp,
   Calendar,
+  Shield,
   ExternalLink,
   X,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { cn } from "@/lib/utils";
 
-const getEngagementColor = (score: number) => {
-  if (score >= 80) return "bg-accent text-accent-foreground";
-  if (score >= 60) return "bg-primary/10 text-primary";
-  if (score >= 40) return "bg-secondary text-secondary-foreground";
-  return "bg-muted text-muted-foreground";
+const getRelationshipStatusConfig = (status?: RelationshipStatus) => {
+  switch (status) {
+    case "active":
+      return { label: "Active", className: "bg-accent text-accent-foreground" };
+    case "warm":
+      return { label: "Warm", className: "bg-primary/10 text-primary" };
+    case "cooling":
+      return { label: "Cooling", className: "bg-secondary text-secondary-foreground" };
+    case "dormant":
+      return { label: "Dormant", className: "bg-muted text-muted-foreground" };
+    default:
+      return { label: "—", className: "bg-muted text-muted-foreground" };
+  }
+};
+
+const getDataQualityConfig = (quality?: DataQuality) => {
+  switch (quality) {
+    case "complete":
+      return { label: "Complete", icon: CheckCircle2, className: "text-accent-foreground" };
+    case "partial":
+      return { label: "Partial", icon: AlertCircle, className: "text-secondary-foreground" };
+    case "minimal":
+      return { label: "Minimal", icon: AlertCircle, className: "text-muted-foreground" };
+    default:
+      return { label: "—", icon: null, className: "text-muted-foreground" };
+  }
 };
 
 const formatDate = (dateString?: string) => {
   if (!dateString) return "—";
   try {
+    if (dateString.includes("day") || dateString.includes("hour")) {
+      return dateString;
+    }
     return format(parseISO(dateString), "MMM d, yyyy");
   } catch {
     return dateString;
@@ -80,6 +109,7 @@ export default function CompaniesDatabase() {
     return mockAccounts.filter((account) =>
       account.name.toLowerCase().includes(searchLower) ||
       account.industry.toLowerCase().includes(searchLower) ||
+      account.headquarters?.toLowerCase().includes(searchLower) ||
       account.accountManager?.name.toLowerCase().includes(searchLower)
     );
   }, [searchQuery]);
@@ -108,9 +138,8 @@ export default function CompaniesDatabase() {
 
   const isSomeSelected = selectedIds.size > 0 && !isAllSelected;
 
-  // Row click opens overview panel
+  // Row click opens Company Record panel
   const handleRowClick = (account: Account, e: React.MouseEvent) => {
-    // Don't open panel if clicking checkbox
     if ((e.target as HTMLElement).closest('[data-checkbox]')) {
       return;
     }
@@ -125,14 +154,12 @@ export default function CompaniesDatabase() {
 
   const handleViewOnCanvas = () => {
     if (selectedIds.size === 0) return;
-    
-    // Navigate to canvas with selected companies
     const companyIds = Array.from(selectedIds).join(",");
     navigate(`/canvas?companies=${encodeURIComponent(companyIds)}`);
   };
 
   const handleViewContacts = (account: Account) => {
-    navigate(`/canvas?company=${encodeURIComponent(account.id)}&view=database`);
+    navigate(`/contacts?company=${encodeURIComponent(account.id)}`);
     setSelectedCompany(null);
   };
 
@@ -155,7 +182,7 @@ export default function CompaniesDatabase() {
                 Companies
               </h1>
               <p className="text-sm text-muted-foreground">
-                {filteredCompanies.length} companies in workspace
+                {filteredCompanies.length} companies in workspace • Company-first view
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -191,7 +218,7 @@ export default function CompaniesDatabase() {
           <div className="relative flex-1 min-w-[250px] max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search companies by name, industry, or owner..."
+              placeholder="Search by company, industry, HQ, or owner..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -226,14 +253,14 @@ export default function CompaniesDatabase() {
           )}
         </div>
 
-        {/* Table */}
+        {/* Company-Level Table (NO contacts column) */}
         <div className="rounded-lg border border-border bg-card overflow-hidden">
           <ScrollableTableContainer 
             showScrollHint={isFirstVisit}
             stickyHeader
             maxHeight="calc(100vh - 280px)"
           >
-            <Table className="min-w-[1100px]">
+            <Table className="min-w-[1200px]">
               <TableHeader>
                 <TableRow className="bg-muted/95 backdrop-blur-sm">
                   <TableHead className="w-12">
@@ -250,12 +277,32 @@ export default function CompaniesDatabase() {
                       Company Name
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Industry</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Account Owner</TableHead>
                   <TableHead className="font-semibold whitespace-nowrap">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" />
-                      Engagement
+                      <MapPin className="h-4 w-4" />
+                      Headquarters
+                    </div>
+                  </TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      Switchboard
+                    </div>
+                  </TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">Industry</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-4 w-4" />
+                      Regions
+                    </div>
+                  </TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">
+                    Status
+                  </TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Account Owner
                     </div>
                   </TableHead>
                   <TableHead className="font-semibold whitespace-nowrap">
@@ -265,93 +312,125 @@ export default function CompaniesDatabase() {
                     </div>
                   </TableHead>
                   <TableHead className="font-semibold whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      Contacts
-                    </div>
+                    Data Quality
                   </TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCompanies.map((account) => (
-                  <TableRow
-                    key={account.id}
-                    className={cn(
-                      "cursor-pointer hover:bg-muted/50 transition-colors group",
-                      selectedIds.has(account.id) && "bg-primary/5"
-                    )}
-                    onClick={(e) => handleRowClick(account, e)}
-                  >
-                    <TableCell data-checkbox>
-                      <Checkbox
-                        checked={selectedIds.has(account.id)}
-                        onCheckedChange={(checked) => 
-                          handleSelectRow(account.id, checked as boolean)
-                        }
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Select ${account.name}`}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Building2 className="h-4 w-4 text-primary" />
-                        </div>
-                        <span className="hover:text-primary transition-colors">
-                          {account.name}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="font-normal">
-                        {account.industry}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {account.accountManager ? (
-                        <div className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs">
-                            {account.accountManager.name.charAt(0)}
-                          </div>
-                          <span className="text-sm">{account.accountManager.name}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
+                {filteredCompanies.map((account) => {
+                  const statusConfig = getRelationshipStatusConfig(account.relationshipStatus);
+                  const qualityConfig = getDataQualityConfig(account.dataQuality);
+                  
+                  return (
+                    <TableRow
+                      key={account.id}
+                      className={cn(
+                        "cursor-pointer hover:bg-muted/50 transition-colors group",
+                        selectedIds.has(account.id) && "bg-primary/5"
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getEngagementColor(account.engagementScore)}>
-                        {account.engagementScore}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(account.lastInteraction || account.lastUpdated)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span>{account.contacts.length}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedCompany(account);
-                        }}
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      onClick={(e) => handleRowClick(account, e)}
+                    >
+                      <TableCell data-checkbox>
+                        <Checkbox
+                          checked={selectedIds.has(account.id)}
+                          onCheckedChange={(checked) => 
+                            handleSelectRow(account.id, checked as boolean)
+                          }
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`Select ${account.name}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <Building2 className="h-4 w-4 text-primary" />
+                          </div>
+                          <span className="hover:text-primary transition-colors">
+                            {account.name}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">
+                          {account.headquarters || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground font-mono">
+                          {account.switchboard || "—"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-normal">
+                          {account.industry}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {account.regions && account.regions.length > 0 ? (
+                            <>
+                              <Badge variant="outline" className="text-xs">
+                                {account.regions[0]}
+                              </Badge>
+                              {account.regions.length > 1 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{account.regions.length - 1}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={cn("font-normal", statusConfig.className)}>
+                          {statusConfig.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {account.accountManager ? (
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs shrink-0">
+                              {account.accountManager.name.charAt(0)}
+                            </div>
+                            <span className="text-sm truncate max-w-[120px]">
+                              {account.accountManager.name}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {formatDate(account.lastInteraction || account.lastUpdated)}
+                      </TableCell>
+                      <TableCell>
+                        <div className={cn("flex items-center gap-1 text-sm", qualityConfig.className)}>
+                          {qualityConfig.icon && <qualityConfig.icon className="h-3.5 w-3.5" />}
+                          <span>{qualityConfig.label}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCompany(account);
+                          }}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {filteredCompanies.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                       No companies found matching "{searchQuery}"
                     </TableCell>
                   </TableRow>
@@ -367,7 +446,7 @@ export default function CompaniesDatabase() {
         </div>
       </div>
 
-      {/* Company Overview Panel */}
+      {/* Company Record Panel */}
       <CompanyOverviewPanel
         company={selectedCompany}
         open={!!selectedCompany}

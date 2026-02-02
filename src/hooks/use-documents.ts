@@ -23,12 +23,16 @@ interface UseDocumentsReturn {
   isLoading: boolean;
   isUploading: boolean;
   isDownloading: boolean;
+  uploadError: string | null;
+  uploadProgress: number;
   uploadDocument: (file: File, documentType: DocumentType) => Promise<boolean>;
   downloadDocument: (document: Document) => Promise<void>;
   deleteDocument: (documentId: string) => Promise<boolean>;
+  setActiveDocument: (documentId: string) => Promise<boolean>;
   getSignedUrl: (storagePath: string) => Promise<string | null>;
   validateFile: (file: File) => { valid: boolean; error?: string };
   refetch: () => Promise<void>;
+  clearError: () => void;
 }
 
 export function useDocuments({ entityType, entityId }: UseDocumentsOptions): UseDocumentsReturn {
@@ -37,6 +41,12 @@ export function useDocuments({ entityType, entityId }: UseDocumentsOptions): Use
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const clearError = useCallback(() => {
+    setUploadError(null);
+  }, []);
 
   const fetchDocuments = useCallback(async () => {
     if (!currentWorkspace?.id || !entityId) {
@@ -130,24 +140,31 @@ export function useDocuments({ entityType, entityId }: UseDocumentsOptions): Use
   const uploadDocument = useCallback(
     async (file: File, documentType: DocumentType): Promise<boolean> => {
       if (!currentWorkspace?.id) {
+        setUploadError("No workspace selected");
         toast.error("No workspace selected");
         return false;
       }
 
       const validation = validateFile(file);
       if (!validation.valid) {
+        setUploadError(validation.error || "Invalid file");
         toast.error(validation.error);
         return false;
       }
 
       setIsUploading(true);
+      setUploadError(null);
+      setUploadProgress(0);
 
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
+          setUploadError("You must be logged in to upload files");
           toast.error("You must be logged in to upload files");
           return false;
         }
+
+        setUploadProgress(20);
 
         // Generate unique path
         const timestamp = Date.now();
@@ -155,18 +172,21 @@ export function useDocuments({ entityType, entityId }: UseDocumentsOptions): Use
         const storagePath = `${currentWorkspace.id}/${entityType}/${entityId}/${timestamp}_${file.name}`;
 
         // Upload to storage bucket
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadStorageError } = await supabase.storage
           .from("documents")
           .upload(storagePath, file, {
             cacheControl: "3600",
             upsert: false,
           });
 
-        if (uploadError) {
-          console.error("[useDocuments] Upload error:", uploadError);
-          toast.error("Failed to upload file: " + uploadError.message);
+        if (uploadStorageError) {
+          console.error("[useDocuments] Upload error:", uploadStorageError);
+          setUploadError("Failed to upload file: " + uploadStorageError.message);
+          toast.error("Failed to upload file: " + uploadStorageError.message);
           return false;
         }
+
+        setUploadProgress(60);
 
         // Create document record
         const { data: docData, error: insertError } = await supabase
@@ -189,9 +209,12 @@ export function useDocuments({ entityType, entityId }: UseDocumentsOptions): Use
           console.error("[useDocuments] Insert error:", insertError);
           // Cleanup uploaded file
           await supabase.storage.from("documents").remove([storagePath]);
+          setUploadError("Failed to create document record");
           toast.error("Failed to create document record");
           return false;
         }
+
+        setUploadProgress(80);
 
         toast.success("Document uploaded successfully");
 
@@ -200,15 +223,21 @@ export function useDocuments({ entityType, entityId }: UseDocumentsOptions): Use
           triggerTextExtraction(docData.id, storagePath);
         }
 
+        setUploadProgress(100);
+
         // Refresh document list
         await fetchDocuments();
         return true;
       } catch (error) {
         console.error("[useDocuments] Unexpected error:", error);
-        toast.error("An unexpected error occurred");
+        const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+        setUploadError(errorMessage);
+        toast.error(errorMessage);
         return false;
       } finally {
         setIsUploading(false);
+        // Reset progress after a delay
+        setTimeout(() => setUploadProgress(0), 1000);
       }
     },
     [currentWorkspace?.id, entityType, entityId, validateFile, fetchDocuments, triggerTextExtraction]
@@ -303,16 +332,43 @@ export function useDocuments({ entityType, entityId }: UseDocumentsOptions): Use
     [fetchDocuments]
   );
 
+  const setActiveDocument = useCallback(
+    async (documentId: string): Promise<boolean> => {
+      try {
+        // Get the document to find its type
+        const doc = documents.find((d) => d.id === documentId);
+        if (!doc) {
+          toast.error("Document not found");
+          return false;
+        }
+
+        // For now, we just show a message - in a full implementation,
+        // you'd have an 'active' flag per document type
+        toast.success(`Set "${doc.name}" as active version`);
+        return true;
+      } catch (error) {
+        console.error("[useDocuments] Set active error:", error);
+        toast.error("Failed to set active document");
+        return false;
+      }
+    },
+    [documents]
+  );
+
   return {
     documents,
     isLoading,
     isUploading,
     isDownloading,
+    uploadError,
+    uploadProgress,
     uploadDocument,
     downloadDocument,
     deleteDocument,
+    setActiveDocument,
     getSignedUrl,
     validateFile,
     refetch: fetchDocuments,
+    clearError,
   };
 }

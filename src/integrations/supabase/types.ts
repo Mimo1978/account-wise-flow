@@ -725,6 +725,68 @@ export type Database = {
           },
         ]
       }
+      documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          entity_id: string
+          entity_type: string
+          file_size_bytes: number
+          file_type: string
+          id: string
+          is_active: boolean
+          name: string
+          owner_id: string | null
+          raw_text: string | null
+          storage_path: string
+          tenant_id: string
+          text_extracted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          document_type?: string
+          entity_id: string
+          entity_type: string
+          file_size_bytes?: number
+          file_type: string
+          id?: string
+          is_active?: boolean
+          name: string
+          owner_id?: string | null
+          raw_text?: string | null
+          storage_path: string
+          tenant_id: string
+          text_extracted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          entity_id?: string
+          entity_type?: string
+          file_size_bytes?: number
+          file_type?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          owner_id?: string | null
+          raw_text?: string | null
+          storage_path?: string
+          tenant_id?: string
+          text_extracted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       executive_insights: {
         Row: {
           company_id: string | null

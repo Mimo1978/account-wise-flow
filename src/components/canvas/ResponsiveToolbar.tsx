@@ -152,14 +152,14 @@ export const ResponsiveToolbar: React.FC<ResponsiveToolbarProps> = ({
       )}
     >
       {/* Left content - flexible but can shrink */}
-      <div className="flex items-center gap-4 min-w-0 shrink">
+      <div className="flex items-center gap-4 min-w-0 shrink overflow-hidden">
         {leftContent}
       </div>
 
       {/* Right actions container */}
       <div 
         ref={actionsRef}
-        className="flex items-center gap-2 shrink-0"
+        className="flex items-center gap-2 shrink-0 ml-auto"
       >
         {/* Secondary actions (can overflow) */}
         {visibleSecondaryActions.map((action) => renderAction(action))}

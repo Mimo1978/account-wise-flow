@@ -1357,7 +1357,6 @@ export type Database = {
           location: string
           name: string
           rank: number
-          raw_cv_text: string
           skills: Json
         }[]
       }

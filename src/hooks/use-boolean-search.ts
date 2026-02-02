@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -13,6 +13,12 @@ export interface BooleanSearchResult {
     headline?: string;
     cvSnippet?: string;
     matchedTerms: string[];
+  };
+  // Match location indicators
+  matchedIn: {
+    cv: boolean;
+    skills: boolean;
+    overview: boolean;
   };
 }
 
@@ -36,28 +42,42 @@ interface UseBooleanSearchOptions {
   debounceMs?: number;
 }
 
+type SearchMode = "simple" | "boolean";
+
 export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
-  const { enabled = true } = options;
+  const { enabled = true, debounceMs = 500 } = options;
   const { currentWorkspace } = useWorkspace();
   
   const [query, setQuery] = useState("");
-  const [isBooleanMode, setIsBooleanMode] = useState(false);
+  const [mode, setMode] = useState<SearchMode>("simple");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  // Debounce the query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, debounceMs);
+
+    return () => clearTimeout(timer);
+  }, [query, debounceMs]);
+
+  const isBooleanMode = mode === "boolean";
 
   // Parse the query
   const parsedQuery = useMemo(() => {
-    if (!query.trim()) {
+    if (!debouncedQuery.trim()) {
       return { tsquery: "", terms: [], isValid: true };
     }
     
     if (isBooleanMode) {
-      return parseBooleanQuery(query);
+      return parseBooleanQuery(debouncedQuery);
     } else {
       // Simple mode: treat as space-separated AND
-      const tsquery = simpleQueryToTsquery(query);
-      const terms = query.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+      const tsquery = simpleQueryToTsquery(debouncedQuery);
+      const terms = debouncedQuery.toLowerCase().split(/\s+/).filter(w => w.length > 0);
       return { tsquery, terms, isValid: true };
     }
-  }, [query, isBooleanMode]);
+  }, [debouncedQuery, isBooleanMode]);
 
   // Execute search query
   const searchQuery = useQuery({
@@ -110,6 +130,17 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
           rawCvText: row.raw_cv_text || undefined,
         };
 
+        // Determine where matches were found
+        const matchedIn = {
+          cv: Boolean(row.highlight_cv),
+          skills: skills.some(skill => 
+            parsedQuery.terms.some(term => 
+              skill.toLowerCase().includes(term.toLowerCase())
+            )
+          ),
+          overview: Boolean(row.highlight_headline),
+        };
+
         return {
           candidate,
           rank: row.rank,
@@ -119,6 +150,7 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
             cvSnippet: row.highlight_cv || undefined,
             matchedTerms: parsedQuery.terms,
           },
+          matchedIn,
         };
       });
 
@@ -131,7 +163,7 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
 
   // Toggle Boolean mode
   const toggleBooleanMode = useCallback(() => {
-    setIsBooleanMode((prev) => !prev);
+    setMode((prev) => (prev === "boolean" ? "simple" : "boolean"));
   }, []);
 
   // Clear search
@@ -147,14 +179,21 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
     [parsedQuery.terms]
   );
 
+  // Manual trigger (for Enter key)
+  const triggerSearch = useCallback(() => {
+    setDebouncedQuery(query);
+  }, [query]);
+
   return {
     // State
     query,
     setQuery,
+    mode,
+    setMode,
     isBooleanMode,
-    setIsBooleanMode,
     toggleBooleanMode,
     clearSearch,
+    triggerSearch,
     
     // Parsed query info
     parsedQuery,

@@ -143,6 +143,7 @@ export interface Talent {
   aiOverview?: string;
   experience?: TalentExperience[];
   cvUrl?: string;
+  cvStoragePath?: string;
   linkedIn?: string;
   location?: string;
   lastUpdated?: string;

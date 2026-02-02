@@ -22,6 +22,7 @@ interface CandidateRow {
   owner_id: string | null;
   created_at: string;
   updated_at: string;
+  cv_storage_path: string | null;
 }
 
 // Transform database row to Talent type
@@ -78,6 +79,7 @@ function transformCandidate(row: CandidateRow): Talent {
     dataQuality,
     status: talentStatus,
     cvSource,
+    cvStoragePath: row.cv_storage_path || undefined,
   };
 }
 

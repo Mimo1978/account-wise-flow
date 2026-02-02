@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
+import { useBooleanSearch } from "@/hooks/use-boolean-search";
 import { mockTalents, roleTypeOptions } from "@/lib/mock-talent";
 import { Talent, TalentAvailability, TalentDataQuality, TalentStatus, TalentCvSource } from "@/lib/types";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,8 @@ import { ImportMethod } from "@/components/import/ImportCenterTypes";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
 import { TalentQuickView } from "@/components/talent/TalentQuickView";
 import { ViewPresetsDropdown } from "@/components/talent/ViewPresetsDropdown";
+import { BooleanSearchBar } from "@/components/talent/BooleanSearchBar";
+import { SearchResultCard } from "@/components/talent/SearchResultCard";
 import { CVViewer } from "@/components/talent/CVViewer";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { useTableViewPreferences } from "@/components/canvas/TableViewControls";
@@ -72,6 +75,7 @@ import {
   WrapText,
   Eye,
   ScanLine,
+  LayoutList,
 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
@@ -141,7 +145,6 @@ const initialColumns: ColumnConfig[] = [
 
 export default function TalentDatabase() {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
   const [roleTypeFilter, setRoleTypeFilter] = useState<string>("all");
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
@@ -152,6 +155,10 @@ export default function TalentDatabase() {
   const [showCVViewer, setShowCVViewer] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [quickViewTalentId, setQuickViewTalentId] = useState<string | null>(null);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // Boolean search hook
+  const booleanSearch = useBooleanSearch();
 
   // Fetch real candidates from database
   const { 
@@ -242,12 +249,26 @@ export default function TalentDatabase() {
     return Array.from(types).sort();
   }, [allTalents]);
 
-  // Filter talents
+  // Filter talents - use Boolean search results if active, otherwise filter locally
   const filteredTalents = useMemo(() => {
+    // If Boolean search is active and has results, use those
+    if (booleanSearch.isActive && booleanSearch.isBooleanMode && booleanSearch.hasResults) {
+      const searchResultIds = new Set(booleanSearch.results.map(r => r.candidate.id));
+      return allTalents.filter((talent) => {
+        const matchesSearch = searchResultIds.has(talent.id);
+        const matchesAvailability =
+          availabilityFilter === "all" || talent.availability === availabilityFilter;
+        const matchesRoleType =
+          roleTypeFilter === "all" || talent.roleType === roleTypeFilter;
+        return matchesSearch && matchesAvailability && matchesRoleType;
+      });
+    }
+
+    // For simple search or no search, filter locally
     return allTalents.filter((talent) => {
-      const searchLower = searchQuery.toLowerCase();
+      const searchLower = booleanSearch.query.toLowerCase();
       const matchesSearch =
-        !searchQuery ||
+        !booleanSearch.query ||
         talent.name.toLowerCase().includes(searchLower) ||
         talent.roleType.toLowerCase().includes(searchLower) ||
         talent.email.toLowerCase().includes(searchLower) ||
@@ -263,7 +284,7 @@ export default function TalentDatabase() {
 
       return matchesSearch && matchesAvailability && matchesRoleType;
     });
-  }, [searchQuery, availabilityFilter, roleTypeFilter, allTalents]);
+  }, [booleanSearch.query, booleanSearch.isActive, booleanSearch.isBooleanMode, booleanSearch.hasResults, booleanSearch.results, availabilityFilter, roleTypeFilter, allTalents]);
 
   const handleRowClick = (talent: Talent) => {
     // Navigate to the full profile page
@@ -804,15 +825,19 @@ export default function TalentDatabase() {
       {/* Search and Filters */}
       <div className="container mx-auto px-4 py-4">
         <div className="flex flex-wrap items-center gap-4 mb-4">
-          <div className="relative flex-1 min-w-[250px] max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, skill, role, or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
+          <BooleanSearchBar
+            query={booleanSearch.query}
+            onQueryChange={booleanSearch.setQuery}
+            isBooleanMode={booleanSearch.isBooleanMode}
+            onToggleBooleanMode={booleanSearch.toggleBooleanMode}
+            isValid={booleanSearch.isValidQuery}
+            parseError={booleanSearch.parseError}
+            isSearching={booleanSearch.isSearching}
+            resultCount={booleanSearch.isBooleanMode ? booleanSearch.results.length : undefined}
+            onClear={booleanSearch.clearSearch}
+            placeholder="Search by name, skill, role, or email..."
+            className="flex-1 min-w-[300px] max-w-2xl"
+          />
           <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Availability" />
@@ -837,7 +862,48 @@ export default function TalentDatabase() {
               ))}
             </SelectContent>
           </Select>
+          
+          {/* Toggle for search results view */}
+          {booleanSearch.isBooleanMode && booleanSearch.hasResults && (
+            <Toggle
+              pressed={showSearchResults}
+              onPressedChange={setShowSearchResults}
+              size="sm"
+              className="gap-1.5 text-xs h-9"
+            >
+              <LayoutList className="h-3.5 w-3.5" />
+              Show Match Details
+            </Toggle>
+          )}
         </div>
+
+        {/* Boolean Search Results Panel - shows match highlights */}
+        {booleanSearch.isBooleanMode && booleanSearch.hasResults && showSearchResults && (
+          <div className="mb-4 border border-border rounded-lg bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium">
+                Search Results ({booleanSearch.results.length} matches)
+              </h3>
+              <Badge variant="outline" className="text-xs">
+                Ranked by relevance
+              </Badge>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 max-h-[400px] overflow-y-auto">
+              {booleanSearch.results.slice(0, 12).map((result) => (
+                <SearchResultCard
+                  key={result.candidate.id}
+                  result={result}
+                  onClick={() => navigate(`/talent/${result.candidate.id}`)}
+                />
+              ))}
+            </div>
+            {booleanSearch.results.length > 12 && (
+              <p className="text-xs text-muted-foreground mt-3 text-center">
+                Showing top 12 of {booleanSearch.results.length} results. Use filters to narrow down.
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Table with Resizable Columns */}
         <div className="rounded-lg border border-border bg-card overflow-hidden relative">
@@ -1008,7 +1074,7 @@ export default function TalentDatabase() {
         talent={selectedTalent}
         open={!!selectedTalent && !showCVViewer}
         onClose={() => setSelectedTalent(null)}
-        onSkillFilter={(skill) => setSearchQuery(skill)}
+        onSkillFilter={(skill) => booleanSearch.setQuery(skill)}
         onViewCV={() => setShowCVViewer(true)}
       />
 

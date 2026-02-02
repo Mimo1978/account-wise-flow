@@ -484,27 +484,49 @@ export default function ContactsDatabase() {
         </div>
 
         {/* Table */}
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden relative">
           <ScrollableTableContainer 
             showScrollHint={isFirstVisit}
             stickyHeader
             maxHeight="calc(100vh - 280px)"
+            leftPinnedWidth={280}
           >
             <Table className="min-w-[1400px]">
               <TableHeader>
-                <TableRow className="bg-muted/95 backdrop-blur-sm">
-                  <TableHead className="font-semibold whitespace-nowrap">Data Quality</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Name</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Company</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Department</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Job Title</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Seniority</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Email</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Private Email</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Phone</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Status</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Owner</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Last Contacted</TableHead>
+                <TableRow className="bg-muted">
+                  <TableHead 
+                    className="font-semibold whitespace-nowrap bg-muted"
+                    style={{ 
+                      position: "sticky", 
+                      left: 0, 
+                      zIndex: 30,
+                      minWidth: 100,
+                    }}
+                  >
+                    Data Quality
+                  </TableHead>
+                  <TableHead 
+                    className="font-semibold whitespace-nowrap bg-muted"
+                    style={{ 
+                      position: "sticky", 
+                      left: 100, 
+                      zIndex: 30,
+                      minWidth: 180,
+                      boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
+                    }}
+                  >
+                    Name
+                  </TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Company</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Department</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Job Title</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Seniority</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Email</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Private Email</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Phone</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Status</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Owner</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Last Contacted</TableHead>
                 </TableRow>
               </TableHeader>
             <TableBody>
@@ -522,7 +544,16 @@ export default function ContactsDatabase() {
                     onClick={(e) => handleRowClick(contact, e)}
                     onDoubleClick={(e) => handleRowDoubleClick(contact, e)}
                   >
-                    <TableCell data-quality-action>
+                    <TableCell 
+                      data-quality-action
+                      className="bg-card"
+                      style={{ 
+                        position: "sticky", 
+                        left: 0, 
+                        zIndex: 20,
+                        minWidth: 100,
+                      }}
+                    >
                       {isReady ? (
                         <div className="flex items-center gap-1.5 text-green-500">
                           <CheckCircle2 className="h-4 w-4" />
@@ -662,37 +693,46 @@ export default function ContactsDatabase() {
                         </Popover>
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">
+                    <TableCell 
+                      className="font-medium bg-card"
+                      style={{ 
+                        position: "sticky", 
+                        left: 100, 
+                        zIndex: 20,
+                        minWidth: 180,
+                        boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
+                      }}
+                    >
                       <div className="flex items-center gap-2 group/name">
                         <button
                           data-contact-name
                           onClick={(e) => handleNameClick(contact, e)}
-                          className="text-foreground hover:text-primary hover:underline underline-offset-2 transition-colors text-left"
+                          className="text-foreground hover:text-primary hover:underline underline-offset-2 transition-colors text-left truncate"
                         >
                           {contact.name}
                         </button>
                         <button
                           data-open-icon
                           onClick={(e) => handleNameClick(contact, e)}
-                          className="opacity-0 group-hover/name:opacity-100 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-all"
+                          className="opacity-0 group-hover/name:opacity-100 group-hover:opacity-100 p-1 rounded hover:bg-muted transition-all flex-shrink-0"
                           title="Open contact record"
                         >
                           <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
                         </button>
                       </div>
                     </TableCell>
-                    <TableCell>{companyName}</TableCell>
-                    <TableCell>{contact.department || <span className="text-muted-foreground italic">—</span>}</TableCell>
-                    <TableCell>{contact.title || <span className="text-muted-foreground italic">—</span>}</TableCell>
-                    <TableCell>
+                    <TableCell className="bg-card" style={{ zIndex: 1 }}>{companyName}</TableCell>
+                    <TableCell className="bg-card" style={{ zIndex: 1 }}>{contact.department || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                    <TableCell className="bg-card" style={{ zIndex: 1 }}>{contact.title || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                    <TableCell className="bg-card" style={{ zIndex: 1 }}>
                       <span className="text-muted-foreground">
                         {seniorityLabels[contact.seniority] || contact.seniority}
                       </span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="text-muted-foreground bg-card" style={{ zIndex: 1 }}>
                       {contact.email}
                     </TableCell>
-                    <TableCell data-quality-action>
+                    <TableCell data-quality-action className="bg-card" style={{ zIndex: 1 }}>
                       <PrivateEmailEditor
                         privateEmail={contact.privateEmail}
                         onSave={(email) => {
@@ -706,7 +746,7 @@ export default function ContactsDatabase() {
                         }}
                       />
                     </TableCell>
-                    <TableCell data-quality-action>
+                    <TableCell data-quality-action className="bg-card" style={{ zIndex: 1 }}>
                       <PhoneInlineEditor
                         phoneNumbers={contact.phoneNumbers || []}
                         legacyPhone={contact.phone}
@@ -723,7 +763,7 @@ export default function ContactsDatabase() {
                         }}
                       />
                     </TableCell>
-                    <TableCell data-quality-action>
+                    <TableCell data-quality-action className="bg-card" style={{ zIndex: 1 }}>
                       <InlineEditCell
                         value={contact.status}
                         displayValue={
@@ -748,10 +788,10 @@ export default function ContactsDatabase() {
                         placeholder="Select status"
                       />
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="text-muted-foreground bg-card" style={{ zIndex: 1 }}>
                       {contact.contactOwner || "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="text-muted-foreground bg-card" style={{ zIndex: 1 }}>
                       {contact.lastContact || "—"}
                     </TableCell>
                   </TableRow>

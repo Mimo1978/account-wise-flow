@@ -1,7 +1,8 @@
-import { useRef, useState, useEffect, ReactNode, useCallback } from "react";
+import { useRef, useState, useEffect, ReactNode, useCallback, forwardRef } from "react";
 import { ChevronLeft, ChevronRight, ChevronsRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PinnedEdgeFade, PinnedEdgeFadeRight } from "@/components/ui/pinned-edge-fade";
 
 const SCROLL_HINT_STORAGE_KEY = "database-table-scroll-hint-dismissed-v2";
 
@@ -11,20 +12,32 @@ interface ScrollableTableContainerProps {
   showScrollHint?: boolean;
   stickyHeader?: boolean;
   maxHeight?: string;
+  /** Width of left-pinned area for edge fade (includes checkbox if present) */
+  leftPinnedWidth?: number;
+  /** Width of right-pinned area for edge fade */
+  rightPinnedWidth?: number;
+  /** Callback when scroll position changes */
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
-export const ScrollableTableContainer = ({
+export const ScrollableTableContainer = forwardRef<HTMLDivElement, ScrollableTableContainerProps>(({
   children,
   className,
   showScrollHint = false,
   stickyHeader = false,
   maxHeight = "calc(100vh - 280px)",
-}: ScrollableTableContainerProps) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  leftPinnedWidth = 0,
+  rightPinnedWidth = 0,
+  onScroll,
+}, ref) => {
+  const internalScrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = (ref as React.RefObject<HTMLDivElement>) || internalScrollRef;
+  
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(false);
   const [showHint, setShowHint] = useState(false);
   const [hasScrollableContent, setHasScrollableContent] = useState(false);
+  const [hasScrolledRight, setHasScrolledRight] = useState(false);
 
   // Check if hint should be shown
   useEffect(() => {
@@ -47,15 +60,17 @@ export const ScrollableTableContainer = ({
   }, []);
 
   const updateScrollIndicators = useCallback(() => {
-    if (!scrollRef.current) return;
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
     
-    const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+    const { scrollLeft, scrollWidth, clientWidth } = scrollEl;
     const isScrollable = scrollWidth > clientWidth + 5;
     
     setHasScrollableContent(isScrollable);
     setShowLeftFade(scrollLeft > 5);
     setShowRightFade(isScrollable && scrollLeft < scrollWidth - clientWidth - 5);
-  }, []);
+    setHasScrolledRight(scrollLeft > 5);
+  }, [scrollRef]);
 
   useEffect(() => {
     const scrollEl = scrollRef.current;
@@ -77,7 +92,7 @@ export const ScrollableTableContainer = ({
       clearTimeout(timeout);
       clearTimeout(lateTimeout);
     };
-  }, [updateScrollIndicators]);
+  }, [updateScrollIndicators, scrollRef]);
 
   // Dismiss hint on first scroll
   useEffect(() => {
@@ -93,7 +108,7 @@ export const ScrollableTableContainer = ({
     return () => {
       scrollEl.removeEventListener("scroll", handleFirstScroll);
     };
-  }, [showHint, dismissHint]);
+  }, [showHint, dismissHint, scrollRef]);
 
   // Shift + scroll for horizontal scrolling
   useEffect(() => {
@@ -113,7 +128,7 @@ export const ScrollableTableContainer = ({
     return () => {
       scrollEl.removeEventListener("wheel", handleWheel);
     };
-  }, []);
+  }, [scrollRef]);
 
   const scrollTo = (direction: "left" | "right") => {
     if (!scrollRef.current) return;
@@ -125,8 +140,31 @@ export const ScrollableTableContainer = ({
     });
   };
 
+  const handleScrollInternal = (e: React.UIEvent<HTMLDivElement>) => {
+    updateScrollIndicators();
+    onScroll?.(e);
+  };
+
   return (
     <div className={cn("relative flex-1", className)}>
+      {/* Premium Edge Fade - Left Pinned Boundary */}
+      {leftPinnedWidth > 0 && (
+        <PinnedEdgeFade
+          leftOffset={leftPinnedWidth}
+          visible={hasScrollableContent || hasScrolledRight}
+          width={20}
+        />
+      )}
+      
+      {/* Premium Edge Fade - Right Pinned Boundary */}
+      {rightPinnedWidth > 0 && (
+        <PinnedEdgeFadeRight
+          rightOffset={rightPinnedWidth}
+          visible={hasScrollableContent}
+          width={20}
+        />
+      )}
+
       {/* Left Fade Gradient - Premium subtle effect */}
       <div
         className={cn(
@@ -211,6 +249,7 @@ export const ScrollableTableContainer = ({
           "scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent"
         )}
         style={{ maxHeight }}
+        onScroll={handleScrollInternal}
       >
         <div className={cn(
           stickyHeader && "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead_tr]:bg-muted/95 [&_thead_tr]:backdrop-blur-sm [&_thead_tr]:shadow-[0_1px_3px_-1px_hsl(var(--border)/0.3)]"
@@ -220,4 +259,6 @@ export const ScrollableTableContainer = ({
       </div>
     </div>
   );
-};
+});
+
+ScrollableTableContainer.displayName = "ScrollableTableContainer";

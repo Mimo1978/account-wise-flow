@@ -30,7 +30,6 @@ interface RawSearchResult {
   current_title: string | null;
   location: string | null;
   skills: unknown;
-  raw_cv_text: string | null;
   rank: number;
   highlight_name: string | null;
   highlight_headline: string | null;
@@ -127,7 +126,6 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
           cvSource: "upload" as TalentCvSource,
           aiOverview: row.headline || undefined,
           location: row.location || undefined,
-          rawCvText: row.raw_cv_text || undefined,
         };
 
         // Determine where matches were found

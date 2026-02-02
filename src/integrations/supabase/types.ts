@@ -1195,6 +1195,53 @@ export type Database = {
           },
         ]
       }
+      saved_searches: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          last_run_at: string | null
+          mode: Database["public"]["Enums"]["search_mode"]
+          name: string
+          query_string: string
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          last_run_at?: string | null
+          mode?: Database["public"]["Enums"]["search_mode"]
+          name: string
+          query_string: string
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          last_run_at?: string | null
+          mode?: Database["public"]["Enums"]["search_mode"]
+          name?: string
+          query_string?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_searches_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           created_at: string
@@ -1410,6 +1457,7 @@ export type Database = {
         | "placed"
         | "dropped"
         | "rejected"
+      search_mode: "simple" | "boolean"
       workspace_mode: "public_demo" | "demo" | "production"
       workspace_type: "real" | "demo"
     }
@@ -1584,6 +1632,7 @@ export const Constants = {
         "dropped",
         "rejected",
       ],
+      search_mode: ["simple", "boolean"],
       workspace_mode: ["public_demo", "demo", "production"],
       workspace_type: ["real", "demo"],
     },

@@ -6,6 +6,7 @@ import {
   AlertCircle,
   Loader2,
   ChevronDown,
+  Bookmark,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,9 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { BOOLEAN_SEARCH_EXAMPLES } from "@/lib/boolean-search-parser";
+import { useSavedSearches, SavedSearch } from "@/hooks/use-saved-searches";
+import { SaveSearchModal } from "./SaveSearchModal";
+import { SavedSearchesDropdown } from "./SavedSearchesDropdown";
 
 type SearchMode = "simple" | "boolean";
 
@@ -69,6 +73,21 @@ export function InlineSearchBar({
   const inputRef = useRef<HTMLInputElement>(null);
   const [showHelp, setShowHelp] = useState(false);
 
+  // Saved searches hook
+  const {
+    savedSearches,
+    isLoading: isLoadingSavedSearches,
+    isModalOpen,
+    setIsModalOpen,
+    createSearch,
+    isCreating,
+    updateLastRun,
+    deleteSearch,
+  } = useSavedSearches();
+
+  // Can save: Boolean mode + valid query + has content
+  const canSave = mode === "boolean" && isValid && query.trim().length > 0;
+
   // Focus input on Cmd/Ctrl + K
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -92,6 +111,16 @@ export function InlineSearchBar({
       onModeChange("boolean");
     }
     setShowHelp(false);
+    inputRef.current?.focus();
+  };
+
+  // Handle selecting a saved search
+  const handleSelectSavedSearch = (search: SavedSearch) => {
+    onQueryChange(search.query_string);
+    if (mode !== search.mode) {
+      onModeChange(search.mode);
+    }
+    updateLastRun(search.id);
     inputRef.current?.focus();
   };
 
@@ -208,6 +237,34 @@ export function InlineSearchBar({
           </div>
         </div>
 
+        {/* Save search button - only shows in Boolean mode with valid query */}
+        {canSave && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-10 gap-1.5 px-3 text-xs"
+                onClick={() => setIsModalOpen(true)}
+              >
+                <Bookmark className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Save</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p className="text-xs">Save this search</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Saved searches dropdown */}
+        <SavedSearchesDropdown
+          savedSearches={savedSearches}
+          isLoading={isLoadingSavedSearches}
+          onSelect={handleSelectSavedSearch}
+          onDelete={deleteSearch}
+        />
+
         {/* Help popover - only in Boolean mode */}
         {isBooleanMode && (
           <Popover open={showHelp} onOpenChange={setShowHelp}>
@@ -277,6 +334,15 @@ export function InlineSearchBar({
           </Popover>
         )}
       </div>
+
+      {/* Save search modal */}
+      <SaveSearchModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        query={query}
+        onSave={createSearch}
+        isLoading={isCreating}
+      />
 
       {/* Example chips - only in Boolean mode */}
       {isBooleanMode && !query && (

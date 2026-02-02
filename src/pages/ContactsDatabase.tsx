@@ -39,6 +39,7 @@ import { InlineEditCell } from "@/components/canvas/InlineEditCell";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { ImportCenterModal } from "@/components/import/ImportCenterModal";
+import { ImportMethod } from "@/components/import/ImportCenterTypes";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { ContactRecordPanel } from "@/components/contact/ContactRecordPanel";
 import { CompanyOverviewPanel } from "@/components/company/CompanyOverviewPanel";
@@ -61,6 +62,7 @@ import {
   ClipboardPaste,
   ChevronDown,
   ExternalLink,
+  ScanLine,
 } from "lucide-react";
 import {
   departmentOptions,
@@ -236,6 +238,7 @@ export default function ContactsDatabase() {
   const [showAddContactModal, setShowAddContactModal] = useState(false);
   const [showAIImportModal, setShowAIImportModal] = useState(false);
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [bulkImportMethod, setBulkImportMethod] = useState<ImportMethod>("file");
 
   const handleAddContact = (contact: Contact) => {
     mockAccount.contacts.push(contact);
@@ -368,9 +371,20 @@ export default function ContactsDatabase() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onClick={() => setShowBulkImportModal(true)}>
+                        <DropdownMenuItem onClick={() => {
+                          setBulkImportMethod("file");
+                          setShowBulkImportModal(true);
+                        }}>
                           <FileText className="h-4 w-4 mr-2" />
                           Import from CSV / XLSX
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setBulkImportMethod("ocr");
+                          setShowBulkImportModal(true);
+                        }}>
+                          <ScanLine className="h-4 w-4 mr-2" />
+                          Scan Image / PDF (OCR)
+                          <Badge variant="outline" className="ml-auto text-xs">Beta</Badge>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
                           <FileImage className="h-4 w-4 mr-2" />
@@ -799,11 +813,12 @@ export default function ContactsDatabase() {
         }}
       />
 
-      {/* Bulk CSV/XLSX Import Modal - Shared Component */}
+      {/* Bulk CSV/XLSX/OCR Import Modal - Shared Component */}
       <ImportCenterModal
         open={showBulkImportModal}
         onOpenChange={setShowBulkImportModal}
         entityType="contacts"
+        initialMethod={bulkImportMethod}
         onImportComplete={(records) => {
           // Add imported contacts to the list
           records.forEach((record) => {

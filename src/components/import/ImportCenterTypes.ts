@@ -2,8 +2,9 @@
 
 export type EntityType = "companies" | "contacts" | "talent";
 
-export type ImportStep = "upload" | "mapping" | "preview" | "confirm";
+export type ImportStep = "upload" | "ocr-upload" | "mapping" | "preview" | "confirm";
 export type ImportMethod = "file" | "paste" | "ocr";
+export type ConfidenceLevel = "high" | "medium" | "low";
 
 export interface FieldSchema {
   id: string;
@@ -19,6 +20,22 @@ export interface ParsedRow {
   errors: string[];
   isValid: boolean;
   selected: boolean;
+  confidence?: ConfidenceLevel; // OCR confidence level
+  rawText?: string; // Original OCR text snippet
+}
+
+export interface OCRExtractedRow {
+  fields: Record<string, string>;
+  confidence: ConfidenceLevel;
+  rawText?: string;
+}
+
+export interface OCRResult {
+  success: boolean;
+  rows: OCRExtractedRow[];
+  headers: string[];
+  totalRows: number;
+  warnings?: string[];
 }
 
 export interface ImportCenterConfig {

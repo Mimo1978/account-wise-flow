@@ -14,11 +14,11 @@ import {
   ScanLine,
   ChevronDown,
 } from "lucide-react";
-import { EntityType, getEntityLabel } from "./ImportCenterTypes";
+import { EntityType, getEntityLabel, ImportMethod } from "./ImportCenterTypes";
 
 interface ImportDropdownProps {
   entityType: EntityType;
-  onImportClick: (method: "file" | "paste" | "ocr") => void;
+  onImportClick: (method: ImportMethod) => void;
   disabled?: boolean;
 }
 
@@ -50,11 +50,11 @@ export function ImportDropdown({
           Copy / Paste Table
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem disabled className="opacity-50">
+        <DropdownMenuItem onClick={() => onImportClick("ocr")}>
           <ScanLine className="h-4 w-4 mr-2" />
           Scan Image / PDF (OCR)
           <Badge variant="outline" className="ml-auto text-xs">
-            Soon
+            Beta
           </Badge>
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -19,14 +19,19 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { ImportCenterDropzone } from "./ImportCenterDropzone";
 import { ImportMappingStep } from "./ImportMappingStep";
 import { ImportPreviewStep } from "./ImportPreviewStep";
+import { OCRUploadStep } from "./OCRUploadStep";
 import {
   EntityType,
   ImportStep,
+  ImportMethod,
   ParsedRow,
   FieldSchema,
+  ConfidenceLevel,
+  OCRResult,
   getFieldSchemaForEntity,
   getAutoMappingRulesForEntity,
   getEntityLabel,
@@ -37,6 +42,7 @@ interface ImportCenterModalProps {
   onOpenChange: (open: boolean) => void;
   entityType: EntityType;
   onImportComplete: (records: Record<string, any>[]) => void;
+  initialMethod?: ImportMethod;
 }
 
 const entityIcons: Record<EntityType, React.ReactNode> = {
@@ -50,9 +56,11 @@ export function ImportCenterModal({
   onOpenChange,
   entityType,
   onImportComplete,
+  initialMethod = "file",
 }: ImportCenterModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [step, setStep] = useState<ImportStep>("upload");
+  const [step, setStep] = useState<ImportStep>(initialMethod === "ocr" ? "ocr-upload" : "upload");
+  const [importMethod, setImportMethod] = useState<ImportMethod>(initialMethod);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -61,6 +69,11 @@ export function ImportCenterModal({
   const [pastedData, setPastedData] = useState("");
   const [rawHeaders, setRawHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<string[][]>([]);
+
+  // OCR state
+  const [ocrFile, setOcrFile] = useState<File | null>(null);
+  const [ocrError, setOcrError] = useState<string | null>(null);
+  const [isOcrMode, setIsOcrMode] = useState(initialMethod === "ocr");
 
   // Mapping state
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
@@ -74,7 +87,9 @@ export function ImportCenterModal({
   const autoMappingRules = useMemo(() => getAutoMappingRulesForEntity(entityType), [entityType]);
 
   const resetState = useCallback(() => {
-    setStep("upload");
+    const startStep = initialMethod === "ocr" ? "ocr-upload" : "upload";
+    setStep(startStep);
+    setImportMethod(initialMethod);
     setUploadedFile(null);
     setPastedData("");
     setRawHeaders([]);
@@ -84,7 +99,10 @@ export function ImportCenterModal({
     setIsProcessing(false);
     setIsDragging(false);
     setImportProgress(0);
-  }, []);
+    setOcrFile(null);
+    setOcrError(null);
+    setIsOcrMode(initialMethod === "ocr");
+  }, [initialMethod]);
 
   const handleClose = useCallback(() => {
     if (isProcessing) return;
@@ -216,6 +234,104 @@ export function ImportCenterModal({
       return;
     }
     parseCSVData(pastedData);
+  };
+
+  // OCR handlers
+  const handleOcrFileSelect = (file: File) => {
+    setOcrFile(file);
+    setOcrError(null);
+  };
+
+  const handleOcrClearFile = () => {
+    setOcrFile(null);
+    setOcrError(null);
+  };
+
+  const handleStartOCR = async () => {
+    if (!ocrFile) return;
+
+    setIsProcessing(true);
+    setOcrError(null);
+
+    try {
+      // Convert file to base64
+      const arrayBuffer = await ocrFile.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ""
+        )
+      );
+
+      // Call OCR edge function
+      const { data, error } = await supabase.functions.invoke("ocr-import", {
+        body: {
+          image: base64,
+          entityType,
+          mimeType: ocrFile.type,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message || "OCR processing failed");
+      }
+
+      const result = data as OCRResult;
+
+      if (!result.success) {
+        throw new Error("OCR extraction failed");
+      }
+
+      if (result.rows.length === 0) {
+        throw new Error("No data could be extracted from the image");
+      }
+
+      // Show warnings if any
+      if (result.warnings && result.warnings.length > 0) {
+        result.warnings.forEach((warning) => {
+          toast.warning(warning);
+        });
+      }
+
+      // Convert OCR results to parsed rows
+      const ocrParsedRows: ParsedRow[] = result.rows.map((row, idx) => {
+        const errors: string[] = [];
+        const requiredFields = fieldSchema.filter((f) => f.required);
+
+        // Check required fields
+        requiredFields.forEach((field) => {
+          const value = row.fields[field.id];
+          if (!value || value.trim() === "") {
+            errors.push(`${field.label} is required`);
+          }
+        });
+
+        return {
+          id: `ocr-${idx}`,
+          original: row.fields,
+          mapped: row.fields,
+          errors,
+          isValid: errors.length === 0,
+          // Low confidence rows are unchecked by default
+          selected: errors.length === 0 && row.confidence !== "low",
+          confidence: row.confidence,
+          rawText: row.rawText,
+        };
+      });
+
+      setParsedRows(ocrParsedRows);
+      setIsOcrMode(true);
+      setStep("preview");
+
+      toast.success(`Extracted ${result.rows.length} row(s) from image`);
+    } catch (err) {
+      console.error("OCR error:", err);
+      const errorMessage = err instanceof Error ? err.message : "OCR processing failed";
+      setOcrError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Mapping step handlers
@@ -372,6 +488,19 @@ export function ImportCenterModal({
 
   const selectedCount = parsedRows.filter((r) => r.selected).length;
 
+  const getStepNumber = () => {
+    if (isOcrMode) {
+      if (step === "ocr-upload") return "Step 1/2";
+      if (step === "preview") return "Step 2/2";
+      if (step === "confirm") return "Complete";
+    }
+    if (step === "upload") return "Step 1/3";
+    if (step === "mapping") return "Step 2/3";
+    if (step === "preview") return "Step 3/3";
+    if (step === "confirm") return "Complete";
+    return "";
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-hidden flex flex-col">
@@ -379,11 +508,13 @@ export function ImportCenterModal({
           <DialogTitle className="flex items-center gap-2">
             <span className="text-primary">{entityIcons[entityType]}</span>
             Import {getEntityLabel(entityType, true)}
+            {isOcrMode && (
+              <Badge variant="outline" className="ml-1 text-xs">
+                OCR
+              </Badge>
+            )}
             <Badge variant="outline" className="ml-2 font-normal">
-              {step === "upload" && "Step 1/3"}
-              {step === "mapping" && "Step 2/3"}
-              {step === "preview" && "Step 3/3"}
-              {step === "confirm" && "Complete"}
+              {getStepNumber()}
             </Badge>
           </DialogTitle>
         </DialogHeader>
@@ -401,6 +532,21 @@ export function ImportCenterModal({
               onPastedDataChange={setPastedData}
               onPasteConfirm={handlePasteConfirm}
               isProcessing={isProcessing}
+            />
+          )}
+
+          {step === "ocr-upload" && (
+            <OCRUploadStep
+              isDragging={isDragging}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onFileSelect={handleOcrFileSelect}
+              uploadedFile={ocrFile}
+              onClearFile={handleOcrClearFile}
+              isProcessing={isProcessing}
+              onStartOCR={handleStartOCR}
+              ocrError={ocrError}
             />
           )}
 
@@ -425,6 +571,7 @@ export function ImportCenterModal({
               onDownloadErrors={downloadErrorCSV}
               isProcessing={isProcessing}
               progress={importProgress}
+              showConfidence={isOcrMode}
             />
           )}
 
@@ -443,6 +590,14 @@ export function ImportCenterModal({
 
         <DialogFooter className="border-t pt-4">
           {step === "upload" && (
+            <>
+              <Button variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+            </>
+          )}
+
+          {step === "ocr-upload" && (
             <>
               <Button variant="outline" onClick={handleClose}>
                 Cancel
@@ -471,7 +626,7 @@ export function ImportCenterModal({
             <>
               <Button
                 variant="outline"
-                onClick={() => setStep("mapping")}
+                onClick={() => setStep(isOcrMode ? "ocr-upload" : "mapping")}
                 disabled={isProcessing}
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />

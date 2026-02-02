@@ -463,64 +463,75 @@ export default function TalentDatabase() {
   // Columns that should wrap text when wrapText is enabled
   const wrappableColumns = new Set(["name", "roleType", "seniority"]);
 
-  // Get pinned columns for positioning calculations
-  const leftPinnedCols = useMemo(() => getLeftPinnedColumns(visibleColumns), [getLeftPinnedColumns, visibleColumns]);
-  const rightPinnedCols = useMemo(() => getRightPinnedColumns(visibleColumns), [getRightPinnedColumns, visibleColumns]);
+  // Get pinned columns for positioning calculations - maintain column order from visibleColumns
+  const leftPinnedCols = useMemo(() => {
+    return visibleColumns.filter(col => getLeftPinnedColumns(visibleColumns).includes(col.id)).map(c => c.id);
+  }, [getLeftPinnedColumns, visibleColumns]);
+  
+  const rightPinnedCols = useMemo(() => {
+    return visibleColumns.filter(col => getRightPinnedColumns(visibleColumns).includes(col.id)).map(c => c.id);
+  }, [getRightPinnedColumns, visibleColumns]);
+
+  // Get column width helper
+  const getColumnWidth = (columnId: string): number => {
+    return columnWidths[columnId] || visibleColumns.find(c => c.id === columnId)?.defaultWidth || 150;
+  };
+
+  // Checkbox column width (fixed)
+  const CHECKBOX_COL_WIDTH = 50;
 
   // Calculate left offset for each left-pinned column
-  const getLeftOffset = useMemo(() => {
+  // offset = checkbox width + sum of widths of all left-pinned columns before this one
+  const leftOffsets = useMemo(() => {
     const offsets: Record<string, number> = {};
-    let currentOffset = 50; // Start after checkbox column (40px + some padding)
+    let currentOffset = CHECKBOX_COL_WIDTH;
     
-    visibleColumns.forEach((col) => {
-      if (leftPinnedCols.includes(col.id)) {
-        offsets[col.id] = currentOffset;
-        currentOffset += columnWidths[col.id] || col.defaultWidth;
-      }
+    leftPinnedCols.forEach((colId) => {
+      offsets[colId] = currentOffset;
+      currentOffset += getColumnWidth(colId);
     });
     
     return offsets;
-  }, [leftPinnedCols, visibleColumns, columnWidths]);
+  }, [leftPinnedCols, columnWidths, visibleColumns]);
 
   // Calculate right offset for each right-pinned column
-  const getRightOffset = useMemo(() => {
+  // offset = sum of widths of all right-pinned columns after this one
+  const rightOffsets = useMemo(() => {
     const offsets: Record<string, number> = {};
     let currentOffset = 0;
     
-    // Process right-pinned columns in reverse order
-    const rightPinnedVisible = visibleColumns.filter((col) => rightPinnedCols.includes(col.id)).reverse();
-    
-    rightPinnedVisible.forEach((col) => {
-      offsets[col.id] = currentOffset;
-      currentOffset += columnWidths[col.id] || col.defaultWidth;
+    // Process in reverse order (rightmost first gets offset 0)
+    const reversed = [...rightPinnedCols].reverse();
+    reversed.forEach((colId) => {
+      offsets[colId] = currentOffset;
+      currentOffset += getColumnWidth(colId);
     });
     
     return offsets;
-  }, [rightPinnedCols, visibleColumns, columnWidths]);
+  }, [rightPinnedCols, columnWidths, visibleColumns]);
 
   // Check if a column is the last left-pinned or first right-pinned (for shadow dividers)
   const isLastLeftPinned = useMemo(() => {
     if (leftPinnedCols.length === 0) return () => false;
-    const lastLeftPinned = visibleColumns
-      .filter(col => leftPinnedCols.includes(col.id))
-      .pop()?.id;
-    return (columnId: string) => columnId === lastLeftPinned;
-  }, [leftPinnedCols, visibleColumns]);
+    const lastId = leftPinnedCols[leftPinnedCols.length - 1];
+    return (columnId: string) => columnId === lastId;
+  }, [leftPinnedCols]);
 
   const isFirstRightPinned = useMemo(() => {
     if (rightPinnedCols.length === 0) return () => false;
-    const firstRightPinned = visibleColumns
-      .find(col => rightPinnedCols.includes(col.id))?.id;
-    return (columnId: string) => columnId === firstRightPinned;
-  }, [rightPinnedCols, visibleColumns]);
+    const firstId = rightPinnedCols[0];
+    return (columnId: string) => columnId === firstId;
+  }, [rightPinnedCols]);
 
   // Get cell styles based on view preferences and pinning
   // isHeader determines z-index stacking (headers above body cells)
   const getCellStyles = (columnId: string, isHeader: boolean = false): React.CSSProperties => {
-    const baseWidth = columnWidths[columnId] || visibleColumns.find(c => c.id === columnId)?.defaultWidth || 150;
+    const baseWidth = getColumnWidth(columnId);
     const pinPosition = isPinned(columnId);
     
-    const baseStyles: React.CSSProperties = {};
+    const baseStyles: React.CSSProperties = {
+      minWidth: 0, // Allow flex children to shrink
+    };
     
     if (viewPreferences.fitToScreen) {
       // Proportional widths with ellipsis
@@ -529,45 +540,50 @@ export default function TalentDatabase() {
       baseStyles.maxWidth = viewPreferences.wrapText && wrappableColumns.has(columnId) ? undefined : baseWidth;
     } else {
       baseStyles.width = baseWidth;
+      baseStyles.minWidth = baseWidth; // Enforce minimum to prevent shrinking
       baseStyles.maxWidth = viewPreferences.wrapText && wrappableColumns.has(columnId) ? undefined : baseWidth;
     }
     
-    // Add sticky positioning for pinned columns with subtle shadow dividers
+    // Add sticky positioning for pinned columns
     if (pinPosition === "left") {
       return {
         ...baseStyles,
         position: "sticky",
-        left: getLeftOffset[columnId],
-        // Headers get z-30, body cells get z-20 (above non-pinned z-10)
+        left: leftOffsets[columnId] ?? 0,
         zIndex: isHeader ? 30 : 20,
-        // Add shadow divider for last left-pinned column
-        ...(isLastLeftPinned(columnId) && {
-          boxShadow: "4px 0 6px -2px hsl(var(--foreground) / 0.08)",
-        }),
+        // Shadow divider on last left-pinned column
+        boxShadow: isLastLeftPinned(columnId) 
+          ? "4px 0 8px -4px hsl(var(--foreground) / 0.12)" 
+          : undefined,
       };
     } else if (pinPosition === "right") {
       return {
         ...baseStyles,
         position: "sticky",
-        right: getRightOffset[columnId],
-        // Headers get z-30, body cells get z-20 (above non-pinned z-10)
+        right: rightOffsets[columnId] ?? 0,
         zIndex: isHeader ? 30 : 20,
-        // Add shadow divider for first right-pinned column
-        ...(isFirstRightPinned(columnId) && {
-          boxShadow: "-4px 0 6px -2px hsl(var(--foreground) / 0.08)",
-        }),
+        // Shadow divider on first right-pinned column
+        boxShadow: isFirstRightPinned(columnId) 
+          ? "-4px 0 8px -4px hsl(var(--foreground) / 0.12)" 
+          : undefined,
       };
     }
     
-    return baseStyles;
+    // Non-pinned columns get lower z-index
+    return {
+      ...baseStyles,
+      zIndex: isHeader ? 10 : 1,
+    };
   };
 
   // Get checkbox column styles (always sticky left)
   const getCheckboxCellStyles = (isHeader: boolean = false): React.CSSProperties => ({
     position: "sticky",
     left: 0,
-    // Headers get z-30, body cells get z-20
-    zIndex: isHeader ? 30 : 20,
+    width: CHECKBOX_COL_WIDTH,
+    minWidth: CHECKBOX_COL_WIDTH,
+    maxWidth: CHECKBOX_COL_WIDTH,
+    zIndex: isHeader ? 31 : 21, // Slightly higher than other pinned cols
   });
 
   return (
@@ -783,7 +799,7 @@ export default function TalentDatabase() {
             maxHeight="calc(100vh - 320px)"
           >
             <Table style={{ minWidth: viewPreferences.fitToScreen ? undefined : `${totalTableWidth}px`, width: viewPreferences.fitToScreen ? '100%' : undefined }}>
-              <TableHeader>
+              <TableHeader className="sticky top-0 z-20">
                 <TableRow className="bg-muted">
                   <TableHead 
                     className="w-[50px] bg-muted"
@@ -802,14 +818,14 @@ export default function TalentDatabase() {
                       <TableHead
                         key={column.id}
                         className={cn(
-                          "font-semibold relative group bg-muted",
+                          "font-semibold relative group",
                           viewPreferences.fitToScreen ? "" : "whitespace-nowrap",
-                          // Pinned columns need explicit solid background for scroll overlap prevention
-                          pinPosition && "bg-muted"
+                          // ALL header cells get solid background - critical for scroll overlap
+                          "bg-muted"
                         )}
                         style={getCellStyles(column.id, true)}
                       >
-                        <div className="flex items-center justify-between pr-2 min-w-0">
+                        <div className="flex items-center justify-between pr-2 min-w-0 overflow-hidden">
                           <span className="truncate">{column.label}</span>
                           {pinPosition && (
                             <span className="ml-1 text-primary/60 flex-shrink-0">
@@ -884,12 +900,16 @@ export default function TalentDatabase() {
                             viewPreferences.wrapText && wrappableColumns.has(column.id)
                               ? "whitespace-normal"
                               : "whitespace-nowrap",
-                            // Pinned columns need explicit solid background for scroll overlap prevention
-                            pinPosition ? "bg-card" : ""
+                            // ALL body cells get solid background - critical for scroll overlap
+                            "bg-card",
+                            // Pinned cells override with slightly different styling on hover
+                            pinPosition && "group-hover/row:bg-muted/50"
                           )}
                           style={getCellStyles(column.id, false)}
                         >
-                          {renderCellContent(column.id, talent, viewPreferences.wrapText)}
+                          <div className="min-w-0 overflow-hidden text-ellipsis">
+                            {renderCellContent(column.id, talent, viewPreferences.wrapText)}
+                          </div>
                         </TableCell>
                       );
                     })}

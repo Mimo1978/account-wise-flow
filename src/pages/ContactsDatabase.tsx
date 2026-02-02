@@ -38,6 +38,7 @@ import { PrivateEmailEditor } from "@/components/canvas/PrivateEmailEditor";
 import { InlineEditCell } from "@/components/canvas/InlineEditCell";
 import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { SmartImportModal } from "@/components/import/SmartImportModal";
+import { ImportCenterModal } from "@/components/import/ImportCenterModal";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { ContactRecordPanel } from "@/components/contact/ContactRecordPanel";
 import { CompanyOverviewPanel } from "@/components/company/CompanyOverviewPanel";
@@ -231,9 +232,10 @@ export default function ContactsDatabase() {
   const [showCustomDept, setShowCustomDept] = useState(false);
   const [showCustomTitle, setShowCustomTitle] = useState(false);
 
-  // State for Add Contact and AI Import modals
+  // State for Add Contact and Import modals
   const [showAddContactModal, setShowAddContactModal] = useState(false);
   const [showAIImportModal, setShowAIImportModal] = useState(false);
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
 
   const handleAddContact = (contact: Contact) => {
     mockAccount.contacts.push(contact);
@@ -366,9 +368,9 @@ export default function ContactsDatabase() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
-                        <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
+                        <DropdownMenuItem onClick={() => setShowBulkImportModal(true)}>
                           <FileText className="h-4 w-4 mr-2" />
-                          Import from CSV
+                          Import from CSV / XLSX
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setShowAIImportModal(true)}>
                           <FileImage className="h-4 w-4 mr-2" />
@@ -787,13 +789,40 @@ export default function ContactsDatabase() {
         companyName={companyName}
       />
 
-      {/* Smart Import Modal */}
+      {/* Smart Import Modal (AI-based import for images, docs, etc.) */}
       <SmartImportModal
         open={showAIImportModal}
         onOpenChange={setShowAIImportModal}
         context={{
           source: 'CONTACT',
           companyName: companyName,
+        }}
+      />
+
+      {/* Bulk CSV/XLSX Import Modal - Shared Component */}
+      <ImportCenterModal
+        open={showBulkImportModal}
+        onOpenChange={setShowBulkImportModal}
+        entityType="contacts"
+        onImportComplete={(records) => {
+          // Add imported contacts to the list
+          records.forEach((record) => {
+            const newContact: Contact = {
+              id: record.id,
+              name: record.name || "Unknown",
+              email: record.email || "",
+              phone: record.phone || "",
+              phoneNumbers: record.phone ? [{ value: record.phone, label: "Mobile", preferred: true }] : [],
+              privateEmail: record.email || "",
+              department: record.department || "",
+              title: record.title || "",
+              seniority: record.seniority || "mid",
+              status: record.status || "new",
+              linkedIn: "",
+              notes: record.notes || "",
+            };
+            mockAccount.contacts.push(newContact);
+          });
         }}
       />
     </div>

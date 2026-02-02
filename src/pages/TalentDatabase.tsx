@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/tooltip";
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { SmartImportModal } from "@/components/import/SmartImportModal";
+import { ImportCenterModal } from "@/components/import/ImportCenterModal";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
 import { TalentQuickView } from "@/components/talent/TalentQuickView";
 import { ViewPresetsDropdown } from "@/components/talent/ViewPresetsDropdown";
@@ -143,6 +144,7 @@ export default function TalentDatabase() {
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
   const [showCVViewer, setShowCVViewer] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [quickViewTalentId, setQuickViewTalentId] = useState<string | null>(null);
@@ -664,7 +666,11 @@ export default function TalentDatabase() {
                           <ChevronDown className="h-4 w-4 ml-2" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuItem onClick={() => setShowBulkImportModal(true)}>
+                          <FileText className="h-4 w-4 mr-2" />
+                          Import from CSV / XLSX
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setShowImportModal(true)}>
                           <FileText className="h-4 w-4 mr-2" />
                           Upload CV
@@ -914,7 +920,7 @@ export default function TalentDatabase() {
         onBack={() => setShowCVViewer(false)}
       />
 
-      {/* Smart Import Modal */}
+      {/* Smart Import Modal (AI-based import for CVs, images, etc.) */}
       <SmartImportModal
         open={showImportModal}
         onOpenChange={setShowImportModal}
@@ -924,6 +930,20 @@ export default function TalentDatabase() {
         onComplete={() => {
           // Refresh talent list after import completes
           console.log("[TalentDatabase] Import complete, invalidating candidates cache");
+          invalidateCandidates();
+          refetchCandidates();
+        }}
+      />
+
+      {/* Bulk CSV/XLSX Import Modal - Shared Component */}
+      <ImportCenterModal
+        open={showBulkImportModal}
+        onOpenChange={setShowBulkImportModal}
+        entityType="talent"
+        onImportComplete={(records) => {
+          // Add imported candidates to mock data (in real app, would save to DB)
+          console.log("[TalentDatabase] Bulk import complete:", records.length, "records");
+          // Refresh the list
           invalidateCandidates();
           refetchCandidates();
         }}

@@ -356,6 +356,7 @@ export default function CandidateProfile() {
                 entityName={candidate.name}
                 canEdit={canEdit}
                 showCategoryBreakdown={true}
+                showVersions={true}
               />
             </CollapsibleSection>
 

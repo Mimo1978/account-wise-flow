@@ -19,17 +19,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
 import { TeamManagementPanel } from "@/components/admin/TeamManagementPanel";
 import { CompanyOverviewPanel } from "@/components/company/CompanyOverviewPanel";
 import { CreateCompanyModal } from "@/components/company/CreateCompanyModal";
-import { ImportCompaniesModal } from "@/components/company/ImportCompaniesModal";
+import { ImportCenterModal } from "@/components/import/ImportCenterModal";
+import { ImportDropdown } from "@/components/import/ImportDropdown";
 import {
   Search,
   Plus,
@@ -44,11 +39,6 @@ import {
   X,
   CheckCircle2,
   AlertCircle,
-  Upload,
-  ChevronDown,
-  FileSpreadsheet,
-  ClipboardPaste,
-  ScanLine,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
@@ -185,7 +175,24 @@ export default function CompaniesDatabase() {
     setCompanies((prev) => [newCompany, ...prev]);
   };
 
-  const handleCompaniesImported = (importedCompanies: Account[]) => {
+  const handleCompaniesImported = (records: Record<string, any>[]) => {
+    // Convert imported records to Account format
+    const importedCompanies: Account[] = records.map((record) => ({
+      id: record.id,
+      name: record.name || "Unknown Company",
+      industry: record.industry || "Other",
+      headquarters: record.headquarters,
+      switchboard: record.switchboard,
+      regions: Array.isArray(record.regions) ? record.regions : [],
+      relationshipStatus: record.status || "warm",
+      accountManager: record.owner
+        ? { name: record.owner, title: "Account Manager" }
+        : undefined,
+      contacts: [],
+      lastUpdated: new Date().toISOString(),
+      engagementScore: 50,
+      dataQuality: "partial" as const,
+    }));
     setCompanies((prev) => [...importedCompanies, ...prev]);
   };
 
@@ -210,47 +217,12 @@ export default function CompaniesDatabase() {
             <div className="flex items-center gap-2">
               <TeamManagementPanel />
               
-              {/* Import Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Upload className="h-4 w-4" />
-                    Import
-                    <ChevronDown className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuItem 
-                    onClick={() => setIsImportModalOpen(true)}
-                    className="gap-2"
-                  >
-                    <FileSpreadsheet className="h-4 w-4" />
-                    Upload CSV / XLSX
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => setIsImportModalOpen(true)}
-                    className="gap-2"
-                  >
-                    <ClipboardPaste className="h-4 w-4" />
-                    Drag & Drop Files
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => setIsImportModalOpen(true)}
-                    className="gap-2"
-                  >
-                    <ClipboardPaste className="h-4 w-4" />
-                    Copy / Paste Table
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="gap-2 text-muted-foreground"
-                    disabled
-                  >
-                    <ScanLine className="h-4 w-4" />
-                    Scan Image / PDF
-                    <Badge variant="secondary" className="ml-auto text-[10px] px-1">Soon</Badge>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Import Dropdown - Shared Component */}
+              <ImportDropdown
+                entityType="companies"
+                onImportClick={() => setIsImportModalOpen(true)}
+                disabled={!canInsert}
+              />
 
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -527,11 +499,12 @@ export default function CompaniesDatabase() {
         onCompanyCreated={handleCompanyCreated}
       />
 
-      {/* Import Companies Modal */}
-      <ImportCompaniesModal
+      {/* Import Center Modal - Shared Component */}
+      <ImportCenterModal
         open={isImportModalOpen}
         onOpenChange={setIsImportModalOpen}
-        onCompaniesImported={handleCompaniesImported}
+        entityType="companies"
+        onImportComplete={handleCompaniesImported}
       />
     </div>
   );

@@ -1391,26 +1391,50 @@ export type Database = {
       join_demo_team: { Args: { _user_id: string }; Returns: string }
       leave_demo_team: { Args: { _user_id: string }; Returns: boolean }
       reset_demo_data: { Args: { _user_id: string }; Returns: boolean }
-      search_candidates: {
-        Args: {
-          query_text: string
-          use_tsquery?: boolean
-          workspace_id?: string
-        }
-        Returns: {
-          current_title: string
-          email: string
-          headline: string
-          highlight_cv: string
-          highlight_headline: string
-          highlight_name: string
-          id: string
-          location: string
-          name: string
-          rank: number
-          skills: Json
-        }[]
-      }
+      search_candidates:
+        | {
+            Args: {
+              query_text: string
+              use_tsquery?: boolean
+              workspace_id?: string
+            }
+            Returns: {
+              current_title: string
+              email: string
+              headline: string
+              highlight_cv: string
+              highlight_headline: string
+              highlight_name: string
+              id: string
+              location: string
+              name: string
+              rank: number
+              skills: Json
+            }[]
+          }
+        | {
+            Args: {
+              include_cv?: boolean
+              query_text: string
+              use_tsquery?: boolean
+              workspace_id?: string
+            }
+            Returns: {
+              current_title: string
+              email: string
+              headline: string
+              highlight_cv: string
+              highlight_headline: string
+              highlight_name: string
+              id: string
+              location: string
+              match_breakdown: Json
+              match_score: number
+              name: string
+              rank: number
+              skills: Json
+            }[]
+          }
       seed_demo_workspace: {
         Args: { workspace_uuid: string }
         Returns: undefined

@@ -5,9 +5,27 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { parseBooleanQuery, simpleQueryToTsquery, highlightMatches } from "@/lib/boolean-search-parser";
 import { Talent, TalentAvailability, TalentDataQuality, TalentStatus, TalentCvSource } from "@/lib/types";
 
+export type MatchQuality = "strong" | "good" | "partial";
+
+export interface MatchBreakdown {
+  title: boolean;
+  skills: boolean;
+  overview: boolean;
+  location: boolean;
+  cv: boolean;
+  title_score: number;
+  skills_score: number;
+  overview_score: number;
+  location_score: number;
+  cv_score: number;
+}
+
 export interface BooleanSearchResult {
   candidate: Talent;
   rank: number;
+  matchScore: number;
+  matchQuality: MatchQuality;
+  matchBreakdown: MatchBreakdown;
   highlights: {
     name?: string;
     headline?: string;
@@ -19,6 +37,8 @@ export interface BooleanSearchResult {
     cv: boolean;
     skills: boolean;
     overview: boolean;
+    title: boolean;
+    location: boolean;
   };
 }
 
@@ -31,6 +51,8 @@ interface RawSearchResult {
   location: string | null;
   skills: unknown;
   rank: number;
+  match_score: number;
+  match_breakdown: unknown;
   highlight_name: string | null;
   highlight_headline: string | null;
   highlight_cv: string | null;
@@ -43,12 +65,51 @@ interface UseBooleanSearchOptions {
 
 type SearchMode = "simple" | "boolean";
 
+/**
+ * Determine match quality from score
+ * Strong: 70+, Good: 40-69, Partial: <40
+ */
+function getMatchQuality(score: number): MatchQuality {
+  if (score >= 70) return "strong";
+  if (score >= 40) return "good";
+  return "partial";
+}
+
+/**
+ * Count matched fields from breakdown
+ */
+function countMatchedFields(breakdown: MatchBreakdown): number {
+  let count = 0;
+  if (breakdown.title) count++;
+  if (breakdown.skills) count++;
+  if (breakdown.overview) count++;
+  if (breakdown.location) count++;
+  if (breakdown.cv) count++;
+  return count;
+}
+
+/**
+ * Get human-readable match summary
+ */
+export function getMatchSummary(breakdown: MatchBreakdown): string {
+  const parts: string[] = [];
+  if (breakdown.title) parts.push("title");
+  if (breakdown.skills) parts.push("skills");
+  if (breakdown.overview) parts.push("overview");
+  if (breakdown.location) parts.push("location");
+  if (breakdown.cv) parts.push("CV");
+  
+  if (parts.length === 0) return "No specific matches";
+  return `Matched in: ${parts.join(", ")}`;
+}
+
 export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
   const { enabled = true, debounceMs = 500 } = options;
   const { currentWorkspace } = useWorkspace();
   
   const [query, setQuery] = useState("");
   const [mode, setMode] = useState<SearchMode>("simple");
+  const [includeCv, setIncludeCv] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
   // Debounce the query
@@ -80,21 +141,20 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
 
   // Execute search query
   const searchQuery = useQuery({
-    queryKey: ["boolean-search", currentWorkspace?.id, parsedQuery.tsquery, isBooleanMode],
+    queryKey: ["boolean-search", currentWorkspace?.id, parsedQuery.tsquery, isBooleanMode, includeCv],
     queryFn: async (): Promise<BooleanSearchResult[]> => {
       if (!parsedQuery.tsquery || !parsedQuery.isValid) {
         return [];
       }
 
-      console.log("[useBooleanSearch] Searching with tsquery:", parsedQuery.tsquery, "mode:", isBooleanMode ? "boolean" : "simple");
+      console.log("[useBooleanSearch] Searching with tsquery:", parsedQuery.tsquery, "mode:", isBooleanMode ? "boolean" : "simple", "includeCv:", includeCv);
 
-      // Use RPC for full-text search
-      // In Boolean mode, pass the pre-parsed tsquery string
-      // In Simple mode, pass the original query for plainto_tsquery
+      // Use RPC for full-text search with enhanced ranking
       const { data, error } = await supabase.rpc("search_candidates", {
         query_text: isBooleanMode ? parsedQuery.tsquery : debouncedQuery,
         workspace_id: currentWorkspace?.id ?? null,
         use_tsquery: isBooleanMode,
+        include_cv: includeCv,
       });
 
       if (error) {
@@ -131,20 +191,39 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
           location: row.location || undefined,
         };
 
-        // Determine where matches were found
+        // Parse match breakdown with defaults
+        const rawBreakdown = row.match_breakdown as Record<string, unknown> | null;
+        const breakdown: MatchBreakdown = {
+          title: Boolean(rawBreakdown?.title),
+          skills: Boolean(rawBreakdown?.skills),
+          overview: Boolean(rawBreakdown?.overview),
+          location: Boolean(rawBreakdown?.location),
+          cv: Boolean(rawBreakdown?.cv),
+          title_score: Number(rawBreakdown?.title_score) || 0,
+          skills_score: Number(rawBreakdown?.skills_score) || 0,
+          overview_score: Number(rawBreakdown?.overview_score) || 0,
+          location_score: Number(rawBreakdown?.location_score) || 0,
+          cv_score: Number(rawBreakdown?.cv_score) || 0,
+        };
+
+        const matchScore = row.match_score || (row.rank * 100);
+        const matchQuality = getMatchQuality(matchScore);
+
+        // Determine where matches were found from breakdown
         const matchedIn = {
-          cv: Boolean(row.highlight_cv),
-          skills: skills.some(skill => 
-            parsedQuery.terms.some(term => 
-              skill.toLowerCase().includes(term.toLowerCase())
-            )
-          ),
-          overview: Boolean(row.highlight_headline),
+          title: breakdown.title,
+          skills: breakdown.skills,
+          overview: breakdown.overview,
+          location: breakdown.location,
+          cv: breakdown.cv,
         };
 
         return {
           candidate,
           rank: row.rank,
+          matchScore,
+          matchQuality,
+          matchBreakdown: breakdown,
           highlights: {
             name: row.highlight_name || undefined,
             headline: row.highlight_headline || undefined,
@@ -155,7 +234,7 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
         };
       });
 
-      console.log("[useBooleanSearch] Found", results.length, "results");
+      console.log("[useBooleanSearch] Found", results.length, "results, sorted by match score");
       return results;
     },
     enabled: enabled && !!parsedQuery.tsquery && parsedQuery.isValid && !!currentWorkspace?.id,
@@ -165,6 +244,11 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
   // Toggle Boolean mode
   const toggleBooleanMode = useCallback(() => {
     setMode((prev) => (prev === "boolean" ? "simple" : "boolean"));
+  }, []);
+
+  // Toggle Include CV
+  const toggleIncludeCv = useCallback(() => {
+    setIncludeCv((prev) => !prev);
   }, []);
 
   // Clear search
@@ -193,6 +277,9 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
     setMode,
     isBooleanMode,
     toggleBooleanMode,
+    includeCv,
+    setIncludeCv,
+    toggleIncludeCv,
     clearSearch,
     triggerSearch,
     
@@ -208,6 +295,7 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
     
     // Helpers
     getHighlightedText,
+    getMatchSummary,
     hasResults: (searchQuery.data?.length ?? 0) > 0,
     isActive: query.trim().length > 0,
   };

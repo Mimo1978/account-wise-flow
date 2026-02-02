@@ -863,6 +863,8 @@ export default function TalentDatabase() {
             onSubmit={booleanSearch.triggerSearch}
             placeholder="Search by name, skill, role, or email..."
             className="flex-1 min-w-[300px] max-w-2xl"
+            includeCv={booleanSearch.includeCv}
+            onIncludeCvChange={booleanSearch.setIncludeCv}
           />
           <div className="flex items-center gap-2 mt-1">
             <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
@@ -1074,7 +1076,12 @@ export default function TalentDatabase() {
                               {/* Match indicator badge for name column in Boolean mode */}
                               {column.id === "name" && searchResult && (
                                 <div className="flex items-center gap-1 mt-1">
-                                  <MatchIndicatorBadge matchedIn={searchResult.matchedIn} />
+                                  <MatchIndicatorBadge 
+                                    matchedIn={searchResult.matchedIn}
+                                    matchScore={searchResult.matchScore}
+                                    matchQuality={searchResult.matchQuality}
+                                    matchBreakdown={searchResult.matchBreakdown}
+                                  />
                                   <Button
                                     variant="ghost"
                                     size="sm"

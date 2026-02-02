@@ -7,10 +7,14 @@ import {
   Loader2,
   ChevronDown,
   Bookmark,
+  FileText,
+  ArrowUpDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -48,6 +52,9 @@ interface InlineSearchBarProps {
   onSubmit?: () => void;
   placeholder?: string;
   className?: string;
+  // Include CV toggle
+  includeCv?: boolean;
+  onIncludeCvChange?: (include: boolean) => void;
 }
 
 const EXAMPLE_CHIPS = [
@@ -69,6 +76,8 @@ export function InlineSearchBar({
   onSubmit,
   placeholder = "Search candidates...",
   className,
+  includeCv = false,
+  onIncludeCvChange,
 }: InlineSearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -344,19 +353,58 @@ export function InlineSearchBar({
         isLoading={isCreating}
       />
 
-      {/* Example chips - only in Boolean mode */}
-      {isBooleanMode && !query && (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-muted-foreground">Try:</span>
-          {EXAMPLE_CHIPS.map((chip, i) => (
-            <button
-              key={i}
-              onClick={() => handleExampleClick(chip.query)}
-              className="text-xs px-2 py-1 rounded-full border border-border bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors font-mono"
-            >
-              {chip.label}
-            </button>
-          ))}
+      {/* Boolean mode controls row */}
+      {isBooleanMode && (
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Sorted by best match indicator */}
+          {query && isValid && resultCount !== undefined && resultCount > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <ArrowUpDown className="h-3 w-3" />
+              <span>Sorted by best match</span>
+            </div>
+          )}
+
+          {/* Include CV toggle */}
+          {onIncludeCvChange && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="include-cv"
+                    checked={includeCv}
+                    onCheckedChange={onIncludeCvChange}
+                    className="h-4 w-7 data-[state=checked]:bg-primary"
+                  />
+                  <Label 
+                    htmlFor="include-cv" 
+                    className="text-xs text-muted-foreground cursor-pointer flex items-center gap-1"
+                  >
+                    <FileText className="h-3 w-3" />
+                    Include CV text
+                  </Label>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">Search inside CV content (slower)</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Example chips when no query */}
+          {!query && (
+            <>
+              <span className="text-xs text-muted-foreground">Try:</span>
+              {EXAMPLE_CHIPS.map((chip, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleExampleClick(chip.query)}
+                  className="text-xs px-2 py-1 rounded-full border border-border bg-muted/30 hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors font-mono"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>

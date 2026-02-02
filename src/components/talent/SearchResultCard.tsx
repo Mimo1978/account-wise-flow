@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { BooleanSearchResult } from "@/hooks/use-boolean-search";
+import { CompactMatchBadge } from "./MatchIndicatorBadge";
 
 interface SearchResultCardProps {
   result: BooleanSearchResult;
@@ -38,10 +39,15 @@ function HighlightedText({ html, fallback }: { html?: string; fallback: string }
 }
 
 export function SearchResultCard({ result, onClick, className }: SearchResultCardProps) {
-  const { candidate, rank, highlights } = result;
+  const { candidate, matchScore, matchQuality, highlights, matchedIn } = result;
 
-  // Format relevance score as percentage
-  const relevancePercent = Math.round(rank * 100);
+  // Build match location summary
+  const matchLocations: string[] = [];
+  if (matchedIn.title) matchLocations.push("Title");
+  if (matchedIn.skills) matchLocations.push("Skills");
+  if (matchedIn.overview) matchLocations.push("Overview");
+  if (matchedIn.location) matchLocations.push("Location");
+  if (matchedIn.cv) matchLocations.push("CV");
 
   return (
     <Card 
@@ -76,20 +82,22 @@ export function SearchResultCard({ result, onClick, className }: SearchResultCar
               
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Badge 
-                    variant="secondary" 
-                    className={cn(
-                      "text-xs shrink-0",
-                      relevancePercent >= 70 && "bg-green-500/20 text-green-600 dark:text-green-400",
-                      relevancePercent >= 40 && relevancePercent < 70 && "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400",
-                      relevancePercent < 40 && "bg-muted text-muted-foreground"
-                    )}
-                  >
-                    {relevancePercent}% match
-                  </Badge>
+                  <span>
+                    <CompactMatchBadge 
+                      matchQuality={matchQuality}
+                      matchScore={matchScore}
+                    />
+                  </span>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  <p className="text-xs">Relevance score based on matched terms</p>
+                  <div className="text-xs space-y-1">
+                    <p className="font-medium">Match Score: {Math.round(matchScore)}%</p>
+                    {matchLocations.length > 0 && (
+                      <p className="text-muted-foreground">
+                        Found in: {matchLocations.join(", ")}
+                      </p>
+                    )}
+                  </div>
                 </TooltipContent>
               </Tooltip>
             </div>

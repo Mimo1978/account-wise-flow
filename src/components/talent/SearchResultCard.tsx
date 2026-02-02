@@ -1,11 +1,6 @@
 import { Users, MapPin, Briefcase, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { BooleanSearchResult } from "@/hooks/use-boolean-search";
 import { CompactMatchBadge } from "./MatchIndicatorBadge";
@@ -39,7 +34,7 @@ function HighlightedText({ html, fallback }: { html?: string; fallback: string }
 }
 
 export function SearchResultCard({ result, onClick, className }: SearchResultCardProps) {
-  const { candidate, matchScore, matchQuality, highlights, matchedIn } = result;
+  const { candidate, matchScore, matchQuality, matchBreakdown, highlights, matchedIn } = result;
 
   // Build match location summary
   const matchLocations: string[] = [];
@@ -80,26 +75,11 @@ export function SearchResultCard({ result, onClick, className }: SearchResultCar
                 </p>
               </div>
               
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span>
-                    <CompactMatchBadge 
-                      matchQuality={matchQuality}
-                      matchScore={matchScore}
-                    />
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="left">
-                  <div className="text-xs space-y-1">
-                    <p className="font-medium">Match Score: {Math.round(matchScore)}%</p>
-                    {matchLocations.length > 0 && (
-                      <p className="text-muted-foreground">
-                        Found in: {matchLocations.join(", ")}
-                      </p>
-                    )}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
+              {/* Enhanced match badge with hover card */}
+              <CompactMatchBadge 
+                matchQuality={matchQuality}
+                matchScore={matchScore}
+              />
             </div>
 
             {/* Headline/Summary with highlights */}

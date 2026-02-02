@@ -316,6 +316,11 @@ export default function CandidateProfile() {
                     size="sm"
                     className="w-full justify-start"
                     disabled={documents.length === 0}
+                    onClick={() => {
+                      setExpandedSections(new Set([...expandedSections, "cv"]));
+                      // Scroll to CV section
+                      document.getElementById("cv-section")?.scrollIntoView({ behavior: "smooth" });
+                    }}
                   >
                     <FileText className="h-4 w-4 mr-2" />
                     {documents.length > 0 ? `${documents.length} Document${documents.length > 1 ? 's' : ''}` : "No Documents"}
@@ -342,23 +347,25 @@ export default function CandidateProfile() {
               />
             </CollapsibleSection>
 
-            <CollapsibleSection
-              id="cv"
-              title="CV & Documents"
-              icon={<FileText className="h-4 w-4" />}
-              badge={documents.length > 0 ? documents.length.toString() : undefined}
-              expanded={expandedSections.has("cv")}
-              onToggle={() => toggleSection("cv")}
+            <div id="cv-section">
+              <CollapsibleSection
+                id="cv"
+                title="CV & Documents"
+                icon={<FileText className="h-4 w-4" />}
+                badge={documents.length > 0 ? documents.length.toString() : undefined}
+                expanded={expandedSections.has("cv")}
+                onToggle={() => toggleSection("cv")}
             >
-              <DocumentList
-                entityType="candidate"
-                entityId={candidate.id}
-                entityName={candidate.name}
-                canEdit={canEdit}
-                showCategoryBreakdown={true}
-                showVersions={true}
-              />
-            </CollapsibleSection>
+                <DocumentList
+                  entityType="candidate"
+                  entityId={candidate.id}
+                  entityName={candidate.name}
+                  canEdit={canEdit}
+                  showCategoryBreakdown={true}
+                  showVersions={true}
+                />
+              </CollapsibleSection>
+            </div>
 
             {/* Skills */}
             <CollapsibleSection

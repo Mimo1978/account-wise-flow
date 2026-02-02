@@ -141,16 +141,20 @@ export function DocumentDrawerViewer({
     doc?.storagePath?.toLowerCase().endsWith(".doc") ||
     doc?.storagePath?.toLowerCase().endsWith(".docx");
 
+  // Check if extracted text is available (from text extraction pipeline)
+  const hasExtractedText = Boolean(doc?.rawText && doc.rawText.trim().length > 0);
+
   // Generate text content for DOC/DOCX or when rawText is available
   const textContent = useMemo(() => {
-    if (doc?.rawText) {
+    if (hasExtractedText && doc?.rawText) {
       return doc.rawText;
     }
     if (isDoc) {
-      return `Document Preview Not Available\n\nThis Word document requires download to view the full content.\n\nDocument: ${filename}`;
+      // Show a helpful message that text extraction may still be processing
+      return `Document Preview Loading...\n\nThe content of this Word document is being extracted.\n\nIf text extraction is complete and you still see this message, try refreshing the document list.\n\nAlternatively, you can download the file to view it in Microsoft Word or another document viewer.\n\nDocument: ${filename}`;
     }
     return null;
-  }, [doc?.rawText, isDoc, filename]);
+  }, [hasExtractedText, doc?.rawText, isDoc, filename]);
 
   // Calculate search matches
   const matches = useMemo(() => {
@@ -277,7 +281,8 @@ export function DocumentDrawerViewer({
     }
   };
 
-  const showTextViewer = isDoc || (doc?.rawText && !isPDF);
+  // Show text viewer for DOCX files OR when we have extracted text for any non-PDF file
+  const showTextViewer = isDoc || (hasExtractedText && !isPDF);
   const typeConfig = doc ? documentTypeConfig[doc.documentType] : null;
 
   return (

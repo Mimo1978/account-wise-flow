@@ -43,3 +43,6 @@ verify_jwt = false
 
 [functions.ocr-import]
 verify_jwt = false
+
+[functions.cv-text-extract]
+verify_jwt = false

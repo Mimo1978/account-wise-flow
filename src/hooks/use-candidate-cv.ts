@@ -59,6 +59,39 @@ export function useCandidateCV(): UseCandidateCVReturn {
     return { valid: true };
   }, []);
 
+  const triggerTextExtraction = useCallback(
+    async (candidateId: string, storagePath: string): Promise<void> => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          console.warn("[useCandidateCV] No session for text extraction");
+          return;
+        }
+
+        console.log("[useCandidateCV] Triggering text extraction for:", storagePath);
+
+        const { data, error } = await supabase.functions.invoke('cv-text-extract', {
+          body: {
+            candidateId,
+            storagePath,
+          },
+        });
+
+        if (error) {
+          console.error("[useCandidateCV] Text extraction failed:", error);
+          // Don't fail the upload - extraction is a background enhancement
+          return;
+        }
+
+        console.log("[useCandidateCV] Text extraction complete:", data);
+      } catch (error) {
+        console.error("[useCandidateCV] Text extraction error:", error);
+        // Silent failure - don't block the upload
+      }
+    },
+    []
+  );
+
   const uploadCV = useCallback(
     async (candidateId: string, file: File): Promise<boolean> => {
       if (!currentWorkspace?.id) {
@@ -119,6 +152,11 @@ export function useCandidateCV(): UseCandidateCVReturn {
         }
 
         toast.success("CV uploaded successfully");
+
+        // Trigger background text extraction for AI features
+        // This runs asynchronously and doesn't block the upload
+        triggerTextExtraction(candidateId, storagePath);
+
         return true;
       } catch (error) {
         console.error("[useCandidateCV] Unexpected error:", error);
@@ -128,7 +166,7 @@ export function useCandidateCV(): UseCandidateCVReturn {
         setIsUploading(false);
       }
     },
-    [currentWorkspace?.id, validateFile]
+    [currentWorkspace?.id, validateFile, triggerTextExtraction]
   );
 
   const getSignedUrl = useCallback(

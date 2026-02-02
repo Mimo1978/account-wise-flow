@@ -24,7 +24,8 @@ import {
   Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ParsedRow, FieldSchema, EntityType, getEntityLabel } from "./ImportCenterTypes";
+import { ParsedRow, FieldSchema, EntityType, getEntityLabel, ConfidenceLevel } from "./ImportCenterTypes";
+import { ConfidenceBadge } from "./ConfidenceBadge";
 
 interface ImportPreviewStepProps {
   entityType: EntityType;
@@ -35,6 +36,7 @@ interface ImportPreviewStepProps {
   onDownloadErrors: () => void;
   isProcessing: boolean;
   progress?: number;
+  showConfidence?: boolean;
 }
 
 export function ImportPreviewStep({
@@ -46,6 +48,7 @@ export function ImportPreviewStep({
   onDownloadErrors,
   isProcessing,
   progress = 0,
+  showConfidence = false,
 }: ImportPreviewStepProps) {
   const validRowsCount = useMemo(
     () => parsedRows.filter((r) => r.isValid).length,
@@ -62,17 +65,26 @@ export function ImportPreviewStep({
     [parsedRows]
   );
 
+  const confidenceBreakdown = useMemo(() => {
+    if (!showConfidence) return null;
+    return {
+      high: parsedRows.filter((r) => r.confidence === "high").length,
+      medium: parsedRows.filter((r) => r.confidence === "medium").length,
+      low: parsedRows.filter((r) => r.confidence === "low").length,
+    };
+  }, [parsedRows, showConfidence]);
+
   const allSelected = parsedRows.filter((r) => r.isValid).every((r) => r.selected);
   const someSelected = parsedRows.some((r) => r.selected) && !allSelected;
 
   // Get the main display fields (first 4-5 fields from schema)
-  const displayFields = fieldSchema.slice(0, 5);
+  const displayFields = fieldSchema.slice(0, showConfidence ? 4 : 5);
 
   return (
     <div className="space-y-4 py-4">
       {/* Summary Stats */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-primary" />
             <span className="text-sm">{validRowsCount} valid</span>
@@ -100,6 +112,32 @@ export function ImportPreviewStep({
         )}
       </div>
 
+      {/* Confidence Breakdown for OCR */}
+      {showConfidence && confidenceBreakdown && (
+        <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+          <span className="text-sm font-medium">OCR Confidence:</span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <ConfidenceBadge confidence="high" />
+              <span className="text-sm text-muted-foreground">{confidenceBreakdown.high}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <ConfidenceBadge confidence="medium" />
+              <span className="text-sm text-muted-foreground">{confidenceBreakdown.medium}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <ConfidenceBadge confidence="low" />
+              <span className="text-sm text-muted-foreground">{confidenceBreakdown.low}</span>
+            </div>
+          </div>
+          {confidenceBreakdown.low > 0 && (
+            <span className="text-xs text-muted-foreground ml-auto">
+              Low confidence rows are unchecked by default
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Progress Bar (during import) */}
       {isProcessing && (
         <div className="space-y-2">
@@ -124,10 +162,13 @@ export function ImportPreviewStep({
                 />
               </TableHead>
               <TableHead className="w-12">Status</TableHead>
+              {showConfidence && (
+                <TableHead className="w-20">Confidence</TableHead>
+              )}
               {displayFields.map((field) => (
                 <TableHead key={field.id} className="min-w-[120px]">
                   {field.label}
-                  {field.required && <span className="text-red-500 ml-1">*</span>}
+                  {field.required && <span className="text-destructive ml-1">*</span>}
                 </TableHead>
               ))}
             </TableRow>
@@ -137,8 +178,9 @@ export function ImportPreviewStep({
               <TableRow
                 key={row.id}
                 className={cn(
-                  !row.isValid && "bg-red-500/5",
-                  row.selected && "bg-primary/5"
+                  !row.isValid && "bg-destructive/5",
+                  row.selected && "bg-primary/5",
+                  row.confidence === "low" && row.isValid && "bg-amber-500/5"
                 )}
               >
                 <TableCell>
@@ -167,6 +209,28 @@ export function ImportPreviewStep({
                     </Tooltip>
                   )}
                 </TableCell>
+                {showConfidence && (
+                  <TableCell>
+                    {row.confidence ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span>
+                            <ConfidenceBadge confidence={row.confidence} />
+                          </span>
+                        </TooltipTrigger>
+                        {row.rawText && (
+                          <TooltipContent side="right" className="max-w-xs">
+                            <p className="text-xs">
+                              <strong>Source text:</strong> {row.rawText}
+                            </p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                )}
                 {displayFields.map((field) => (
                   <TableCell key={field.id} className="max-w-[200px] truncate">
                     {renderFieldValue(row.mapped[field.id], field)}

@@ -37,6 +37,7 @@ import {
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { ImportCenterModal } from "@/components/import/ImportCenterModal";
+import { ImportMethod } from "@/components/import/ImportCenterTypes";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
 import { TalentQuickView } from "@/components/talent/TalentQuickView";
 import { ViewPresetsDropdown } from "@/components/talent/ViewPresetsDropdown";
@@ -69,6 +70,7 @@ import {
   Maximize2,
   WrapText,
   Eye,
+  ScanLine,
 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
@@ -145,6 +147,7 @@ export default function TalentDatabase() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showImportModal, setShowImportModal] = useState(false);
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
+  const [bulkImportMethod, setBulkImportMethod] = useState<ImportMethod>("file");
   const [showCVViewer, setShowCVViewer] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [quickViewTalentId, setQuickViewTalentId] = useState<string | null>(null);
@@ -666,10 +669,21 @@ export default function TalentDatabase() {
                           <ChevronDown className="h-4 w-4 ml-2" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-52">
-                        <DropdownMenuItem onClick={() => setShowBulkImportModal(true)}>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={() => {
+                          setBulkImportMethod("file");
+                          setShowBulkImportModal(true);
+                        }}>
                           <FileText className="h-4 w-4 mr-2" />
                           Import from CSV / XLSX
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setBulkImportMethod("ocr");
+                          setShowBulkImportModal(true);
+                        }}>
+                          <ScanLine className="h-4 w-4 mr-2" />
+                          Scan Image / PDF (OCR)
+                          <Badge variant="outline" className="ml-auto text-xs">Beta</Badge>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setShowImportModal(true)}>
                           <FileText className="h-4 w-4 mr-2" />
@@ -935,11 +949,12 @@ export default function TalentDatabase() {
         }}
       />
 
-      {/* Bulk CSV/XLSX Import Modal - Shared Component */}
+      {/* Bulk CSV/XLSX/OCR Import Modal - Shared Component */}
       <ImportCenterModal
         open={showBulkImportModal}
         onOpenChange={setShowBulkImportModal}
         entityType="talent"
+        initialMethod={bulkImportMethod}
         onImportComplete={(records) => {
           // Add imported candidates to mock data (in real app, would save to DB)
           console.log("[TalentDatabase] Bulk import complete:", records.length, "records");

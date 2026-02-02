@@ -25,6 +25,7 @@ import { CompanyOverviewPanel } from "@/components/company/CompanyOverviewPanel"
 import { CreateCompanyModal } from "@/components/company/CreateCompanyModal";
 import { ImportCenterModal } from "@/components/import/ImportCenterModal";
 import { ImportDropdown } from "@/components/import/ImportDropdown";
+import { ImportMethod } from "@/components/import/ImportCenterTypes";
 import {
   Search,
   Plus,
@@ -92,6 +93,7 @@ export default function CompaniesDatabase() {
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importMethod, setImportMethod] = useState<ImportMethod>("file");
   const [companies, setCompanies] = useState<Account[]>(mockAccounts);
   // Permissions
   const { role, canInsert, isLoading: permissionsLoading } = usePermissions();
@@ -220,7 +222,10 @@ export default function CompaniesDatabase() {
               {/* Import Dropdown - Shared Component */}
               <ImportDropdown
                 entityType="companies"
-                onImportClick={() => setIsImportModalOpen(true)}
+                onImportClick={(method) => {
+                  setImportMethod(method);
+                  setIsImportModalOpen(true);
+                }}
                 disabled={!canInsert}
               />
 
@@ -505,6 +510,7 @@ export default function CompaniesDatabase() {
         onOpenChange={setIsImportModalOpen}
         entityType="companies"
         onImportComplete={handleCompaniesImported}
+        initialMethod={importMethod}
       />
     </div>
   );

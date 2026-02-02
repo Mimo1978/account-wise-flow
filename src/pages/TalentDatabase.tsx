@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
 import { useBooleanSearch, BooleanSearchResult } from "@/hooks/use-boolean-search";
+import { useSearchContext } from "@/contexts/SearchContext";
 import { mockTalents, roleTypeOptions } from "@/lib/mock-talent";
 import { Talent, TalentAvailability, TalentDataQuality, TalentStatus, TalentCvSource } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -161,6 +162,9 @@ export default function TalentDatabase() {
 
   // Boolean search hook
   const booleanSearch = useBooleanSearch({ debounceMs: 500 });
+  
+  // Search context for passing results to profile page
+  const searchContext = useSearchContext();
 
   // Fetch real candidates from database
   const { 
@@ -289,6 +293,13 @@ export default function TalentDatabase() {
   }, [booleanSearch.query, booleanSearch.isActive, booleanSearch.isBooleanMode, booleanSearch.hasResults, booleanSearch.results, availabilityFilter, roleTypeFilter, allTalents]);
 
   const handleRowClick = (talent: Talent) => {
+    // Store search result if in Boolean mode
+    if (booleanSearch.isBooleanMode && booleanSearch.hasResults) {
+      const searchResult = booleanSearch.results.find(r => r.candidate.id === talent.id);
+      if (searchResult) {
+        searchContext.storeSearchResult(talent.id, searchResult);
+      }
+    }
     // Navigate to the full profile page
     navigate(`/talent/${talent.id}`);
   };
@@ -1081,6 +1092,11 @@ export default function TalentDatabase() {
                                     matchScore={searchResult.matchScore}
                                     matchQuality={searchResult.matchQuality}
                                     matchBreakdown={searchResult.matchBreakdown}
+                                    matchedTerms={searchResult.highlights.matchedTerms}
+                                    highlightSnippets={{
+                                      headline: searchResult.highlights.headline,
+                                      cvSnippet: searchResult.highlights.cvSnippet,
+                                    }}
                                   />
                                   <Button
                                     variant="ghost"

@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useDocuments } from "@/hooks/use-documents";
+import { useSearchContext } from "@/contexts/SearchContext";
 import { Talent, TalentAvailability, TalentStatus, TalentExperience } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,7 @@ import { CandidateInterviewsSection } from "@/components/talent/CandidateIntervi
 import { CandidateOpportunitiesSection } from "@/components/talent/CandidateOpportunitiesSection";
 import { CandidateOverviewEditor } from "@/components/talent/CandidateOverviewEditor";
 import { DocumentList } from "@/components/documents";
+import { SearchMatchSection } from "@/components/talent/SearchMatchSection";
 
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -95,6 +97,10 @@ export default function CandidateProfile() {
   const navigate = useNavigate();
   const { candidates, isLoading, refetch } = useCandidates();
   const { canEdit, isAdmin, isManager, userId } = usePermissions();
+  const searchContext = useSearchContext();
+
+  // Get search result if user arrived from Boolean search
+  const searchResult = candidateId ? searchContext.getSearchResult(candidateId) : null;
 
   const { documents } = useDocuments({
     entityType: "candidate",
@@ -102,7 +108,7 @@ export default function CandidateProfile() {
   });
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(["overview", "skills", "experience", "notes", "interviews", "opportunities"])
+    new Set(["overview", "skills", "experience", "notes", "interviews", "opportunities", ...(searchResult ? ["search-match"] : [])])
   );
   const candidate = useMemo(() => {
     return candidates.find((c) => c.id === candidateId) || null;
@@ -332,6 +338,11 @@ export default function CandidateProfile() {
 
           {/* Right Column - Scrollable Sections */}
           <div className="lg:col-span-2 space-y-4">
+            {/* Search Match Explanation - Only shows when arriving from Boolean search */}
+            {searchResult && (
+              <SearchMatchSection result={searchResult} />
+            )}
+
             {/* AI Candidate Overview */}
             <CollapsibleSection
               id="overview"

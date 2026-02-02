@@ -515,7 +515,8 @@ export default function TalentDatabase() {
   }, [rightPinnedCols, visibleColumns]);
 
   // Get cell styles based on view preferences and pinning
-  const getCellStyles = (columnId: string): React.CSSProperties => {
+  // isHeader determines z-index stacking (headers above body cells)
+  const getCellStyles = (columnId: string, isHeader: boolean = false): React.CSSProperties => {
     const baseWidth = columnWidths[columnId] || visibleColumns.find(c => c.id === columnId)?.defaultWidth || 150;
     const pinPosition = isPinned(columnId);
     
@@ -537,11 +538,11 @@ export default function TalentDatabase() {
         ...baseStyles,
         position: "sticky",
         left: getLeftOffset[columnId],
-        zIndex: 10,
-        backgroundColor: "inherit",
+        // Headers get z-30, body cells get z-20 (above non-pinned z-10)
+        zIndex: isHeader ? 30 : 20,
         // Add shadow divider for last left-pinned column
         ...(isLastLeftPinned(columnId) && {
-          boxShadow: "2px 0 8px -4px hsl(var(--border) / 0.5)",
+          boxShadow: "4px 0 6px -2px hsl(var(--foreground) / 0.08)",
         }),
       };
     } else if (pinPosition === "right") {
@@ -549,11 +550,11 @@ export default function TalentDatabase() {
         ...baseStyles,
         position: "sticky",
         right: getRightOffset[columnId],
-        zIndex: 10,
-        backgroundColor: "inherit",
+        // Headers get z-30, body cells get z-20 (above non-pinned z-10)
+        zIndex: isHeader ? 30 : 20,
         // Add shadow divider for first right-pinned column
         ...(isFirstRightPinned(columnId) && {
-          boxShadow: "-2px 0 8px -4px hsl(var(--border) / 0.5)",
+          boxShadow: "-4px 0 6px -2px hsl(var(--foreground) / 0.08)",
         }),
       };
     }
@@ -562,11 +563,11 @@ export default function TalentDatabase() {
   };
 
   // Get checkbox column styles (always sticky left)
-  const getCheckboxCellStyles = (): React.CSSProperties => ({
+  const getCheckboxCellStyles = (isHeader: boolean = false): React.CSSProperties => ({
     position: "sticky",
     left: 0,
-    zIndex: 10,
-    backgroundColor: "inherit",
+    // Headers get z-30, body cells get z-20
+    zIndex: isHeader ? 30 : 20,
   });
 
   return (
@@ -783,10 +784,10 @@ export default function TalentDatabase() {
           >
             <Table style={{ minWidth: viewPreferences.fitToScreen ? undefined : `${totalTableWidth}px`, width: viewPreferences.fitToScreen ? '100%' : undefined }}>
               <TableHeader>
-                <TableRow className="bg-muted/95 backdrop-blur-sm">
+                <TableRow className="bg-muted">
                   <TableHead 
-                    className="w-[50px] bg-muted/95"
-                    style={getCheckboxCellStyles()}
+                    className="w-[50px] bg-muted"
+                    style={getCheckboxCellStyles(true)}
                   >
                     <Checkbox
                       checked={isAllSelected}
@@ -801,16 +802,17 @@ export default function TalentDatabase() {
                       <TableHead
                         key={column.id}
                         className={cn(
-                          "font-semibold relative group",
+                          "font-semibold relative group bg-muted",
                           viewPreferences.fitToScreen ? "" : "whitespace-nowrap",
-                          pinPosition && "bg-muted/95"
+                          // Pinned columns need explicit solid background for scroll overlap prevention
+                          pinPosition && "bg-muted"
                         )}
-                        style={getCellStyles(column.id)}
+                        style={getCellStyles(column.id, true)}
                       >
-                        <div className="flex items-center justify-between pr-2">
+                        <div className="flex items-center justify-between pr-2 min-w-0">
                           <span className="truncate">{column.label}</span>
                           {pinPosition && (
-                            <span className="ml-1 text-primary/60">
+                            <span className="ml-1 text-primary/60 flex-shrink-0">
                               {pinPosition === "left" ? "◀" : "▶"}
                             </span>
                           )}
@@ -831,13 +833,13 @@ export default function TalentDatabase() {
                 {filteredTalents.map((talent) => (
                   <TableRow
                     key={talent.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors group/row"
+                    className="cursor-pointer hover:bg-muted/50 transition-colors group/row bg-card"
                     onClick={() => handleRowClick(talent)}
                   >
                     <TableCell 
                       onClick={(e) => e.stopPropagation()} 
                       className="relative bg-card"
-                      style={getCheckboxCellStyles()}
+                      style={getCheckboxCellStyles(false)}
                     >
                       <div className="flex items-center gap-1">
                         <Checkbox
@@ -878,12 +880,14 @@ export default function TalentDatabase() {
                         <TableCell
                           key={column.id}
                           className={cn(
+                            "overflow-hidden text-ellipsis",
                             viewPreferences.wrapText && wrappableColumns.has(column.id)
                               ? "whitespace-normal"
                               : "whitespace-nowrap",
-                            pinPosition && "bg-card"
+                            // Pinned columns need explicit solid background for scroll overlap prevention
+                            pinPosition ? "bg-card" : ""
                           )}
-                          style={getCellStyles(column.id)}
+                          style={getCellStyles(column.id, false)}
                         >
                           {renderCellContent(column.id, talent, viewPreferences.wrapText)}
                         </TableCell>

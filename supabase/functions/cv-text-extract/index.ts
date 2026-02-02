@@ -21,8 +21,12 @@ const corsHeaders = {
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 interface ExtractionRequest {
-  candidateId: string;
-  storagePath: string;
+  // For candidate CVs (legacy/direct)
+  candidateId?: string;
+  storagePath?: string;
+  // For generic documents
+  documentId?: string;
+  isGenericDocument?: boolean;
 }
 
 // Extract text from PDF using AI vision
@@ -228,16 +232,7 @@ serve(async (req) => {
 
     // 4. Parse request
     const body: ExtractionRequest = await req.json();
-    const { candidateId, storagePath } = body;
-
-    if (!candidateId || !storagePath) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Missing candidateId or storagePath', requestId }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`[cv-text-extract][${requestId}] Processing candidate: ${candidateId}, path: ${storagePath}`);
+    const { candidateId, storagePath, documentId, isGenericDocument } = body;
 
     // 5. Get user's workspace for tenant isolation
     const { data: workspaceId } = await userClient.rpc('get_user_team_id', { _user_id: userId });
@@ -249,37 +244,78 @@ serve(async (req) => {
       );
     }
 
-    // 6. Verify candidate belongs to user's workspace (RLS will enforce, but double-check)
-    const { data: candidate, error: candidateError } = await userClient
-      .from('candidates')
-      .select('id, tenant_id')
-      .eq('id', candidateId)
-      .single();
+    // Determine extraction mode: generic document vs candidate CV
+    let targetStoragePath: string;
+    let targetEntityId: string;
+    let storageBucket: string;
+    let isDocument = false;
 
-    if (candidateError || !candidate) {
-      console.error(`[cv-text-extract][${requestId}] Candidate not found or access denied:`, candidateError);
+    if (isGenericDocument && documentId) {
+      // Generic document mode
+      console.log(`[cv-text-extract][${requestId}] Processing document: ${documentId}`);
+      
+      const { data: document, error: docError } = await userClient
+        .from('documents')
+        .select('id, storage_path, tenant_id')
+        .eq('id', documentId)
+        .single();
+
+      if (docError || !document) {
+        console.error(`[cv-text-extract][${requestId}] Document not found:`, docError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Document not found', requestId }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      targetStoragePath = document.storage_path;
+      targetEntityId = documentId;
+      storageBucket = 'documents';
+      isDocument = true;
+    } else if (candidateId && storagePath) {
+      // Candidate CV mode (legacy)
+      console.log(`[cv-text-extract][${requestId}] Processing candidate: ${candidateId}, path: ${storagePath}`);
+      
+      const { data: candidate, error: candidateError } = await userClient
+        .from('candidates')
+        .select('id, tenant_id')
+        .eq('id', candidateId)
+        .single();
+
+      if (candidateError || !candidate) {
+        console.error(`[cv-text-extract][${requestId}] Candidate not found:`, candidateError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Candidate not found', requestId }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      targetStoragePath = storagePath;
+      targetEntityId = candidateId;
+      storageBucket = 'cv-uploads';
+    } else {
       return new Response(
-        JSON.stringify({ success: false, error: 'Candidate not found', requestId }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ success: false, error: 'Missing required parameters: provide (candidateId + storagePath) or (documentId + isGenericDocument)', requestId }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 7. Download CV file using service role (bypass storage RLS)
+    // 6. Download file using service role (bypass storage RLS)
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
     
     const { data: fileData, error: downloadError } = await serviceClient.storage
-      .from('cv-uploads')
-      .download(storagePath);
+      .from(storageBucket)
+      .download(targetStoragePath);
 
     if (downloadError || !fileData) {
       console.error(`[cv-text-extract][${requestId}] File download failed:`, downloadError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to download CV file', requestId }),
+        JSON.stringify({ success: false, error: 'Failed to download file', requestId }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // 8. Check file size
+    // 7. Check file size
     const fileBytes = await fileData.arrayBuffer();
     if (fileBytes.byteLength > MAX_FILE_SIZE) {
       return new Response(
@@ -288,8 +324,8 @@ serve(async (req) => {
       );
     }
 
-    // 9. Determine file type and extract text
-    const ext = storagePath.toLowerCase().substring(storagePath.lastIndexOf('.'));
+    // 8. Determine file type and extract text
+    const ext = targetStoragePath.toLowerCase().substring(targetStoragePath.lastIndexOf('.'));
     let extractedText = '';
 
     console.log(`[cv-text-extract][${requestId}] File type: ${ext}, size: ${fileBytes.byteLength} bytes`);
@@ -313,31 +349,49 @@ serve(async (req) => {
 
     console.log(`[cv-text-extract][${requestId}] Extracted ${extractedText.length} characters`);
 
-    // 10. Store extracted text in candidate record (using user client for RLS)
-    const { error: updateError } = await userClient
-      .from('candidates')
-      .update({
-        raw_cv_text: extractedText,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', candidateId);
+    // 9. Store extracted text in appropriate table (using user client for RLS)
+    let updateError: Error | null = null;
+
+    if (isDocument) {
+      // Update document record
+      const { error } = await userClient
+        .from('documents')
+        .update({
+          raw_text: extractedText,
+          text_extracted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', targetEntityId);
+      updateError = error;
+    } else {
+      // Update candidate record
+      const { error } = await userClient
+        .from('candidates')
+        .update({
+          raw_cv_text: extractedText,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', targetEntityId);
+      updateError = error;
+    }
 
     if (updateError) {
-      console.error(`[cv-text-extract][${requestId}] Failed to update candidate:`, updateError);
+      console.error(`[cv-text-extract][${requestId}] Failed to update record:`, updateError);
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to store extracted text', requestId }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[cv-text-extract][${requestId}] Successfully stored extracted text for candidate ${candidateId}`);
+    console.log(`[cv-text-extract][${requestId}] Successfully stored extracted text for ${isDocument ? 'document' : 'candidate'} ${targetEntityId}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         requestId,
-        message: 'CV text extracted and stored',
+        message: 'Text extracted and stored',
         characterCount: extractedText.length,
+        entityType: isDocument ? 'document' : 'candidate',
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

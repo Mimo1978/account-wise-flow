@@ -114,9 +114,8 @@ export function useDocuments({ entityType, entityId }: UseDocumentsOptions): Use
           return;
         }
 
-        console.log("[useDocuments] Triggering text extraction for:", storagePath);
+        console.log("[useDocuments] Triggering text extraction for:", documentId, storagePath);
 
-        // Use the existing cv-text-extract function with document context
         const { data, error } = await supabase.functions.invoke('cv-text-extract', {
           body: {
             documentId,

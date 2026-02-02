@@ -19,10 +19,17 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
 import { TeamManagementPanel } from "@/components/admin/TeamManagementPanel";
 import { CompanyOverviewPanel } from "@/components/company/CompanyOverviewPanel";
 import { CreateCompanyModal } from "@/components/company/CreateCompanyModal";
+import { ImportCompaniesModal } from "@/components/company/ImportCompaniesModal";
 import {
   Search,
   Plus,
@@ -37,6 +44,11 @@ import {
   X,
   CheckCircle2,
   AlertCircle,
+  Upload,
+  ChevronDown,
+  FileSpreadsheet,
+  ClipboardPaste,
+  ScanLine,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
@@ -89,6 +101,7 @@ export default function CompaniesDatabase() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [companies, setCompanies] = useState<Account[]>(mockAccounts);
   // Permissions
   const { role, canInsert, isLoading: permissionsLoading } = usePermissions();
@@ -172,6 +185,10 @@ export default function CompaniesDatabase() {
     setCompanies((prev) => [newCompany, ...prev]);
   };
 
+  const handleCompaniesImported = (importedCompanies: Account[]) => {
+    setCompanies((prev) => [...importedCompanies, ...prev]);
+  };
+
   const handleClearSelection = () => {
     setSelectedIds(new Set());
   };
@@ -192,6 +209,49 @@ export default function CompaniesDatabase() {
             </div>
             <div className="flex items-center gap-2">
               <TeamManagementPanel />
+              
+              {/* Import Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Upload className="h-4 w-4" />
+                    Import
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuItem 
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="gap-2"
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Upload CSV / XLSX
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="gap-2"
+                  >
+                    <ClipboardPaste className="h-4 w-4" />
+                    Drag & Drop Files
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => setIsImportModalOpen(true)}
+                    className="gap-2"
+                  >
+                    <ClipboardPaste className="h-4 w-4" />
+                    Copy / Paste Table
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="gap-2 text-muted-foreground"
+                    disabled
+                  >
+                    <ScanLine className="h-4 w-4" />
+                    Scan Image / PDF
+                    <Badge variant="secondary" className="ml-auto text-[10px] px-1">Soon</Badge>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex">
@@ -465,6 +525,13 @@ export default function CompaniesDatabase() {
         open={isCreateModalOpen}
         onOpenChange={setIsCreateModalOpen}
         onCompanyCreated={handleCompanyCreated}
+      />
+
+      {/* Import Companies Modal */}
+      <ImportCompaniesModal
+        open={isImportModalOpen}
+        onOpenChange={setIsImportModalOpen}
+        onCompaniesImported={handleCompaniesImported}
       />
     </div>
   );

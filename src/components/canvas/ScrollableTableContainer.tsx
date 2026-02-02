@@ -156,14 +156,14 @@ export const ScrollableTableContainer = forwardRef<HTMLDivElement, ScrollableTab
         />
       )}
       
-      {/* Premium Edge Fade - Right Pinned Boundary */}
-      {rightPinnedWidth > 0 && (
-        <PinnedEdgeFadeRight
-          rightOffset={rightPinnedWidth}
-          visible={hasScrollableContent}
-          width={20}
-        />
-      )}
+      {/* Premium Edge Fade - Right Pinned Boundary OR Far-Right Overflow */}
+      {/* Shows when: right-pinned columns exist, OR content is hidden on right side */}
+      {/* The gradient layer is pointer-events: none and does not interfere with column resize handles, dropdown menus, or row click */}
+      <PinnedEdgeFadeRight
+        rightOffset={rightPinnedWidth}
+        visible={(rightPinnedWidth > 0 && hasScrollableContent) || showRightFade}
+        width={20}
+      />
 
       {/* Left Fade Gradient - Premium subtle effect */}
       <div

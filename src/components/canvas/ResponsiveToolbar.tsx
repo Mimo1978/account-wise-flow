@@ -147,19 +147,19 @@ export const ResponsiveToolbar: React.FC<ResponsiveToolbarProps> = ({
     <div 
       ref={containerRef}
       className={cn(
-        "flex items-center justify-between gap-3 min-w-0 w-full",
+        "flex flex-wrap items-center gap-x-3 gap-y-2 min-w-0 w-full",
         className
       )}
     >
-      {/* Left content - flexible but can shrink */}
-      <div className="flex items-center gap-4 min-w-0 shrink overflow-hidden">
+      {/* Left content - flexible, wraps with proper min-width */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 min-w-0 flex-1">
         {leftContent}
       </div>
 
-      {/* Right actions container */}
+      {/* Right actions container - wraps cleanly, stays right-aligned */}
       <div 
         ref={actionsRef}
-        className="flex items-center gap-2 shrink-0 ml-auto"
+        className="flex flex-wrap items-center gap-2 shrink-0 ml-auto"
       >
         {/* Secondary actions (can overflow) */}
         {visibleSecondaryActions.map((action) => renderAction(action))}

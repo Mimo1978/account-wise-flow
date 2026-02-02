@@ -2,10 +2,9 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
-import { useBooleanSearch } from "@/hooks/use-boolean-search";
+import { useBooleanSearch, BooleanSearchResult } from "@/hooks/use-boolean-search";
 import { mockTalents, roleTypeOptions } from "@/lib/mock-talent";
 import { Talent, TalentAvailability, TalentDataQuality, TalentStatus, TalentCvSource } from "@/lib/types";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -42,8 +41,10 @@ import { ImportMethod } from "@/components/import/ImportCenterTypes";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
 import { TalentQuickView } from "@/components/talent/TalentQuickView";
 import { ViewPresetsDropdown } from "@/components/talent/ViewPresetsDropdown";
-import { BooleanSearchBar } from "@/components/talent/BooleanSearchBar";
+import { InlineSearchBar } from "@/components/talent/InlineSearchBar";
 import { SearchResultCard } from "@/components/talent/SearchResultCard";
+import { MatchIndicatorBadge } from "@/components/talent/MatchIndicatorBadge";
+import { MatchSnippetsPanel } from "@/components/talent/MatchSnippetsPanel";
 import { CVViewer } from "@/components/talent/CVViewer";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { useTableViewPreferences } from "@/components/canvas/TableViewControls";
@@ -54,7 +55,6 @@ import { useViewPresets } from "@/hooks/use-view-presets";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
 import {
-  Search,
   Plus,
   Users,
   AlertCircle,
@@ -156,9 +156,10 @@ export default function TalentDatabase() {
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [quickViewTalentId, setQuickViewTalentId] = useState<string | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [snippetsPanelResult, setSnippetsPanelResult] = useState<BooleanSearchResult | null>(null);
 
   // Boolean search hook
-  const booleanSearch = useBooleanSearch();
+  const booleanSearch = useBooleanSearch({ debounceMs: 500 });
 
   // Fetch real candidates from database
   const { 
@@ -824,57 +825,60 @@ export default function TalentDatabase() {
 
       {/* Search and Filters */}
       <div className="container mx-auto px-4 py-4">
-        <div className="flex flex-wrap items-center gap-4 mb-4">
-          <BooleanSearchBar
+        <div className="flex flex-wrap items-start gap-4 mb-4">
+          <InlineSearchBar
             query={booleanSearch.query}
             onQueryChange={booleanSearch.setQuery}
-            isBooleanMode={booleanSearch.isBooleanMode}
-            onToggleBooleanMode={booleanSearch.toggleBooleanMode}
+            mode={booleanSearch.mode}
+            onModeChange={booleanSearch.setMode}
             isValid={booleanSearch.isValidQuery}
             parseError={booleanSearch.parseError}
             isSearching={booleanSearch.isSearching}
             resultCount={booleanSearch.isBooleanMode ? booleanSearch.results.length : undefined}
             onClear={booleanSearch.clearSearch}
+            onSubmit={booleanSearch.triggerSearch}
             placeholder="Search by name, skill, role, or email..."
             className="flex-1 min-w-[300px] max-w-2xl"
           />
-          <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Availability" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Availability</SelectItem>
-              <SelectItem value="available">Available</SelectItem>
-              <SelectItem value="interviewing">Interviewing</SelectItem>
-              <SelectItem value="deployed">On Project</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={roleTypeFilter} onValueChange={setRoleTypeFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Role Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Role Types</SelectItem>
-              {roleTypes.map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {/* Toggle for search results view */}
-          {booleanSearch.isBooleanMode && booleanSearch.hasResults && (
-            <Toggle
-              pressed={showSearchResults}
-              onPressedChange={setShowSearchResults}
-              size="sm"
-              className="gap-1.5 text-xs h-9"
-            >
-              <LayoutList className="h-3.5 w-3.5" />
-              Show Match Details
-            </Toggle>
-          )}
+          <div className="flex items-center gap-2 mt-1">
+            <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
+              <SelectTrigger className="w-[160px]">
+                <SelectValue placeholder="Availability" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Availability</SelectItem>
+                <SelectItem value="available">Available</SelectItem>
+                <SelectItem value="interviewing">Interviewing</SelectItem>
+                <SelectItem value="deployed">On Project</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={roleTypeFilter} onValueChange={setRoleTypeFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Role Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Role Types</SelectItem>
+                {roleTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            {/* Toggle for search results view */}
+            {booleanSearch.isBooleanMode && booleanSearch.hasResults && (
+              <Toggle
+                pressed={showSearchResults}
+                onPressedChange={setShowSearchResults}
+                size="sm"
+                className="gap-1.5 text-xs h-9"
+              >
+                <LayoutList className="h-3.5 w-3.5" />
+                Match Details
+              </Toggle>
+            )}
+          </div>
         </div>
 
         {/* Boolean Search Results Panel - shows match highlights */}
@@ -974,75 +978,100 @@ export default function TalentDatabase() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTalents.map((talent) => (
-                  <TableRow
-                    key={talent.id}
-                    className="cursor-pointer hover:bg-muted/50 transition-colors group/row bg-card"
-                    onClick={() => handleRowClick(talent)}
-                  >
-                    <TableCell 
-                      onClick={(e) => e.stopPropagation()} 
-                      className="relative bg-card"
-                      style={getCheckboxCellStyles(false)}
+                {filteredTalents.map((talent) => {
+                  // Get search result for this talent (if in Boolean mode)
+                  const searchResult = booleanSearch.isBooleanMode && booleanSearch.hasResults
+                    ? booleanSearch.results.find(r => r.candidate.id === talent.id)
+                    : undefined;
+                    
+                  return (
+                    <TableRow
+                      key={talent.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors group/row bg-card"
+                      onClick={() => handleRowClick(talent)}
                     >
-                      <div className="flex items-center gap-1">
-                        <Checkbox
-                          checked={selectedIds.has(talent.id)}
-                          onCheckedChange={(checked) =>
-                            handleSelectOne(talent.id, !!checked)
-                          }
-                          aria-label={`Select ${talent.name}`}
-                        />
-                        {/* Quick View Icon */}
-                        <TalentQuickView
-                          talent={talent}
-                          open={quickViewTalentId === talent.id}
-                          onOpenChange={(open) => setQuickViewTalentId(open ? talent.id : null)}
-                          onViewFull={() => {
-                            setQuickViewTalentId(null);
-                            setSelectedTalent(talent);
-                          }}
-                          trigger={
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 opacity-0 group-hover/row:opacity-100 transition-opacity"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setQuickViewTalentId(quickViewTalentId === talent.id ? null : talent.id);
-                              }}
-                            >
-                              <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                            </Button>
-                          }
-                        />
-                      </div>
-                    </TableCell>
-                    {responsiveVisibleColumns.map((column) => {
-                      const pinPosition = isPinned(column.id);
-                      return (
-                        <TableCell
-                          key={column.id}
-                          className={cn(
-                            "overflow-hidden text-ellipsis",
-                            viewPreferences.wrapText && wrappableColumns.has(column.id)
-                              ? "whitespace-normal"
-                              : "whitespace-nowrap",
-                            // ALL body cells get solid background - critical for scroll overlap
-                            "bg-card",
-                            // Pinned cells override with slightly different styling on hover
-                            pinPosition && "group-hover/row:bg-muted/50"
-                          )}
-                          style={getCellStyles(column.id, false)}
-                        >
-                          <div className="min-w-0 overflow-hidden text-ellipsis">
-                            {renderCellContent(column.id, talent, viewPreferences.wrapText)}
-                          </div>
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))}
+                      <TableCell 
+                        onClick={(e) => e.stopPropagation()} 
+                        className="relative bg-card"
+                        style={getCheckboxCellStyles(false)}
+                      >
+                        <div className="flex items-center gap-1">
+                          <Checkbox
+                            checked={selectedIds.has(talent.id)}
+                            onCheckedChange={(checked) =>
+                              handleSelectOne(talent.id, !!checked)
+                            }
+                            aria-label={`Select ${talent.name}`}
+                          />
+                          {/* Quick View Icon */}
+                          <TalentQuickView
+                            talent={talent}
+                            open={quickViewTalentId === talent.id}
+                            onOpenChange={(open) => setQuickViewTalentId(open ? talent.id : null)}
+                            onViewFull={() => {
+                              setQuickViewTalentId(null);
+                              setSelectedTalent(talent);
+                            }}
+                            trigger={
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setQuickViewTalentId(quickViewTalentId === talent.id ? null : talent.id);
+                                }}
+                              >
+                                <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                              </Button>
+                            }
+                          />
+                        </div>
+                      </TableCell>
+                      {responsiveVisibleColumns.map((column) => {
+                        const pinPosition = isPinned(column.id);
+                        return (
+                          <TableCell
+                            key={column.id}
+                            className={cn(
+                              "overflow-hidden text-ellipsis",
+                              viewPreferences.wrapText && wrappableColumns.has(column.id)
+                                ? "whitespace-normal"
+                                : "whitespace-nowrap",
+                              // ALL body cells get solid background - critical for scroll overlap
+                              "bg-card",
+                              // Pinned cells override with slightly different styling on hover
+                              pinPosition && "group-hover/row:bg-muted/50"
+                            )}
+                            style={getCellStyles(column.id, false)}
+                          >
+                            <div className="min-w-0 overflow-hidden text-ellipsis">
+                              {renderCellContent(column.id, talent, viewPreferences.wrapText)}
+                              {/* Match indicator badge for name column in Boolean mode */}
+                              {column.id === "name" && searchResult && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <MatchIndicatorBadge matchedIn={searchResult.matchedIn} />
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 px-1 text-[10px] text-muted-foreground hover:text-foreground"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSnippetsPanelResult(searchResult);
+                                    }}
+                                  >
+                                    <Eye className="h-3 w-3 mr-0.5" />
+                                    Matches
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
                 {filteredTalents.length === 0 && (
                   <TableRow>
                     <TableCell
@@ -1114,6 +1143,14 @@ export default function TalentDatabase() {
           invalidateCandidates();
           refetchCandidates();
         }}
+      />
+
+      {/* Match Snippets Panel */}
+      <MatchSnippetsPanel
+        open={!!snippetsPanelResult}
+        onClose={() => setSnippetsPanelResult(null)}
+        result={snippetsPanelResult}
+        candidateName={snippetsPanelResult?.candidate.name || ""}
       />
     </div>
   );

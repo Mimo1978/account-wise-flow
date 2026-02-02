@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useCandidateCV } from "@/hooks/use-candidate-cv";
+import { useDocuments } from "@/hooks/use-documents";
 import { Talent, TalentAvailability, TalentStatus, TalentExperience } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +23,6 @@ import {
   Linkedin,
   ExternalLink,
   FileText,
-  Download,
   Sparkles,
   Briefcase,
   Tags,
@@ -33,7 +32,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Plus,
-  Upload,
   MessageSquare,
   Calendar,
   Target,
@@ -47,8 +45,7 @@ import { CandidateNotesSection } from "@/components/talent/CandidateNotesSection
 import { CandidateInterviewsSection } from "@/components/talent/CandidateInterviewsSection";
 import { CandidateOpportunitiesSection } from "@/components/talent/CandidateOpportunitiesSection";
 import { CandidateOverviewEditor } from "@/components/talent/CandidateOverviewEditor";
-import { CVUploadModal } from "@/components/talent/CVUploadModal";
-import { CVDrawerViewer } from "@/components/talent/CVDrawerViewer";
+import { DocumentList } from "@/components/documents";
 
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -98,14 +95,15 @@ export default function CandidateProfile() {
   const navigate = useNavigate();
   const { candidates, isLoading, refetch } = useCandidates();
   const { canEdit, isAdmin, isManager, userId } = usePermissions();
-  const { downloadCV, isDownloading } = useCandidateCV();
+
+  const { documents } = useDocuments({
+    entityType: "candidate",
+    entityId: candidateId || "",
+  });
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(["overview", "skills", "experience", "notes", "interviews", "opportunities"])
   );
-  const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showCVViewer, setShowCVViewer] = useState(false);
-
   const candidate = useMemo(() => {
     return candidates.find((c) => c.id === candidateId) || null;
   }, [candidates, candidateId]);
@@ -221,12 +219,6 @@ export default function CandidateProfile() {
                 Edit Profile
               </Button>
             )}
-            {canEdit && (
-              <Button variant="outline" size="sm" onClick={() => setShowUploadModal(true)}>
-                <Upload className="h-4 w-4 mr-2" />
-                Upload CV
-              </Button>
-            )}
             <Button variant="default" size="sm">
               <Plus className="h-4 w-4 mr-2" />
               Add Note
@@ -323,11 +315,10 @@ export default function CandidateProfile() {
                     variant="outline"
                     size="sm"
                     className="w-full justify-start"
-                    onClick={() => setShowCVViewer(true)}
-                    disabled={!candidate.cvStoragePath}
+                    disabled={documents.length === 0}
                   >
                     <FileText className="h-4 w-4 mr-2" />
-                    {candidate.cvStoragePath ? "View CV" : "No CV"}
+                    {documents.length > 0 ? `${documents.length} Document${documents.length > 1 ? 's' : ''}` : "No Documents"}
                   </Button>
                 </div>
               </CardContent>
@@ -355,78 +346,17 @@ export default function CandidateProfile() {
               id="cv"
               title="CV & Documents"
               icon={<FileText className="h-4 w-4" />}
-              badge={candidate.cvStoragePath ? "1" : undefined}
+              badge={documents.length > 0 ? documents.length.toString() : undefined}
               expanded={expandedSections.has("cv")}
               onToggle={() => toggleSection("cv")}
             >
-              <div className="space-y-4">
-                {candidate.cvStoragePath ? (
-                  <>
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border">
-                      <div className="p-2 rounded bg-primary/10">
-                        <FileText className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {candidate.cvStoragePath.split("/").pop() || "CV Document"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {candidate.cvStoragePath.endsWith(".pdf") ? "PDF Document" :
-                           candidate.cvStoragePath.endsWith(".docx") ? "Word Document" :
-                           candidate.cvStoragePath.endsWith(".doc") ? "Word Document" : "Document"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowCVViewer(true)}
-                      >
-                        <FileText className="h-4 w-4 mr-2" />
-                        View CV
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const filename = candidate.cvStoragePath?.split("/").pop() || `${candidate.name}_CV.pdf`;
-                          downloadCV(candidate.id, candidate.cvStoragePath!, filename);
-                        }}
-                        disabled={isDownloading}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        {isDownloading ? "Downloading..." : "Download"}
-                      </Button>
-                      {canEdit && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowUploadModal(true)}
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          Upload New
-                        </Button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-6">
-                    <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground mb-3">No CV uploaded yet</p>
-                    {canEdit && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowUploadModal(true)}
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload CV
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
+              <DocumentList
+                entityType="candidate"
+                entityId={candidate.id}
+                entityName={candidate.name}
+                canEdit={canEdit}
+                showCategoryBreakdown={true}
+              />
             </CollapsibleSection>
 
             {/* Skills */}
@@ -565,25 +495,6 @@ export default function CandidateProfile() {
           </div>
         </div>
       </div>
-
-      {/* CV Upload Modal */}
-      <CVUploadModal
-        open={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
-        candidateId={candidate.id}
-        candidateName={candidate.name}
-        onSuccess={() => refetch()}
-      />
-
-      {/* CV Drawer Viewer */}
-      <CVDrawerViewer
-        open={showCVViewer}
-        onClose={() => setShowCVViewer(false)}
-        storagePath={candidate.cvStoragePath}
-        candidateId={candidate.id}
-        candidateName={candidate.name}
-        rawCvText={candidate.rawCvText}
-      />
     </div>
   );
 }

@@ -1345,7 +1345,11 @@ export type Database = {
       leave_demo_team: { Args: { _user_id: string }; Returns: boolean }
       reset_demo_data: { Args: { _user_id: string }; Returns: boolean }
       search_candidates: {
-        Args: { query_text: string; workspace_id?: string }
+        Args: {
+          query_text: string
+          use_tsquery?: boolean
+          workspace_id?: string
+        }
         Returns: {
           current_title: string
           email: string

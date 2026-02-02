@@ -80,18 +80,21 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
 
   // Execute search query
   const searchQuery = useQuery({
-    queryKey: ["boolean-search", currentWorkspace?.id, parsedQuery.tsquery],
+    queryKey: ["boolean-search", currentWorkspace?.id, parsedQuery.tsquery, isBooleanMode],
     queryFn: async (): Promise<BooleanSearchResult[]> => {
       if (!parsedQuery.tsquery || !parsedQuery.isValid) {
         return [];
       }
 
-      console.log("[useBooleanSearch] Searching with tsquery:", parsedQuery.tsquery);
+      console.log("[useBooleanSearch] Searching with tsquery:", parsedQuery.tsquery, "mode:", isBooleanMode ? "boolean" : "simple");
 
-      // Use raw SQL query via RPC for full-text search
+      // Use RPC for full-text search
+      // In Boolean mode, pass the pre-parsed tsquery string
+      // In Simple mode, pass the original query for plainto_tsquery
       const { data, error } = await supabase.rpc("search_candidates", {
-        query_text: query, // Pass original query for plainto_tsquery
+        query_text: isBooleanMode ? parsedQuery.tsquery : debouncedQuery,
         workspace_id: currentWorkspace?.id ?? null,
+        use_tsquery: isBooleanMode,
       });
 
       if (error) {

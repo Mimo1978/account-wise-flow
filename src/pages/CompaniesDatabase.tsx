@@ -296,16 +296,26 @@ export default function CompaniesDatabase() {
         </div>
 
         {/* Company-Level Table (NO contacts column) */}
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden relative">
           <ScrollableTableContainer 
             showScrollHint={isFirstVisit}
             stickyHeader
             maxHeight="calc(100vh - 280px)"
+            leftPinnedWidth={260}
           >
             <Table className="min-w-[1200px]">
               <TableHeader>
-                <TableRow className="bg-muted/95 backdrop-blur-sm">
-                  <TableHead className="w-12">
+                <TableRow className="bg-muted">
+                  <TableHead 
+                    className="w-12 bg-muted"
+                    style={{ 
+                      position: "sticky", 
+                      left: 0, 
+                      zIndex: 31,
+                      width: 48,
+                      minWidth: 48,
+                    }}
+                  >
                     <Checkbox
                       checked={isAllSelected}
                       onCheckedChange={handleSelectAll}
@@ -313,50 +323,59 @@ export default function CompaniesDatabase() {
                       className={cn(isSomeSelected && "data-[state=checked]:bg-primary/50")}
                     />
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">
+                  <TableHead 
+                    className="font-semibold whitespace-nowrap bg-muted"
+                    style={{ 
+                      position: "sticky", 
+                      left: 48, 
+                      zIndex: 30,
+                      minWidth: 200,
+                      boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
+                    }}
+                  >
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
                       Company Name
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
                       Headquarters
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4" />
                       Switchboard
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">Industry</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Industry</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
                     <div className="flex items-center gap-2">
                       <Globe className="h-4 w-4" />
                       Regions
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
                     Status
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
                     <div className="flex items-center gap-2">
                       <Shield className="h-4 w-4" />
                       Account Owner
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
                       Last Activity
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap">
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
                     Data Quality
                   </TableHead>
-                  <TableHead className="w-12" />
+                  <TableHead className="w-12 bg-muted" style={{ zIndex: 10 }} />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -373,7 +392,17 @@ export default function CompaniesDatabase() {
                       )}
                       onClick={(e) => handleRowClick(account, e)}
                     >
-                      <TableCell data-checkbox>
+                      <TableCell 
+                        data-checkbox 
+                        className="bg-card"
+                        style={{ 
+                          position: "sticky", 
+                          left: 0, 
+                          zIndex: 21,
+                          width: 48,
+                          minWidth: 48,
+                        }}
+                      >
                         <Checkbox
                           checked={selectedIds.has(account.id)}
                           onCheckedChange={(checked) => 
@@ -383,32 +412,41 @@ export default function CompaniesDatabase() {
                           aria-label={`Select ${account.name}`}
                         />
                       </TableCell>
-                      <TableCell className="font-medium">
+                      <TableCell 
+                        className="font-medium bg-card"
+                        style={{ 
+                          position: "sticky", 
+                          left: 48, 
+                          zIndex: 20,
+                          minWidth: 200,
+                          boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
+                        }}
+                      >
                         <div className="flex items-center gap-2">
                           <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                             <Building2 className="h-4 w-4 text-primary" />
                           </div>
-                          <span className="hover:text-primary transition-colors">
+                          <span className="hover:text-primary transition-colors truncate">
                             {account.name}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
                         <span className="text-sm text-muted-foreground">
                           {account.headquarters || "—"}
                         </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
                         <span className="text-sm text-muted-foreground font-mono">
                           {account.switchboard || "—"}
                         </span>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
                         <Badge variant="secondary" className="font-normal">
                           {account.industry}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
                         <div className="flex items-center gap-1 flex-wrap">
                           {account.regions && account.regions.length > 0 ? (
                             <>
@@ -426,12 +464,12 @@ export default function CompaniesDatabase() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
                         <Badge className={cn("font-normal", statusConfig.className)}>
                           {statusConfig.label}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
                         {account.accountManager ? (
                           <div className="flex items-center gap-2">
                             <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs shrink-0">
@@ -445,16 +483,16 @@ export default function CompaniesDatabase() {
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
+                      <TableCell className="text-muted-foreground text-sm bg-card" style={{ zIndex: 1 }}>
                         {formatDate(account.lastInteraction || account.lastUpdated)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
                         <div className={cn("flex items-center gap-1 text-sm", qualityConfig.className)}>
                           {qualityConfig.icon && <qualityConfig.icon className="h-3.5 w-3.5" />}
                           <span>{qualityConfig.label}</span>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
                         <Button
                           variant="ghost"
                           size="icon"

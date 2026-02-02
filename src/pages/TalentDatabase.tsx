@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
@@ -44,6 +44,7 @@ import { ViewPresetsDropdown } from "@/components/talent/ViewPresetsDropdown";
 import { CVViewer } from "@/components/talent/CVViewer";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { useTableViewPreferences } from "@/components/canvas/TableViewControls";
+import { PinnedEdgeFade, PinnedEdgeFadeRight } from "@/components/ui/pinned-edge-fade";
 import { useResizableColumns, ColumnConfig } from "@/hooks/use-resizable-columns";
 import { useColumnPinning } from "@/hooks/use-column-pinning";
 import { useViewPresets } from "@/hooks/use-view-presets";
@@ -523,6 +524,53 @@ export default function TalentDatabase() {
     return (columnId: string) => columnId === firstId;
   }, [rightPinnedCols]);
 
+  // Calculate total width of pinned areas for edge fade positioning
+  const leftPinnedTotalWidth = useMemo(() => {
+    if (leftPinnedCols.length === 0) return 0;
+    return CHECKBOX_COL_WIDTH + leftPinnedCols.reduce((sum, colId) => sum + getColumnWidth(colId), 0);
+  }, [leftPinnedCols, columnWidths, visibleColumns]);
+
+  const rightPinnedTotalWidth = useMemo(() => {
+    if (rightPinnedCols.length === 0) return 0;
+    return rightPinnedCols.reduce((sum, colId) => sum + getColumnWidth(colId), 0);
+  }, [rightPinnedCols, columnWidths, visibleColumns]);
+
+  // Track horizontal scroll to show/hide edge fades
+  const [hasScrolledRight, setHasScrolledRight] = useState(false);
+  const [hasScrollableContent, setHasScrollableContent] = useState(false);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const scrollLeft = target.scrollLeft;
+    const scrollWidth = target.scrollWidth;
+    const clientWidth = target.clientWidth;
+    
+    // Show left fade when scrolled right (content hidden on left)
+    setHasScrolledRight(scrollLeft > 5);
+    // Check if there's scrollable content
+    setHasScrollableContent(scrollWidth > clientWidth + 10);
+  }, []);
+
+  // Check scrollable content on mount and resize
+  useEffect(() => {
+    const checkScrollable = () => {
+      if (tableContainerRef.current) {
+        const { scrollWidth, clientWidth } = tableContainerRef.current;
+        setHasScrollableContent(scrollWidth > clientWidth + 10);
+      }
+    };
+    
+    checkScrollable();
+    window.addEventListener('resize', checkScrollable);
+    const timeout = setTimeout(checkScrollable, 100);
+    
+    return () => {
+      window.removeEventListener('resize', checkScrollable);
+      clearTimeout(timeout);
+    };
+  }, [visibleColumns, columnWidths]);
+
   // Get cell styles based on view preferences and pinning
   // isHeader determines z-index stacking (headers above body cells)
   const getCellStyles = (columnId: string, isHeader: boolean = false): React.CSSProperties => {
@@ -792,7 +840,21 @@ export default function TalentDatabase() {
         </div>
 
         {/* Table with Resizable Columns */}
-        <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="rounded-lg border border-border bg-card overflow-hidden relative">
+          {/* Premium Edge Fade - Left Pinned Boundary */}
+          <PinnedEdgeFade
+            leftOffset={leftPinnedTotalWidth}
+            visible={leftPinnedCols.length > 0 && (hasScrollableContent || hasScrolledRight)}
+            width={20}
+          />
+          
+          {/* Premium Edge Fade - Right Pinned Boundary */}
+          <PinnedEdgeFadeRight
+            rightOffset={rightPinnedTotalWidth}
+            visible={rightPinnedCols.length > 0 && hasScrollableContent}
+            width={20}
+          />
+          
           <ScrollableTableContainer 
             showScrollHint={isFirstVisit}
             stickyHeader

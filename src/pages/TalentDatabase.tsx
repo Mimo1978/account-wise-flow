@@ -76,6 +76,7 @@ import {
   Eye,
   ScanLine,
   LayoutList,
+  Download,
 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
@@ -798,6 +799,29 @@ export default function TalentDatabase() {
                   </TooltipContent>
                 )}
               </Tooltip>
+
+              {/* Export button - only visible when Boolean search is active with results */}
+              {booleanSearch.isBooleanMode && booleanSearch.hasResults && filteredTalents.length > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        disabled
+                        className="opacity-60 cursor-not-allowed"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Export (CSV)
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    <p className="text-sm">Coming soon — Export matching candidates to CSV</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex">

@@ -372,6 +372,7 @@ export type Database = {
           owner_id: string | null
           phone: string | null
           raw_cv_text: string | null
+          search_vector: unknown
           skills: Json | null
           source: string | null
           status: string | null
@@ -394,6 +395,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           raw_cv_text?: string | null
+          search_vector?: unknown
           skills?: Json | null
           source?: string | null
           status?: string | null
@@ -416,6 +418,7 @@ export type Database = {
           owner_id?: string | null
           phone?: string | null
           raw_cv_text?: string | null
+          search_vector?: unknown
           skills?: Json | null
           source?: string | null
           status?: string | null
@@ -1341,6 +1344,23 @@ export type Database = {
       join_demo_team: { Args: { _user_id: string }; Returns: string }
       leave_demo_team: { Args: { _user_id: string }; Returns: boolean }
       reset_demo_data: { Args: { _user_id: string }; Returns: boolean }
+      search_candidates: {
+        Args: { query_text: string; workspace_id?: string }
+        Returns: {
+          current_title: string
+          email: string
+          headline: string
+          highlight_cv: string
+          highlight_headline: string
+          highlight_name: string
+          id: string
+          location: string
+          name: string
+          rank: number
+          raw_cv_text: string
+          skills: Json
+        }[]
+      }
       seed_demo_workspace: {
         Args: { workspace_uuid: string }
         Returns: undefined

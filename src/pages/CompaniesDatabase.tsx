@@ -22,6 +22,7 @@ import {
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
 import { TeamManagementPanel } from "@/components/admin/TeamManagementPanel";
 import { CompanyOverviewPanel } from "@/components/company/CompanyOverviewPanel";
+import { CreateCompanyModal } from "@/components/company/CreateCompanyModal";
 import {
   Search,
   Plus,
@@ -30,7 +31,6 @@ import {
   MapPin,
   Phone,
   Globe,
-  TrendingUp,
   Calendar,
   Shield,
   ExternalLink,
@@ -88,7 +88,8 @@ export default function CompaniesDatabase() {
   const [selectedCompany, setSelectedCompany] = useState<Account | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isFirstVisit, setIsFirstVisit] = useState(false);
-
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [companies, setCompanies] = useState<Account[]>(mockAccounts);
   // Permissions
   const { role, canInsert, isLoading: permissionsLoading } = usePermissions();
   const insertTooltip = getPermissionTooltip("insert", role);
@@ -104,15 +105,15 @@ export default function CompaniesDatabase() {
 
   // Filter companies by search
   const filteredCompanies = useMemo(() => {
-    if (!searchQuery) return mockAccounts;
+    if (!searchQuery) return companies;
     const searchLower = searchQuery.toLowerCase();
-    return mockAccounts.filter((account) =>
+    return companies.filter((account) =>
       account.name.toLowerCase().includes(searchLower) ||
       account.industry.toLowerCase().includes(searchLower) ||
       account.headquarters?.toLowerCase().includes(searchLower) ||
       account.accountManager?.name.toLowerCase().includes(searchLower)
     );
-  }, [searchQuery]);
+  }, [searchQuery, companies]);
 
   // Selection handlers
   const handleSelectAll = (checked: boolean) => {
@@ -164,7 +165,11 @@ export default function CompaniesDatabase() {
   };
 
   const handleAddCompany = () => {
-    console.log("Add company clicked");
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCompanyCreated = (newCompany: Account) => {
+    setCompanies((prev) => [newCompany, ...prev]);
   };
 
   const handleClearSelection = () => {
@@ -442,7 +447,7 @@ export default function CompaniesDatabase() {
 
         {/* Footer */}
         <div className="mt-4 text-sm text-muted-foreground">
-          Showing {filteredCompanies.length} of {mockAccounts.length} companies
+          Showing {filteredCompanies.length} of {companies.length} companies
         </div>
       </div>
 
@@ -453,6 +458,13 @@ export default function CompaniesDatabase() {
         onClose={() => setSelectedCompany(null)}
         onOpenCanvas={handleOpenCanvas}
         onViewContacts={handleViewContacts}
+      />
+
+      {/* Create Company Modal */}
+      <CreateCompanyModal
+        open={isCreateModalOpen}
+        onOpenChange={setIsCreateModalOpen}
+        onCompanyCreated={handleCompanyCreated}
       />
     </div>
   );

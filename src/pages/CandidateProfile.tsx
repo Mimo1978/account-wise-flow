@@ -48,7 +48,7 @@ import { CandidateInterviewsSection } from "@/components/talent/CandidateIntervi
 import { CandidateOpportunitiesSection } from "@/components/talent/CandidateOpportunitiesSection";
 import { CandidateOverviewEditor } from "@/components/talent/CandidateOverviewEditor";
 import { CVUploadModal } from "@/components/talent/CVUploadModal";
-import { CVInlineViewer } from "@/components/talent/CVInlineViewer";
+import { CVDrawerViewer } from "@/components/talent/CVDrawerViewer";
 
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -575,13 +575,14 @@ export default function CandidateProfile() {
         onSuccess={() => refetch()}
       />
 
-      {/* CV Inline Viewer */}
-      <CVInlineViewer
+      {/* CV Drawer Viewer */}
+      <CVDrawerViewer
         open={showCVViewer}
         onClose={() => setShowCVViewer(false)}
         storagePath={candidate.cvStoragePath}
         candidateId={candidate.id}
         candidateName={candidate.name}
+        rawCvText={candidate.rawCvText}
       />
     </div>
   );

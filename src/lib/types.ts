@@ -144,6 +144,7 @@ export interface Talent {
   experience?: TalentExperience[];
   cvUrl?: string;
   cvStoragePath?: string;
+  rawCvText?: string;
   linkedIn?: string;
   location?: string;
   lastUpdated?: string;

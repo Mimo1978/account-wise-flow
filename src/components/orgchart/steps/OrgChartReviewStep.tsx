@@ -153,10 +153,24 @@ export function OrgChartReviewStep({
     (r) => !r.department.trim()
   ).length;
 
-  // Count how many can be auto-inferred
-  const autoInferableCount = extractedRows.filter(
-    (r) => r.selected && !r.department.trim() && r.job_title.trim() && inferDepartmentFromTitle(r.job_title)
+  // Compute suggested departments for all rows
+  const rowsWithSuggestions = useMemo(() => {
+    return extractedRows.map((row) => ({
+      ...row,
+      suggestedDepartment: !row.department.trim() && row.job_title.trim()
+        ? inferDepartmentFromTitle(row.job_title)
+        : null,
+    }));
+  }, [extractedRows]);
+
+  // Count how many have suggestions available
+  const suggestionsCount = rowsWithSuggestions.filter((r) => r.suggestedDepartment).length;
+  const selectedSuggestionsCount = rowsWithSuggestions.filter(
+    (r) => r.selected && r.suggestedDepartment
   ).length;
+
+  // Count how many can be auto-inferred (alias for backwards compat)
+  const autoInferableCount = suggestionsCount;
 
   // Filter matching counts
   const titleMatchCount = titleFilter.trim()
@@ -385,19 +399,53 @@ export function OrgChartReviewStep({
     });
   };
 
-  // Smart auto-fill department
-  const handleAutoFillDepartments = () => {
-    const { updatedRows, filledCount } = applySmartDepartments(extractedRows);
-    if (filledCount > 0) {
-      onExtractedRowsChange(
-        updatedRows.map((row) => ({
-          ...row,
-          validationErrors: validateRow(row),
-        }))
-      );
+  // Smart auto-fill department - accept all suggestions
+  const handleAcceptAllSuggestions = () => {
+    let acceptedCount = 0;
+    const updatedRows = extractedRows.map((row) => {
+      const suggestion = !row.department.trim() && row.job_title.trim()
+        ? inferDepartmentFromTitle(row.job_title)
+        : null;
+      if (suggestion) {
+        acceptedCount++;
+        const updated = { ...row, department: suggestion };
+        updated.validationErrors = validateRow(updated);
+        return updated;
+      }
+      return row;
+    });
+    
+    if (acceptedCount > 0) {
+      onExtractedRowsChange(updatedRows);
       toast({
-        title: "Departments auto-filled",
-        description: `Applied to ${filledCount} rows based on job titles`,
+        title: "Accepted all suggested departments",
+        description: `Applied to ${acceptedCount} rows based on job titles`,
+      });
+    }
+  };
+
+  // Accept suggestions for selected rows only
+  const handleAcceptSelectedSuggestions = () => {
+    let acceptedCount = 0;
+    const updatedRows = extractedRows.map((row) => {
+      if (!row.selected) return row;
+      const suggestion = !row.department.trim() && row.job_title.trim()
+        ? inferDepartmentFromTitle(row.job_title)
+        : null;
+      if (suggestion) {
+        acceptedCount++;
+        const updated = { ...row, department: suggestion };
+        updated.validationErrors = validateRow(updated);
+        return updated;
+      }
+      return row;
+    });
+    
+    if (acceptedCount > 0) {
+      onExtractedRowsChange(updatedRows);
+      toast({
+        title: "Accepted suggested departments",
+        description: `Applied to ${acceptedCount} selected rows`,
       });
     }
   };
@@ -462,18 +510,34 @@ export function OrgChartReviewStep({
       </div>
 
       {/* Smart Auto-fill Banner */}
-      {autoInferableCount > 0 && (
+      {suggestionsCount > 0 && (
         <div className="flex items-center justify-between gap-3 bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
             <span className="text-sm">
-              <span className="font-medium">{autoInferableCount} rows</span> can be auto-filled with department based on job title
+              <span className="font-medium">{suggestionsCount} rows</span> have suggested departments based on job title
+              {selectedSuggestionsCount > 0 && selectedSuggestionsCount < suggestionsCount && (
+                <span className="text-muted-foreground"> ({selectedSuggestionsCount} selected)</span>
+              )}
             </span>
           </div>
-          <Button size="sm" onClick={handleAutoFillDepartments} className="gap-1.5">
-            <Wand2 className="h-3.5 w-3.5" />
-            Auto-fill Departments
-          </Button>
+          <div className="flex items-center gap-2">
+            {selectedSuggestionsCount > 0 && selectedSuggestionsCount < suggestionsCount && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handleAcceptSelectedSuggestions} 
+                className="gap-1.5"
+              >
+                <Check className="h-3.5 w-3.5" />
+                Accept Selected ({selectedSuggestionsCount})
+              </Button>
+            )}
+            <Button size="sm" onClick={handleAcceptAllSuggestions} className="gap-1.5">
+              <Wand2 className="h-3.5 w-3.5" />
+              Accept All Suggestions
+            </Button>
+          </div>
         </div>
       )}
 
@@ -783,7 +847,7 @@ function ReviewTableRow({
       className={cn(
         !row.selected && "opacity-50 bg-muted/30",
         row.selected && hasErrors && "bg-destructive/5",
-        row.selected && row.isDuplicate && !hasErrors && "bg-orange-500/5"
+        row.selected && row.isDuplicate && !hasErrors && "bg-warning/5"
       )}
     >
       <TableCell className="sticky left-0 bg-background z-10">
@@ -812,25 +876,37 @@ function ReviewTableRow({
         />
       </TableCell>
       <TableCell>
-        <div className="space-y-1">
-          <FlexibleCombobox
-            value={row.department}
-            onChange={(val) => onEditField(row.id, "department", val)}
-            options={departmentOptions}
-            placeholder="Select or type..."
-            className={cn(
-              row.selected && !row.department.trim() && "ring-2 ring-destructive/50 rounded-md"
-            )}
-          />
-          {suggestedDept && (
-            <button
-              type="button"
-              onClick={() => onEditField(row.id, "department", suggestedDept)}
-              className="flex items-center gap-1 text-[10px] text-primary hover:underline"
-            >
-              <Lightbulb className="h-2.5 w-2.5" />
-              {suggestedDept}
-            </button>
+        <div className="space-y-1.5">
+          {row.department.trim() ? (
+            <FlexibleCombobox
+              value={row.department}
+              onChange={(val) => onEditField(row.id, "department", val)}
+              options={departmentOptions}
+              placeholder="Select or type..."
+            />
+          ) : (
+            <>
+              <FlexibleCombobox
+                value={row.department}
+                onChange={(val) => onEditField(row.id, "department", val)}
+                options={departmentOptions}
+                placeholder="Select or type..."
+                className={cn(
+                  row.selected && "ring-2 ring-destructive/50 rounded-md"
+                )}
+              />
+              {suggestedDept && (
+                <button
+                  type="button"
+                  onClick={() => onEditField(row.id, "department", suggestedDept)}
+                  className="flex items-center gap-1.5 w-full px-2 py-1 text-xs bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded text-primary transition-colors"
+                >
+                  <Sparkles className="h-3 w-3 shrink-0" />
+                  <span className="truncate">Suggested: <span className="font-medium">{suggestedDept}</span></span>
+                  <Check className="h-3 w-3 ml-auto shrink-0" />
+                </button>
+              )}
+            </>
           )}
         </div>
       </TableCell>

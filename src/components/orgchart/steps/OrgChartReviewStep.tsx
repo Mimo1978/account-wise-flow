@@ -574,6 +574,24 @@ export function OrgChartReviewStep({
     });
   };
 
+  // Apply department to specific rows by ID (batch update)
+  const handleApplyDepartmentToRowIds = (rowIds: string[], newDept: string) => {
+    if (!newDept.trim() || rowIds.length === 0) return;
+    const idSet = new Set(rowIds);
+    onExtractedRowsChange(
+      extractedRows.map((row) => {
+        if (!idSet.has(row.id)) return row;
+        const updated = { ...row, department: newDept };
+        updated.validationErrors = validateRow(updated);
+        return updated;
+      })
+    );
+    toast({
+      title: "Department applied",
+      description: `Applied "${newDept}" to ${rowIds.length} rows`,
+    });
+  };
+
   const allSelected = extractedRows.every((r) => r.selected);
   const someSelected = extractedRows.some((r) => r.selected) && !allSelected;
 
@@ -1066,11 +1084,7 @@ export function OrgChartReviewStep({
                   onEditField={handleEditField}
                   onDuplicateAction={handleDuplicateAction}
                   onApplyToAll={() => {
-                    rows.forEach((row) => handleEditField(row.id, "department", suggestedDept));
-                    toast({
-                      title: "Department applied",
-                      description: `Applied "${suggestedDept}" to ${rows.length} rows`,
-                    });
+                    handleApplyDepartmentToRowIds(rows.map((r) => r.id), suggestedDept);
                   }}
                 />
               ))}
@@ -1092,13 +1106,13 @@ export function OrgChartReviewStep({
                   onSelectRow={handleSelectRow}
                   onEditField={handleEditField}
                   onDuplicateAction={handleDuplicateAction}
+                  onApplyDepartmentToRowIds={handleApplyDepartmentToRowIds}
                   isUncategorized
                 />
               )}
             </>
           )}
 
-          {/* Group by Title Cluster Mode */}
           {groupByMode === "title_cluster" && (
             <>
               {Object.entries(groupedByTitleCluster).map(([cluster, rows]) => (
@@ -1109,6 +1123,7 @@ export function OrgChartReviewStep({
                   onSelectRow={handleSelectRow}
                   onEditField={handleEditField}
                   onDuplicateAction={handleDuplicateAction}
+                  onApplyDepartmentToRowIds={handleApplyDepartmentToRowIds}
                 />
               ))}
             </>
@@ -1135,6 +1150,7 @@ export function OrgChartReviewStep({
                   onSelectRow={handleSelectRow}
                   onEditField={handleEditField}
                   onDuplicateAction={handleDuplicateAction}
+                  onApplyDepartmentToRowIds={handleApplyDepartmentToRowIds}
                   isUncategorized
                 />
               )}
@@ -1320,6 +1336,7 @@ function DepartmentGroup({
   onEditField,
   onDuplicateAction,
   onApplyDepartmentToAll,
+  onApplyDepartmentToRowIds,
   isUncategorized = false,
 }: {
   department: string;
@@ -1328,6 +1345,7 @@ function DepartmentGroup({
   onEditField: (id: string, field: keyof OrgChartRow, value: string) => void;
   onDuplicateAction: (id: string, action: DuplicateAction) => void;
   onApplyDepartmentToAll?: (newDept: string) => void;
+  onApplyDepartmentToRowIds?: (rowIds: string[], newDept: string) => void;
   isUncategorized?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(true);
@@ -1391,8 +1409,8 @@ function DepartmentGroup({
                   size="sm"
                   variant="secondary"
                   onClick={() => {
-                    if (bulkDept.trim()) {
-                      rows.forEach((row) => onEditField(row.id, "department", bulkDept));
+                    if (bulkDept.trim() && onApplyDepartmentToRowIds) {
+                      onApplyDepartmentToRowIds(rows.map((r) => r.id), bulkDept);
                       setBulkDept("");
                     }
                   }}
@@ -1532,12 +1550,14 @@ function TitleClusterGroup({
   onSelectRow,
   onEditField,
   onDuplicateAction,
+  onApplyDepartmentToRowIds,
 }: {
   cluster: string;
   rows: OrgChartRow[];
   onSelectRow: (id: string, checked: boolean) => void;
   onEditField: (id: string, field: keyof OrgChartRow, value: string) => void;
   onDuplicateAction: (id: string, action: DuplicateAction) => void;
+  onApplyDepartmentToRowIds: (rowIds: string[], newDept: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const [bulkDept, setBulkDept] = useState("");
@@ -1553,7 +1573,7 @@ function TitleClusterGroup({
 
   const handleApplyDeptToAll = () => {
     if (!bulkDept.trim()) return;
-    rows.forEach((row) => onEditField(row.id, "department", bulkDept));
+    onApplyDepartmentToRowIds(rows.map((r) => r.id), bulkDept);
     setBulkDept("");
   };
 

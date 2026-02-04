@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,11 +9,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Check, FileUp, Scan, Eye, ListChecks, GitBranch } from "lucide-react";
-import { OrgChartSourceStep } from "./steps/OrgChartSourceStep";
+import { OrgChartSourceStep, CompanyDestination } from "./steps/OrgChartSourceStep";
 import { OrgChartExtractStep } from "./steps/OrgChartExtractStep";
 import { OrgChartReviewStep } from "./steps/OrgChartReviewStep";
 import { OrgChartPreviewStep } from "./steps/OrgChartPreviewStep";
 import { OrgChartConfirmStep } from "./steps/OrgChartConfirmStep";
+import { supabase } from "@/integrations/supabase/client";
 
 export type OrgChartInputType = "csv" | "xlsx" | "paste" | "ocr";
 
@@ -57,6 +58,37 @@ export function OrgChartBuilderModal({
   const [rawData, setRawData] = useState<string>("");
   const [extractedRows, setExtractedRows] = useState<OrgChartRow[]>([]);
   const [ocrText, setOcrText] = useState<string>("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
+  const [companyDestination, setCompanyDestination] = useState<CompanyDestination>(() => {
+    if (companyId) {
+      return { type: "existing", companyId, companyName };
+    }
+    return { type: "existing" };
+  });
+
+  // Fetch companies list
+  useEffect(() => {
+    async function fetchCompanies() {
+      const { data } = await supabase
+        .from("companies")
+        .select("id, name")
+        .order("name");
+      if (data) {
+        setCompanies(data);
+      }
+    }
+    if (open && !companyId) {
+      fetchCompanies();
+    }
+  }, [open, companyId]);
+
+  // Reset destination when modal opens with a company context
+  useEffect(() => {
+    if (open && companyId) {
+      setCompanyDestination({ type: "existing", companyId, companyName });
+    }
+  }, [open, companyId, companyName]);
 
   const currentStepIndex = STEPS.findIndex((s) => s.id === currentStep);
 
@@ -81,13 +113,27 @@ export function OrgChartBuilderModal({
     setRawData("");
     setExtractedRows([]);
     setOcrText("");
+    setUploadedFile(null);
+    setCompanyDestination(companyId ? { type: "existing", companyId, companyName } : { type: "existing" });
     onOpenChange(false);
+  };
+
+  const isCompanyDestinationValid = () => {
+    if (companyDestination.type === "existing") {
+      return !!companyDestination.companyId;
+    }
+    return !!companyDestination.companyName?.trim();
   };
 
   const canProceed = () => {
     switch (currentStep) {
       case "source":
-        return inputType !== null && (inputType === "paste" ? rawData.trim().length > 0 : true);
+        // Must have company destination AND input selected with data
+        if (!isCompanyDestinationValid()) return false;
+        if (!inputType) return false;
+        if (inputType === "paste") return rawData.trim().length > 0;
+        if (inputType === "csv" || inputType === "xlsx" || inputType === "ocr") return !!uploadedFile || rawData.length > 0;
+        return false;
       case "extract":
         return extractedRows.length > 0;
       case "review":
@@ -101,6 +147,15 @@ export function OrgChartBuilderModal({
     }
   };
 
+  // Get the effective company name for display
+  const effectiveCompanyName = companyDestination.type === "existing" 
+    ? companyDestination.companyName 
+    : companyDestination.companyName;
+  
+  const effectiveCompanyId = companyDestination.type === "existing"
+    ? companyDestination.companyId
+    : undefined;
+
   const renderStepContent = () => {
     switch (currentStep) {
       case "source":
@@ -110,6 +165,13 @@ export function OrgChartBuilderModal({
             onInputTypeChange={setInputType}
             rawData={rawData}
             onRawDataChange={setRawData}
+            uploadedFile={uploadedFile}
+            onFileChange={setUploadedFile}
+            companyDestination={companyDestination}
+            onCompanyDestinationChange={setCompanyDestination}
+            existingCompanyId={companyId}
+            existingCompanyName={companyName}
+            companies={companies}
           />
         );
       case "extract":
@@ -134,15 +196,16 @@ export function OrgChartBuilderModal({
         return (
           <OrgChartPreviewStep
             extractedRows={extractedRows.filter((r) => r.selected)}
-            companyName={companyName}
+            companyName={effectiveCompanyName}
           />
         );
       case "confirm":
         return (
           <OrgChartConfirmStep
             extractedRows={extractedRows.filter((r) => r.selected)}
-            companyId={companyId}
-            companyName={companyName}
+            companyId={effectiveCompanyId}
+            companyName={effectiveCompanyName}
+            companyDestination={companyDestination}
             onComplete={handleClose}
           />
         );
@@ -158,9 +221,9 @@ export function OrgChartBuilderModal({
           <DialogTitle className="flex items-center gap-2">
             <GitBranch className="h-5 w-5 text-primary" />
             Org Chart Builder
-            {companyName && (
+            {(effectiveCompanyName || companyName) && (
               <span className="text-muted-foreground font-normal">
-                — {companyName}
+                — {effectiveCompanyName || companyName}
               </span>
             )}
           </DialogTitle>

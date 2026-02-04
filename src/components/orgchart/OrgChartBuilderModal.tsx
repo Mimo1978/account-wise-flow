@@ -183,6 +183,7 @@ export function OrgChartBuilderModal({
             onExtractedRowsChange={setExtractedRows}
             ocrText={ocrText}
             onOcrTextChange={setOcrText}
+            uploadedFile={uploadedFile}
           />
         );
       case "review":

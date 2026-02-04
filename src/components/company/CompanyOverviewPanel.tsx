@@ -25,6 +25,7 @@ import {
   FileText,
   MapPin,
   X,
+  GitBranch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CompanySnapshotCard } from "./CompanySnapshotCard";
@@ -32,6 +33,7 @@ import { CompanyRelationshipIntel } from "./CompanyRelationshipIntel";
 import { CompanyContactsList } from "./CompanyContactsList";
 import { CompanyEngagementContext } from "./CompanyEngagementContext";
 import { CompanyLocationsSection } from "./CompanyLocationsSection";
+import { OrgChartBuilderModal } from "@/components/orgchart/OrgChartBuilderModal";
 
 interface CompanyOverviewPanelProps {
   company: Account | null;
@@ -57,6 +59,7 @@ export function CompanyOverviewPanel({
     engagement: false,
     documents: false,
   });
+  const [showOrgChartBuilder, setShowOrgChartBuilder] = useState(false);
 
   if (!company) return null;
 
@@ -268,6 +271,14 @@ export function CompanyOverviewPanel({
             <Button
               variant="outline"
               className="flex-1"
+              onClick={() => setShowOrgChartBuilder(true)}
+            >
+              <GitBranch className="h-4 w-4 mr-2" />
+              Build Org Chart
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
               onClick={() => onViewContacts(company)}
             >
               <Users className="h-4 w-4 mr-2" />
@@ -278,6 +289,14 @@ export function CompanyOverviewPanel({
             </Button>
           </div>
         </div>
+
+        {/* Org Chart Builder Modal */}
+        <OrgChartBuilderModal
+          open={showOrgChartBuilder}
+          onOpenChange={setShowOrgChartBuilder}
+          companyId={company.id}
+          companyName={company.name}
+        />
       </SheetContent>
     </Sheet>
   );

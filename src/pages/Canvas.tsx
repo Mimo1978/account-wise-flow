@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users } from "lucide-react";
+import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch } from "lucide-react";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
@@ -13,6 +13,7 @@ import { AIInsightsPanel } from "@/components/canvas/AIInsightsPanel";
 import { AIRoleSuggestionsPanel } from "@/components/canvas/AIRoleSuggestionsPanel";
 import { GlobalSearch } from "@/components/canvas/GlobalSearch";
 import { ResponsiveToolbar, ToolbarAction } from "@/components/canvas/ResponsiveToolbar";
+import { OrgChartBuilderModal } from "@/components/orgchart/OrgChartBuilderModal";
 import { mockAccount, mockAccounts } from "@/lib/mock-data";
 import { mockTalents, mockEngagements } from "@/lib/mock-talent";
 import { Account, Contact, Talent, TalentEngagement } from "@/lib/types";
@@ -53,6 +54,7 @@ const Canvas = () => {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [showAddContactModal, setShowAddContactModal] = useState(false);
   const [showAIImportModal, setShowAIImportModal] = useState(false);
+  const [showOrgChartBuilder, setShowOrgChartBuilder] = useState(false);
   const [pendingCompany, setPendingCompany] = useState<Account | null>(null);
   const [showCompanySaveDialog, setShowCompanySaveDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"canvas" | "database">("canvas");
@@ -221,6 +223,14 @@ const Canvas = () => {
     const actions: ToolbarAction[] = [];
 
     // Secondary actions (can overflow into "More" menu)
+    actions.push({
+      id: "org-chart",
+      label: "Build Org Chart",
+      icon: <GitBranch className="w-4 h-4" />,
+      onClick: () => setShowOrgChartBuilder(true),
+      priority: "secondary",
+    });
+
     actions.push({
       id: "missing-roles",
       label: "Missing Roles",
@@ -448,7 +458,14 @@ const Canvas = () => {
         }}
       />
 
-      {/* AI Knowledge Panel */}
+      {/* Org Chart Builder Modal */}
+      <OrgChartBuilderModal
+        open={showOrgChartBuilder}
+        onOpenChange={setShowOrgChartBuilder}
+        companyId={account.id}
+        companyName={account.name}
+      />
+
       {viewMode === "canvas" && (
         <AIKnowledgePanel
           account={account}

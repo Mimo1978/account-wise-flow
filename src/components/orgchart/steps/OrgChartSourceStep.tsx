@@ -1,22 +1,31 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Upload, Building2, Plus, Check, FileSpreadsheet, Camera } from "lucide-react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Upload,
+  Building2,
+  Plus,
+  Check,
+  FileSpreadsheet,
+  Camera,
+  Search,
+  MapPin,
+  Globe,
+  Sparkles,
+  X,
+  ChevronRight,
+} from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useOrgChartProviders } from "@/hooks/use-orgchart-providers";
 import type { OrgChartInputType } from "../OrgChartBuilderModal";
 import type { OrgChartProviderId } from "@/lib/orgchart-providers";
@@ -26,6 +35,14 @@ export interface CompanyDestination {
   companyId?: string;
   companyName?: string;
   country?: string;
+  city?: string;
+}
+
+interface CompanyWithDetails {
+  id: string;
+  name: string;
+  industry?: string | null;
+  size?: string | null;
 }
 
 interface OrgChartSourceStepProps {
@@ -39,8 +56,23 @@ interface OrgChartSourceStepProps {
   onCompanyDestinationChange: (dest: CompanyDestination) => void;
   existingCompanyId?: string;
   existingCompanyName?: string;
-  companies?: Array<{ id: string; name: string }>;
+  companies?: CompanyWithDetails[];
+  detectedCompanyName?: string; // For smart prefill from OCR
 }
+
+// Common countries for quick selection
+const COUNTRY_OPTIONS = [
+  "United Kingdom",
+  "United States",
+  "Germany",
+  "France",
+  "Singapore",
+  "Hong Kong",
+  "Japan",
+  "Australia",
+  "Netherlands",
+  "Switzerland",
+];
 
 export function OrgChartSourceStep({
   inputType,
@@ -54,15 +86,38 @@ export function OrgChartSourceStep({
   existingCompanyId,
   existingCompanyName,
   companies = [],
+  detectedCompanyName,
 }: OrgChartSourceStepProps) {
   const providers = useOrgChartProviders();
   const [dragActive, setDragActive] = useState(false);
   const [selectedSourceOption, setSelectedSourceOption] = useState<OrgChartProviderId | null>(
     inputType === "csv" || inputType === "xlsx" ? "spreadsheet" : inputType as OrgChartProviderId | null
   );
+  const [companySearch, setCompanySearch] = useState("");
+  const [destinationMode, setDestinationMode] = useState<"existing" | "new">(
+    companyDestination.type
+  );
 
   // Get the currently selected provider
   const selectedProvider = providers.find((p) => p.id === selectedSourceOption);
+
+  // Filter companies based on search
+  const filteredCompanies = useMemo(() => {
+    if (!companySearch.trim()) {
+      return companies.slice(0, 10); // Show first 10 by default
+    }
+    const query = companySearch.toLowerCase();
+    return companies
+      .filter((c) => c.name.toLowerCase().includes(query))
+      .slice(0, 20);
+  }, [companies, companySearch]);
+
+  // Check if detected company name matches any existing company
+  const suggestedCompany = useMemo(() => {
+    if (!detectedCompanyName) return null;
+    const detected = detectedCompanyName.toLowerCase();
+    return companies.find((c) => c.name.toLowerCase().includes(detected));
+  }, [detectedCompanyName, companies]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -138,10 +193,16 @@ export function OrgChartSourceStep({
     // For spreadsheet, we'll set the actual type when file is uploaded
   };
 
-  const handleDestinationTypeChange = (value: string) => {
-    if (value === "new") {
-      onCompanyDestinationChange({ type: "new", companyName: "", country: "" });
-    } else if (value === "existing" && existingCompanyId) {
+  const handleDestinationModeChange = (mode: "existing" | "new") => {
+    setDestinationMode(mode);
+    if (mode === "new") {
+      onCompanyDestinationChange({ 
+        type: "new", 
+        companyName: detectedCompanyName || "", 
+        country: "", 
+        city: "" 
+      });
+    } else if (mode === "existing" && existingCompanyId) {
       onCompanyDestinationChange({
         type: "existing",
         companyId: existingCompanyId,
@@ -152,86 +213,201 @@ export function OrgChartSourceStep({
     }
   };
 
-  const handleExistingCompanySelect = (companyId: string) => {
-    const company = companies.find((c) => c.id === companyId);
+  const handleExistingCompanySelect = (company: CompanyWithDetails) => {
     onCompanyDestinationChange({
       type: "existing",
-      companyId,
-      companyName: company?.name,
+      companyId: company.id,
+      companyName: company.name,
     });
+    setCompanySearch("");
   };
+
+  const handleClearSelection = () => {
+    onCompanyDestinationChange({ type: "existing" });
+    setCompanySearch("");
+  };
+
+  const handleAcceptSuggestion = () => {
+    if (suggestedCompany) {
+      handleExistingCompanySelect(suggestedCompany);
+    }
+  };
+
+  const handleCreateFromSuggestion = () => {
+    if (detectedCompanyName) {
+      setDestinationMode("new");
+      onCompanyDestinationChange({
+        type: "new",
+        companyName: detectedCompanyName,
+        country: "",
+        city: "",
+      });
+    }
+  };
+
+  const isDestinationValid = 
+    (companyDestination.type === "existing" && companyDestination.companyId) ||
+    (companyDestination.type === "new" && companyDestination.companyName?.trim() && companyDestination.country?.trim());
 
   return (
     <div className="space-y-6">
-      {/* Company Destination Selector */}
-      <Card className="border-dashed">
+      {/* Company Destination Panel - Always Visible at Top */}
+      <Card className={cn(
+        "border-2 transition-colors",
+        isDestinationValid ? "border-primary/50 bg-primary/5" : "border-dashed border-warning/50"
+      )}>
         <CardContent className="pt-4 pb-4">
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-muted-foreground" />
-              <Label className="text-sm font-medium">Import into</Label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                <Label className="text-base font-semibold">Destination Company</Label>
+                {!isDestinationValid && (
+                  <Badge variant="outline" className="text-warning border-warning/50 text-xs">
+                    Required
+                  </Badge>
+                )}
+              </div>
+              {isDestinationValid && (
+                <Badge className="bg-primary/10 text-primary border-primary/30">
+                  <Check className="h-3 w-3 mr-1" />
+                  Selected
+                </Badge>
+              )}
             </div>
 
-            <Select
-              value={companyDestination.type}
-              onValueChange={handleDestinationTypeChange}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select destination" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="existing">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4" />
-                    <span>Existing Company</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="new">
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-4 w-4" />
-                    <span>Create New Company</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Smart Prefill Suggestion */}
+            {detectedCompanyName && !companyDestination.companyId && destinationMode === "existing" && (
+              <div className="flex items-center justify-between gap-3 bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span className="text-sm">
+                    Detected: <span className="font-medium">"{detectedCompanyName}"</span>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  {suggestedCompany ? (
+                    <Button size="sm" onClick={handleAcceptSuggestion} className="gap-1.5">
+                      <Check className="h-3.5 w-3.5" />
+                      Use "{suggestedCompany.name}"
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="secondary" onClick={handleCreateFromSuggestion} className="gap-1.5">
+                      <Plus className="h-3.5 w-3.5" />
+                      Create New
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
 
-            {companyDestination.type === "existing" && (
-              <div className="space-y-2">
+            {/* Mode Tabs */}
+            <div className="flex gap-2">
+              <Button
+                variant={destinationMode === "existing" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleDestinationModeChange("existing")}
+                className="flex-1"
+              >
+                <Building2 className="h-4 w-4 mr-2" />
+                Existing Company
+              </Button>
+              <Button
+                variant={destinationMode === "new" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleDestinationModeChange("new")}
+                className="flex-1"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create New
+              </Button>
+            </div>
+
+            {/* Existing Company Selector */}
+            {destinationMode === "existing" && (
+              <div className="space-y-3">
                 {existingCompanyId ? (
                   <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
                     <Check className="h-4 w-4 text-primary" />
                     <span className="font-medium">{existingCompanyName}</span>
                     <span className="text-xs text-muted-foreground">(preselected)</span>
                   </div>
+                ) : companyDestination.companyId ? (
+                  <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg border border-primary/20">
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary" />
+                      <span className="font-medium">{companyDestination.companyName}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearSelection}
+                      className="h-7 w-7 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ) : (
-                  <Select
-                    value={companyDestination.companyId || ""}
-                    onValueChange={handleExistingCompanySelect}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a company..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companies.map((company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          {company.name}
-                        </SelectItem>
-                      ))}
-                      {companies.length === 0 && (
-                        <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                          No companies found
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search companies..."
+                        value={companySearch}
+                        onChange={(e) => setCompanySearch(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    <ScrollArea className="h-[160px] border rounded-lg">
+                      {filteredCompanies.length > 0 ? (
+                        <div className="p-1">
+                          {filteredCompanies.map((company) => (
+                            <button
+                              key={company.id}
+                              type="button"
+                              onClick={() => handleExistingCompanySelect(company)}
+                              className="w-full flex items-center justify-between p-2.5 rounded-md hover:bg-muted/80 transition-colors text-left"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="font-medium text-sm">{company.name}</p>
+                                  {company.industry && (
+                                    <p className="text-xs text-muted-foreground">{company.industry}</p>
+                                  )}
+                                </div>
+                              </div>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+                          <Building2 className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                          <p className="text-sm text-muted-foreground">
+                            {companySearch ? "No companies found" : "No companies available"}
+                          </p>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={() => handleDestinationModeChange("new")}
+                            className="mt-1"
+                          >
+                            Create a new company
+                          </Button>
                         </div>
                       )}
-                    </SelectContent>
-                  </Select>
+                    </ScrollArea>
+                  </div>
                 )}
               </div>
             )}
 
-            {companyDestination.type === "new" && (
-              <div className="space-y-3">
+            {/* Create New Company Form */}
+            {destinationMode === "new" && (
+              <div className="space-y-3 p-3 bg-muted/30 rounded-lg border">
                 <div className="space-y-1.5">
-                  <Label htmlFor="new-company-name" className="text-xs">
+                  <Label htmlFor="new-company-name" className="text-xs font-medium">
                     Company Name <span className="text-destructive">*</span>
                   </Label>
                   <Input
@@ -241,27 +417,63 @@ export function OrgChartSourceStep({
                     onChange={(e) =>
                       onCompanyDestinationChange({
                         ...companyDestination,
+                        type: "new",
                         companyName: e.target.value,
                       })
                     }
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="new-company-country" className="text-xs">
-                    Country / Region
-                  </Label>
-                  <Input
-                    id="new-company-country"
-                    placeholder="e.g., United Kingdom"
-                    value={companyDestination.country || ""}
-                    onChange={(e) =>
-                      onCompanyDestinationChange({
-                        ...companyDestination,
-                        country: e.target.value,
-                      })
-                    }
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-company-country" className="text-xs font-medium">
+                      <div className="flex items-center gap-1">
+                        <Globe className="h-3 w-3" />
+                        Country / Region <span className="text-destructive">*</span>
+                      </div>
+                    </Label>
+                    <Input
+                      id="new-company-country"
+                      placeholder="e.g., United Kingdom"
+                      value={companyDestination.country || ""}
+                      onChange={(e) =>
+                        onCompanyDestinationChange({
+                          ...companyDestination,
+                          type: "new",
+                          country: e.target.value,
+                        })
+                      }
+                      list="country-options"
+                    />
+                    <datalist id="country-options">
+                      {COUNTRY_OPTIONS.map((country) => (
+                        <option key={country} value={country} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="new-company-city" className="text-xs font-medium">
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        City (optional)
+                      </div>
+                    </Label>
+                    <Input
+                      id="new-company-city"
+                      placeholder="e.g., London"
+                      value={companyDestination.city || ""}
+                      onChange={(e) =>
+                        onCompanyDestinationChange({
+                          ...companyDestination,
+                          type: "new",
+                          city: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Company will be created when you complete the import.
+                </p>
               </div>
             )}
           </div>
@@ -411,6 +623,16 @@ export function OrgChartSourceStep({
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Destination Validation Notice */}
+      {!isDestinationValid && (
+        <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/30 rounded-lg text-sm">
+          <Building2 className="h-4 w-4 text-warning" />
+          <span className="text-warning-foreground">
+            Please select or create a destination company before proceeding.
+          </span>
         </div>
       )}
     </div>

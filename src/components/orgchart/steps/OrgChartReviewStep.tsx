@@ -80,7 +80,32 @@ function validateRow(row: OrgChartRow): string[] {
 }
 
 type ViewMode = "table" | "grouped";
+type GroupByMode = "department" | "suggestion" | "title_cluster";
 type BulkApplyScope = "selected" | "all";
+
+// Title cluster patterns for grouping
+const TITLE_CLUSTER_PATTERNS: { name: string; patterns: RegExp[] }[] = [
+  { name: "Executive / C-Suite", patterns: [/^(ceo|coo|cfo|cto|cio|ciso|cdo|cro|cco|chro)$/i, /chief.*officer/i, /president/i, /founder/i] },
+  { name: "Head / VP", patterns: [/^head\s/i, /\shead$/i, /head\sof/i, /^vp\s/i, /vice\s*president/i, /svp/i] },
+  { name: "Director", patterns: [/director/i, /managing\s*director/i] },
+  { name: "Manager", patterns: [/manager/i, /lead$/i, /team\s*lead/i] },
+  { name: "Individual Contributor", patterns: [/.*/] }, // Catch-all
+];
+
+function getTitleCluster(jobTitle: string): string {
+  if (!jobTitle.trim()) return "Unknown";
+  const normalized = jobTitle.trim().toLowerCase();
+  for (const cluster of TITLE_CLUSTER_PATTERNS) {
+    // Skip the catch-all for matching
+    if (cluster.name === "Individual Contributor") continue;
+    for (const pattern of cluster.patterns) {
+      if (pattern.test(normalized)) {
+        return cluster.name;
+      }
+    }
+  }
+  return "Individual Contributor";
+}
 
 // Status options for contacts
 const STATUS_OPTIONS = [
@@ -111,6 +136,7 @@ export function OrgChartReviewStep({
 }: OrgChartReviewStepProps) {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [groupByMode, setGroupByMode] = useState<GroupByMode>("suggestion");
   
   // Bulk apply state
   const [bulkDepartment, setBulkDepartment] = useState("");
@@ -196,6 +222,59 @@ export function OrgChartReviewStep({
     });
 
     return { groups, uncategorized };
+  }, [extractedRows]);
+
+  // Group rows by suggested department
+  const groupedBySuggestion = useMemo(() => {
+    const groups: Record<string, { rows: OrgChartRow[]; suggestedDept: string }> = {};
+    const alreadyAssigned: OrgChartRow[] = [];
+    const noSuggestion: OrgChartRow[] = [];
+
+    extractedRows.forEach((row) => {
+      // If already has department, group separately
+      if (row.department.trim()) {
+        alreadyAssigned.push(row);
+        return;
+      }
+
+      // Get suggestion for this row
+      const suggestion = row.job_title.trim() ? inferDepartmentFromTitle(row.job_title) : null;
+      if (suggestion) {
+        const key = `suggested:${suggestion}`;
+        if (!groups[key]) {
+          groups[key] = { rows: [], suggestedDept: suggestion };
+        }
+        groups[key].rows.push(row);
+      } else {
+        noSuggestion.push(row);
+      }
+    });
+
+    return { groups, alreadyAssigned, noSuggestion };
+  }, [extractedRows]);
+
+  // Group rows by title cluster (Executive, Head/VP, Director, Manager, IC)
+  const groupedByTitleCluster = useMemo(() => {
+    const groups: Record<string, OrgChartRow[]> = {};
+
+    extractedRows.forEach((row) => {
+      const cluster = getTitleCluster(row.job_title);
+      if (!groups[cluster]) {
+        groups[cluster] = [];
+      }
+      groups[cluster].push(row);
+    });
+
+    // Sort by hierarchy order
+    const orderedGroups: Record<string, OrgChartRow[]> = {};
+    const clusterOrder = ["Executive / C-Suite", "Head / VP", "Director", "Manager", "Individual Contributor", "Unknown"];
+    clusterOrder.forEach((name) => {
+      if (groups[name]?.length > 0) {
+        orderedGroups[name] = groups[name];
+      }
+    });
+
+    return orderedGroups;
   }, [extractedRows]);
 
   // Handlers
@@ -491,21 +570,43 @@ export function OrgChartReviewStep({
             </Badge>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant={viewMode === "table" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("table")}
-          >
-            Table
-          </Button>
-          <Button
-            variant={viewMode === "grouped" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setViewMode("grouped")}
-          >
-            By Department
-          </Button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">View:</span>
+          <div className="flex items-center rounded-md border bg-muted/30 p-0.5">
+            <Button
+              variant={viewMode === "table" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("table")}
+              className="h-7 px-3 text-xs"
+            >
+              Flat List
+            </Button>
+            <Button
+              variant={viewMode === "grouped" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("grouped")}
+              className="h-7 px-3 text-xs"
+            >
+              Grouped
+            </Button>
+          </div>
+          
+          {viewMode === "grouped" && (
+            <>
+              <div className="h-4 w-px bg-border" />
+              <span className="text-xs text-muted-foreground">Group by:</span>
+              <Select value={groupByMode} onValueChange={(v) => setGroupByMode(v as GroupByMode)}>
+                <SelectTrigger className="h-7 w-[160px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border shadow-lg z-50">
+                  <SelectItem value="suggestion">Department Suggestion</SelectItem>
+                  <SelectItem value="title_cluster">Title Level</SelectItem>
+                  <SelectItem value="department">Existing Department</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
         </div>
       </div>
 
@@ -794,26 +895,92 @@ export function OrgChartReviewStep({
       {/* Grouped View */}
       {viewMode === "grouped" && (
         <div className="space-y-3">
-          {Object.entries(groupedByDepartment.groups).map(([dept, rows]) => (
-            <DepartmentGroup
-              key={dept}
-              department={dept}
-              rows={rows}
-              onSelectRow={handleSelectRow}
-              onEditField={handleEditField}
-              onDuplicateAction={handleDuplicateAction}
-              onApplyDepartmentToAll={(newDept) => handleApplyDepartmentToGroup(dept, newDept)}
-            />
-          ))}
-          {groupedByDepartment.uncategorized.length > 0 && (
-            <DepartmentGroup
-              department="Uncategorized"
-              rows={groupedByDepartment.uncategorized}
-              onSelectRow={handleSelectRow}
-              onEditField={handleEditField}
-              onDuplicateAction={handleDuplicateAction}
-              isUncategorized
-            />
+          {/* Group by Suggestion Mode */}
+          {groupByMode === "suggestion" && (
+            <>
+              {/* Groups with suggestions */}
+              {Object.entries(groupedBySuggestion.groups).map(([key, { rows, suggestedDept }]) => (
+                <SuggestionGroup
+                  key={key}
+                  suggestedDepartment={suggestedDept}
+                  rows={rows}
+                  onSelectRow={handleSelectRow}
+                  onEditField={handleEditField}
+                  onDuplicateAction={handleDuplicateAction}
+                  onApplyToAll={() => {
+                    rows.forEach((row) => handleEditField(row.id, "department", suggestedDept));
+                    toast({
+                      title: "Department applied",
+                      description: `Applied "${suggestedDept}" to ${rows.length} rows`,
+                    });
+                  }}
+                />
+              ))}
+              {/* Already assigned */}
+              {groupedBySuggestion.alreadyAssigned.length > 0 && (
+                <DepartmentGroup
+                  department={`Already Assigned (${groupedBySuggestion.alreadyAssigned.length})`}
+                  rows={groupedBySuggestion.alreadyAssigned}
+                  onSelectRow={handleSelectRow}
+                  onEditField={handleEditField}
+                  onDuplicateAction={handleDuplicateAction}
+                />
+              )}
+              {/* No suggestion available */}
+              {groupedBySuggestion.noSuggestion.length > 0 && (
+                <DepartmentGroup
+                  department="No Suggestion Available"
+                  rows={groupedBySuggestion.noSuggestion}
+                  onSelectRow={handleSelectRow}
+                  onEditField={handleEditField}
+                  onDuplicateAction={handleDuplicateAction}
+                  isUncategorized
+                />
+              )}
+            </>
+          )}
+
+          {/* Group by Title Cluster Mode */}
+          {groupByMode === "title_cluster" && (
+            <>
+              {Object.entries(groupedByTitleCluster).map(([cluster, rows]) => (
+                <TitleClusterGroup
+                  key={cluster}
+                  cluster={cluster}
+                  rows={rows}
+                  onSelectRow={handleSelectRow}
+                  onEditField={handleEditField}
+                  onDuplicateAction={handleDuplicateAction}
+                />
+              ))}
+            </>
+          )}
+
+          {/* Group by Existing Department Mode */}
+          {groupByMode === "department" && (
+            <>
+              {Object.entries(groupedByDepartment.groups).map(([dept, rows]) => (
+                <DepartmentGroup
+                  key={dept}
+                  department={dept}
+                  rows={rows}
+                  onSelectRow={handleSelectRow}
+                  onEditField={handleEditField}
+                  onDuplicateAction={handleDuplicateAction}
+                  onApplyDepartmentToAll={(newDept) => handleApplyDepartmentToGroup(dept, newDept)}
+                />
+              ))}
+              {groupedByDepartment.uncategorized.length > 0 && (
+                <DepartmentGroup
+                  department="Uncategorized"
+                  rows={groupedByDepartment.uncategorized}
+                  onSelectRow={handleSelectRow}
+                  onEditField={handleEditField}
+                  onDuplicateAction={handleDuplicateAction}
+                  isUncategorized
+                />
+              )}
+            </>
           )}
         </div>
       )}
@@ -1028,6 +1195,236 @@ function DepartmentGroup({
                       setBulkDept("");
                     }
                   }}
+                  disabled={!bulkDept.trim()}
+                >
+                  Apply All
+                </Button>
+              </div>
+            )}
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <ScrollArea className="max-h-[250px]">
+            <Table>
+              <TableBody>
+                {rows.map((row) => (
+                  <ReviewTableRow
+                    key={row.id}
+                    row={row}
+                    onSelect={onSelectRow}
+                    onEditField={onEditField}
+                    onDuplicateAction={onDuplicateAction}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
+// Suggestion group for grouped by suggestion view
+function SuggestionGroup({
+  suggestedDepartment,
+  rows,
+  onSelectRow,
+  onEditField,
+  onDuplicateAction,
+  onApplyToAll,
+}: {
+  suggestedDepartment: string;
+  rows: OrgChartRow[];
+  onSelectRow: (id: string, checked: boolean) => void;
+  onEditField: (id: string, field: keyof OrgChartRow, value: string) => void;
+  onDuplicateAction: (id: string, action: DuplicateAction) => void;
+  onApplyToAll: () => void;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+  const selectedCount = rows.filter((r) => r.selected).length;
+  const missingRequiredCount = rows.filter(
+    (r) => !r.full_name.trim() || !r.job_title.trim()
+  ).length;
+
+  const handleSelectAll = (checked: boolean) => {
+    rows.forEach((row) => onSelectRow(row.id, checked));
+  };
+
+  const allSelected = rows.every((r) => r.selected);
+  const someSelected = rows.some((r) => r.selected) && !allSelected;
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <div className="border border-primary/30 rounded-lg overflow-hidden">
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between px-4 py-2.5 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors">
+            <div className="flex items-center gap-3">
+              {isOpen ? (
+                <ChevronDown className="h-4 w-4 text-primary" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-primary" />
+              )}
+              <Checkbox
+                checked={allSelected}
+                ref={(el) => {
+                  if (el) {
+                    (el as any).indeterminate = someSelected;
+                  }
+                }}
+                onCheckedChange={handleSelectAll}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="font-medium text-sm text-primary">
+                  Suggested: {suggestedDepartment}
+                </span>
+              </div>
+              <Badge variant="secondary" className="text-xs">
+                {selectedCount}/{rows.length}
+              </Badge>
+              {missingRequiredCount > 0 && (
+                <Badge variant="outline" className="text-xs text-warning border-warning/50">
+                  {missingRequiredCount} missing fields
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <Button
+                size="sm"
+                onClick={onApplyToAll}
+                className="gap-1.5"
+              >
+                <Check className="h-3.5 w-3.5" />
+                Apply to All
+              </Button>
+            </div>
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <ScrollArea className="max-h-[250px]">
+            <Table>
+              <TableBody>
+                {rows.map((row) => (
+                  <ReviewTableRow
+                    key={row.id}
+                    row={row}
+                    onSelect={onSelectRow}
+                    onEditField={onEditField}
+                    onDuplicateAction={onDuplicateAction}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
+
+// Title cluster group for grouped by title level view
+function TitleClusterGroup({
+  cluster,
+  rows,
+  onSelectRow,
+  onEditField,
+  onDuplicateAction,
+}: {
+  cluster: string;
+  rows: OrgChartRow[];
+  onSelectRow: (id: string, checked: boolean) => void;
+  onEditField: (id: string, field: keyof OrgChartRow, value: string) => void;
+  onDuplicateAction: (id: string, action: DuplicateAction) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+  const [bulkDept, setBulkDept] = useState("");
+  const selectedCount = rows.filter((r) => r.selected).length;
+  const missingDeptCount = rows.filter((r) => !r.department.trim()).length;
+  const missingRequiredCount = rows.filter(
+    (r) => !r.full_name.trim() || !r.job_title.trim() || !r.department.trim()
+  ).length;
+
+  const handleSelectAll = (checked: boolean) => {
+    rows.forEach((row) => onSelectRow(row.id, checked));
+  };
+
+  const handleApplyDeptToAll = () => {
+    if (!bulkDept.trim()) return;
+    rows.forEach((row) => onEditField(row.id, "department", bulkDept));
+    setBulkDept("");
+  };
+
+  const allSelected = rows.every((r) => r.selected);
+  const someSelected = rows.some((r) => r.selected) && !allSelected;
+
+  // Get an icon based on the cluster
+  const getClusterIcon = () => {
+    switch (cluster) {
+      case "Executive / C-Suite":
+        return "👔";
+      case "Head / VP":
+        return "📊";
+      case "Director":
+        return "📋";
+      case "Manager":
+        return "👥";
+      default:
+        return "💼";
+    }
+  };
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <div className="border rounded-lg overflow-hidden">
+        <CollapsibleTrigger asChild>
+          <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors">
+            <div className="flex items-center gap-3">
+              {isOpen ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              )}
+              <Checkbox
+                checked={allSelected}
+                ref={(el) => {
+                  if (el) {
+                    (el as any).indeterminate = someSelected;
+                  }
+                }}
+                onCheckedChange={handleSelectAll}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="text-base">{getClusterIcon()}</span>
+              <span className="font-medium text-sm">{cluster}</span>
+              <Badge variant="secondary" className="text-xs">
+                {selectedCount}/{rows.length}
+              </Badge>
+              {missingDeptCount > 0 && (
+                <Badge variant="outline" className="text-xs text-warning border-warning/50">
+                  {missingDeptCount} need dept
+                </Badge>
+              )}
+              {missingRequiredCount > 0 && missingRequiredCount !== missingDeptCount && (
+                <Badge variant="destructive" className="text-xs">
+                  {missingRequiredCount} errors
+                </Badge>
+              )}
+            </div>
+            {missingDeptCount > 0 && (
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                <FlexibleCombobox
+                  value={bulkDept}
+                  onChange={setBulkDept}
+                  options={departmentOptions}
+                  placeholder="Set department..."
+                  className="w-[160px]"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleApplyDeptToAll}
                   disabled={!bulkDept.trim()}
                 >
                   Apply All

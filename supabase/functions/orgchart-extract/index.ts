@@ -6,12 +6,21 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+interface PhoneEntry {
+  number: string;
+  type: "work" | "mobile" | "desk" | "home" | "other";
+  confidence: "high" | "medium" | "low";
+}
+
 interface ExtractedPerson {
   full_name: string;
   job_title: string;
   department: string;
   location: string;
   company: string;
+  email?: string;
+  email_confidence?: "high" | "medium" | "low";
+  phones?: PhoneEntry[];
   confidence: "high" | "medium" | "low";
 }
 
@@ -43,8 +52,19 @@ Extract each person you can identify with the following fields:
 - department: The department they work in (if visible or inferable)
 - location: Their location (city, office, etc.) if present
 - company: The company name if visible
+- email: Their email address if visible
+- email_confidence: Confidence in the email extraction ("high", "medium", or "low")
+- phones: Array of phone numbers if visible, each with:
+  - number: The phone number (normalize to include country code if possible, e.g., +44 7xxx or +1 xxx)
+  - type: One of "work", "mobile", "desk", "home", or "other"
+  - confidence: Confidence in this phone extraction ("high", "medium", or "low")
 
-For each person, also assign a confidence level:
+Phone normalization rules:
+- Strip spaces, parentheses, dashes for storage
+- UK numbers starting with 07 should become +447
+- Add country code if inferable from context
+
+For each person, also assign an overall confidence level:
 - "high": Name and title are clearly visible
 - "medium": Name is clear but title is partially visible or inferred
 - "low": Information is unclear or heavily inferred
@@ -59,6 +79,11 @@ Return a JSON object with this exact structure:
       "department": "...",
       "location": "...",
       "company": "...",
+      "email": "...",
+      "email_confidence": "high" | "medium" | "low",
+      "phones": [
+        { "number": "+447...", "type": "mobile", "confidence": "high" }
+      ],
       "confidence": "high" | "medium" | "low"
     }
   ]
@@ -100,6 +125,17 @@ Extract each person you can identify with the following fields:
 - department: The department they work in (if mentioned or inferable)
 - location: Their location (city, office, etc.) if present
 - company: The company name if visible
+- email: Their email address if present
+- email_confidence: Confidence in the email extraction ("high", "medium", or "low")
+- phones: Array of phone numbers if present, each with:
+  - number: The phone number (normalize to include country code, e.g., +44 7xxx or +1 xxx)
+  - type: One of "work", "mobile", "desk", "home", or "other"
+  - confidence: Confidence in this phone extraction ("high", "medium", or "low")
+
+Phone normalization rules:
+- Strip spaces, parentheses, dashes for storage
+- UK numbers starting with 07 should become +447
+- Add country code if inferable from context
 
 For each person, also assign a confidence level:
 - "high": Name and title are clearly stated
@@ -115,6 +151,11 @@ Return a JSON object with this exact structure:
       "department": "...",
       "location": "...",
       "company": "...",
+      "email": "...",
+      "email_confidence": "high" | "medium" | "low",
+      "phones": [
+        { "number": "+447...", "type": "mobile", "confidence": "high" }
+      ],
       "confidence": "high" | "medium" | "low"
     }
   ]

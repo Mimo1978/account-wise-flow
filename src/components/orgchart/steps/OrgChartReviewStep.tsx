@@ -29,17 +29,25 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { FlexibleCombobox } from "@/components/canvas/FlexibleCombobox";
 import { ConfidenceBadge } from "@/components/import/ConfidenceBadge";
 import { cn } from "@/lib/utils";
 import { departmentOptions, jobTitleOptionsFlat } from "@/lib/dropdown-options";
 import { applySmartDepartments, inferDepartmentFromTitle } from "@/lib/department-inference";
+import { useToast } from "@/hooks/use-toast";
 import {
   AlertCircle,
   AlertTriangle,
   Check,
+  CheckSquare,
   ChevronDown,
   ChevronRight,
+  Filter,
   GitMerge,
   Lightbulb,
   Mail,
@@ -72,14 +80,47 @@ function validateRow(row: OrgChartRow): string[] {
 }
 
 type ViewMode = "table" | "grouped";
+type BulkApplyScope = "selected" | "all";
+
+// Status options for contacts
+const STATUS_OPTIONS = [
+  { value: "warm", label: "Warm" },
+  { value: "engaged", label: "Engaged" },
+  { value: "cold", label: "Cold" },
+  { value: "new", label: "New" },
+  { value: "champion", label: "Champion" },
+  { value: "blocker", label: "Blocker" },
+];
+
+// Common location options
+const LOCATION_OPTIONS = [
+  "London, UK",
+  "New York, USA",
+  "Singapore",
+  "Hong Kong",
+  "Tokyo, Japan",
+  "Sydney, Australia",
+  "Frankfurt, Germany",
+  "Paris, France",
+  "Remote",
+];
 
 export function OrgChartReviewStep({
   extractedRows,
   onExtractedRowsChange,
 }: OrgChartReviewStepProps) {
+  const { toast } = useToast();
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  
+  // Bulk apply state
   const [bulkDepartment, setBulkDepartment] = useState("");
-  const [bulkTitle, setBulkTitle] = useState("");
+  const [bulkLocation, setBulkLocation] = useState("");
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [bulkApplyScope, setBulkApplyScope] = useState<BulkApplyScope>("selected");
+  
+  // Filter state
+  const [titleFilter, setTitleFilter] = useState("");
+  const [showFilterPopover, setShowFilterPopover] = useState(false);
 
   // Run validation whenever rows change
   useEffect(() => {
@@ -109,13 +150,20 @@ export function OrgChartReviewStep({
     (r) => r.selected && r.isDuplicate && r.duplicateAction === null
   ).length;
   const missingDepartmentCount = extractedRows.filter(
-    (r) => r.selected && !r.department.trim()
+    (r) => !r.department.trim()
   ).length;
 
   // Count how many can be auto-inferred
   const autoInferableCount = extractedRows.filter(
     (r) => r.selected && !r.department.trim() && r.job_title.trim() && inferDepartmentFromTitle(r.job_title)
   ).length;
+
+  // Filter matching counts
+  const titleMatchCount = titleFilter.trim()
+    ? extractedRows.filter((r) => r.job_title.toLowerCase().includes(titleFilter.toLowerCase())).length
+    : 0;
+  const emptyDeptCount = missingDepartmentCount;
+  const lowConfCount = lowConfidenceCount;
 
   // Group rows by department for grouped view
   const groupedByDepartment = useMemo(() => {
@@ -141,6 +189,10 @@ export function OrgChartReviewStep({
     onExtractedRowsChange(
       extractedRows.map((row) => ({ ...row, selected: checked }))
     );
+    toast({
+      title: checked ? "Selected all rows" : "Deselected all rows",
+      description: `${extractedRows.length} rows ${checked ? "selected" : "deselected"}`,
+    });
   };
 
   const handleSelectRow = (id: string, checked: boolean) => {
@@ -174,55 +226,163 @@ export function OrgChartReviewStep({
     );
   };
 
+  // Filter-based selection handlers
+  const handleSelectByTitleFilter = () => {
+    if (!titleFilter.trim()) return;
+    const matchingIds = extractedRows
+      .filter((r) => r.job_title.toLowerCase().includes(titleFilter.toLowerCase()))
+      .map((r) => r.id);
+    
+    onExtractedRowsChange(
+      extractedRows.map((row) =>
+        matchingIds.includes(row.id) ? { ...row, selected: true } : row
+      )
+    );
+    toast({
+      title: "Applied filter selection",
+      description: `Selected ${matchingIds.length} rows matching "${titleFilter}"`,
+    });
+    setShowFilterPopover(false);
+  };
+
+  const handleSelectEmptyDept = () => {
+    const matchingIds = extractedRows
+      .filter((r) => !r.department.trim())
+      .map((r) => r.id);
+    
+    onExtractedRowsChange(
+      extractedRows.map((row) =>
+        matchingIds.includes(row.id) ? { ...row, selected: true } : row
+      )
+    );
+    toast({
+      title: "Selected empty department rows",
+      description: `Selected ${matchingIds.length} rows with empty department`,
+    });
+    setShowFilterPopover(false);
+  };
+
+  const handleSelectLowConfidence = () => {
+    const matchingIds = extractedRows
+      .filter((r) => r.confidence === "low")
+      .map((r) => r.id);
+    
+    onExtractedRowsChange(
+      extractedRows.map((row) =>
+        matchingIds.includes(row.id) ? { ...row, selected: true } : row
+      )
+    );
+    toast({
+      title: "Selected low confidence rows",
+      description: `Selected ${matchingIds.length} rows with low confidence`,
+    });
+    setShowFilterPopover(false);
+  };
+
   const handleDeselectLowConfidence = () => {
+    const count = extractedRows.filter((r) => r.confidence === "low").length;
     onExtractedRowsChange(
       extractedRows.map((row) =>
         row.confidence === "low" ? { ...row, selected: false } : row
       )
     );
+    toast({
+      title: "Deselected low confidence rows",
+      description: `Deselected ${count} rows`,
+    });
   };
 
   const handleDeselectDuplicates = () => {
+    const count = extractedRows.filter((r) => r.isDuplicate).length;
     onExtractedRowsChange(
       extractedRows.map((row) =>
         row.isDuplicate ? { ...row, selected: false } : row
       )
     );
+    toast({
+      title: "Deselected duplicate rows",
+      description: `Deselected ${count} rows`,
+    });
   };
 
   const handleDeselectInvalid = () => {
+    const count = extractedRows.filter((r) => r.validationErrors.length > 0).length;
     onExtractedRowsChange(
       extractedRows.map((row) =>
         row.validationErrors.length > 0 ? { ...row, selected: false } : row
       )
     );
+    toast({
+      title: "Deselected invalid rows",
+      description: `Deselected ${count} rows with validation errors`,
+    });
   };
 
-  // Bulk apply handlers
+  // Bulk apply handlers with scope
+  const getTargetRows = () => {
+    if (bulkApplyScope === "all") {
+      return extractedRows;
+    }
+    return extractedRows.filter((r) => r.selected);
+  };
+
   const handleBulkApplyDepartment = () => {
     if (!bulkDepartment.trim()) return;
+    const targetRows = getTargetRows();
+    const count = targetRows.length;
+    
     onExtractedRowsChange(
       extractedRows.map((row) => {
-        if (!row.selected) return row;
+        const isTarget = bulkApplyScope === "all" || row.selected;
+        if (!isTarget) return row;
         const updated = { ...row, department: bulkDepartment };
         updated.validationErrors = validateRow(updated);
         return updated;
       })
     );
     setBulkDepartment("");
+    toast({
+      title: "Department applied",
+      description: `Applied to ${count} rows`,
+    });
   };
 
-  const handleBulkApplyTitle = () => {
-    if (!bulkTitle.trim()) return;
+  const handleBulkApplyLocation = () => {
+    if (!bulkLocation.trim()) return;
+    const targetRows = getTargetRows();
+    const count = targetRows.length;
+    
     onExtractedRowsChange(
       extractedRows.map((row) => {
-        if (!row.selected) return row;
-        const updated = { ...row, job_title: bulkTitle };
-        updated.validationErrors = validateRow(updated);
-        return updated;
+        const isTarget = bulkApplyScope === "all" || row.selected;
+        if (!isTarget) return row;
+        return { ...row, location: bulkLocation };
       })
     );
-    setBulkTitle("");
+    setBulkLocation("");
+    toast({
+      title: "Location applied",
+      description: `Applied to ${count} rows`,
+    });
+  };
+
+  const handleBulkApplyStatus = () => {
+    if (!bulkStatus.trim()) return;
+    const targetRows = getTargetRows();
+    const count = targetRows.length;
+    
+    onExtractedRowsChange(
+      extractedRows.map((row) => {
+        const isTarget = bulkApplyScope === "all" || row.selected;
+        if (!isTarget) return row;
+        return { ...row, status: bulkStatus };
+      })
+    );
+    setBulkStatus("");
+    toast({
+      title: "Status applied",
+      description: `Applied to ${count} rows`,
+    });
   };
 
   // Smart auto-fill department
@@ -235,11 +395,16 @@ export function OrgChartReviewStep({
           validationErrors: validateRow(row),
         }))
       );
+      toast({
+        title: "Departments auto-filled",
+        description: `Applied to ${filledCount} rows based on job titles`,
+      });
     }
   };
 
   // Apply department to all rows in a group
   const handleApplyDepartmentToGroup = (groupDept: string, newDept: string) => {
+    const count = extractedRows.filter((r) => r.department === groupDept).length;
     onExtractedRowsChange(
       extractedRows.map((row) => {
         if (row.department !== groupDept) return row;
@@ -248,6 +413,10 @@ export function OrgChartReviewStep({
         return updated;
       })
     );
+    toast({
+      title: "Department updated",
+      description: `Applied to ${count} rows in group`,
+    });
   };
 
   const allSelected = extractedRows.every((r) => r.selected);
@@ -308,70 +477,194 @@ export function OrgChartReviewStep({
         </div>
       )}
 
-      {/* Bulk Apply Toolbar */}
-      {selectedCount > 0 && (
-        <div className="flex items-center gap-4 flex-wrap bg-muted/50 border rounded-lg p-3">
-          <span className="text-xs font-medium text-muted-foreground">
-            Bulk apply to {selectedCount} selected:
-          </span>
-          
-          {/* Bulk Department */}
+      {/* Row Selection Tools */}
+      <div className="flex items-center justify-between gap-3 bg-muted/30 border rounded-lg px-4 py-3">
+        <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <FlexibleCombobox
-              value={bulkDepartment}
-              onChange={setBulkDepartment}
-              options={departmentOptions}
-              placeholder="Department..."
-              className="w-[180px]"
+            <Checkbox
+              id="select-all"
+              checked={allSelected}
+              ref={(el) => {
+                if (el) {
+                  (el as any).indeterminate = someSelected;
+                }
+              }}
+              onCheckedChange={handleSelectAll}
             />
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleBulkApplyDepartment}
-              disabled={!bulkDepartment.trim()}
-            >
-              Apply
-            </Button>
+            <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+              Select All
+            </label>
           </div>
+          
+          <div className="h-4 w-px bg-border" />
+          
+          {/* Filter Selection Popover */}
+          <Popover open={showFilterPopover} onOpenChange={setShowFilterPopover}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Filter className="h-3.5 w-3.5" />
+                Filter & Select
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-4 bg-popover border shadow-lg z-50" align="start">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Title contains</label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={titleFilter}
+                      onChange={(e) => setTitleFilter(e.target.value)}
+                      placeholder="e.g. Engineer, Manager..."
+                      className="flex-1 h-8 text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleSelectByTitleFilter}
+                      disabled={!titleFilter.trim()}
+                      className="h-8"
+                    >
+                      <CheckSquare className="h-3.5 w-3.5 mr-1" />
+                      Select ({titleMatchCount})
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Quick filters</label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectEmptyDept}
+                      disabled={emptyDeptCount === 0}
+                      className="h-7 text-xs"
+                    >
+                      Empty Department ({emptyDeptCount})
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectLowConfidence}
+                      disabled={lowConfCount === 0}
+                      className="h-7 text-xs"
+                    >
+                      Low Confidence ({lowConfCount})
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
 
-          {/* Bulk Title */}
-          <div className="flex items-center gap-2">
-            <FlexibleCombobox
-              value={bulkTitle}
-              onChange={setBulkTitle}
-              options={jobTitleOptionsFlat}
-              placeholder="Job Title..."
-              className="w-[180px]"
-            />
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleBulkApplyTitle}
-              disabled={!bulkTitle.trim()}
-            >
-              Apply
+        {/* Quick Deselect Actions */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {errorCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={handleDeselectInvalid} className="h-7 text-xs">
+              Deselect Invalid ({errorCount})
             </Button>
+          )}
+          {lowConfidenceCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={handleDeselectLowConfidence} className="h-7 text-xs">
+              Deselect Low Conf. ({lowConfidenceCount})
+            </Button>
+          )}
+          {duplicateCount > 0 && (
+            <Button variant="ghost" size="sm" onClick={handleDeselectDuplicates} className="h-7 text-xs">
+              Deselect Duplicates ({duplicateCount})
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Enhanced Bulk Apply Bar */}
+      <div className="bg-muted/50 border rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Bulk Apply</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Apply to:</span>
+            <Select value={bulkApplyScope} onValueChange={(v) => setBulkApplyScope(v as BulkApplyScope)}>
+              <SelectTrigger className="w-[130px] h-7 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-popover border shadow-lg z-50">
+                <SelectItem value="selected">Selected ({selectedCount})</SelectItem>
+                <SelectItem value="all">All rows ({extractedRows.length})</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
-      )}
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Bulk Department */}
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground font-medium">Department</label>
+            <div className="flex gap-2">
+              <FlexibleCombobox
+                value={bulkDepartment}
+                onChange={setBulkDepartment}
+                options={departmentOptions}
+                placeholder="Select department..."
+                className="flex-1"
+              />
+              <Button
+                size="sm"
+                onClick={handleBulkApplyDepartment}
+                disabled={!bulkDepartment.trim() || (bulkApplyScope === "selected" && selectedCount === 0)}
+              >
+                Apply
+              </Button>
+            </div>
+          </div>
 
-      {/* Quick Actions */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {errorCount > 0 && (
-          <Button variant="outline" size="sm" onClick={handleDeselectInvalid}>
-            Deselect Invalid
-          </Button>
-        )}
-        {lowConfidenceCount > 0 && (
-          <Button variant="outline" size="sm" onClick={handleDeselectLowConfidence}>
-            Deselect Low Confidence
-          </Button>
-        )}
-        {duplicateCount > 0 && (
-          <Button variant="outline" size="sm" onClick={handleDeselectDuplicates}>
-            Deselect Duplicates
-          </Button>
-        )}
+          {/* Bulk Location */}
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground font-medium">Location</label>
+            <div className="flex gap-2">
+              <FlexibleCombobox
+                value={bulkLocation}
+                onChange={setBulkLocation}
+                options={LOCATION_OPTIONS}
+                placeholder="Select location..."
+                className="flex-1"
+              />
+              <Button
+                size="sm"
+                onClick={handleBulkApplyLocation}
+                disabled={!bulkLocation.trim() || (bulkApplyScope === "selected" && selectedCount === 0)}
+              >
+                Apply
+              </Button>
+            </div>
+          </div>
+
+          {/* Bulk Status */}
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground font-medium">Status</label>
+            <div className="flex gap-2">
+              <Select value={bulkStatus} onValueChange={setBulkStatus}>
+                <SelectTrigger className="flex-1 h-9">
+                  <SelectValue placeholder="Select status..." />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border shadow-lg z-50">
+                  {STATUS_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                onClick={handleBulkApplyStatus}
+                disabled={!bulkStatus.trim() || (bulkApplyScope === "selected" && selectedCount === 0)}
+              >
+                Apply
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Validation Legend */}
@@ -804,7 +1097,7 @@ function RowStatusCell({
         <SelectTrigger className="h-7 text-xs w-[130px] border-warning/50">
           <SelectValue placeholder="Choose action..." />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="bg-popover border shadow-lg z-50">
           <SelectItem value="merge">
             <div className="flex items-center gap-2">
               <GitMerge className="h-3 w-3" />

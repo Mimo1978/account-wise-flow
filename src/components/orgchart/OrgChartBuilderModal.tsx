@@ -67,20 +67,21 @@ export function OrgChartBuilderModal({
   const [extractedRows, setExtractedRows] = useState<OrgChartRow[]>([]);
   const [ocrText, setOcrText] = useState<string>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [companies, setCompanies] = useState<Array<{ id: string; name: string }>>([]);
+  const [companies, setCompanies] = useState<Array<{ id: string; name: string; industry?: string | null; size?: string | null }>>([]);
   const [companyDestination, setCompanyDestination] = useState<CompanyDestination>(() => {
     if (companyId) {
       return { type: "existing", companyId, companyName };
     }
     return { type: "existing" };
   });
+  const [detectedCompanyName, setDetectedCompanyName] = useState<string | undefined>();
 
   // Fetch companies list
   useEffect(() => {
     async function fetchCompanies() {
       const { data } = await supabase
         .from("companies")
-        .select("id, name")
+        .select("id, name, industry, size")
         .order("name");
       if (data) {
         setCompanies(data);
@@ -90,6 +91,28 @@ export function OrgChartBuilderModal({
       fetchCompanies();
     }
   }, [open, companyId]);
+
+  // Try to detect company name from file name or raw data
+  useEffect(() => {
+    if (uploadedFile) {
+      // Extract potential company name from file name
+      const fileName = uploadedFile.name.replace(/\.(csv|xlsx|xls|pdf|png|jpg|jpeg)$/i, "");
+      const cleanedName = fileName
+        .replace(/[-_]/g, " ")
+        .replace(/org\s*chart/i, "")
+        .replace(/contacts?/i, "")
+        .replace(/import/i, "")
+        .trim();
+      
+      if (cleanedName.length > 2 && cleanedName.split(" ").length <= 5) {
+        setDetectedCompanyName(cleanedName);
+      } else {
+        setDetectedCompanyName(undefined);
+      }
+    } else {
+      setDetectedCompanyName(undefined);
+    }
+  }, [uploadedFile]);
 
   // Reset destination when modal opens with a company context
   useEffect(() => {
@@ -130,7 +153,8 @@ export function OrgChartBuilderModal({
     if (companyDestination.type === "existing") {
       return !!companyDestination.companyId;
     }
-    return !!companyDestination.companyName?.trim();
+    // For new companies, require both name and country
+    return !!companyDestination.companyName?.trim() && !!companyDestination.country?.trim();
   };
 
   const canProceed = () => {
@@ -189,6 +213,7 @@ export function OrgChartBuilderModal({
             existingCompanyId={companyId}
             existingCompanyName={companyName}
             companies={companies}
+            detectedCompanyName={detectedCompanyName}
           />
         );
       case "extract":

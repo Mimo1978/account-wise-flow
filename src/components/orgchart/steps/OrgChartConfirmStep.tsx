@@ -2,14 +2,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Loader2, Users, Building2, AlertCircle } from "lucide-react";
+import { CheckCircle2, Loader2, Users, Building2, AlertCircle, Plus } from "lucide-react";
 import { toast } from "sonner";
 import type { OrgChartRow } from "../OrgChartBuilderModal";
+import type { CompanyDestination } from "./OrgChartSourceStep";
 
 interface OrgChartConfirmStepProps {
   extractedRows: OrgChartRow[];
   companyId?: string;
   companyName?: string;
+  companyDestination?: CompanyDestination;
   onComplete: () => void;
 }
 
@@ -19,6 +21,7 @@ export function OrgChartConfirmStep({
   extractedRows,
   companyId,
   companyName,
+  companyDestination,
   onComplete,
 }: OrgChartConfirmStepProps) {
   const [status, setStatus] = useState<ImportStatus>("idle");
@@ -52,8 +55,8 @@ export function OrgChartConfirmStep({
   if (status === "success") {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 mb-4">
-          <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+          <CheckCircle2 className="w-8 h-8 text-primary" />
         </div>
         <h3 className="text-xl font-semibold mb-2">Import Complete!</h3>
         <p className="text-muted-foreground mb-6">
@@ -131,12 +134,18 @@ export function OrgChartConfirmStep({
         </div>
 
         <div className="flex items-center gap-3 p-4 rounded-lg border bg-card">
-          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-violet-500/10">
-            <Building2 className="w-5 h-5 text-violet-500" />
+          <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-accent">
+            {companyDestination?.type === "new" ? (
+              <Plus className="w-5 h-5 text-accent-foreground" />
+            ) : (
+              <Building2 className="w-5 h-5 text-accent-foreground" />
+            )}
           </div>
           <div>
             <p className="text-lg font-semibold truncate">{companyName || "—"}</p>
-            <p className="text-sm text-muted-foreground">Target company</p>
+            <p className="text-sm text-muted-foreground">
+              {companyDestination?.type === "new" ? "New company" : "Target company"}
+            </p>
           </div>
         </div>
       </div>

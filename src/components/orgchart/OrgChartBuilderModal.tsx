@@ -18,6 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type OrgChartInputType = "csv" | "xlsx" | "paste" | "ocr";
 
+export type DuplicateAction = "merge" | "create_new" | "skip" | null;
+
 export interface OrgChartRow {
   id: string;
   full_name: string;
@@ -25,9 +27,15 @@ export interface OrgChartRow {
   department: string;
   location: string;
   company: string;
+  email?: string;
+  phone?: string;
   confidence: "high" | "medium" | "low";
   isDuplicate: boolean;
+  duplicateContactId?: string; // ID of existing contact if duplicate
+  duplicateContactName?: string; // Name of existing contact for display
+  duplicateAction: DuplicateAction;
   selected: boolean;
+  validationErrors: string[]; // List of validation error messages
 }
 
 interface OrgChartBuilderModalProps {
@@ -137,7 +145,16 @@ export function OrgChartBuilderModal({
       case "extract":
         return extractedRows.length > 0;
       case "review":
-        return extractedRows.some((r) => r.selected);
+        // Only rows that pass validation and are selected can proceed
+        const selectedRows = extractedRows.filter((r) => r.selected);
+        if (selectedRows.length === 0) return false;
+        // All selected rows must have no validation errors
+        const allValid = selectedRows.every((r) => r.validationErrors.length === 0);
+        // All duplicates must have an action selected
+        const allDuplicatesHandled = selectedRows
+          .filter((r) => r.isDuplicate)
+          .every((r) => r.duplicateAction !== null);
+        return allValid && allDuplicatesHandled;
       case "preview":
         return true;
       case "confirm":

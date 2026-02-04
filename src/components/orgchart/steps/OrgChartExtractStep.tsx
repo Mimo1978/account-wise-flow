@@ -172,6 +172,8 @@ export function OrgChartExtractStep({
       company: normalizeText(person.company || ""),
       confidence: person.confidence || "medium",
       isDuplicate: false,
+      duplicateAction: null,
+      validationErrors: [],
       selected: true,
     }));
 
@@ -255,6 +257,8 @@ export function OrgChartExtractStep({
         ),
         confidence: calculateConfidence(values, hasHeader ? nameIdx : 0, hasHeader ? titleIdx : 1),
         isDuplicate: false,
+        duplicateAction: null,
+        validationErrors: [],
         selected: true,
       };
 

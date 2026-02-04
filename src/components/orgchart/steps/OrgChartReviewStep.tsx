@@ -44,6 +44,7 @@ import {
   AlertCircle,
   AlertTriangle,
   Check,
+  CheckCircle,
   CheckSquare,
   ChevronDown,
   ChevronRight,
@@ -175,8 +176,32 @@ export function OrgChartReviewStep({
   const unhandledDuplicates = extractedRows.filter(
     (r) => r.selected && r.isDuplicate && r.duplicateAction === null
   ).length;
+  
+  // Missing field counts
   const missingDepartmentCount = extractedRows.filter(
     (r) => !r.department.trim()
+  ).length;
+  const missingNameCount = extractedRows.filter(
+    (r) => !r.full_name.trim()
+  ).length;
+  const missingTitleCount = extractedRows.filter(
+    (r) => !r.job_title.trim()
+  ).length;
+  
+  // Selected rows missing required fields (blocked from import)
+  const selectedMissingDeptCount = extractedRows.filter(
+    (r) => r.selected && !r.department.trim()
+  ).length;
+  const selectedMissingNameCount = extractedRows.filter(
+    (r) => r.selected && !r.full_name.trim()
+  ).length;
+  const selectedMissingTitleCount = extractedRows.filter(
+    (r) => r.selected && !r.job_title.trim()
+  ).length;
+  
+  // Count rows that are ready to import (selected + valid)
+  const readyToImportCount = extractedRows.filter(
+    (r) => r.selected && r.validationErrors.length === 0 && (!r.isDuplicate || r.duplicateAction !== null)
   ).length;
 
   // Compute suggested departments for all rows
@@ -204,6 +229,9 @@ export function OrgChartReviewStep({
     : 0;
   const emptyDeptCount = missingDepartmentCount;
   const lowConfCount = lowConfidenceCount;
+  
+  // Default department for quick fill
+  const [defaultDepartment, setDefaultDepartment] = useState("");
 
   // Group rows by department for grouped view
   const groupedByDepartment = useMemo(() => {
@@ -551,18 +579,132 @@ export function OrgChartReviewStep({
 
   return (
     <div className="space-y-4">
-      {/* Summary Badges */}
+      {/* Data Quality Gate - Top Banner */}
+      {errorCount > 0 && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-destructive/20 shrink-0">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-destructive flex items-center gap-2">
+                  {errorCount} {errorCount === 1 ? "row" : "rows"} cannot be imported
+                </h4>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Selected rows must have Name, Job Title, and Department filled before import.
+                </p>
+                <div className="flex flex-wrap gap-3 mt-2 text-xs">
+                  {selectedMissingNameCount > 0 && (
+                    <span className="flex items-center gap-1 text-destructive">
+                      <span className="w-2 h-2 rounded-full bg-destructive" />
+                      {selectedMissingNameCount} missing Name
+                    </span>
+                  )}
+                  {selectedMissingTitleCount > 0 && (
+                    <span className="flex items-center gap-1 text-destructive">
+                      <span className="w-2 h-2 rounded-full bg-destructive" />
+                      {selectedMissingTitleCount} missing Job Title
+                    </span>
+                  )}
+                  {selectedMissingDeptCount > 0 && (
+                    <span className="flex items-center gap-1 text-destructive">
+                      <span className="w-2 h-2 rounded-full bg-destructive" />
+                      {selectedMissingDeptCount} missing Department
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Quick Fix Actions */}
+            {selectedMissingDeptCount > 0 && (
+              <div className="flex flex-col gap-2 shrink-0">
+                {/* Fill with suggestions */}
+                {selectedSuggestionsCount > 0 && (
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={handleAcceptSelectedSuggestions}
+                    className="gap-1.5 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Fill {selectedSuggestionsCount} with Suggestions
+                  </Button>
+                )}
+                {/* Fill with default department */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="gap-1.5">
+                      <Wand2 className="h-3.5 w-3.5" />
+                      Assign Default Department
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 p-4 bg-popover border shadow-lg z-50" align="end">
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Set a default department for {selectedMissingDeptCount} selected rows missing departments
+                      </p>
+                      <FlexibleCombobox
+                        value={defaultDepartment}
+                        onChange={setDefaultDepartment}
+                        options={departmentOptions}
+                        placeholder="Select department..."
+                      />
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => {
+                            if (!defaultDepartment.trim()) return;
+                            let filled = 0;
+                            onExtractedRowsChange(
+                              extractedRows.map((row) => {
+                                if (row.selected && !row.department.trim()) {
+                                  filled++;
+                                  const updated = { ...row, department: defaultDepartment };
+                                  updated.validationErrors = validateRow(updated);
+                                  return updated;
+                                }
+                                return row;
+                              })
+                            );
+                            toast({
+                              title: "Default department applied",
+                              description: `Applied "${defaultDepartment}" to ${filled} rows`,
+                            });
+                            setDefaultDepartment("");
+                          }}
+                          disabled={!defaultDepartment.trim()}
+                          className="flex-1"
+                        >
+                          Apply to Selected
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Summary Badges & View Toggle */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2 flex-wrap">
+          <Badge 
+            variant={errorCount === 0 ? "default" : "outline"} 
+            className={cn(
+              "py-1.5",
+              errorCount === 0 && readyToImportCount > 0 && "bg-primary"
+            )}
+          >
+            <CheckCircle className="h-3 w-3 mr-1" />
+            {readyToImportCount} ready to import
+          </Badge>
           <Badge variant="outline" className="py-1.5">
             {selectedCount} / {extractedRows.length} selected
           </Badge>
-          {errorCount > 0 && (
-            <Badge variant="destructive" className="py-1.5">
-              <AlertCircle className="h-3 w-3 mr-1" />
-              {errorCount} with errors
-            </Badge>
-          )}
           {unhandledDuplicates > 0 && (
             <Badge variant="secondary" className="bg-warning/10 text-warning-foreground py-1.5">
               <AlertTriangle className="h-3 w-3 mr-1" />
@@ -610,8 +752,8 @@ export function OrgChartReviewStep({
         </div>
       </div>
 
-      {/* Smart Auto-fill Banner */}
-      {suggestionsCount > 0 && (
+      {/* Smart Auto-fill Banner - only show when no errors exist */}
+      {suggestionsCount > 0 && errorCount === 0 && (
         <div className="flex items-center justify-between gap-3 bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
@@ -639,6 +781,22 @@ export function OrgChartReviewStep({
               Accept All Suggestions
             </Button>
           </div>
+        </div>
+      )}
+      
+      {/* Also show auto-fill banner when there ARE errors and suggestions can help */}
+      {suggestionsCount > 0 && errorCount > 0 && selectedSuggestionsCount !== selectedMissingDeptCount && (
+        <div className="flex items-center justify-between gap-3 bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Lightbulb className="h-4 w-4 text-primary" />
+            <span className="text-sm">
+              <span className="font-medium">{suggestionsCount - selectedSuggestionsCount} more rows</span> have department suggestions available
+            </span>
+          </div>
+          <Button size="sm" variant="outline" onClick={handleAcceptAllSuggestions} className="gap-1.5">
+            <Wand2 className="h-3.5 w-3.5" />
+            Accept All Suggestions
+          </Button>
         </div>
       )}
 

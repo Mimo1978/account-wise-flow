@@ -1,19 +1,9 @@
 import { useState, useCallback } from "react";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import {
-  FileSpreadsheet,
-  ClipboardPaste,
-  Camera,
-  Linkedin,
-  Upload,
-  Building2,
-  Plus,
-  Check,
-} from "lucide-react";
+import { Upload, Building2, Plus, Check, FileSpreadsheet, Camera } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -27,7 +17,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
+import { useOrgChartProviders } from "@/hooks/use-orgchart-providers";
 import type { OrgChartInputType } from "../OrgChartBuilderModal";
+import type { OrgChartProviderId } from "@/lib/orgchart-providers";
 
 export interface CompanyDestination {
   type: "existing" | "new";
@@ -50,43 +42,6 @@ interface OrgChartSourceStepProps {
   companies?: Array<{ id: string; name: string }>;
 }
 
-const SOURCE_OPTIONS = [
-  {
-    id: "spreadsheet" as const,
-    label: "Upload Spreadsheet",
-    description: "CSV or Excel file with org data",
-    icon: FileSpreadsheet,
-    accepts: ".csv,.xlsx,.xls",
-    disabled: false,
-  },
-  {
-    id: "paste" as const,
-    label: "Paste List",
-    description: "Copy/paste table or text list",
-    icon: ClipboardPaste,
-    accepts: null,
-    disabled: false,
-  },
-  {
-    id: "ocr" as const,
-    label: "Upload Image/PDF",
-    description: "Screenshot OCR (best effort)",
-    icon: Camera,
-    accepts: "image/*,.pdf",
-    disabled: false,
-  },
-  {
-    id: "linkedin" as const,
-    label: "LinkedIn",
-    description: "Coming Soon",
-    icon: Linkedin,
-    accepts: null,
-    disabled: true,
-  },
-];
-
-type SourceOptionId = "spreadsheet" | "paste" | "ocr" | "linkedin";
-
 export function OrgChartSourceStep({
   inputType,
   onInputTypeChange,
@@ -100,10 +55,14 @@ export function OrgChartSourceStep({
   existingCompanyName,
   companies = [],
 }: OrgChartSourceStepProps) {
+  const providers = useOrgChartProviders();
   const [dragActive, setDragActive] = useState(false);
-  const [selectedSourceOption, setSelectedSourceOption] = useState<SourceOptionId | null>(
-    inputType === "csv" || inputType === "xlsx" ? "spreadsheet" : inputType as SourceOptionId | null
+  const [selectedSourceOption, setSelectedSourceOption] = useState<OrgChartProviderId | null>(
+    inputType === "csv" || inputType === "xlsx" ? "spreadsheet" : inputType as OrgChartProviderId | null
   );
+
+  // Get the currently selected provider
+  const selectedProvider = providers.find((p) => p.id === selectedSourceOption);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -163,8 +122,9 @@ export function OrgChartSourceStep({
     }
   };
 
-  const handleSourceOptionClick = (optionId: SourceOptionId) => {
-    if (optionId === "linkedin") return;
+  const handleSourceOptionClick = (optionId: OrgChartProviderId) => {
+    const provider = providers.find((p) => p.id === optionId);
+    if (!provider?.enabled) return;
     
     setSelectedSourceOption(optionId);
     onFileChange(null);
@@ -308,21 +268,21 @@ export function OrgChartSourceStep({
         </CardContent>
       </Card>
 
-      {/* Source Type Selection */}
+      {/* Source Type Selection - Using Provider Pattern */}
       <div>
         <Label className="text-sm font-medium mb-3 block">Select data source</Label>
         <div className="grid grid-cols-2 gap-3">
-          {SOURCE_OPTIONS.map((option) => {
-            const Icon = option.icon;
-            const isSelected = selectedSourceOption === option.id;
-            const isDisabled = option.disabled;
+          {providers.map((provider) => {
+            const Icon = provider.icon;
+            const isSelected = selectedSourceOption === provider.id;
+            const isDisabled = !provider.enabled;
 
             const cardContent = (
               <button
-                key={option.id}
+                key={provider.id}
                 type="button"
                 disabled={isDisabled}
-                onClick={() => handleSourceOptionClick(option.id)}
+                onClick={() => handleSourceOptionClick(provider.id as OrgChartProviderId)}
                 className={cn(
                   "flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-all w-full",
                   isSelected
@@ -341,21 +301,22 @@ export function OrgChartSourceStep({
                 </div>
                 <div>
                   <p className={cn("font-medium", isSelected && "text-primary")}>
-                    {option.label}
+                    {provider.label}
                   </p>
-                  <p className="text-sm text-muted-foreground">{option.description}</p>
+                  <p className="text-sm text-muted-foreground">{provider.description}</p>
+                  {provider.authRequired && (
+                    <span className="text-xs text-muted-foreground/70">(requires auth)</span>
+                  )}
                 </div>
               </button>
             );
 
-            if (isDisabled) {
+            if (isDisabled && provider.disabledTooltip) {
               return (
-                <Tooltip key={option.id}>
+                <Tooltip key={provider.id}>
                   <TooltipTrigger asChild>{cardContent}</TooltipTrigger>
-                  <TooltipContent side="bottom" className="max-w-[200px]">
-                    <p>
-                      Planned integration — for now use screenshot OCR or CSV export
-                    </p>
+                  <TooltipContent side="bottom" className="max-w-[240px]">
+                    <p>{provider.disabledTooltip}</p>
                   </TooltipContent>
                 </Tooltip>
               );
@@ -366,8 +327,8 @@ export function OrgChartSourceStep({
         </div>
       </div>
 
-      {/* Input area based on selected type */}
-      {selectedSourceOption && selectedSourceOption !== "linkedin" && (
+      {/* Input area based on selected provider */}
+      {selectedProvider && selectedProvider.enabled && (
         <div className="space-y-3">
           {selectedSourceOption === "spreadsheet" && (
             <div

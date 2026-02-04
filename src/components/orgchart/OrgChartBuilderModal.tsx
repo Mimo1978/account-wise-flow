@@ -15,6 +15,7 @@ import { OrgChartReviewStep } from "./steps/OrgChartReviewStep";
 import { OrgChartPreviewStep } from "./steps/OrgChartPreviewStep";
 import { OrgChartConfirmStep } from "./steps/OrgChartConfirmStep";
 import { supabase } from "@/integrations/supabase/client";
+import type { LabeledPhone } from "@/lib/phone-utils";
 
 export type OrgChartInputType = "csv" | "xlsx" | "paste" | "ocr";
 
@@ -28,7 +29,9 @@ export interface OrgChartRow {
   location: string;
   company: string;
   email?: string;
-  phone?: string;
+  emailConfidence?: "high" | "medium" | "low";
+  phone?: string; // Primary phone for display
+  phones?: LabeledPhone[]; // All phones with labels
   confidence: "high" | "medium" | "low";
   isDuplicate: boolean;
   duplicateContactId?: string; // ID of existing contact if duplicate

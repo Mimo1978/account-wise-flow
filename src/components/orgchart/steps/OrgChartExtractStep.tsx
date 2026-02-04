@@ -15,12 +15,18 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, FileText, Sparkles } from "lucide-react";
+import { Loader2, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, FileText, Sparkles, Mail, Phone } from "lucide-react";
 import { ConfidenceBadge } from "@/components/import/ConfidenceBadge";
 import type { OrgChartInputType, OrgChartRow } from "../OrgChartBuilderModal";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { 
+  normalizePhone, 
+  normalizeEmail, 
+  getPrimaryPhone,
+  type LabeledPhone 
+} from "@/lib/phone-utils";
 
 interface OrgChartExtractStepProps {
   inputType: OrgChartInputType | null;
@@ -32,12 +38,21 @@ interface OrgChartExtractStepProps {
   uploadedFile?: File | null;
 }
 
+interface ExtractedPhoneEntry {
+  number: string;
+  type: "work" | "mobile" | "desk" | "home" | "other";
+  confidence: "high" | "medium" | "low";
+}
+
 interface ExtractedPerson {
   full_name: string;
   job_title: string;
   department: string;
   location: string;
   company: string;
+  email?: string;
+  email_confidence?: "high" | "medium" | "low";
+  phones?: ExtractedPhoneEntry[];
   confidence: "high" | "medium" | "low";
 }
 
@@ -163,19 +178,32 @@ export function OrgChartExtractStep({
   };
 
   const convertToOrgChartRows = (people: ExtractedPerson[]): OrgChartRow[] => {
-    const rows: OrgChartRow[] = people.map((person, idx) => ({
-      id: String(idx + 1),
-      full_name: normalizeText(person.full_name || ""),
-      job_title: normalizeText(person.job_title || ""),
-      department: normalizeText(person.department || ""),
-      location: normalizeText(person.location || ""),
-      company: normalizeText(person.company || ""),
-      confidence: person.confidence || "medium",
-      isDuplicate: false,
-      duplicateAction: null,
-      validationErrors: [],
-      selected: true,
-    }));
+    const rows: OrgChartRow[] = people.map((person, idx) => {
+      // Convert phones to LabeledPhone format and get primary
+      const phones: LabeledPhone[] = (person.phones || []).map(p => ({
+        number: normalizePhone(p.number),
+        type: p.type,
+        confidence: p.confidence,
+      })).filter(p => p.number);
+
+      return {
+        id: String(idx + 1),
+        full_name: normalizeText(person.full_name || ""),
+        job_title: normalizeText(person.job_title || ""),
+        department: normalizeText(person.department || ""),
+        location: normalizeText(person.location || ""),
+        company: normalizeText(person.company || ""),
+        email: normalizeEmail(person.email || ""),
+        emailConfidence: person.email_confidence,
+        phone: getPrimaryPhone(phones) || "",
+        phones: phones.length > 0 ? phones : undefined,
+        confidence: person.confidence || "medium",
+        isDuplicate: false,
+        duplicateAction: null,
+        validationErrors: [],
+        selected: true,
+      };
+    });
 
     // Mark duplicates
     markDuplicates(rows);
@@ -227,6 +255,10 @@ export function OrgChartExtractStep({
       h.includes("loc") || h.includes("location") || h.includes("city") || h.includes("office")
     );
     const companyIdx = headers.findIndex((h) => h.includes("company") || h.includes("org"));
+    const emailIdx = headers.findIndex((h) => h.includes("email") || h.includes("e-mail"));
+    const phoneIdx = headers.findIndex((h) => 
+      h.includes("phone") || h.includes("tel") || h.includes("mobile") || h.includes("cell")
+    );
 
     // Parse rows
     const rows: OrgChartRow[] = [];
@@ -236,6 +268,15 @@ export function OrgChartExtractStep({
       const values = lines[i].split(delimiter).map((v) => 
         v.trim().replace(/^["']|["']$/g, "")
       );
+      
+      // Parse phone if present
+      const rawPhone = hasHeader && phoneIdx >= 0 ? values[phoneIdx] || "" : "";
+      const normalizedPhoneStr = normalizePhone(rawPhone);
+      const phones: LabeledPhone[] = normalizedPhoneStr ? [{
+        number: normalizedPhoneStr,
+        type: "other",
+        confidence: "high",
+      }] : [];
       
       // If no header detected, assume: Name, Title, Department, Location
       const row: OrgChartRow = {
@@ -255,6 +296,10 @@ export function OrgChartExtractStep({
         company: normalizeText(
           hasHeader && companyIdx >= 0 ? values[companyIdx] || "" : ""
         ),
+        email: normalizeEmail(hasHeader && emailIdx >= 0 ? values[emailIdx] || "" : ""),
+        emailConfidence: emailIdx >= 0 && values[emailIdx]?.trim() ? "high" : undefined,
+        phone: getPrimaryPhone(phones) || "",
+        phones: phones.length > 0 ? phones : undefined,
         confidence: calculateConfidence(values, hasHeader ? nameIdx : 0, hasHeader ? titleIdx : 1),
         isDuplicate: false,
         duplicateAction: null,
@@ -323,6 +368,8 @@ export function OrgChartExtractStep({
   const mediumConfidenceCount = extractedRows.filter(r => r.confidence === "medium").length;
   const lowConfidenceCount = extractedRows.filter(r => r.confidence === "low").length;
   const duplicateCount = extractedRows.filter(r => r.isDuplicate).length;
+  const emailCount = extractedRows.filter(r => r.email).length;
+  const phoneCount = extractedRows.filter(r => r.phone || (r.phones && r.phones.length > 0)).length;
 
   return (
     <div className="space-y-4">
@@ -353,7 +400,7 @@ export function OrgChartExtractStep({
 
       {/* Extraction Summary */}
       {extractedRows.length > 0 && (
-        <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+        <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg flex-wrap">
           <div className="flex items-center gap-1.5">
             <span className="text-sm text-muted-foreground">Confidence:</span>
             {highConfidenceCount > 0 && (
@@ -362,7 +409,7 @@ export function OrgChartExtractStep({
               </Badge>
             )}
             {mediumConfidenceCount > 0 && (
-              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-500/5">
+              <Badge variant="outline" className="text-warning border-warning/30 bg-warning/5">
                 {mediumConfidenceCount} Med
               </Badge>
             )}
@@ -372,10 +419,22 @@ export function OrgChartExtractStep({
               </Badge>
             )}
           </div>
+          {emailCount > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{emailCount} emails</span>
+            </div>
+          )}
+          {phoneCount > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">{phoneCount} phones</span>
+            </div>
+          )}
           {duplicateCount > 0 && (
             <div className="flex items-center gap-1.5 ml-auto">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-              <span className="text-sm text-amber-600">{duplicateCount} potential duplicates</span>
+              <AlertTriangle className="w-4 h-4 text-warning" />
+              <span className="text-sm text-warning">{duplicateCount} potential duplicates</span>
             </div>
           )}
         </div>
@@ -398,12 +457,22 @@ export function OrgChartExtractStep({
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[180px]">Name</TableHead>
-                <TableHead className="w-[150px]">Job Title</TableHead>
-                <TableHead className="w-[120px]">Department</TableHead>
-                <TableHead className="w-[100px]">Location</TableHead>
-                <TableHead className="w-[90px]">Confidence</TableHead>
-                <TableHead className="w-[80px]">Duplicate?</TableHead>
+                <TableHead className="w-[160px]">Name</TableHead>
+                <TableHead className="w-[140px]">Job Title</TableHead>
+                <TableHead className="w-[100px]">Department</TableHead>
+                <TableHead className="w-[90px]">Location</TableHead>
+                <TableHead className="w-[140px]">
+                  <div className="flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> Email
+                  </div>
+                </TableHead>
+                <TableHead className="w-[100px]">
+                  <div className="flex items-center gap-1">
+                    <Phone className="h-3 w-3" /> Phone
+                  </div>
+                </TableHead>
+                <TableHead className="w-[70px]">Conf.</TableHead>
+                <TableHead className="w-[70px]">Dup?</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -412,7 +481,7 @@ export function OrgChartExtractStep({
                   key={row.id}
                   className={cn(
                     row.confidence === "low" && "bg-destructive/5",
-                    row.isDuplicate && "bg-amber-500/5"
+                    row.isDuplicate && "bg-warning/5"
                   )}
                 >
                   <TableCell className="font-medium">{row.full_name || "—"}</TableCell>
@@ -420,11 +489,40 @@ export function OrgChartExtractStep({
                   <TableCell>{row.department || "—"}</TableCell>
                   <TableCell>{row.location || "—"}</TableCell>
                   <TableCell>
+                    {row.email ? (
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs truncate max-w-[120px]">{row.email}</span>
+                        {row.emailConfidence === "low" && (
+                          <AlertTriangle className="h-3 w-3 text-warning shrink-0" />
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {row.phone ? (
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs truncate max-w-[80px]">{row.phone}</span>
+                        {row.phones?.some(p => p.confidence === "low") && (
+                          <AlertTriangle className="h-3 w-3 text-warning shrink-0" />
+                        )}
+                        {(row.phones?.length || 0) > 1 && (
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0 h-4">
+                            +{(row.phones?.length || 0) - 1}
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <ConfidenceBadge confidence={row.confidence} />
                   </TableCell>
                   <TableCell>
                     {row.isDuplicate ? (
-                      <Badge variant="outline" className="text-amber-600 border-amber-300">
+                      <Badge variant="outline" className="text-warning border-warning/50">
                         Yes
                       </Badge>
                     ) : (
@@ -435,7 +533,7 @@ export function OrgChartExtractStep({
               ))}
               {extractedRows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No data extracted. Please check your source data.
                   </TableCell>
                 </TableRow>

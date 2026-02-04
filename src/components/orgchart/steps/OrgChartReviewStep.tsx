@@ -1085,18 +1085,61 @@ function ReviewTableRow({
         />
       </TableCell>
       <TableCell>
-        <EditableTextCell
-          value={row.email || ""}
-          onChange={(val) => onEditField(row.id, "email", val)}
-          placeholder="—"
-        />
+        <div className="flex items-center gap-1">
+          <EditableTextCell
+            value={row.email || ""}
+            onChange={(val) => onEditField(row.id, "email", val)}
+            placeholder="—"
+          />
+          {row.email && row.emailConfidence === "low" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-xs">Low confidence - please verify</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </TableCell>
       <TableCell>
-        <EditableTextCell
-          value={row.phone || ""}
-          onChange={(val) => onEditField(row.id, "phone", val)}
-          placeholder="—"
-        />
+        <div className="space-y-1">
+          <div className="flex items-center gap-1">
+            <EditableTextCell
+              value={row.phone || ""}
+              onChange={(val) => onEditField(row.id, "phone", val)}
+              placeholder="—"
+            />
+            {row.phones?.some(p => p.confidence === "low") && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="text-xs">Low confidence - please verify</p>
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+          {/* Show additional phones if more than 1 */}
+          {row.phones && row.phones.length > 1 && (
+            <div className="flex flex-wrap gap-1">
+              {row.phones.slice(1).map((p, idx) => (
+                <Badge 
+                  key={idx} 
+                  variant="outline" 
+                  className="text-[10px] px-1.5 py-0 h-4 capitalize"
+                >
+                  {p.type}: {p.number.slice(-6)}
+                  {p.confidence === "low" && (
+                    <AlertTriangle className="h-2.5 w-2.5 ml-0.5 text-warning" />
+                  )}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
       </TableCell>
       <TableCell>
         <ConfidenceBadge confidence={row.confidence} />

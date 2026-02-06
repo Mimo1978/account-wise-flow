@@ -1,15 +1,14 @@
-import { Users, MapPin, Briefcase, FileText } from "lucide-react";
+import { Users, MapPin, Briefcase, FileText, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { BooleanSearchResult } from "@/hooks/use-boolean-search";
 import { CompactMatchBadge } from "./MatchIndicatorBadge";
-
-interface SearchResultCardProps {
-  result: BooleanSearchResult;
-  onClick?: () => void;
-  className?: string;
-}
 
 /**
  * Safely render HTML with highlighted terms
@@ -33,8 +32,18 @@ function HighlightedText({ html, fallback }: { html?: string; fallback: string }
   );
 }
 
+interface SearchResultCardProps {
+  result: BooleanSearchResult;
+  onClick?: () => void;
+  className?: string;
+}
+
 export function SearchResultCard({ result, onClick, className }: SearchResultCardProps) {
   const { candidate, matchScore, matchQuality, matchBreakdown, highlights, matchedIn } = result;
+
+  // Extract "Why matched" phrases
+  const whyPhrases = matchBreakdown?.matched_phrases?.filter(Boolean).slice(0, 3) || [];
+  const hasRecencyBoost = (matchBreakdown?.recency_boost ?? 1) > 1;
 
   // Build match location summary
   const matchLocations: string[] = [];
@@ -43,7 +52,6 @@ export function SearchResultCard({ result, onClick, className }: SearchResultCar
   if (matchedIn.overview) matchLocations.push("Overview");
   if (matchedIn.location) matchLocations.push("Location");
   if (matchedIn.cv) matchLocations.push("CV");
-
   return (
     <Card 
       className={cn(
@@ -75,11 +83,41 @@ export function SearchResultCard({ result, onClick, className }: SearchResultCar
                 </p>
               </div>
               
-              {/* Enhanced match badge with hover card */}
-              <CompactMatchBadge 
-                matchQuality={matchQuality}
-                matchScore={matchScore}
-              />
+              {/* Enhanced match badge with recency indicator */}
+              <div className="flex items-center gap-1.5">
+                {hasRecencyBoost && (
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      Recent activity boost
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <CompactMatchBadge 
+                        matchQuality={matchQuality}
+                        matchScore={matchScore}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  {whyPhrases.length > 0 && (
+                    <TooltipContent side="left" className="max-w-xs">
+                      <p className="text-[10px] font-medium mb-1">Why this matched:</p>
+                      <ul className="space-y-0.5">
+                        {whyPhrases.map((phrase, idx) => (
+                          <li key={idx} className="text-[10px] text-muted-foreground">
+                            • {phrase}
+                          </li>
+                        ))}
+                      </ul>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </div>
             </div>
 
             {/* Headline/Summary with highlights */}

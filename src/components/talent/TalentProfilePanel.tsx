@@ -35,12 +35,16 @@ import {
   Users,
   CheckCircle2,
   AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SignalBadge } from "@/components/signals/SignalBadge";
 import { SignalsSection } from "@/components/signals/SignalsSection";
+import { QuestionsSection } from "@/components/questions/QuestionsSection";
 import { useSignals } from "@/hooks/use-signals";
+import { useGeneratedQuestions } from "@/hooks/use-generated-questions";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import type { JobMatchSignal, SignalSeverity } from "@/lib/signal-types";
 
 interface TalentProfilePanelProps {
@@ -130,6 +134,22 @@ export const TalentProfilePanel = ({
   const { signals, signalCount, maxSeverity, dismissSignal } = useSignals({
     talentId: talent?.id,
     enabled: !!talent,
+  });
+
+  // Workspace context for questions
+  const { currentWorkspace } = useWorkspace();
+
+  // Fetch generated questions
+  const {
+    questions,
+    isLoading: questionsLoading,
+    generate: generateQuestions,
+    isGenerating,
+    cachedAt,
+  } = useGeneratedQuestions({
+    talentId: talent?.id,
+    workspaceId: currentWorkspace?.id,
+    enabled: !!talent && !!currentWorkspace,
   });
 
   // Generate demo signals from experience if no DB signals exist
@@ -442,6 +462,35 @@ export const TalentProfilePanel = ({
                   </AccordionContent>
                 </AccordionItem>
               )}
+
+              {/* Questions to Ask */}
+              <AccordionItem value="questions" className="border rounded-lg px-4">
+                <AccordionTrigger className="hover:no-underline py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-500/10 text-purple-600">
+                      <HelpCircle className="h-4 w-4" />
+                    </div>
+                    <span className="font-semibold">Questions to Ask</span>
+                    {questions.length > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {questions.length}
+                      </Badge>
+                    )}
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <QuestionsSection
+                    questions={questions}
+                    title=""
+                    defaultOpen={true}
+                    isLoading={questionsLoading}
+                    onGenerate={(force) => generateQuestions({ forceRegenerate: force })}
+                    isGenerating={isGenerating}
+                    cachedAt={cachedAt}
+                    className="border-0 bg-transparent"
+                  />
+                </AccordionContent>
+              </AccordionItem>
 
               {/* Experience */}
               <AccordionItem value="experience" className="border rounded-lg px-4">

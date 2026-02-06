@@ -391,6 +391,13 @@ Deno.serve(async (req) => {
       let shortTenureRoles = 0;
       const tenureEvidence: EvidenceSnippet[] = [];
       const riskEvidence: EvidenceSnippet[] = [];
+      
+      // Track for gap detection
+      interface DatePair { start: Date | null; end: Date | null; company?: string; title?: string; }
+      const roleDates: DatePair[] = [];
+      let subSixMonthStints = 0;
+      const twoYearsAgo = new Date();
+      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
 
       const experience = Array.isArray(candidate.experience) ? candidate.experience : [];
       if (experience.length > 0) {
@@ -403,6 +410,7 @@ Deno.serve(async (req) => {
           const endDate = exp.end_date ? new Date(exp.end_date) : new Date();
 
           if (startDate) {
+            roleDates.push({ start: startDate, end: endDate, company: exp.company, title: exp.title });
             const months = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24 * 30)));
             totalMonths += months;
             roleCount++;
@@ -430,13 +438,22 @@ Deno.serve(async (req) => {
               }
             }
 
+            // Track sub-6-month stints in last 24 months for contract hopping
+            if (months < 6 && endDate >= twoYearsAgo) {
+              subSixMonthStints++;
+            }
+
             // Check for short tenure
             if (months < 9) {
               shortTenureRoles++;
               const title = (exp.title || '').toLowerCase();
 
-              // PM/BA roles with short tenure = risk flag
-              if (title.includes('project manager') || title.includes('program manager') || title.includes('business analyst')) {
+              // PM/BA/DM roles with short tenure = risk flag
+              if (title.includes('project manager') || 
+                  title.includes('programme manager') || 
+                  title.includes('program manager') ||
+                  title.includes('delivery manager') ||
+                  title.includes('business analyst')) {
                 const riskText = `Short tenure (${months} months) in ${exp.title} role at ${exp.company}`;
                 riskFlags.push(riskText);
                 suggestedQuestions.push(`Why did the ${exp.title} engagement at ${exp.company} end after ${months} months?`);
@@ -473,6 +490,110 @@ Deno.serve(async (req) => {
         else if (averageTenure >= 6) tenureScore = 50;
         else tenureScore = 35;
 
+        // === CONTRACT HOPPING DETECTION ===
+        if (subSixMonthStints >= 3) {
+          tenureScore = Math.max(tenureScore - 15, 20);
+          const hoppingText = `Pattern of short engagements: ${subSixMonthStints} roles under 6 months in last 24 months`;
+          riskFlags.push(hoppingText);
+          suggestedQuestions.push('Can you walk me through your recent contract history?');
+          suggestedQuestions.push('What drives your decisions to move between roles?');
+          
+          riskEvidence.push({
+            id: `risk-ev-${claimIndex++}`,
+            claimId: 'risk-contract-hopping',
+            claimText: hoppingText,
+            snippetText: `Multiple short-term roles detected in experience history`,
+            snippetStart: 0,
+            snippetEnd: 0,
+            documentId,
+            confidence: 0.8,
+            category: 'experience',
+          });
+        }
+
+        // === UNEXPLAINED GAP DETECTION ===
+        // Sort by start date descending
+        roleDates.sort((a, b) => (b.start?.getTime() || 0) - (a.start?.getTime() || 0));
+        
+        for (let i = 0; i < roleDates.length - 1; i++) {
+          const current = roleDates[i];
+          const previous = roleDates[i + 1];
+          
+          if (current.start && previous.end) {
+            const gapMonths = Math.round(
+              (current.start.getTime() - previous.end.getTime()) / (1000 * 60 * 60 * 24 * 30)
+            );
+            
+            if (gapMonths >= 6) {
+              const gapText = `${gapMonths}-month gap between ${previous.company || 'previous role'} and ${current.company || 'next role'}`;
+              riskFlags.push(gapText);
+              suggestedQuestions.push(`What were you doing during the gap between ${previous.company} and ${current.company}?`);
+              
+              if (previous.company) {
+                const snippetData = extractSnippetWithPosition(originalCVText, previous.company);
+                if (snippetData) {
+                  riskEvidence.push({
+                    id: `risk-ev-${claimIndex++}`,
+                    claimId: 'risk-gap',
+                    claimText: gapText,
+                    snippetText: snippetData.snippetText,
+                    snippetStart: snippetData.start,
+                    snippetEnd: snippetData.end,
+                    documentId,
+                    confidence: 0.75,
+                    category: 'experience',
+                  });
+                }
+              }
+            }
+          }
+        }
+
+        // === ROLE MISMATCH DETECTION ===
+        // Check if job spec expects senior but CV shows junior experience
+        const specTitle = (spec.title || '').toLowerCase();
+        const isSeniorSpec = specTitle.includes('senior') || 
+                            specTitle.includes('lead') || 
+                            specTitle.includes('principal') ||
+                            specTitle.includes('director') ||
+                            specTitle.includes('head of');
+        
+        if (isSeniorSpec) {
+          const candidateTitles = experience.map((e: any) => (e.title || '').toLowerCase());
+          const hasSeniorExperience = candidateTitles.some((t: string) => 
+            t.includes('senior') || 
+            t.includes('lead') || 
+            t.includes('principal') || 
+            t.includes('director') ||
+            t.includes('head')
+          );
+          
+          if (!hasSeniorExperience && experience.length > 0) {
+            const mismatchText = `Role seniority concern: Spec requires senior level but CV shows primarily junior/mid-level titles`;
+            riskFlags.push(mismatchText);
+            suggestedQuestions.push('Do you have experience leading teams or projects at a senior level?');
+            suggestedQuestions.push('What scope of responsibility have you held in previous roles?');
+            
+            const recentTitle = experience[0]?.title;
+            if (recentTitle) {
+              const snippetData = extractSnippetWithPosition(originalCVText, recentTitle);
+              if (snippetData) {
+                riskEvidence.push({
+                  id: `risk-ev-${claimIndex++}`,
+                  claimId: 'risk-seniority-mismatch',
+                  claimText: mismatchText,
+                  snippetText: snippetData.snippetText,
+                  snippetStart: snippetData.start,
+                  snippetEnd: snippetData.end,
+                  documentId,
+                  confidence: 0.7,
+                  category: 'experience',
+                });
+              }
+            }
+          }
+        }
+
         // Penalty for multiple short tenures
         if (shortTenureRoles >= 3) {
           tenureScore = Math.max(tenureScore - 15, 20);
@@ -492,9 +613,9 @@ Deno.serve(async (req) => {
       if (riskFlags.length > 0) {
         claims.push({
           id: genClaimId('risk', 0),
-          text: `${riskFlags.length} risk flag(s): ${riskFlags[0]}${riskFlags.length > 1 ? '...' : ''}`,
+          text: `${riskFlags.length} signal(s): ${riskFlags[0]}${riskFlags.length > 1 ? '...' : ''}`,
           category: 'risk',
-          evidence: riskEvidence.slice(0, 2),
+          evidence: riskEvidence.slice(0, 3),
         });
       }
 

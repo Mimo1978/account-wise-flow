@@ -1523,6 +1523,69 @@ export type Database = {
           },
         ]
       }
+      talent_signals: {
+        Row: {
+          created_at: string
+          description: string
+          dismissed_at: string | null
+          dismissed_by: string | null
+          evidence: Json
+          id: string
+          is_dismissed: boolean
+          severity: string
+          signal_type: string
+          talent_id: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          evidence?: Json
+          id?: string
+          is_dismissed?: boolean
+          severity?: string
+          signal_type: string
+          talent_id: string
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          dismissed_at?: string | null
+          dismissed_by?: string | null
+          evidence?: Json
+          id?: string
+          is_dismissed?: boolean
+          severity?: string
+          signal_type?: string
+          talent_id?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_signals_talent_id_fkey"
+            columns: ["talent_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_signals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           created_at: string

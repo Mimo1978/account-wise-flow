@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -43,6 +43,9 @@ import type { JobSpecMatch } from '@/lib/job-match-types';
 import type { ClaimWithEvidence, EvidenceSnippet } from '@/lib/evidence-types';
 import { SnippetHighlight } from './SnippetHighlight';
 import { EvidencePill } from '@/components/evidence/EvidencePill';
+import { SignalBadge } from '@/components/signals/SignalBadge';
+import { SignalsSection } from '@/components/signals/SignalsSection';
+import { extractMatchSignals } from '@/hooks/use-signals';
 
 interface MatchResultsPanelProps {
   matches: JobSpecMatch[];
@@ -426,36 +429,15 @@ export function MatchResultsPanel({ matches, loading, onShortlist }: MatchResult
                   </div>
                 )}
 
-                {/* Risk Flags */}
+                {/* Signals Section - replaces old Risk Flags */}
                 {selectedMatch.risk_flags.length > 0 && (
                   <>
                     <Separator />
-                    <div className="space-y-2">
-                      <h4 className="font-medium flex items-center gap-2 text-orange-600">
-                        <AlertTriangle className="h-4 w-4" />
-                        Risk Flags
-                      </h4>
-                      <ul className="space-y-2">
-                        {selectedMatch.risk_flags.map((flag, i) => {
-                          // Find evidence for this risk
-                          const riskClaim = selectedMatch.score_breakdown?.evidence?.claims?.find(
-                            c => c.category === 'risk'
-                          );
-                          const riskEvidence = riskClaim?.evidence?.filter(
-                            e => e.claimText.toLowerCase().includes(flag.substring(0, 20).toLowerCase())
-                          );
-                          
-                          return (
-                            <li key={i} className="flex items-start justify-between gap-2 text-sm text-muted-foreground bg-orange-500/5 p-2 rounded">
-                              <span>{flag}</span>
-                              {riskEvidence && riskEvidence.length > 0 && (
-                                <EvidencePill evidence={riskEvidence} size="sm" />
-                              )}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
+                    <SignalsSection
+                      signals={extractMatchSignals(selectedMatch.score_breakdown as unknown as Record<string, unknown>)}
+                      title="Signals"
+                      defaultOpen={true}
+                    />
                   </>
                 )}
 

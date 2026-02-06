@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Talent, TalentAvailability, TalentStatus, TalentExperience } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SignalBadge } from "@/components/signals/SignalBadge";
+import { SignalsSection } from "@/components/signals/SignalsSection";
+import { useSignals } from "@/hooks/use-signals";
+import type { JobMatchSignal, SignalSeverity } from "@/lib/signal-types";
 
 interface TalentProfilePanelProps {
   talent: Talent | null;
@@ -121,6 +125,51 @@ export const TalentProfilePanel = ({
   const [isEditingOverview, setIsEditingOverview] = useState(false);
   const [editedOverview, setEditedOverview] = useState("");
   const [expandedSections, setExpandedSections] = useState<string[]>(["overview", "skills"]);
+
+  // Fetch signals for this talent
+  const { signals, signalCount, maxSeverity, dismissSignal } = useSignals({
+    talentId: talent?.id,
+    enabled: !!talent,
+  });
+
+  // Generate demo signals from experience if no DB signals exist
+  const demoSignals = useMemo<JobMatchSignal[]>(() => {
+    if (!talent || signals.length > 0) return [];
+    
+    const experience = talent.experience || [];
+    const generatedSignals: JobMatchSignal[] = [];
+    
+    // Check for short tenure patterns in experience
+    let shortStints = 0;
+    for (const exp of experience) {
+      if (exp.startDate && exp.endDate) {
+        const start = new Date(exp.startDate);
+        const end = new Date(exp.endDate);
+        const months = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 30));
+        if (months < 9) shortStints++;
+      }
+    }
+    
+    if (shortStints >= 2) {
+      generatedSignals.push({
+        id: 'demo-short-tenure',
+        signal_type: 'short_tenure',
+        severity: 'med',
+        title: `${shortStints} roles under 9 months`,
+        description: 'Multiple short-tenure roles detected. Worth exploring the context behind role transitions.',
+        evidence: [],
+      });
+    }
+    
+    return generatedSignals;
+  }, [talent, signals]);
+
+  const allSignals = signals.length > 0 ? signals : demoSignals;
+  const effectiveSignalCount = allSignals.length;
+  const effectiveMaxSeverity: SignalSeverity = allSignals.reduce((max, s) => {
+    const order: SignalSeverity[] = ['low', 'med', 'high'];
+    return order.indexOf(s.severity) > order.indexOf(max) ? s.severity : max;
+  }, 'low' as SignalSeverity);
 
   if (!talent) return null;
 
@@ -213,6 +262,18 @@ export const TalentProfilePanel = ({
               <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
                 {talent.rate}
               </Badge>
+            )}
+            {/* Signal Badge - shows in header when signals exist */}
+            {effectiveSignalCount > 0 && (
+              <SignalBadge
+                count={effectiveSignalCount}
+                maxSeverity={effectiveMaxSeverity}
+                onClick={() => {
+                  if (!expandedSections.includes("signals")) {
+                    setExpandedSections([...expandedSections, "signals"]);
+                  }
+                }}
+              />
             )}
           </div>
 
@@ -355,6 +416,32 @@ export const TalentProfilePanel = ({
                   )}
                 </AccordionContent>
               </AccordionItem>
+
+              {/* Signals Section - only show if signals exist */}
+              {allSignals.length > 0 && (
+                <AccordionItem value="signals" className="border rounded-lg px-4">
+                  <AccordionTrigger className="hover:no-underline py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600">
+                        <AlertCircle className="h-4 w-4" />
+                      </div>
+                      <span className="font-semibold">Signals</span>
+                      <Badge variant="secondary" className="ml-2">
+                        {allSignals.length}
+                      </Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <SignalsSection
+                      signals={allSignals}
+                      title=""
+                      defaultOpen={true}
+                      onDismiss={signals.length > 0 ? dismissSignal : undefined}
+                      className="border-0 bg-transparent"
+                    />
+                  </AccordionContent>
+                </AccordionItem>
+              )}
 
               {/* Experience */}
               <AccordionItem value="experience" className="border rounded-lg px-4">

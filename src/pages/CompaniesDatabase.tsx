@@ -40,6 +40,8 @@ import {
   X,
   CheckCircle2,
   AlertCircle,
+  Users,
+  TrendingUp,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
@@ -338,6 +340,18 @@ export default function CompaniesDatabase() {
                       Company Name
                     </div>
                   </TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted text-center" style={{ zIndex: 10, width: 90 }}>
+                    <div className="flex items-center justify-center gap-1">
+                      <Users className="h-4 w-4" />
+                      Contacts
+                    </div>
+                  </TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted text-center" style={{ zIndex: 10, width: 100 }}>
+                    <div className="flex items-center justify-center gap-1">
+                      <TrendingUp className="h-4 w-4" />
+                      Score
+                    </div>
+                  </TableHead>
                   <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
@@ -431,6 +445,51 @@ export default function CompaniesDatabase() {
                           </span>
                         </div>
                       </TableCell>
+                      {/* Contacts Count */}
+                      <TableCell className="bg-card text-center" style={{ zIndex: 1 }}>
+                        {account.contacts.length > 0 ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className={cn(
+                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-default",
+                                account.contacts.length >= 10 
+                                  ? "bg-primary/15 text-primary" 
+                                  : account.contacts.length >= 5 
+                                    ? "bg-accent/50 text-accent-foreground" 
+                                    : "bg-muted text-muted-foreground"
+                              )}>
+                                <Users className="h-3 w-3" />
+                                {account.contacts.length}
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                              <p className="text-sm">{account.contacts.length} contacts mapped</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </TableCell>
+                      {/* Engagement Score */}
+                      <TableCell className="bg-card text-center" style={{ zIndex: 1 }}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className={cn(
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold cursor-default",
+                              account.engagementScore >= 70 
+                                ? "bg-accent text-accent-foreground" 
+                                : account.engagementScore >= 40 
+                                  ? "bg-primary/15 text-primary" 
+                                  : "bg-muted text-muted-foreground"
+                            )}>
+                              {account.engagementScore}%
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p className="text-sm">Engagement score based on activity</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
                       <TableCell className="bg-card" style={{ zIndex: 1 }}>
                         <span className="text-sm text-muted-foreground">
                           {account.headquarters || "—"}
@@ -510,7 +569,7 @@ export default function CompaniesDatabase() {
                 })}
                 {filteredCompanies.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                       No companies found matching "{searchQuery}"
                     </TableCell>
                   </TableRow>

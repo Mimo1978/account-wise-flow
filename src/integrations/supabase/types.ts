@@ -1242,6 +1242,75 @@ export type Database = {
           },
         ]
       }
+      talent_documents: {
+        Row: {
+          created_at: string
+          doc_kind: Database["public"]["Enums"]["doc_kind"]
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          parse_status: Database["public"]["Enums"]["parse_status"]
+          parsed_text: string | null
+          talent_id: string
+          text_hash: string | null
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          doc_kind?: Database["public"]["Enums"]["doc_kind"]
+          file_name: string
+          file_path: string
+          file_size?: number
+          file_type: string
+          id?: string
+          parse_status?: Database["public"]["Enums"]["parse_status"]
+          parsed_text?: string | null
+          talent_id: string
+          text_hash?: string | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          doc_kind?: Database["public"]["Enums"]["doc_kind"]
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          parse_status?: Database["public"]["Enums"]["parse_status"]
+          parsed_text?: string | null
+          talent_id?: string
+          text_hash?: string | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_documents_talent_id_fkey"
+            columns: ["talent_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_documents_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           created_at: string
@@ -1457,6 +1526,7 @@ export type Database = {
         | "dedupe_review"
         | "merged"
         | "failed"
+      doc_kind: "cv" | "cover_letter" | "certification" | "other"
       import_entity_status:
         | "pending_review"
         | "approved"
@@ -1481,6 +1551,7 @@ export type Database = {
         | "placed"
         | "dropped"
         | "rejected"
+      parse_status: "pending" | "parsed" | "failed"
       search_mode: "simple" | "boolean"
       workspace_mode: "public_demo" | "demo" | "production"
       workspace_type: "real" | "demo"
@@ -1629,6 +1700,7 @@ export const Constants = {
         "merged",
         "failed",
       ],
+      doc_kind: ["cv", "cover_letter", "certification", "other"],
       import_entity_status: [
         "pending_review",
         "approved",
@@ -1656,6 +1728,7 @@ export const Constants = {
         "dropped",
         "rejected",
       ],
+      parse_status: ["pending", "parsed", "failed"],
       search_mode: ["simple", "boolean"],
       workspace_mode: ["public_demo", "demo", "production"],
       workspace_type: ["real", "demo"],

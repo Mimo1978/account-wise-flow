@@ -30,9 +30,35 @@ interface Candidate {
 }
 
 interface TalentDocument {
+  id: string;
   talent_id: string;
   parsed_text: string | null;
   parse_status: string;
+}
+
+interface EvidenceSnippet {
+  id: string;
+  claimId: string;
+  claimText: string;
+  snippetText: string;
+  snippetStart: number;
+  snippetEnd: number;
+  documentId: string | null;
+  confidence: number;
+  category: 'skill' | 'experience' | 'company' | 'education' | 'certification' | 'other';
+}
+
+interface ClaimWithEvidence {
+  id: string;
+  text: string;
+  category: 'skill_match' | 'sector' | 'tenure' | 'recency' | 'risk' | 'summary';
+  evidence: EvidenceSnippet[];
+}
+
+interface MatchEvidence {
+  claims: ClaimWithEvidence[];
+  computedAt: string;
+  version: string;
 }
 
 interface MatchResult {
@@ -57,6 +83,37 @@ const SECTOR_TIERS: Record<string, string[]> = {
   'consulting': ['McKinsey', 'BCG', 'Bain', 'Deloitte', 'Accenture', 'EY', 'PwC', 'KPMG'],
   'technology': ['Google', 'Microsoft', 'Apple', 'Amazon', 'Meta', 'Netflix', 'Salesforce', 'Oracle', 'IBM'],
 };
+
+/**
+ * Extract snippet with context around a matched term
+ */
+function extractSnippetWithPosition(
+  fullText: string,
+  searchTerm: string,
+  contextChars: number = 80
+): { snippetText: string; start: number; end: number } | null {
+  const lowerText = fullText.toLowerCase();
+  const lowerTerm = searchTerm.toLowerCase();
+  const idx = lowerText.indexOf(lowerTerm);
+  
+  if (idx === -1) return null;
+  
+  const start = Math.max(0, idx - contextChars);
+  const end = Math.min(fullText.length, idx + searchTerm.length + contextChars);
+  
+  let snippet = fullText.substring(start, end).trim();
+  if (start > 0) snippet = '...' + snippet;
+  if (end < fullText.length) snippet = snippet + '...';
+  
+  return { snippetText: snippet, start: idx, end: idx + searchTerm.length };
+}
+
+/**
+ * Generate unique claim ID
+ */
+function genClaimId(category: string, index: number): string {
+  return `${category}-${index}-${Date.now().toString(36)}`;
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -145,21 +202,29 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${candidates.length} candidates`);
 
-    // Fetch parsed CV texts
+    // Fetch parsed CV texts with document IDs
     const candidateIds = candidates.map(c => c.id);
     const { data: talentDocs } = await supabase
       .from('talent_documents')
-      .select('talent_id, parsed_text, parse_status')
+      .select('id, talent_id, parsed_text, parse_status')
       .in('talent_id', candidateIds)
       .eq('parse_status', 'parsed');
 
-    // Map talent_id to parsed text
-    const cvTextMap = new Map<string, string>();
+    // Map talent_id to parsed text and document info
+    const cvTextMap = new Map<string, { text: string; documentId: string }>();
     if (talentDocs) {
       for (const doc of talentDocs as TalentDocument[]) {
         if (doc.parsed_text) {
-          const existing = cvTextMap.get(doc.talent_id) || '';
-          cvTextMap.set(doc.talent_id, existing + ' ' + doc.parsed_text);
+          const existing = cvTextMap.get(doc.talent_id);
+          if (!existing) {
+            cvTextMap.set(doc.talent_id, { text: doc.parsed_text, documentId: doc.id });
+          } else {
+            // Append but keep first document ID as primary
+            cvTextMap.set(doc.talent_id, { 
+              text: existing.text + ' ' + doc.parsed_text, 
+              documentId: existing.documentId 
+            });
+          }
         }
       }
     }
@@ -170,29 +235,78 @@ Deno.serve(async (req) => {
     const matchResults: MatchResult[] = [];
 
     for (const candidate of candidates as Candidate[]) {
-      const cvText = cvTextMap.get(candidate.id) || candidate.raw_cv_text || '';
+      const cvData = cvTextMap.get(candidate.id);
+      const cvText = cvData?.text || candidate.raw_cv_text || '';
+      const documentId = cvData?.documentId || null;
       const candidateText = `${candidate.headline || ''} ${candidate.current_title || ''} ${candidate.current_company || ''} ${cvText}`.toLowerCase();
+      const originalCVText = cvData?.text || candidate.raw_cv_text || ''; // Keep original case for snippets
+
+      // === EVIDENCE COLLECTION ===
+      const claims: ClaimWithEvidence[] = [];
+      let claimIndex = 0;
 
       // === SKILL MATCHING ===
       const keySkills = spec.key_skills || [];
       const matchedSkills: string[] = [];
       const missingSkills: string[] = [];
+      const skillEvidence: EvidenceSnippet[] = [];
 
       for (const skill of keySkills) {
         const skillLower = skill.toLowerCase();
         // Check for exact phrase match (higher priority) or word match
         if (candidateText.includes(skillLower)) {
           matchedSkills.push(skill);
+          
+          // Extract evidence snippet
+          const snippetData = extractSnippetWithPosition(originalCVText, skill);
+          if (snippetData) {
+            skillEvidence.push({
+              id: `skill-ev-${claimIndex++}`,
+              claimId: `skill-${skill}`,
+              claimText: skill,
+              snippetText: snippetData.snippetText,
+              snippetStart: snippetData.start,
+              snippetEnd: snippetData.end,
+              documentId,
+              confidence: 0.9,
+              category: 'skill',
+            });
+          }
         } else {
           // Check individual words for partial match
           const words = skillLower.split(/\s+/);
           const hasPartialMatch = words.some(word => word.length > 3 && candidateText.includes(word));
           if (hasPartialMatch) {
             matchedSkills.push(skill + ' (partial)');
+            const matchedWord = words.find(w => w.length > 3 && candidateText.includes(w)) || '';
+            const snippetData = extractSnippetWithPosition(originalCVText, matchedWord);
+            if (snippetData) {
+              skillEvidence.push({
+                id: `skill-ev-${claimIndex++}`,
+                claimId: `skill-${skill}`,
+                claimText: `${skill} (partial: "${matchedWord}")`,
+                snippetText: snippetData.snippetText,
+                snippetStart: snippetData.start,
+                snippetEnd: snippetData.end,
+                documentId,
+                confidence: 0.6,
+                category: 'skill',
+              });
+            }
           } else {
             missingSkills.push(skill);
           }
         }
+      }
+
+      // Add skill claims with evidence
+      if (matchedSkills.length > 0) {
+        claims.push({
+          id: genClaimId('skill_match', 0),
+          text: `Matched ${matchedSkills.length}/${keySkills.length} key skills: ${matchedSkills.slice(0, 5).join(', ')}${matchedSkills.length > 5 ? '...' : ''}`,
+          category: 'skill_match',
+          evidence: skillEvidence.slice(0, 5), // Limit to top 5 evidence snippets
+        });
       }
 
       const skillMatchScore = keySkills.length > 0
@@ -202,6 +316,7 @@ Deno.serve(async (req) => {
       // === SECTOR/COMPANY SCORING ===
       let sectorCompanyScore = 50; // Base score
       let sectorMatch = '';
+      const sectorEvidence: EvidenceSnippet[] = [];
       const candidateCompanies = [candidate.current_company, ...(candidate.experience?.map((e: any) => e.company) || [])].filter(Boolean);
 
       for (const [sector, tierCompanies] of Object.entries(SECTOR_TIERS)) {
@@ -212,6 +327,22 @@ Deno.serve(async (req) => {
               if (companyLower.includes(tierCompany.toLowerCase())) {
                 sectorCompanyScore = 85;
                 sectorMatch = `${tierCompany} (${sector})`;
+                
+                // Extract evidence
+                const snippetData = extractSnippetWithPosition(originalCVText, tierCompany);
+                if (snippetData) {
+                  sectorEvidence.push({
+                    id: `sector-ev-${claimIndex++}`,
+                    claimId: `sector-${tierCompany}`,
+                    claimText: `Tier-1 company: ${tierCompany}`,
+                    snippetText: snippetData.snippetText,
+                    snippetStart: snippetData.start,
+                    snippetEnd: snippetData.end,
+                    documentId,
+                    confidence: 0.95,
+                    category: 'company',
+                  });
+                }
                 break;
               }
             }
@@ -225,6 +356,30 @@ Deno.serve(async (req) => {
       if (spec.sector && candidateText.includes(spec.sector.toLowerCase())) {
         sectorCompanyScore = Math.max(sectorCompanyScore, 70);
         if (!sectorMatch) sectorMatch = spec.sector;
+        
+        const snippetData = extractSnippetWithPosition(originalCVText, spec.sector);
+        if (snippetData) {
+          sectorEvidence.push({
+            id: `sector-ev-${claimIndex++}`,
+            claimId: `sector-${spec.sector}`,
+            claimText: `Sector match: ${spec.sector}`,
+            snippetText: snippetData.snippetText,
+            snippetStart: snippetData.start,
+            snippetEnd: snippetData.end,
+            documentId,
+            confidence: 0.85,
+            category: 'experience',
+          });
+        }
+      }
+
+      if (sectorMatch) {
+        claims.push({
+          id: genClaimId('sector', 0),
+          text: `Sector alignment: ${sectorMatch}`,
+          category: 'sector',
+          evidence: sectorEvidence.slice(0, 3),
+        });
       }
 
       // === TENURE ANALYSIS ===
@@ -234,6 +389,8 @@ Deno.serve(async (req) => {
       let averageTenure = 0;
       let recentRoleTenure = 0;
       let shortTenureRoles = 0;
+      const tenureEvidence: EvidenceSnippet[] = [];
+      const riskEvidence: EvidenceSnippet[] = [];
 
       const experience = Array.isArray(candidate.experience) ? candidate.experience : [];
       if (experience.length > 0) {
@@ -252,6 +409,25 @@ Deno.serve(async (req) => {
 
             if (i === 0) {
               recentRoleTenure = months;
+              
+              // Add tenure evidence for current role
+              if (exp.title || exp.company) {
+                const searchTerm = exp.title || exp.company;
+                const snippetData = extractSnippetWithPosition(originalCVText, searchTerm);
+                if (snippetData) {
+                  tenureEvidence.push({
+                    id: `tenure-ev-${claimIndex++}`,
+                    claimId: 'tenure-current',
+                    claimText: `Current role: ${months} months at ${exp.company}`,
+                    snippetText: snippetData.snippetText,
+                    snippetStart: snippetData.start,
+                    snippetEnd: snippetData.end,
+                    documentId,
+                    confidence: 0.9,
+                    category: 'experience',
+                  });
+                }
+              }
             }
 
             // Check for short tenure
@@ -261,13 +437,28 @@ Deno.serve(async (req) => {
 
               // PM/BA roles with short tenure = risk flag
               if (title.includes('project manager') || title.includes('program manager') || title.includes('business analyst')) {
-                riskFlags.push(`Short tenure (${months} months) in ${exp.title} role at ${exp.company}`);
+                const riskText = `Short tenure (${months} months) in ${exp.title} role at ${exp.company}`;
+                riskFlags.push(riskText);
                 suggestedQuestions.push(`Why did the ${exp.title} engagement at ${exp.company} end after ${months} months?`);
                 suggestedQuestions.push('Was this a recovery/turnaround assignment?');
-              }
-              // Dev/Engineer short tenure can be neutral for delivery-based roles
-              else if (title.includes('developer') || title.includes('engineer')) {
-                // Shorter tenures are more common and accepted
+                
+                // Add risk evidence
+                if (exp.company) {
+                  const snippetData = extractSnippetWithPosition(originalCVText, exp.company);
+                  if (snippetData) {
+                    riskEvidence.push({
+                      id: `risk-ev-${claimIndex++}`,
+                      claimId: 'risk-short-tenure',
+                      claimText: riskText,
+                      snippetText: snippetData.snippetText,
+                      snippetStart: snippetData.start,
+                      snippetEnd: snippetData.end,
+                      documentId,
+                      confidence: 0.85,
+                      category: 'experience',
+                    });
+                  }
+                }
               }
             }
           }
@@ -287,12 +478,31 @@ Deno.serve(async (req) => {
           tenureScore = Math.max(tenureScore - 15, 20);
           riskFlags.push('Pattern of short tenure across multiple roles');
         }
+
+        // Add tenure claim
+        claims.push({
+          id: genClaimId('tenure', 0),
+          text: `Average tenure: ${averageTenure} months across ${experience.length} roles`,
+          category: 'tenure',
+          evidence: tenureEvidence.slice(0, 2),
+        });
+      }
+
+      // Add risk claims if any
+      if (riskFlags.length > 0) {
+        claims.push({
+          id: genClaimId('risk', 0),
+          text: `${riskFlags.length} risk flag(s): ${riskFlags[0]}${riskFlags.length > 1 ? '...' : ''}`,
+          category: 'risk',
+          evidence: riskEvidence.slice(0, 2),
+        });
       }
 
       // === RECENCY ANALYSIS ===
       let recencyScore = 50;
       let yearsSinceRelevant = 99;
       let hasRecentExperience = false;
+      const recencyEvidence: EvidenceSnippet[] = [];
 
       if (experience.length > 0) {
         const recentExp = experience[0];
@@ -315,9 +525,37 @@ Deno.serve(async (req) => {
           recencyScore = 20;
           riskFlags.push(`No recent relevant experience (${yearsSinceRelevant.toFixed(1)} years since last role)`);
         }
+
+        // Add recency evidence
+        if (recentExp.title || recentExp.company) {
+          const searchTerm = recentExp.title || recentExp.company;
+          const snippetData = extractSnippetWithPosition(originalCVText, searchTerm);
+          if (snippetData) {
+            recencyEvidence.push({
+              id: `recency-ev-${claimIndex++}`,
+              claimId: 'recency-recent',
+              claimText: `Most recent: ${recentExp.title} at ${recentExp.company}`,
+              snippetText: snippetData.snippetText,
+              snippetStart: snippetData.start,
+              snippetEnd: snippetData.end,
+              documentId,
+              confidence: 0.9,
+              category: 'experience',
+            });
+          }
+        }
+
+        claims.push({
+          id: genClaimId('recency', 0),
+          text: hasRecentExperience 
+            ? `Recent experience: ${recentExp.title} at ${recentExp.company}`
+            : `Experience may be dated (${yearsSinceRelevant.toFixed(1)} years since last role)`,
+          category: 'recency',
+          evidence: recencyEvidence,
+        });
       }
 
-      // === EVIDENCE SNIPPETS ===
+      // === LEGACY EVIDENCE SNIPPETS (for backwards compatibility) ===
       const evidenceSnippets: string[] = [];
 
       // Find skill mentions in CV
@@ -359,6 +597,13 @@ Deno.serve(async (req) => {
         riskFlags.length > 0 ? `${riskFlags.length} risk flag(s) identified.` : 'No significant risk flags.',
       ].join(' ');
 
+      // Build evidence object
+      const matchEvidence: MatchEvidence = {
+        claims,
+        computedAt: new Date().toISOString(),
+        version: '1.0',
+      };
+
       matchResults.push({
         talent_id: candidate.id,
         overall_score: overallScore,
@@ -379,6 +624,8 @@ Deno.serve(async (req) => {
             years_since_relevant_role: yearsSinceRelevant,
             has_recent_experience: hasRecentExperience,
           },
+          // NEW: Structured evidence
+          evidence: matchEvidence,
         },
         risk_flags: riskFlags,
         suggested_questions: suggestedQuestions,

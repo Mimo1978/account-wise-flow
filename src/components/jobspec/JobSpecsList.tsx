@@ -32,6 +32,7 @@ import {
 import { useJobSpecs } from '@/hooks/use-job-specs';
 import { CreateJobSpecModal } from './CreateJobSpecModal';
 import { JobSpecViewModal } from './JobSpecViewModal';
+import { JobSpecMatchModal } from './JobSpecMatchModal';
 import type { JobSpec } from '@/lib/job-spec-types';
 import { format } from 'date-fns';
 
@@ -43,6 +44,7 @@ export function JobSpecsList({ onRunMatch }: JobSpecsListProps) {
   const { jobSpecs, loading, deleteJobSpec } = useJobSpecs();
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [matchModalOpen, setMatchModalOpen] = useState(false);
   const [selectedSpec, setSelectedSpec] = useState<JobSpec | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [specToDelete, setSpecToDelete] = useState<JobSpec | null>(null);
@@ -50,6 +52,11 @@ export function JobSpecsList({ onRunMatch }: JobSpecsListProps) {
   const handleView = (spec: JobSpec) => {
     setSelectedSpec(spec);
     setViewModalOpen(true);
+  };
+
+  const handleRunMatch = (spec: JobSpec) => {
+    setSelectedSpec(spec);
+    setMatchModalOpen(true);
   };
 
   const handleDeleteClick = (spec: JobSpec) => {
@@ -157,17 +164,15 @@ export function JobSpecsList({ onRunMatch }: JobSpecsListProps) {
                   </div>
                   
                   <div className="flex items-center gap-2 ml-4">
-                    {onRunMatch && (
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => onRunMatch(spec)}
-                        className="gap-1"
-                      >
-                        <Sparkles className="h-3 w-3" />
-                        Match
-                      </Button>
-                    )}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleRunMatch(spec)}
+                      className="gap-1"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Match
+                    </Button>
                     
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -206,7 +211,13 @@ export function JobSpecsList({ onRunMatch }: JobSpecsListProps) {
         open={viewModalOpen}
         onOpenChange={setViewModalOpen}
         jobSpec={selectedSpec}
-        onRunMatch={onRunMatch}
+        onRunMatch={handleRunMatch}
+      />
+
+      <JobSpecMatchModal
+        open={matchModalOpen}
+        onOpenChange={setMatchModalOpen}
+        jobSpec={selectedSpec}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

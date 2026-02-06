@@ -994,6 +994,88 @@ export type Database = {
           },
         ]
       }
+      job_spec_matches: {
+        Row: {
+          created_at: string
+          id: string
+          job_spec_id: string
+          match_reasoning: string | null
+          overall_score: number
+          recency_score: number
+          risk_flags: string[]
+          score_breakdown: Json
+          sector_company_score: number
+          skill_match_score: number
+          status: string
+          suggested_questions: string[]
+          talent_id: string
+          tenure_score: number
+          top_evidence_snippets: string[]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_spec_id: string
+          match_reasoning?: string | null
+          overall_score?: number
+          recency_score?: number
+          risk_flags?: string[]
+          score_breakdown?: Json
+          sector_company_score?: number
+          skill_match_score?: number
+          status?: string
+          suggested_questions?: string[]
+          talent_id: string
+          tenure_score?: number
+          top_evidence_snippets?: string[]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_spec_id?: string
+          match_reasoning?: string | null
+          overall_score?: number
+          recency_score?: number
+          risk_flags?: string[]
+          score_breakdown?: Json
+          sector_company_score?: number
+          skill_match_score?: number
+          status?: string
+          suggested_questions?: string[]
+          talent_id?: string
+          tenure_score?: number
+          top_evidence_snippets?: string[]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_spec_matches_job_spec_id_fkey"
+            columns: ["job_spec_id"]
+            isOneToOne: false
+            referencedRelation: "job_specs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_spec_matches_talent_id_fkey"
+            columns: ["talent_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_spec_matches_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_specs: {
         Row: {
           client_company_id: string | null

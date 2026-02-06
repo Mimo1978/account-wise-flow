@@ -41,6 +41,7 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useTalentDocuments } from '@/hooks/use-talent-documents';
@@ -86,12 +87,14 @@ export function TalentDocumentList({
     uploadError,
     downloadDocument,
     deleteDocument,
+    retryExtraction,
   } = useTalentDocuments({ talentId });
 
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<TalentDocument | null>(null);
   const [showViewer, setShowViewer] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<TalentDocument | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   // Group documents by type
   const documentsByKind = useMemo(() => {
@@ -120,6 +123,12 @@ export function TalentDocumentList({
     }
   };
 
+  const handleRetryExtraction = async (doc: TalentDocument) => {
+    setRetryingId(doc.id);
+    await retryExtraction(doc.id);
+    setRetryingId(null);
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -143,6 +152,7 @@ export function TalentDocumentList({
     const Icon = documentIcons[doc.docKind] || File;
     const parseConfig = parseStatusConfig[doc.parseStatus];
     const ParseIcon = parseConfig.icon;
+    const isRetrying = retryingId === doc.id;
 
     return (
       <div
@@ -174,12 +184,37 @@ export function TalentDocumentList({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className={cn('flex items-center gap-1', parseConfig.color)}>
-                          <ParseIcon className="h-3 w-3" />
+                          {isRetrying ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <ParseIcon className="h-3 w-3" />
+                          )}
                         </span>
                       </TooltipTrigger>
-                      <TooltipContent>{parseConfig.label}</TooltipContent>
+                      <TooltipContent>
+                        {isRetrying ? 'Extracting text...' : parseConfig.label}
+                      </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
+                  {/* Show retry button for failed extractions */}
+                  {doc.parseStatus === 'failed' && !isRetrying && canEdit && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 px-1.5 text-xs gap-1 text-destructive hover:text-destructive"
+                            onClick={() => handleRetryExtraction(doc)}
+                          >
+                            <RefreshCw className="h-3 w-3" />
+                            Retry
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Retry text extraction</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">

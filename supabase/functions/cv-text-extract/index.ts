@@ -24,9 +24,11 @@ interface ExtractionRequest {
   // For candidate CVs (legacy/direct)
   candidateId?: string;
   storagePath?: string;
-  // For generic documents
+  // For generic documents (documents table)
   documentId?: string;
   isGenericDocument?: boolean;
+  // For talent documents (talent_documents table)
+  talentDocumentId?: string;
 }
 
 // Extract text from PDF using AI vision
@@ -232,7 +234,7 @@ serve(async (req) => {
 
     // 4. Parse request
     const body: ExtractionRequest = await req.json();
-    const { candidateId, storagePath, documentId, isGenericDocument } = body;
+    const { candidateId, storagePath, documentId, isGenericDocument, talentDocumentId } = body;
 
     // 5. Get user's workspace for tenant isolation
     const { data: workspaceId } = await userClient.rpc('get_user_team_id', { _user_id: userId });
@@ -244,13 +246,35 @@ serve(async (req) => {
       );
     }
 
-    // Determine extraction mode: generic document vs candidate CV
+    // Determine extraction mode: talent document vs generic document vs candidate CV
     let targetStoragePath: string;
     let targetEntityId: string;
     let storageBucket: string;
-    let isDocument = false;
+    let extractionMode: 'talent_document' | 'document' | 'candidate' = 'candidate';
 
-    if (isGenericDocument && documentId) {
+    if (talentDocumentId) {
+      // Talent document mode (new CV Vault)
+      console.log(`[cv-text-extract][${requestId}] Processing talent document: ${talentDocumentId}`);
+      
+      const { data: talentDoc, error: talentDocError } = await userClient
+        .from('talent_documents')
+        .select('id, file_path, workspace_id')
+        .eq('id', talentDocumentId)
+        .single();
+
+      if (talentDocError || !talentDoc) {
+        console.error(`[cv-text-extract][${requestId}] Talent document not found:`, talentDocError);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Talent document not found', requestId }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      targetStoragePath = talentDoc.file_path;
+      targetEntityId = talentDocumentId;
+      storageBucket = 'candidate_cvs';
+      extractionMode = 'talent_document';
+    } else if (isGenericDocument && documentId) {
       // Generic document mode
       console.log(`[cv-text-extract][${requestId}] Processing document: ${documentId}`);
       
@@ -271,7 +295,7 @@ serve(async (req) => {
       targetStoragePath = document.storage_path;
       targetEntityId = documentId;
       storageBucket = 'documents';
-      isDocument = true;
+      extractionMode = 'document';
     } else if (candidateId && storagePath) {
       // Candidate CV mode (legacy)
       console.log(`[cv-text-extract][${requestId}] Processing candidate: ${candidateId}, path: ${storagePath}`);
@@ -293,9 +317,10 @@ serve(async (req) => {
       targetStoragePath = storagePath;
       targetEntityId = candidateId;
       storageBucket = 'cv-uploads';
+      extractionMode = 'candidate';
     } else {
       return new Response(
-        JSON.stringify({ success: false, error: 'Missing required parameters: provide (candidateId + storagePath) or (documentId + isGenericDocument)', requestId }),
+        JSON.stringify({ success: false, error: 'Missing required parameters: provide talentDocumentId, (candidateId + storagePath), or (documentId + isGenericDocument)', requestId }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -352,8 +377,19 @@ serve(async (req) => {
     // 9. Store extracted text in appropriate table (using user client for RLS)
     let updateError: Error | null = null;
 
-    if (isDocument) {
-      // Update document record
+    if (extractionMode === 'talent_document') {
+      // Update talent_documents record
+      const { error } = await userClient
+        .from('talent_documents')
+        .update({
+          parsed_text: extractedText,
+          parse_status: 'parsed',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', targetEntityId);
+      updateError = error;
+    } else if (extractionMode === 'document') {
+      // Update documents record
       const { error } = await userClient
         .from('documents')
         .update({
@@ -377,13 +413,22 @@ serve(async (req) => {
 
     if (updateError) {
       console.error(`[cv-text-extract][${requestId}] Failed to update record:`, updateError);
+      
+      // For talent documents, mark as failed
+      if (extractionMode === 'talent_document') {
+        await userClient
+          .from('talent_documents')
+          .update({ parse_status: 'failed', updated_at: new Date().toISOString() })
+          .eq('id', targetEntityId);
+      }
+      
       return new Response(
         JSON.stringify({ success: false, error: 'Failed to store extracted text', requestId }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[cv-text-extract][${requestId}] Successfully stored extracted text for ${isDocument ? 'document' : 'candidate'} ${targetEntityId}`);
+    console.log(`[cv-text-extract][${requestId}] Successfully stored extracted text for ${extractionMode} ${targetEntityId}`);
 
     return new Response(
       JSON.stringify({ 
@@ -391,7 +436,7 @@ serve(async (req) => {
         requestId,
         message: 'Text extracted and stored',
         characterCount: extractedText.length,
-        entityType: isDocument ? 'document' : 'candidate',
+        entityType: extractionMode,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

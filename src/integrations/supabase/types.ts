@@ -1742,6 +1742,50 @@ export type Database = {
           },
         ]
       }
+      workspace_settings: {
+        Row: {
+          contract_hop_lookback_months: number
+          contract_hop_min_stints: number
+          created_at: string
+          gap_threshold_months: number
+          id: string
+          short_tenure_threshold_months: number
+          top_tier_companies: Json
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          contract_hop_lookback_months?: number
+          contract_hop_min_stints?: number
+          created_at?: string
+          gap_threshold_months?: number
+          id?: string
+          short_tenure_threshold_months?: number
+          top_tier_companies?: Json
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          contract_hop_lookback_months?: number
+          contract_hop_min_stints?: number
+          created_at?: string
+          gap_threshold_months?: number
+          id?: string
+          short_tenure_threshold_months?: number
+          top_tier_companies?: Json
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_workspace"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

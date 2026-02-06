@@ -167,7 +167,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link to="/canvas" className="flex items-center">
+                    <Link to="/workspace-settings" className="flex items-center">
                       <Building2 className="w-4 h-4 mr-2" />
                       Workspace Settings
                     </Link>

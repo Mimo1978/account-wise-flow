@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
 import { useBooleanSearch, BooleanSearchResult } from "@/hooks/use-boolean-search";
 import { useSearchContext } from "@/contexts/SearchContext";
+import { useCandidateDocumentCounts } from "@/hooks/use-candidate-document-counts";
 import { mockTalents, roleTypeOptions } from "@/lib/mock-talent";
 import { Talent, TalentAvailability, TalentDataQuality, TalentStatus, TalentCvSource } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
+import { DocsColumnCell } from "@/components/talent/DocsColumnCell";
 import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { ImportCenterModal } from "@/components/import/ImportCenterModal";
 import { ImportMethod } from "@/components/import/ImportCenterTypes";
@@ -143,6 +145,7 @@ const initialColumns: ColumnConfig[] = [
   // Operational
   { id: "lastUpdated", label: "Last Updated", category: "Operational", minWidth: 100, defaultWidth: 120, visible: true },
   { id: "cvSource", label: "CV Source", category: "Operational", minWidth: 100, defaultWidth: 110, visible: true },
+  { id: "docs", label: "Docs", category: "Operational", minWidth: 80, defaultWidth: 90, visible: true },
 ];
 
 export default function TalentDatabase() {
@@ -183,6 +186,13 @@ export default function TalentDatabase() {
     // Fallback to mock data when no real candidates (for demo workspace)
     return mockTalents;
   }, [dbCandidates]);
+
+  // Fetch document counts for all visible talents
+  const talentIds = useMemo(() => allTalents.map(t => t.id), [allTalents]);
+  const { counts: documentCounts, isLoading: docsLoading } = useCandidateDocumentCounts({
+    talentIds,
+    enabled: talentIds.length > 0,
+  });
 
   // Permissions
   const { role, canInsert, canEdit, isLoading: permissionsLoading } = usePermissions();
@@ -476,6 +486,18 @@ export default function TalentDatabase() {
               <p className="text-xs">Source: {cvSourceLabels[source]}</p>
             </TooltipContent>
           </Tooltip>
+        );
+      case "docs":
+        const docCount = documentCounts.get(talent.id);
+        return (
+          <DocsColumnCell
+            talentId={talent.id}
+            talentName={talent.name}
+            docCount={docCount?.totalCount || 0}
+            hasPrimaryCV={docCount?.hasPrimaryCV || false}
+            isLoading={docsLoading}
+            onClick={() => navigate(`/talent/${talent.id}`)}
+          />
         );
       default:
         return "—";

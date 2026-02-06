@@ -1523,6 +1523,64 @@ export type Database = {
           },
         ]
       }
+      talent_questions: {
+        Row: {
+          created_at: string
+          cv_hash: string | null
+          id: string
+          job_spec_id: string | null
+          questions: Json
+          spec_hash: string | null
+          talent_id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          cv_hash?: string | null
+          id?: string
+          job_spec_id?: string | null
+          questions?: Json
+          spec_hash?: string | null
+          talent_id: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          cv_hash?: string | null
+          id?: string
+          job_spec_id?: string | null
+          questions?: Json
+          spec_hash?: string | null
+          talent_id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_questions_job_spec_id_fkey"
+            columns: ["job_spec_id"]
+            isOneToOne: false
+            referencedRelation: "job_specs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_questions_talent_id_fkey"
+            columns: ["talent_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_questions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_signals: {
         Row: {
           created_at: string

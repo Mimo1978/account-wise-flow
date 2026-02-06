@@ -45,7 +45,10 @@ import { SnippetHighlight } from './SnippetHighlight';
 import { EvidencePill } from '@/components/evidence/EvidencePill';
 import { SignalBadge } from '@/components/signals/SignalBadge';
 import { SignalsSection } from '@/components/signals/SignalsSection';
+import { QuestionsSection } from '@/components/questions/QuestionsSection';
 import { extractMatchSignals } from '@/hooks/use-signals';
+import { useGeneratedQuestions } from '@/hooks/use-generated-questions';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 interface MatchResultsPanelProps {
   matches: JobSpecMatch[];
@@ -107,6 +110,23 @@ function ScoreBar({ score, label, icon: Icon }: { score: number; label: string; 
 export function MatchResultsPanel({ matches, loading, onShortlist }: MatchResultsPanelProps) {
   const [selectedMatch, setSelectedMatch] = useState<JobSpecMatch | null>(null);
   const [sortBy, setSortBy] = useState<'overall' | 'skills' | 'recency'>('overall');
+
+  // Get workspace for question generation
+  const { currentWorkspace } = useWorkspace();
+
+  // Get generated questions for selected match
+  const {
+    questions,
+    isLoading: questionsLoading,
+    generate: generateQuestions,
+    isGenerating,
+    cachedAt,
+  } = useGeneratedQuestions({
+    talentId: selectedMatch?.talent_id,
+    jobSpecId: selectedMatch?.job_spec_id,
+    workspaceId: currentWorkspace?.id,
+    enabled: !!selectedMatch && !!currentWorkspace,
+  });
 
   const sortedMatches = [...matches].sort((a, b) => {
     switch (sortBy) {
@@ -441,16 +461,27 @@ export function MatchResultsPanel({ matches, loading, onShortlist }: MatchResult
                   </>
                 )}
 
-                {/* Suggested Questions */}
-                {selectedMatch.suggested_questions.length > 0 && (
+                {/* AI-Generated Questions Section */}
+                <QuestionsSection
+                  questions={questions}
+                  title="Questions to Ask"
+                  defaultOpen={false}
+                  isLoading={questionsLoading}
+                  onGenerate={(force) => generateQuestions({ forceRegenerate: force })}
+                  isGenerating={isGenerating}
+                  cachedAt={cachedAt}
+                />
+
+                {/* Legacy Questions (fallback if AI questions not generated) */}
+                {questions.length === 0 && selectedMatch.suggested_questions.length > 0 && (
                   <div className="space-y-2">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <HelpCircle className="h-4 w-4 text-blue-500" />
-                      Questions to Ask
+                    <h4 className="font-medium flex items-center gap-2 text-muted-foreground">
+                      <HelpCircle className="h-4 w-4" />
+                      Quick Questions
                     </h4>
                     <ul className="space-y-2">
                       {selectedMatch.suggested_questions.map((q, i) => (
-                        <li key={i} className="text-sm text-muted-foreground bg-blue-500/5 p-2 rounded">
+                        <li key={i} className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
                           {q}
                         </li>
                       ))}

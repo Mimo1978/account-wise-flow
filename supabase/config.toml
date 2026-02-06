@@ -58,3 +58,6 @@ verify_jwt = false
 
 [functions.job-match]
 verify_jwt = false
+
+[functions.generate-questions]
+verify_jwt = false

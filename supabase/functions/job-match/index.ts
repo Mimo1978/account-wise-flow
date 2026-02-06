@@ -75,14 +75,31 @@ interface MatchResult {
   match_reasoning: string;
 }
 
-// Top-tier companies by sector for scoring
-const SECTOR_TIERS: Record<string, string[]> = {
-  'banking': ['Goldman Sachs', 'JPMorgan', 'Morgan Stanley', 'Barclays', 'Deutsche Bank', 'HSBC', 'Citi', 'UBS', 'Credit Suisse'],
-  'asset_management': ['BlackRock', 'Vanguard', 'Fidelity', 'State Street', 'PIMCO', 'Schroders', 'Aberdeen', 'Invesco'],
-  'fintech': ['Stripe', 'Revolut', 'Monzo', 'Wise', 'Klarna', 'Checkout.com', 'Plaid', 'Robinhood'],
-  'consulting': ['McKinsey', 'BCG', 'Bain', 'Deloitte', 'Accenture', 'EY', 'PwC', 'KPMG'],
-  'technology': ['Google', 'Microsoft', 'Apple', 'Amazon', 'Meta', 'Netflix', 'Salesforce', 'Oracle', 'IBM'],
-};
+    // Fetch workspace settings for signal thresholds and company tiers
+    const { data: wsSettings, error: wsError } = await supabase
+      .from('workspace_settings')
+      .select('short_tenure_threshold_months, gap_threshold_months, contract_hop_min_stints, contract_hop_lookback_months, top_tier_companies')
+      .eq('workspace_id', spec.workspace_id)
+      .single();
+
+    // Use workspace settings or defaults
+    const settings = wsSettings || {
+      short_tenure_threshold_months: 9,
+      gap_threshold_months: 6,
+      contract_hop_min_stints: 3,
+      contract_hop_lookback_months: 24,
+      top_tier_companies: {},
+    };
+
+    // Merge workspace top-tier companies with defaults
+    const SECTOR_TIERS: Record<string, string[]> = {
+      'banking': ['Goldman Sachs', 'JPMorgan', 'Morgan Stanley', 'Barclays', 'Deutsche Bank', 'HSBC', 'Citi', 'UBS', 'Credit Suisse'],
+      'asset_management': ['BlackRock', 'Vanguard', 'Fidelity', 'State Street', 'PIMCO', 'Schroders', 'Aberdeen', 'Invesco'],
+      'fintech': ['Stripe', 'Revolut', 'Monzo', 'Wise', 'Klarna', 'Checkout.com', 'Plaid', 'Robinhood'],
+      'consulting': ['McKinsey', 'BCG', 'Bain', 'Deloitte', 'Accenture', 'EY', 'PwC', 'KPMG'],
+      'technology': ['Google', 'Microsoft', 'Apple', 'Amazon', 'Meta', 'Netflix', 'Salesforce', 'Oracle', 'IBM'],
+      ...settings.top_tier_companies,
+    };
 
 /**
  * Extract snippet with context around a matched term
@@ -396,8 +413,6 @@ Deno.serve(async (req) => {
       interface DatePair { start: Date | null; end: Date | null; company?: string; title?: string; }
       const roleDates: DatePair[] = [];
       let subSixMonthStints = 0;
-      const twoYearsAgo = new Date();
-      twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
 
       const experience = Array.isArray(candidate.experience) ? candidate.experience : [];
       if (experience.length > 0) {
@@ -438,13 +453,13 @@ Deno.serve(async (req) => {
               }
             }
 
-            // Track sub-6-month stints in last 24 months for contract hopping
-            if (months < 6 && endDate >= twoYearsAgo) {
+            // Track sub-6-month stints in lookback window for contract hopping
+            if (months < 6 && endDate >= new Date(Date.now() - settings.contract_hop_lookback_months * 30 * 24 * 60 * 60 * 1000)) {
               subSixMonthStints++;
             }
 
-            // Check for short tenure
-            if (months < 9) {
+            // Check for short tenure using workspace threshold
+            if (months < settings.short_tenure_threshold_months) {
               shortTenureRoles++;
               const title = (exp.title || '').toLowerCase();
 
@@ -491,9 +506,9 @@ Deno.serve(async (req) => {
         else tenureScore = 35;
 
         // === CONTRACT HOPPING DETECTION ===
-        if (subSixMonthStints >= 3) {
+        if (subSixMonthStints >= settings.contract_hop_min_stints) {
           tenureScore = Math.max(tenureScore - 15, 20);
-          const hoppingText = `Pattern of short engagements: ${subSixMonthStints} roles under 6 months in last 24 months`;
+          const hoppingText = `Pattern of short engagements: ${subSixMonthStints} roles under 6 months in last ${settings.contract_hop_lookback_months} months`;
           riskFlags.push(hoppingText);
           suggestedQuestions.push('Can you walk me through your recent contract history?');
           suggestedQuestions.push('What drives your decisions to move between roles?');
@@ -524,7 +539,7 @@ Deno.serve(async (req) => {
               (current.start.getTime() - previous.end.getTime()) / (1000 * 60 * 60 * 24 * 30)
             );
             
-            if (gapMonths >= 6) {
+            if (gapMonths >= settings.gap_threshold_months) {
               const gapText = `${gapMonths}-month gap between ${previous.company || 'previous role'} and ${current.company || 'next role'}`;
               riskFlags.push(gapText);
               suggestedQuestions.push(`What were you doing during the gap between ${previous.company} and ${current.company}?`);

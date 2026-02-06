@@ -23,6 +23,7 @@ import WorkspaceSelector from "./pages/WorkspaceSelector";
 import Pricing from "./pages/Pricing";
 import ImportReview from "./pages/ImportReview";
 import CandidateProfile from "./pages/CandidateProfile";
+import WorkspaceSettings from "./pages/WorkspaceSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -159,6 +160,19 @@ const App = () => (
                 <ProtectedRoute>
                   <ProductLayout>
                     <ImportReview />
+                  </ProductLayout>
+                </ProtectedRoute>
+              }
+            />
+            
+            
+            {/* Workspace Settings */}
+            <Route
+              path="/workspace-settings"
+              element={
+                <ProtectedRoute>
+                  <ProductLayout>
+                    <WorkspaceSettings />
                   </ProductLayout>
                 </ProtectedRoute>
               }

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useDocuments } from "@/hooks/use-documents";
+import { useTalentDocuments } from "@/hooks/use-talent-documents";
 import { useSearchContext } from "@/contexts/SearchContext";
 import { Talent, TalentAvailability, TalentStatus, TalentExperience } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,7 @@ import { CandidateNotesSection } from "@/components/talent/CandidateNotesSection
 import { CandidateInterviewsSection } from "@/components/talent/CandidateInterviewsSection";
 import { CandidateOpportunitiesSection } from "@/components/talent/CandidateOpportunitiesSection";
 import { CandidateOverviewEditor } from "@/components/talent/CandidateOverviewEditor";
-import { DocumentList } from "@/components/documents";
+import { TalentDocumentList } from "@/components/talent/TalentDocumentList";
 import { SearchMatchSection } from "@/components/talent/SearchMatchSection";
 
 const availabilityColors: Record<TalentAvailability, string> = {
@@ -102,9 +102,9 @@ export default function CandidateProfile() {
   // Get search result if user arrived from Boolean search
   const searchResult = candidateId ? searchContext.getSearchResult(candidateId) : null;
 
-  const { documents } = useDocuments({
-    entityType: "candidate",
-    entityId: candidateId || "",
+  // Use the new talent documents hook for CV Vault
+  const { documents } = useTalentDocuments({
+    talentId: candidateId || "",
   });
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
@@ -366,14 +366,11 @@ export default function CandidateProfile() {
                 badge={documents.length > 0 ? documents.length.toString() : undefined}
                 expanded={expandedSections.has("cv")}
                 onToggle={() => toggleSection("cv")}
-            >
-                <DocumentList
-                  entityType="candidate"
-                  entityId={candidate.id}
-                  entityName={candidate.name}
+              >
+                <TalentDocumentList
+                  talentId={candidate.id}
+                  talentName={candidate.name}
                   canEdit={canEdit}
-                  showCategoryBreakdown={true}
-                  showVersions={true}
                 />
               </CollapsibleSection>
             </div>

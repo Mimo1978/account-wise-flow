@@ -1,0 +1,311 @@
+import { useState, useCallback, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { toast } from 'sonner';
+import {
+  TalentDocument,
+  TalentDocumentRow,
+  DocKind,
+  mapTalentDocumentRow,
+  ACCEPTED_FILE_TYPES,
+  ACCEPTED_FILE_EXTENSIONS,
+  MAX_FILE_SIZE,
+} from '@/lib/talent-document-types';
+
+interface UseTalentDocumentsOptions {
+  talentId: string;
+}
+
+interface UseTalentDocumentsReturn {
+  documents: TalentDocument[];
+  isLoading: boolean;
+  isUploading: boolean;
+  isDownloading: boolean;
+  uploadError: string | null;
+  uploadDocument: (file: File, docKind: DocKind) => Promise<boolean>;
+  downloadDocument: (document: TalentDocument) => Promise<void>;
+  deleteDocument: (documentId: string) => Promise<boolean>;
+  getSignedUrl: (filePath: string) => Promise<string | null>;
+  validateFile: (file: File) => { valid: boolean; error?: string };
+  refetch: () => Promise<void>;
+  clearError: () => void;
+}
+
+export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): UseTalentDocumentsReturn {
+  const { currentWorkspace } = useWorkspace();
+  const [documents, setDocuments] = useState<TalentDocument[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const clearError = useCallback(() => {
+    setUploadError(null);
+  }, []);
+
+  const fetchDocuments = useCallback(async () => {
+    if (!currentWorkspace?.id || !talentId) {
+      setDocuments([]);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('talent_documents')
+        .select('*')
+        .eq('talent_id', talentId)
+        .eq('workspace_id', currentWorkspace.id)
+        .order('uploaded_at', { ascending: false });
+
+      if (error) {
+        console.error('[useTalentDocuments] Fetch error:', error);
+        setDocuments([]);
+      } else {
+        setDocuments((data as TalentDocumentRow[]).map(mapTalentDocumentRow));
+      }
+    } catch (error) {
+      console.error('[useTalentDocuments] Unexpected error:', error);
+      setDocuments([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentWorkspace?.id, talentId]);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  const validateFile = useCallback((file: File): { valid: boolean; error?: string } => {
+    const isValidType = ACCEPTED_FILE_TYPES.includes(file.type);
+    const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    const isValidExt = ACCEPTED_FILE_EXTENSIONS.includes(ext);
+
+    if (!isValidType && !isValidExt) {
+      return {
+        valid: false,
+        error: 'Invalid file type. Please upload a PDF, DOC, or DOCX file.',
+      };
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        valid: false,
+        error: 'File is too large. Maximum size is 10MB.',
+      };
+    }
+
+    return { valid: true };
+  }, []);
+
+  const uploadDocument = useCallback(
+    async (file: File, docKind: DocKind): Promise<boolean> => {
+      if (!currentWorkspace?.id) {
+        setUploadError('No workspace selected');
+        toast.error('No workspace selected');
+        return false;
+      }
+
+      const validation = validateFile(file);
+      if (!validation.valid) {
+        setUploadError(validation.error || 'Invalid file');
+        toast.error(validation.error);
+        return false;
+      }
+
+      setIsUploading(true);
+      setUploadError(null);
+
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setUploadError('You must be logged in to upload files');
+          toast.error('You must be logged in to upload files');
+          return false;
+        }
+
+        // Generate unique path: workspace/talent/timestamp_filename
+        const timestamp = Date.now();
+        const ext = file.name.substring(file.name.lastIndexOf('.'));
+        const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const storagePath = `${currentWorkspace.id}/${talentId}/${timestamp}_${sanitizedFileName}`;
+
+        // Upload to private storage bucket
+        const { error: uploadStorageError } = await supabase.storage
+          .from('candidate_cvs')
+          .upload(storagePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (uploadStorageError) {
+          console.error('[useTalentDocuments] Upload error:', uploadStorageError);
+          setUploadError('Failed to upload file: ' + uploadStorageError.message);
+          toast.error('Failed to upload file: ' + uploadStorageError.message);
+          return false;
+        }
+
+        // Create document record
+        const { error: insertError } = await supabase
+          .from('talent_documents')
+          .insert({
+            workspace_id: currentWorkspace.id,
+            talent_id: talentId,
+            file_path: storagePath,
+            file_name: file.name,
+            file_type: ext.replace('.', '').toUpperCase(),
+            file_size: file.size,
+            uploaded_by: user.id,
+            doc_kind: docKind,
+            parse_status: 'pending',
+          });
+
+        if (insertError) {
+          console.error('[useTalentDocuments] Insert error:', insertError);
+          // Cleanup uploaded file
+          await supabase.storage.from('candidate_cvs').remove([storagePath]);
+          setUploadError('Failed to create document record');
+          toast.error('Failed to create document record');
+          return false;
+        }
+
+        toast.success('Document uploaded successfully');
+        
+        // Refresh document list
+        await fetchDocuments();
+        return true;
+      } catch (error) {
+        console.error('[useTalentDocuments] Unexpected error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+        setUploadError(errorMessage);
+        toast.error(errorMessage);
+        return false;
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [currentWorkspace?.id, talentId, validateFile, fetchDocuments]
+  );
+
+  const getSignedUrl = useCallback(
+    async (filePath: string): Promise<string | null> => {
+      try {
+        const { data, error } = await supabase.storage
+          .from('candidate_cvs')
+          .createSignedUrl(filePath, 3600); // 1 hour expiry
+
+        if (error) {
+          console.error('[useTalentDocuments] Signed URL error:', error);
+          return null;
+        }
+
+        return data.signedUrl;
+      } catch (error) {
+        console.error('[useTalentDocuments] Unexpected error getting signed URL:', error);
+        return null;
+      }
+    },
+    []
+  );
+
+  const downloadDocument = useCallback(
+    async (doc: TalentDocument): Promise<void> => {
+      if (!doc.filePath) {
+        toast.error('No file available for download');
+        return;
+      }
+
+      setIsDownloading(true);
+
+      try {
+        const { data, error } = await supabase.storage
+          .from('candidate_cvs')
+          .download(doc.filePath);
+
+        if (error) {
+          console.error('[useTalentDocuments] Download error:', error);
+          toast.error('Failed to download document');
+          return;
+        }
+
+        // Create download link
+        const url = URL.createObjectURL(data);
+        const a = window.document.createElement('a');
+        a.href = url;
+        a.download = doc.fileName;
+        window.document.body.appendChild(a);
+        a.click();
+        window.document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast.success('Document downloaded');
+      } catch (error) {
+        console.error('[useTalentDocuments] Unexpected download error:', error);
+        toast.error('An unexpected error occurred');
+      } finally {
+        setIsDownloading(false);
+      }
+    },
+    []
+  );
+
+  const deleteDocument = useCallback(
+    async (documentId: string): Promise<boolean> => {
+      try {
+        // Get the document to find its file path
+        const doc = documents.find((d) => d.id === documentId);
+        if (!doc) {
+          toast.error('Document not found');
+          return false;
+        }
+
+        // Delete from storage
+        const { error: storageError } = await supabase.storage
+          .from('candidate_cvs')
+          .remove([doc.filePath]);
+
+        if (storageError) {
+          console.error('[useTalentDocuments] Storage delete error:', storageError);
+          // Continue anyway - the record delete is more important
+        }
+
+        // Delete the record
+        const { error } = await supabase
+          .from('talent_documents')
+          .delete()
+          .eq('id', documentId);
+
+        if (error) {
+          console.error('[useTalentDocuments] Delete error:', error);
+          toast.error('Failed to delete document');
+          return false;
+        }
+
+        toast.success('Document deleted');
+        await fetchDocuments();
+        return true;
+      } catch (error) {
+        console.error('[useTalentDocuments] Unexpected delete error:', error);
+        toast.error('An unexpected error occurred');
+        return false;
+      }
+    },
+    [documents, fetchDocuments]
+  );
+
+  return {
+    documents,
+    isLoading,
+    isUploading,
+    isDownloading,
+    uploadError,
+    uploadDocument,
+    downloadDocument,
+    deleteDocument,
+    getSignedUrl,
+    validateFile,
+    refetch: fetchDocuments,
+    clearError,
+  };
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,9 +37,12 @@ import {
   TrendingUp,
   Clock,
   Target,
+  Quote,
 } from 'lucide-react';
 import type { JobSpecMatch } from '@/lib/job-match-types';
+import type { ClaimWithEvidence, EvidenceSnippet } from '@/lib/evidence-types';
 import { SnippetHighlight } from './SnippetHighlight';
+import { EvidencePill } from '@/components/evidence/EvidencePill';
 
 interface MatchResultsPanelProps {
   matches: JobSpecMatch[];
@@ -338,6 +341,43 @@ export function MatchResultsPanel({ matches, loading, onShortlist }: MatchResult
 
                 <Separator />
 
+                {/* AI Claims with Evidence */}
+                {selectedMatch.score_breakdown?.evidence?.claims && selectedMatch.score_breakdown.evidence.claims.length > 0 && (
+                  <>
+                    <Separator />
+                    <div className="space-y-3">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Quote className="h-4 w-4 text-primary" />
+                        AI Analysis
+                        <Badge variant="secondary" className="text-[10px]">Evidence-linked</Badge>
+                      </h4>
+                      <div className="space-y-2">
+                        {selectedMatch.score_breakdown.evidence.claims.map((claim) => (
+                          <div
+                            key={claim.id}
+                            className="flex items-start justify-between gap-2 text-sm p-2 rounded bg-muted/50"
+                          >
+                            <div className="flex items-start gap-2 flex-1">
+                              {claim.category === 'skill_match' && <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />}
+                              {claim.category === 'sector' && <Building2 className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />}
+                              {claim.category === 'tenure' && <TrendingUp className="h-4 w-4 text-purple-500 mt-0.5 shrink-0" />}
+                              {claim.category === 'recency' && <Clock className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />}
+                              {claim.category === 'risk' && <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />}
+                              <span className="text-muted-foreground">{claim.text}</span>
+                            </div>
+                            {claim.evidence && claim.evidence.length > 0 && (
+                              <EvidencePill
+                                evidence={claim.evidence}
+                                size="sm"
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 {/* Matched Skills */}
                 {selectedMatch.score_breakdown?.matched_skills && selectedMatch.score_breakdown.matched_skills.length > 0 && (
                   <div className="space-y-2">
@@ -346,11 +386,26 @@ export function MatchResultsPanel({ matches, loading, onShortlist }: MatchResult
                       Matched Skills
                     </h4>
                     <div className="flex flex-wrap gap-1.5">
-                      {selectedMatch.score_breakdown.matched_skills.map((skill, i) => (
-                        <Badge key={i} variant="secondary" className="bg-green-500/10">
-                          {skill}
-                        </Badge>
-                      ))}
+                      {selectedMatch.score_breakdown.matched_skills.map((skill, i) => {
+                        // Find evidence for this skill
+                        const skillClaim = selectedMatch.score_breakdown?.evidence?.claims?.find(
+                          c => c.category === 'skill_match'
+                        );
+                        const skillEvidence = skillClaim?.evidence?.filter(
+                          e => e.claimText.toLowerCase().includes(skill.replace(' (partial)', '').toLowerCase())
+                        );
+                        
+                        return (
+                          <div key={i} className="inline-flex items-center gap-0.5">
+                            <Badge variant="secondary" className="bg-green-500/10">
+                              {skill}
+                            </Badge>
+                            {skillEvidence && skillEvidence.length > 0 && (
+                              <EvidencePill evidence={skillEvidence} size="sm" className="ml-0" />
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -381,11 +436,24 @@ export function MatchResultsPanel({ matches, loading, onShortlist }: MatchResult
                         Risk Flags
                       </h4>
                       <ul className="space-y-2">
-                        {selectedMatch.risk_flags.map((flag, i) => (
-                          <li key={i} className="text-sm text-muted-foreground bg-orange-500/5 p-2 rounded">
-                            {flag}
-                          </li>
-                        ))}
+                        {selectedMatch.risk_flags.map((flag, i) => {
+                          // Find evidence for this risk
+                          const riskClaim = selectedMatch.score_breakdown?.evidence?.claims?.find(
+                            c => c.category === 'risk'
+                          );
+                          const riskEvidence = riskClaim?.evidence?.filter(
+                            e => e.claimText.toLowerCase().includes(flag.substring(0, 20).toLowerCase())
+                          );
+                          
+                          return (
+                            <li key={i} className="flex items-start justify-between gap-2 text-sm text-muted-foreground bg-orange-500/5 p-2 rounded">
+                              <span>{flag}</span>
+                              {riskEvidence && riskEvidence.length > 0 && (
+                                <EvidencePill evidence={riskEvidence} size="sm" />
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   </>
@@ -408,8 +476,8 @@ export function MatchResultsPanel({ matches, loading, onShortlist }: MatchResult
                   </div>
                 )}
 
-                {/* Top Matches / Evidence Snippets */}
-                {selectedMatch.top_evidence_snippets.length > 0 && (
+                {/* Top Matches / Evidence Snippets - Legacy display */}
+                {selectedMatch.top_evidence_snippets.length > 0 && !selectedMatch.score_breakdown?.evidence?.claims?.length && (
                   <>
                     <Separator />
                     <div className="space-y-3">

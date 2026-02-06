@@ -1,3 +1,5 @@
+import type { MatchEvidence } from './evidence-types';
+
 export interface MatchScoreBreakdown {
   overall_score: number;
   skill_match_score: number;
@@ -16,6 +18,8 @@ export interface MatchScoreBreakdown {
     years_since_relevant_role: number;
     has_recent_experience: boolean;
   };
+  /** Structured evidence linking claims to CV snippets */
+  evidence?: MatchEvidence;
 }
 
 export interface JobSpecMatch {

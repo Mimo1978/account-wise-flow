@@ -3,3 +3,4 @@ export { JobSpecViewModal } from './JobSpecViewModal';
 export { JobSpecMatchModal } from './JobSpecMatchModal';
 export { JobSpecsList } from './JobSpecsList';
 export { MatchResultsPanel } from './MatchResultsPanel';
+export { SnippetHighlight } from './SnippetHighlight';

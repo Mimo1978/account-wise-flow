@@ -39,6 +39,7 @@ import {
   Target,
 } from 'lucide-react';
 import type { JobSpecMatch } from '@/lib/job-match-types';
+import { SnippetHighlight } from './SnippetHighlight';
 
 interface MatchResultsPanelProps {
   matches: JobSpecMatch[];
@@ -187,6 +188,7 @@ export function MatchResultsPanel({ matches, loading, onShortlist }: MatchResult
                   <TableHead className="text-center">Tenure</TableHead>
                   <TableHead className="text-center">Recency</TableHead>
                   <TableHead className="text-center">Flags</TableHead>
+                  <TableHead>Top Match</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -255,6 +257,17 @@ export function MatchResultsPanel({ matches, loading, onShortlist }: MatchResult
                         </TooltipProvider>
                       ) : (
                         <CheckCircle2 className="h-4 w-4 text-green-500 mx-auto" />
+                      )}
+                    </TableCell>
+                    <TableCell className="max-w-xs">
+                      {match.top_evidence_snippets.length > 0 ? (
+                        <SnippetHighlight 
+                          snippet={match.top_evidence_snippets[0]} 
+                          maxLines={1}
+                          className="text-xs"
+                        />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">No snippets</span>
                       )}
                     </TableCell>
                     <TableCell>
@@ -395,17 +408,24 @@ export function MatchResultsPanel({ matches, loading, onShortlist }: MatchResult
                   </div>
                 )}
 
-                {/* Evidence Snippets */}
+                {/* Top Matches / Evidence Snippets */}
                 {selectedMatch.top_evidence_snippets.length > 0 && (
                   <>
                     <Separator />
-                    <div className="space-y-2">
-                      <h4 className="font-medium">Evidence from CV</h4>
-                      {selectedMatch.top_evidence_snippets.map((snippet, i) => (
-                        <p key={i} className="text-sm text-muted-foreground bg-muted p-2 rounded italic">
-                          "{snippet}"
-                        </p>
-                      ))}
+                    <div className="space-y-3">
+                      <h4 className="font-medium flex items-center gap-2">
+                        <Target className="h-4 w-4 text-primary" />
+                        Top Matches
+                      </h4>
+                      <div className="space-y-2">
+                        {selectedMatch.top_evidence_snippets.map((snippet, i) => (
+                          <SnippetHighlight 
+                            key={i}
+                            snippet={snippet}
+                            maxLines={2}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </>
                 )}

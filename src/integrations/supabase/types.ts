@@ -994,6 +994,72 @@ export type Database = {
           },
         ]
       }
+      job_specs: {
+        Row: {
+          client_company_id: string | null
+          created_at: string
+          created_by: string | null
+          day_rate_range: string | null
+          description_text: string | null
+          id: string
+          key_skills: string[] | null
+          location: string | null
+          salary_range: string | null
+          sector: string | null
+          title: string
+          type: Database["public"]["Enums"]["job_spec_type"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          client_company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          day_rate_range?: string | null
+          description_text?: string | null
+          id?: string
+          key_skills?: string[] | null
+          location?: string | null
+          salary_range?: string | null
+          sector?: string | null
+          title: string
+          type?: Database["public"]["Enums"]["job_spec_type"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          client_company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          day_rate_range?: string | null
+          description_text?: string | null
+          id?: string
+          key_skills?: string[] | null
+          location?: string | null
+          salary_range?: string | null
+          sector?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["job_spec_type"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_specs_client_company_id_fkey"
+            columns: ["client_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_specs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notes: {
         Row: {
           content: string
@@ -1542,6 +1608,7 @@ export type Database = {
         | "offer"
         | "rejected"
         | "withdrawn"
+      job_spec_type: "permanent" | "contract"
       note_visibility: "public" | "team" | "private"
       opportunity_status:
         | "submitted"
@@ -1718,6 +1785,7 @@ export const Constants = {
         "rejected",
         "withdrawn",
       ],
+      job_spec_type: ["permanent", "contract"],
       note_visibility: ["public", "team", "private"],
       opportunity_status: [
         "submitted",

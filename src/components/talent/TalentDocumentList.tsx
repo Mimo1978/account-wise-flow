@@ -96,6 +96,13 @@ export function TalentDocumentList({
   const [deleteConfirm, setDeleteConfirm] = useState<TalentDocument | null>(null);
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
+  // Computed status
+  const hasPrimaryCV = useMemo(() => {
+    return documents.some((doc) => doc.docKind === 'cv');
+  }, [documents]);
+
+  const documentCount = documents.length;
+
   // Group documents by type
   const documentsByKind = useMemo(() => {
     return documents.reduce((acc, doc) => {
@@ -289,12 +296,33 @@ export function TalentDocumentList({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Status Header */}
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold">CV & Documents</h3>
-        {canEdit && (
+        <div className="flex items-center gap-3">
+          {documentCount > 0 ? (
+            <>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <span className="text-sm font-medium">
+                  {documentCount} document{documentCount > 1 ? 's' : ''} attached
+                </span>
+              </div>
+              {hasPrimaryCV && (
+                <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">
+                  <FileText className="h-3 w-3 mr-1" />
+                  CV
+                </Badge>
+              )}
+            </>
+          ) : (
+            <span className="text-sm text-muted-foreground">No documents attached</span>
+          )}
+        </div>
+        {canEdit && documentCount > 0 && (
           <Button
             size="sm"
+            variant="outline"
             onClick={() => setShowUploadModal(true)}
             disabled={isUploading}
           >
@@ -305,8 +333,8 @@ export function TalentDocumentList({
               </>
             ) : (
               <>
-                <Upload className="h-3.5 w-3.5 mr-1.5" />
-                Upload
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Add Document
               </>
             )}
           </Button>
@@ -328,46 +356,23 @@ export function TalentDocumentList({
 
       {/* Empty State */}
       {documents.length === 0 && !isUploading ? (
-        <div className="text-center py-12 bg-muted/30 rounded-lg border border-dashed border-border">
-          <Folder className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm font-medium text-muted-foreground mb-1">
-            No documents uploaded yet
-          </p>
-          <p className="text-xs text-muted-foreground mb-4">
+        <div className="text-center py-10 bg-muted/30 rounded-lg border border-dashed border-border">
+          <Folder className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+          <p className="text-sm text-muted-foreground mb-4">
             Upload CVs, cover letters, and certifications for this candidate.
           </p>
           {canEdit && (
-            <Button size="sm" variant="outline" onClick={() => setShowUploadModal(true)}>
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Upload Document
-            </Button>
+            <div className="flex flex-col items-center gap-2">
+              <Button onClick={() => setShowUploadModal(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload CV
+              </Button>
+              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setShowUploadModal(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Upload Other Document
+              </Button>
+            </div>
           )}
-
-          {/* Disabled action buttons hint */}
-          <div className="mt-6 flex justify-center gap-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="sm" variant="ghost" disabled className="gap-1.5">
-                    <Eye className="h-4 w-4" />
-                    View
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Upload a document first to enable viewing</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button size="sm" variant="ghost" disabled className="gap-1.5">
-                    <Download className="h-4 w-4" />
-                    Download
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Upload a document first to enable downloading</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -377,7 +382,7 @@ export function TalentDocumentList({
 
       {/* Category Summary */}
       {documents.length > 0 && (
-        <div className="pt-4 border-t border-border">
+        <div className="pt-3 border-t border-border">
           <div className="flex flex-wrap gap-2">
             {Object.entries(documentsByKind).map(([kind, docs]) => {
               const config = docKindConfig[kind as DocKind];

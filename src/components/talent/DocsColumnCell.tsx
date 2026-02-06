@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,7 +14,6 @@ interface DocsColumnCellProps {
   talentName: string;
   docCount: number;
   hasPrimaryCV: boolean;
-  onClick?: () => void;
   isLoading?: boolean;
 }
 
@@ -22,9 +22,10 @@ export function DocsColumnCell({
   talentName,
   docCount,
   hasPrimaryCV,
-  onClick,
   isLoading,
 }: DocsColumnCellProps) {
+  const navigate = useNavigate();
+
   if (isLoading) {
     return <span className="text-muted-foreground text-sm">—</span>;
   }
@@ -36,6 +37,12 @@ export function DocsColumnCell({
   const tooltipText = hasPrimaryCV
     ? `${docCount} document${docCount > 1 ? 's' : ''} (includes CV)`
     : `${docCount} document${docCount > 1 ? 's' : ''}`;
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Navigate to candidate profile with query param to auto-expand CV section
+    navigate(`/talent/${talentId}?section=cv`);
+  };
 
   return (
     <Tooltip>
@@ -49,7 +56,7 @@ export function DocsColumnCell({
             'focus-visible:ring-2 focus-visible:ring-primary/50',
             'transition-colors duration-150 cursor-pointer'
           )}
-          onClick={onClick}
+          onClick={handleClick}
         >
           <FileText className="h-3.5 w-3.5" />
           <span>{docCount}</span>
@@ -58,7 +65,7 @@ export function DocsColumnCell({
       </TooltipTrigger>
       <TooltipContent side="left" className="text-xs">
         <p>{tooltipText}</p>
-        <p className="text-muted-foreground mt-1">Click to view details</p>
+        <p className="text-muted-foreground mt-1">Click to view documents</p>
       </TooltipContent>
     </Tooltip>
   );

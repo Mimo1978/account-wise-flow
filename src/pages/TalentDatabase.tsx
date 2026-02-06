@@ -496,7 +496,6 @@ export default function TalentDatabase() {
             docCount={docCount?.totalCount || 0}
             hasPrimaryCV={docCount?.hasPrimaryCV || false}
             isLoading={docsLoading}
-            onClick={() => navigate(`/talent/${talent.id}`)}
           />
         );
       default:

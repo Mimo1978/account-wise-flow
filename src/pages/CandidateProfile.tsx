@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -97,6 +97,7 @@ const getMockExperience = (talentId: string): TalentExperience[] => {
 export default function CandidateProfile() {
   const { candidateId } = useParams<{ candidateId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { candidates, isLoading, refetch } = useCandidates();
   const { canEdit, isAdmin, isManager, userId } = usePermissions();
   const searchContext = useSearchContext();
@@ -109,10 +110,24 @@ export default function CandidateProfile() {
     talentId: candidateId || "",
   });
 
+  // Check if we should auto-expand CV section (from Docs column click)
+  const autoExpandSection = searchParams.get("section");
+
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(["overview", "skills", "experience", "notes", "interviews", "opportunities", ...(searchResult ? ["search-match"] : [])])
   );
   const [showExportModal, setShowExportModal] = useState(false);
+
+  // Auto-expand CV section when navigating from table Docs indicator
+  useEffect(() => {
+    if (autoExpandSection === "cv") {
+      setExpandedSections((prev) => new Set([...prev, "cv"]));
+      // Scroll to CV section after a brief delay to allow render
+      setTimeout(() => {
+        document.getElementById("cv-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [autoExpandSection]);
 
   const candidate = useMemo(() => {
     return candidates.find((c) => c.id === candidateId) || null;

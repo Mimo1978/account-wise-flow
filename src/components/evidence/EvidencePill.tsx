@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 interface EvidencePillProps {
   /** Evidence snippets to display */
   evidence: EvidenceSnippet[];
-  /** Callback when user clicks "Open in CV Viewer" */
+  /** Callback when user clicks "Open in CV Viewer" - receives documentId and scroll position */
   onOpenCV?: (documentId: string, position: number) => void;
   /** Size variant */
   size?: 'sm' | 'default';
@@ -47,7 +47,14 @@ export function EvidencePill({
           variant="ghost"
           size={size}
           className={cn(
-            'h-auto px-1.5 py-0.5 text-xs font-normal text-muted-foreground hover:text-foreground hover:bg-muted gap-1',
+            'h-auto px-1.5 py-0.5 text-xs font-normal gap-1',
+            'text-muted-foreground',
+            // Hover state polish
+            'hover:text-primary hover:bg-primary/10',
+            // Focus state for keyboard accessibility
+            'focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1',
+            // Subtle transition
+            'transition-colors duration-150',
             className
           )}
         >
@@ -60,8 +67,12 @@ export function EvidencePill({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start">
-        <div className="p-3 border-b">
+      <PopoverContent 
+        className="w-80 p-0 shadow-lg border border-border/60" 
+        align="start"
+        sideOffset={6}
+      >
+        <div className="p-3 border-b bg-muted/30">
           <h4 className="text-sm font-medium flex items-center gap-2">
             <Quote className="h-4 w-4 text-primary" />
             Evidence from CV
@@ -101,7 +112,12 @@ export function EvidencePill({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 px-2 text-xs gap-1"
+                      className={cn(
+                        'h-6 px-2 text-xs gap-1',
+                        'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                        'focus-visible:ring-2 focus-visible:ring-primary/50',
+                        'transition-colors duration-150'
+                      )}
                       onClick={() => onOpenCV(snippet.documentId!, snippet.snippetStart)}
                     >
                       <FileText className="h-3 w-3" />

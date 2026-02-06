@@ -89,6 +89,9 @@ export function MatchIndicatorBadge({
   highlightSnippets,
   className 
 }: MatchIndicatorBadgeProps) {
+  // Extract matched phrases for "Why this matched" tooltip
+  const whyPhrases = matchBreakdown?.matched_phrases?.filter(Boolean).slice(0, 3) || [];
+  const hasRecencyBoost = (matchBreakdown?.recency_boost ?? 1) > 1;
   const hasAnyMatch = matchedIn.cv || matchedIn.skills || matchedIn.overview || matchedIn.title || matchedIn.location;
   
   if (!hasAnyMatch) return null;
@@ -155,17 +158,39 @@ export function MatchIndicatorBadge({
             <span>{config.label}</span>
           </Badge>
         </HoverCardTrigger>
-        <HoverCardContent side="left" align="start" className="w-72 p-3">
+        <HoverCardContent side="left" align="start" className="w-80 p-3">
           <div className="space-y-3">
             {/* Header with score */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium">{config.label}</span>
-              {scorePercent !== null && (
-                <span className="text-xs text-muted-foreground">
-                  Score: {scorePercent}%
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {hasRecencyBoost && (
+                  <span className="text-[10px] text-green-600 dark:text-green-400 bg-green-500/10 px-1.5 py-0.5 rounded">
+                    Recent
+                  </span>
+                )}
+                {scorePercent !== null && (
+                  <span className="text-xs text-muted-foreground">
+                    Score: {scorePercent}%
+                  </span>
+                )}
+              </div>
             </div>
+
+            {/* Why this matched - top 3 phrases */}
+            {whyPhrases.length > 0 && (
+              <div className="bg-primary/5 border border-primary/10 rounded-md p-2">
+                <p className="text-[10px] font-medium text-primary mb-1.5">Why this matched:</p>
+                <ul className="space-y-1">
+                  {whyPhrases.map((phrase, idx) => (
+                    <li key={idx} className="text-[11px] text-foreground flex items-start gap-1.5">
+                      <span className="text-primary mt-0.5">•</span>
+                      <span className="line-clamp-1">{phrase}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Matched in fields */}
             <div>
@@ -178,6 +203,9 @@ export function MatchIndicatorBadge({
                   >
                     {part.icon}
                     {part.label}
+                    {part.score !== undefined && part.score > 0 && (
+                      <span className="text-muted-foreground">({part.score.toFixed(0)})</span>
+                    )}
                   </span>
                 ))}
               </div>

@@ -18,6 +18,8 @@ export interface MatchBreakdown {
   overview_score: number;
   location_score: number;
   cv_score: number;
+  recency_boost?: number;
+  matched_phrases?: string[];
 }
 
 export interface BooleanSearchResult {
@@ -193,6 +195,7 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
 
         // Parse match breakdown with defaults
         const rawBreakdown = row.match_breakdown as Record<string, unknown> | null;
+        const matchedPhrases = rawBreakdown?.matched_phrases;
         const breakdown: MatchBreakdown = {
           title: Boolean(rawBreakdown?.title),
           skills: Boolean(rawBreakdown?.skills),
@@ -204,6 +207,10 @@ export function useBooleanSearch(options: UseBooleanSearchOptions = {}) {
           overview_score: Number(rawBreakdown?.overview_score) || 0,
           location_score: Number(rawBreakdown?.location_score) || 0,
           cv_score: Number(rawBreakdown?.cv_score) || 0,
+          recency_boost: Number(rawBreakdown?.recency_boost) || 1.0,
+          matched_phrases: Array.isArray(matchedPhrases) 
+            ? (matchedPhrases as string[]).filter(Boolean).slice(0, 3) 
+            : [],
         };
 
         const matchScore = row.match_score || (row.rank * 100);

@@ -25,6 +25,7 @@ interface UseTalentDocumentsReturn {
   uploadDocument: (file: File, docKind: DocKind) => Promise<boolean>;
   downloadDocument: (document: TalentDocument) => Promise<void>;
   deleteDocument: (documentId: string) => Promise<boolean>;
+  retryExtraction: (documentId: string) => Promise<boolean>;
   getSignedUrl: (filePath: string) => Promise<string | null>;
   validateFile: (file: File) => { valid: boolean; error?: string };
   refetch: () => Promise<void>;
@@ -99,6 +100,84 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
     return { valid: true };
   }, []);
 
+  // Trigger text extraction for a document (async, non-blocking)
+  const triggerTextExtraction = useCallback(
+    async (documentId: string): Promise<void> => {
+      try {
+        console.log('[useTalentDocuments] Triggering text extraction for:', documentId);
+
+        const { data, error } = await supabase.functions.invoke('cv-text-extract', {
+          body: { talentDocumentId: documentId },
+        });
+
+        if (error) {
+          console.error('[useTalentDocuments] Text extraction trigger failed:', error);
+          // Update status to failed
+          await supabase
+            .from('talent_documents')
+            .update({ parse_status: 'failed' as const, updated_at: new Date().toISOString() })
+            .eq('id', documentId);
+          return;
+        }
+
+        console.log('[useTalentDocuments] Text extraction complete:', data);
+        // Refresh document list to show updated status
+        await fetchDocuments();
+      } catch (error) {
+        console.error('[useTalentDocuments] Text extraction error:', error);
+        // Mark as failed on error
+        await supabase
+          .from('talent_documents')
+          .update({ parse_status: 'failed' as const, updated_at: new Date().toISOString() })
+          .eq('id', documentId);
+      }
+    },
+    [fetchDocuments]
+  );
+
+  // Retry text extraction for a failed document
+  const retryExtraction = useCallback(
+    async (documentId: string): Promise<boolean> => {
+      try {
+        // Reset status to pending
+        await supabase
+          .from('talent_documents')
+          .update({ parse_status: 'pending' as const, updated_at: new Date().toISOString() })
+          .eq('id', documentId);
+
+        // Refresh UI immediately to show pending state
+        await fetchDocuments();
+
+        // Trigger extraction
+        toast.loading('Retrying text extraction...', { id: `retry-${documentId}` });
+        
+        const { error } = await supabase.functions.invoke('cv-text-extract', {
+          body: { talentDocumentId: documentId },
+        });
+
+        if (error) {
+          console.error('[useTalentDocuments] Retry extraction failed:', error);
+          toast.error('Text extraction failed', { id: `retry-${documentId}` });
+          await supabase
+            .from('talent_documents')
+            .update({ parse_status: 'failed' as const, updated_at: new Date().toISOString() })
+            .eq('id', documentId);
+          await fetchDocuments();
+          return false;
+        }
+
+        toast.success('Text extraction complete', { id: `retry-${documentId}` });
+        await fetchDocuments();
+        return true;
+      } catch (error) {
+        console.error('[useTalentDocuments] Retry extraction error:', error);
+        toast.error('Text extraction failed');
+        return false;
+      }
+    },
+    [fetchDocuments]
+  );
+
   const uploadDocument = useCallback(
     async (file: File, docKind: DocKind): Promise<boolean> => {
       if (!currentWorkspace?.id) {
@@ -147,7 +226,7 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
         }
 
         // Create document record
-        const { error: insertError } = await supabase
+        const { data: insertedDoc, error: insertError } = await supabase
           .from('talent_documents')
           .insert({
             workspace_id: currentWorkspace.id,
@@ -159,9 +238,11 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
             uploaded_by: user.id,
             doc_kind: docKind,
             parse_status: 'pending',
-          });
+          })
+          .select('id')
+          .single();
 
-        if (insertError) {
+        if (insertError || !insertedDoc) {
           console.error('[useTalentDocuments] Insert error:', insertError);
           // Cleanup uploaded file
           await supabase.storage.from('candidate_cvs').remove([storagePath]);
@@ -172,8 +253,12 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
 
         toast.success('Document uploaded successfully');
         
-        // Refresh document list
+        // Refresh document list first
         await fetchDocuments();
+
+        // Trigger text extraction asynchronously (don't await - let it run in background)
+        triggerTextExtraction(insertedDoc.id);
+
         return true;
       } catch (error) {
         console.error('[useTalentDocuments] Unexpected error:', error);
@@ -185,7 +270,7 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
         setIsUploading(false);
       }
     },
-    [currentWorkspace?.id, talentId, validateFile, fetchDocuments]
+    [currentWorkspace?.id, talentId, validateFile, fetchDocuments, triggerTextExtraction]
   );
 
   const getSignedUrl = useCallback(
@@ -303,6 +388,7 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
     uploadDocument,
     downloadDocument,
     deleteDocument,
+    retryExtraction,
     getSignedUrl,
     validateFile,
     refetch: fetchDocuments,

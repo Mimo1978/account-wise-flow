@@ -39,6 +39,7 @@ import {
   ChevronDown,
   ChevronRight,
   Activity,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,7 @@ import { CandidateOpportunitiesSection } from "@/components/talent/CandidateOppo
 import { CandidateOverviewEditor } from "@/components/talent/CandidateOverviewEditor";
 import { TalentDocumentList } from "@/components/talent/TalentDocumentList";
 import { SearchMatchSection } from "@/components/talent/SearchMatchSection";
+import { CVExportModal } from "@/components/cvexport";
 
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -110,6 +112,8 @@ export default function CandidateProfile() {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(["overview", "skills", "experience", "notes", "interviews", "opportunities", ...(searchResult ? ["search-match"] : [])])
   );
+  const [showExportModal, setShowExportModal] = useState(false);
+
   const candidate = useMemo(() => {
     return candidates.find((c) => c.id === candidateId) || null;
   }, [candidates, candidateId]);
@@ -219,6 +223,14 @@ export default function CandidateProfile() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowExportModal(true)}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export Client CV
+            </Button>
             {canEdit && (
               <Button variant="outline" size="sm">
                 <Edit2 className="h-4 w-4 mr-2" />
@@ -511,6 +523,15 @@ export default function CandidateProfile() {
           </div>
         </div>
       </div>
+
+      {/* CV Export Modal */}
+      {candidate && (
+        <CVExportModal
+          open={showExportModal}
+          onOpenChange={setShowExportModal}
+          candidate={candidate}
+        />
+      )}
     </div>
   );
 }

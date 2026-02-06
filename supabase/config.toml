@@ -46,3 +46,15 @@ verify_jwt = false
 
 [functions.cv-text-extract]
 verify_jwt = false
+
+[functions.cv-summary-generate]
+verify_jwt = false
+
+[functions.cv-export-pdf]
+verify_jwt = false
+
+[functions.orgchart-extract]
+verify_jwt = false
+
+[functions.job-match]
+verify_jwt = false

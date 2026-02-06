@@ -906,6 +906,70 @@ export type Database = {
           },
         ]
       }
+      generated_exports: {
+        Row: {
+          candidate_id: string
+          created_at: string
+          created_by: string | null
+          executive_summary: string | null
+          file_type: string
+          id: string
+          included_sections: Json | null
+          job_spec_id: string | null
+          storage_path: string
+          template_style: string
+          workspace_id: string
+        }
+        Insert: {
+          candidate_id: string
+          created_at?: string
+          created_by?: string | null
+          executive_summary?: string | null
+          file_type?: string
+          id?: string
+          included_sections?: Json | null
+          job_spec_id?: string | null
+          storage_path: string
+          template_style?: string
+          workspace_id: string
+        }
+        Update: {
+          candidate_id?: string
+          created_at?: string
+          created_by?: string | null
+          executive_summary?: string | null
+          file_type?: string
+          id?: string
+          included_sections?: Json | null
+          job_spec_id?: string | null
+          storage_path?: string
+          template_style?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generated_exports_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_exports_job_spec_id_fkey"
+            columns: ["job_spec_id"]
+            isOneToOne: false
+            referencedRelation: "job_specs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generated_exports_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       import_entities: {
         Row: {
           approved_at: string | null
@@ -1515,6 +1579,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      workspace_branding: {
+        Row: {
+          company_name: string | null
+          created_at: string
+          id: string
+          logo_path: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          logo_path?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string
+          id?: string
+          logo_path?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_branding_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

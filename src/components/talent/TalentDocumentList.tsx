@@ -46,7 +46,7 @@ import {
 import { format } from 'date-fns';
 import { useTalentDocuments } from '@/hooks/use-talent-documents';
 import { TalentDocumentUploadModal } from './TalentDocumentUploadModal';
-import { TalentDocumentViewer } from './TalentDocumentViewer';
+import { EnhancedCVViewer } from './EnhancedCVViewer';
 import {
   TalentDocument,
   DocKind,
@@ -69,8 +69,8 @@ const documentIcons: Record<DocKind, React.ElementType> = {
 };
 
 const parseStatusConfig = {
-  pending: { icon: Clock, label: 'Pending extraction', color: 'text-amber-500' },
-  parsed: { icon: CheckCircle2, label: 'Text extracted', color: 'text-green-500' },
+  pending: { icon: Clock, label: 'Pending extraction', color: 'text-muted-foreground' },
+  parsed: { icon: CheckCircle2, label: 'Text extracted', color: 'text-primary' },
   failed: { icon: AlertCircle, label: 'Extraction failed', color: 'text-destructive' },
 };
 
@@ -303,7 +303,7 @@ export function TalentDocumentList({
           {documentCount > 0 ? (
             <>
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                <CheckCircle2 className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium">
                   {documentCount} document{documentCount > 1 ? 's' : ''} attached
                 </span>
@@ -406,8 +406,8 @@ export function TalentDocumentList({
         onSuccess={() => setShowUploadModal(false)}
       />
 
-      {/* Document Viewer */}
-      <TalentDocumentViewer
+      {/* Enhanced Document Viewer with Search */}
+      <EnhancedCVViewer
         open={showViewer}
         onClose={() => {
           setShowViewer(false);

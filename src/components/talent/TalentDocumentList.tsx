@@ -304,19 +304,21 @@ export function TalentDocumentList({
             <>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">
-                  {documentCount} document{documentCount > 1 ? 's' : ''} attached
-                </span>
+                <div>
+                  <p className="text-sm font-medium">
+                    {documentCount} document{documentCount > 1 ? 's' : ''} attached
+                  </p>
+                  {hasPrimaryCV && (
+                    <p className="text-xs text-muted-foreground">Primary CV set</p>
+                  )}
+                </div>
               </div>
-              {hasPrimaryCV && (
-                <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">
-                  <FileText className="h-3 w-3 mr-1" />
-                  CV
-                </Badge>
-              )}
             </>
           ) : (
-            <span className="text-sm text-muted-foreground">No documents attached</span>
+            <div>
+              <p className="text-sm font-medium">No documents attached</p>
+              <p className="text-xs text-muted-foreground">Upload a CV to enable search & export</p>
+            </div>
           )}
         </div>
         {canEdit && documentCount > 0 && (
@@ -356,23 +358,22 @@ export function TalentDocumentList({
 
       {/* Empty State */}
       {documents.length === 0 && !isUploading ? (
-        <div className="text-center py-10 bg-muted/30 rounded-lg border border-dashed border-border">
-          <Folder className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground mb-4">
-            Upload CVs, cover letters, and certifications for this candidate.
-          </p>
-          {canEdit && (
-            <div className="flex flex-col items-center gap-2">
+        <div className="p-6 bg-muted/30 rounded-lg border border-dashed border-border">
+          <div className="flex flex-col items-center gap-4">
+            <Folder className="h-10 w-10 text-muted-foreground" />
+            <div className="text-center">
+              <p className="text-sm font-medium mb-1">No documents to display</p>
+              <p className="text-xs text-muted-foreground mb-4">
+                Upload a CV to enable search & export features
+              </p>
+            </div>
+            {canEdit && (
               <Button onClick={() => setShowUploadModal(true)}>
                 <Upload className="h-4 w-4 mr-2" />
                 Upload CV
               </Button>
-              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => setShowUploadModal(true)}>
-                <Plus className="h-3.5 w-3.5 mr-1.5" />
-                Upload Other Document
-              </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       ) : (
         <div className="space-y-3">

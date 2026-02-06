@@ -37,7 +37,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
-import { DocsColumnCell } from "@/components/talent/DocsColumnCell";
+import { DocsColumnCell, DocsInlineIndicator } from "@/components/talent/DocsColumnCell";
 import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { ImportCenterModal } from "@/components/import/ImportCenterModal";
 import { ImportMethod } from "@/components/import/ImportCenterTypes";
@@ -349,6 +349,9 @@ export default function TalentDatabase() {
   };
 
   const renderCellContent = (columnId: string, talent: Talent, wrapText: boolean = false) => {
+    // Get document count for inline indicator
+    const talentDocs = documentCounts.get(talent.id);
+    
     switch (columnId) {
       case "name":
         return (
@@ -357,6 +360,11 @@ export default function TalentDatabase() {
               <Users className="h-4 w-4 text-primary" />
             </div>
             <span className={wrapText ? "font-medium" : "truncate font-medium"}>{talent.name}</span>
+            <DocsInlineIndicator 
+              docCount={talentDocs?.totalCount || 0}
+              hasPrimaryCV={talentDocs?.hasPrimaryCV || false}
+              isLoading={docsLoading}
+            />
           </div>
         );
       case "roleType":

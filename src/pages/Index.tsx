@@ -50,12 +50,12 @@ const Index = () => {
                 </Link>
               ) : (
                 <>
-                  <Link to="/auth">
+                  <Link to="/auth?tab=signup">
                     <Button variant="default" className="gap-2">
                       Sign up free <UserPlus className="w-4 h-4" />
                     </Button>
                   </Link>
-                  <Link to="/auth">
+                  <Link to="/auth?tab=signin">
                     <Button variant="outline" className="gap-2">
                       <LogIn className="w-4 h-4" /> Log in
                     </Button>
@@ -110,17 +110,17 @@ const Index = () => {
                     </Link>
                   ) : (
                     <div className="flex flex-col gap-3">
-                      <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                      <Link to="/auth?tab=signup" onClick={() => setMobileMenuOpen(false)}>
                         <Button className="w-full gap-2">
                           Sign up free <UserPlus className="w-4 h-4" />
                         </Button>
                       </Link>
-                      <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                      <Link to="/auth?tab=signin" onClick={() => setMobileMenuOpen(false)}>
                         <Button variant="outline" className="w-full gap-2">
                           <LogIn className="w-4 h-4" /> Log in
                         </Button>
                       </Link>
-                      <Link 
+                      <Link
                         to="/demo" 
                         onClick={() => setMobileMenuOpen(false)}
                         className="text-sm text-muted-foreground hover:text-foreground text-center py-2 transition-colors"
@@ -165,12 +165,12 @@ const Index = () => {
             </Link>
           ) : (
             <>
-              <Link to="/auth">
+              <Link to="/auth?tab=signup">
                 <Button size="lg" className="gap-2 text-lg px-8">
                   Sign up free <UserPlus className="w-5 h-5" />
                 </Button>
               </Link>
-              <Link to="/auth">
+              <Link to="/auth?tab=signin">
                 <Button size="lg" variant="outline" className="gap-2 text-lg px-8">
                   <LogIn className="w-5 h-5" /> Log in
                 </Button>
@@ -308,12 +308,12 @@ const Index = () => {
               </Link>
             ) : (
               <>
-                <Link to="/auth">
+                <Link to="/auth?tab=signup">
                   <Button size="lg" className="gap-2 text-lg px-10">
                     Sign up free <UserPlus className="w-5 h-5" />
                   </Button>
                 </Link>
-                <Link to="/auth">
+                <Link to="/auth?tab=signin">
                   <Button size="lg" variant="outline" className="gap-2 text-lg px-10">
                     <LogIn className="w-5 h-5" /> Log in
                   </Button>

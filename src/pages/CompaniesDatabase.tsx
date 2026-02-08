@@ -29,6 +29,7 @@ import { CompanyOverviewPanel } from "@/components/company/CompanyOverviewPanel"
 import { CreateCompanyModal } from "@/components/company/CreateCompanyModal";
 import { ImportCenterModal } from "@/components/import/ImportCenterModal";
 import { ImportDropdown } from "@/components/import/ImportDropdown";
+import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { ImportMethod } from "@/components/import/ImportCenterTypes";
 import {
   Search,
@@ -101,6 +102,7 @@ export default function CompaniesDatabase() {
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isSmartImportModalOpen, setIsSmartImportModalOpen] = useState(false);
   const [importMethod, setImportMethod] = useState<ImportMethod>("file");
   
   // Permissions
@@ -256,6 +258,7 @@ export default function CompaniesDatabase() {
                   setImportMethod(method);
                   setIsImportModalOpen(true);
                 }}
+                onSmartImportClick={() => setIsSmartImportModalOpen(true)}
                 disabled={!canInsert}
               />
 
@@ -653,6 +656,18 @@ export default function CompaniesDatabase() {
         entityType="companies"
         onImportComplete={handleCompaniesImported}
         initialMethod={importMethod}
+      />
+
+      {/* Smart Import Modal for Word/Images/AI */}
+      <SmartImportModal
+        open={isSmartImportModalOpen}
+        onOpenChange={setIsSmartImportModalOpen}
+        context={{
+          source: 'COMPANY',
+          companyId: selectedCompany?.id,
+          companyName: selectedCompany?.name,
+        }}
+        onComplete={handleCompaniesImported}
       />
     </div>
   );

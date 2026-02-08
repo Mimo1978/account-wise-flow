@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { PendingRequestsBadge } from '@/components/access/PendingRequestsBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useDemoIndicator } from '@/hooks/use-workspace-mode';
+import { DemoBanner } from '@/components/layout/DemoBanner';
 import { 
   Sparkles, 
   LayoutDashboard, 
@@ -36,6 +38,7 @@ interface ProductLayoutProps {
 export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const { user, signOut } = useAuth();
   const { currentWorkspace, isInDemoWorkspace } = useWorkspace();
+  const { showBanner, showBadge, bannerVariant } = useDemoIndicator();
   const location = useLocation();
 
   const navItems = [
@@ -53,7 +56,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Product Navigation Header */}
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-6 py-3">
@@ -66,8 +69,8 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
               <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 CLIENT MAPPER
               </span>
-              {isInDemoWorkspace && (
-                <Badge variant="secondary" className="ml-2 bg-secondary text-secondary-foreground border-border text-xs">
+              {showBadge && (
+                <Badge variant="secondary" className="ml-2 text-xs">
                   Demo
                 </Badge>
               )}
@@ -184,8 +187,15 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
         </div>
       </header>
 
+      {/* Demo Mode Banner - Only shown when in demo */}
+      {showBanner && (
+        <DemoBanner variant={bannerVariant} />
+      )}
+
       {/* Page Content */}
-      {children}
+      <div className="flex-1">
+        {children}
+      </div>
     </div>
   );
 };

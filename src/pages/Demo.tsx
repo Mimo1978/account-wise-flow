@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { DemoScenarioSelector } from "@/components/demo/DemoScenarioSelector";
 import { DemoInsightsPanel } from "@/components/demo/DemoInsightsPanel";
 import { useDemoScenario } from "@/hooks/use-demo-scenario";
+import { DemoBanner } from "@/components/layout/DemoBanner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -170,7 +171,7 @@ const Demo = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Demo Header */}
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-6 py-3">
@@ -183,17 +184,17 @@ const Demo = () => {
               <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
                 CLIENT MAPPER
               </span>
+              <Badge variant="secondary" className="ml-2 text-xs">
+                Demo
+              </Badge>
             </Link>
 
-            {/* Demo Badge & Actions */}
+            {/* Demo Actions */}
             <div className="flex items-center gap-3">
-              <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">
-                Public Demo
-              </Badge>
-              <Link to="/auth?next=/demo-workspace">
+              <Link to="/auth">
                 <Button variant="default" size="sm" className="gap-2">
                   <LogIn className="w-4 h-4" />
-                  Sign in for Full Demo
+                  Sign in
                 </Button>
               </Link>
             </div>
@@ -201,22 +202,8 @@ const Demo = () => {
         </div>
       </header>
 
-      {/* Full Demo Callout Banner */}
-      <div className="bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border-b border-border/50">
-        <div className="container mx-auto px-6 py-2.5 flex items-center justify-center gap-3 text-sm">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-muted-foreground">
-            Want to try imports, edits, and AI?
-          </span>
-          <Link 
-            to="/auth?next=/demo-workspace" 
-            className="font-medium text-primary hover:underline inline-flex items-center gap-1"
-          >
-            Sign in to the Full Demo Workspace
-            <LogIn className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </div>
+      {/* Demo Banner - Public variant */}
+      <DemoBanner variant="public" />
 
       {/* Sub-header with context controls */}
       <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-6 py-3">
@@ -313,7 +300,7 @@ const Demo = () => {
                   <Upload className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Sign in for Full Demo to import contacts</TooltipContent>
+              <TooltipContent>Sign in to import contacts</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -323,14 +310,14 @@ const Demo = () => {
                   <span className="hidden md:inline">Add Contact</span>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Sign in for Full Demo to add contacts</TooltipContent>
+              <TooltipContent>Sign in to add contacts</TooltipContent>
             </Tooltip>
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-hidden relative pointer-events-auto" style={{ height: 'calc(100vh - 170px)' }}>
+      <main className="flex-1 overflow-hidden relative pointer-events-auto" style={{ height: 'calc(100vh - 140px)' }}>
         {viewMode === "canvas" ? (
           <AccountCanvas 
             ref={canvasRef}

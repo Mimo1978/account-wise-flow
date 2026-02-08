@@ -43,7 +43,7 @@ const Index = () => {
                 Pricing
               </Link>
               {user ? (
-                <Link to="/workspace">
+                <Link to="/companies">
                   <Button variant="default" className="gap-2">
                     Go to App <ArrowRight className="w-4 h-4" />
                   </Button>
@@ -103,7 +103,7 @@ const Index = () => {
                   </Link>
                   <div className="border-t border-border my-4" />
                   {user ? (
-                    <Link to="/workspace" onClick={() => setMobileMenuOpen(false)}>
+                    <Link to="/companies" onClick={() => setMobileMenuOpen(false)}>
                       <Button className="w-full gap-2">
                         Go to App <ArrowRight className="w-4 h-4" />
                       </Button>
@@ -158,7 +158,7 @@ const Index = () => {
         
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           {user ? (
-            <Link to="/workspace">
+            <Link to="/companies">
               <Button size="lg" className="gap-2 text-lg px-8">
                 Go to App <ArrowRight className="w-5 h-5" />
               </Button>
@@ -301,7 +301,7 @@ const Index = () => {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             {user ? (
-              <Link to="/workspace">
+              <Link to="/companies">
                 <Button size="lg" className="gap-2 text-lg px-10">
                   Go to App <ArrowRight className="w-5 h-5" />
                 </Button>

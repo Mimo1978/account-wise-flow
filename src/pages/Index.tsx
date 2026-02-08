@@ -43,21 +43,21 @@ const Index = () => {
                 Pricing
               </Link>
               {user ? (
-                <Link to="/canvas">
+                <Link to="/workspace">
                   <Button variant="default" className="gap-2">
                     Go to App <ArrowRight className="w-4 h-4" />
                   </Button>
                 </Link>
               ) : (
                 <>
-                  <Link to="/demo">
-                    <Button variant="ghost" className="gap-2">
-                      Try Public Demo
+                  <Link to="/auth">
+                    <Button variant="default" className="gap-2">
+                      Sign up free <UserPlus className="w-4 h-4" />
                     </Button>
                   </Link>
-                  <Link to="/auth?next=/demo-workspace">
-                    <Button variant="default" className="gap-2">
-                      Sign in for Full Demo <ArrowRight className="w-4 h-4" />
+                  <Link to="/auth">
+                    <Button variant="outline" className="gap-2">
+                      <LogIn className="w-4 h-4" /> Log in
                     </Button>
                   </Link>
                 </>
@@ -103,22 +103,29 @@ const Index = () => {
                   </Link>
                   <div className="border-t border-border my-4" />
                   {user ? (
-                    <Link to="/canvas" onClick={() => setMobileMenuOpen(false)}>
+                    <Link to="/workspace" onClick={() => setMobileMenuOpen(false)}>
                       <Button className="w-full gap-2">
                         Go to App <ArrowRight className="w-4 h-4" />
                       </Button>
                     </Link>
                   ) : (
-                  <div className="flex flex-col gap-3">
-                      <Link to="/demo" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="outline" className="w-full gap-2">
-                          Try Public Demo
+                    <div className="flex flex-col gap-3">
+                      <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                        <Button className="w-full gap-2">
+                          Sign up free <UserPlus className="w-4 h-4" />
                         </Button>
                       </Link>
-                      <Link to="/auth?next=/demo-workspace" onClick={() => setMobileMenuOpen(false)}>
-                        <Button className="w-full gap-2">
-                          Sign in for Full Demo <ArrowRight className="w-4 h-4" />
+                      <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="outline" className="w-full gap-2">
+                          <LogIn className="w-4 h-4" /> Log in
                         </Button>
+                      </Link>
+                      <Link 
+                        to="/demo" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="text-sm text-muted-foreground hover:text-foreground text-center py-2 transition-colors"
+                      >
+                        View demo
                       </Link>
                     </div>
                   )}
@@ -149,7 +156,7 @@ const Index = () => {
           Spot gaps, prepare for meetings in seconds, and keep your entire team aligned—without replacing your existing tools.
         </p>
         
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           {user ? (
             <Link to="/workspace">
               <Button size="lg" className="gap-2 text-lg px-8">
@@ -158,19 +165,29 @@ const Index = () => {
             </Link>
           ) : (
             <>
-              <Link to="/demo">
-                <Button size="lg" variant="outline" className="text-lg px-8 gap-2">
-                  Try Public Demo
+              <Link to="/auth">
+                <Button size="lg" className="gap-2 text-lg px-8">
+                  Sign up free <UserPlus className="w-5 h-5" />
                 </Button>
               </Link>
-              <Link to="/auth?next=/demo-workspace">
-                <Button size="lg" className="gap-2 text-lg px-8">
-                  Sign in for Full Demo <ArrowRight className="w-5 h-5" />
+              <Link to="/auth">
+                <Button size="lg" variant="outline" className="gap-2 text-lg px-8">
+                  <LogIn className="w-5 h-5" /> Log in
                 </Button>
               </Link>
             </>
           )}
         </div>
+        {!user && (
+          <div className="mt-6">
+            <Link 
+              to="/demo" 
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              View demo →
+            </Link>
+          </div>
+        )}
       </section>
 
       {/* Features Grid */}
@@ -282,11 +299,28 @@ const Index = () => {
           <p className="text-xl text-muted-foreground mb-10">
             Give your team the visibility and context they need to move faster—without adding complexity.
           </p>
-          <Link to={user ? "/canvas" : "/auth"}>
-            <Button size="lg" className="gap-2 text-lg px-10">
-              {user ? "Go to App" : "Start Free Trial"} <ArrowRight className="w-5 h-5" />
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            {user ? (
+              <Link to="/workspace">
+                <Button size="lg" className="gap-2 text-lg px-10">
+                  Go to App <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link to="/auth">
+                  <Button size="lg" className="gap-2 text-lg px-10">
+                    Sign up free <UserPlus className="w-5 h-5" />
+                  </Button>
+                </Link>
+                <Link to="/auth">
+                  <Button size="lg" variant="outline" className="gap-2 text-lg px-10">
+                    <LogIn className="w-5 h-5" /> Log in
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </section>
 

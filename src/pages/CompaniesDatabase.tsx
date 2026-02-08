@@ -1,7 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { mockAccounts } from "@/lib/mock-data";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useWorkspaceMode } from "@/hooks/use-workspace-mode";
 import { Account, RelationshipStatus, DataQuality } from "@/lib/types";
+import { CompaniesEmptyState } from "@/components/canvas/EmptyStates";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +93,8 @@ const formatDate = (dateString?: string) => {
 
 export default function CompaniesDatabase() {
   const navigate = useNavigate();
+  const { currentWorkspace } = useWorkspace();
+  const { mode } = useWorkspaceMode();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCompany, setSelectedCompany] = useState<Account | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -96,10 +102,47 @@ export default function CompaniesDatabase() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importMethod, setImportMethod] = useState<ImportMethod>("file");
-  const [companies, setCompanies] = useState<Account[]>(mockAccounts);
+  
   // Permissions
   const { role, canInsert, isLoading: permissionsLoading } = usePermissions();
   const insertTooltip = getPermissionTooltip("insert", role);
+  
+  // Fetch companies from workspace
+  const { data: companies = [], isLoading: companiesLoading } = useQuery({
+    queryKey: ['companies', currentWorkspace?.id],
+    queryFn: async () => {
+      if (!currentWorkspace?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('team_id', currentWorkspace.id)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching companies:', error);
+        return [];
+      }
+      
+      // Transform database records to Account format
+      return (data || []).map((company: any) => ({
+        id: company.id,
+        name: company.name,
+        industry: company.industry || 'Other',
+        headquarters: company.headquarters,
+        switchboard: company.switchboard,
+        regions: company.regions || [],
+        relationshipStatus: company.relationship_status || 'warm',
+        accountManager: company.account_manager ? { name: company.account_manager, title: 'Account Manager' } : undefined,
+        contacts: [],
+        lastUpdated: company.updated_at,
+        lastInteraction: company.updated_at,
+        engagementScore: 50,
+        dataQuality: 'partial' as const,
+      }));
+    },
+    enabled: !!currentWorkspace?.id,
+  });
 
   // Check if this is the first visit to show scroll hint
   useEffect(() => {
@@ -175,29 +218,14 @@ export default function CompaniesDatabase() {
     setIsCreateModalOpen(true);
   };
 
-  const handleCompanyCreated = (newCompany: Account) => {
-    setCompanies((prev) => [newCompany, ...prev]);
+  const handleCompanyCreated = () => {
+    // Refetch companies after creation
+    // The query will automatically update via cache invalidation
   };
 
-  const handleCompaniesImported = (records: Record<string, any>[]) => {
-    // Convert imported records to Account format
-    const importedCompanies: Account[] = records.map((record) => ({
-      id: record.id,
-      name: record.name || "Unknown Company",
-      industry: record.industry || "Other",
-      headquarters: record.headquarters,
-      switchboard: record.switchboard,
-      regions: Array.isArray(record.regions) ? record.regions : [],
-      relationshipStatus: record.status || "warm",
-      accountManager: record.owner
-        ? { name: record.owner, title: "Account Manager" }
-        : undefined,
-      contacts: [],
-      lastUpdated: new Date().toISOString(),
-      engagementScore: 50,
-      dataQuality: "partial" as const,
-    }));
-    setCompanies((prev) => [...importedCompanies, ...prev]);
+  const handleCompaniesImported = () => {
+    // Refetch companies after import
+    // The query will automatically update via cache invalidation
   };
 
   const handleClearSelection = () => {
@@ -256,6 +284,21 @@ export default function CompaniesDatabase() {
         </div>
       </div>
 
+      {/* Empty State for Real Mode */}
+      {companiesLoading ? (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <p className="text-muted-foreground">Loading companies...</p>
+        </div>
+      ) : companies.length === 0 ? (
+        <CompaniesEmptyState
+          onCreateClick={handleAddCompany}
+          onImportClick={() => {
+            setImportMethod('file');
+            setIsImportModalOpen(true);
+          }}
+        />
+      ) : (
+        <>
       {/* Search and Selection Bar */}
       <div className="container mx-auto px-4 py-4">
         <div className="flex flex-wrap items-center gap-4 mb-4">
@@ -584,6 +627,8 @@ export default function CompaniesDatabase() {
           Showing {filteredCompanies.length} of {companies.length} companies
         </div>
       </div>
+        </>
+      )}
 
       {/* Company Record Panel */}
       <CompanyOverviewPanel

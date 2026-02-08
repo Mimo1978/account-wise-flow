@@ -160,7 +160,21 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                         )}
                       </Link>
                     </DropdownMenuItem>
-                  </DropdownMenuGroup>
+                   </DropdownMenuGroup>
+                   
+                   <DropdownMenuSeparator />
+                   <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+                     Explore
+                   </DropdownMenuLabel>
+                   <DropdownMenuGroup>
+                     <DropdownMenuItem asChild className="cursor-pointer">
+                       <Link to="/demo" className="flex items-center">
+                         <FlaskConical className="w-4 h-4 mr-2 text-primary" />
+                         View Demo
+                       </Link>
+                     </DropdownMenuItem>
+                   </DropdownMenuGroup>
+                   
                   
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild className="cursor-pointer">

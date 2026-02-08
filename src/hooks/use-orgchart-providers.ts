@@ -4,6 +4,7 @@ import {
   ClipboardPaste,
   Camera,
   Linkedin,
+  Globe,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type {
@@ -244,6 +245,22 @@ export function useOrgChartProviders(): OrgChartSourceProvider[] {
         disabledTooltip:
           "LinkedIn integration is planned — for now use screenshot OCR or CSV export from LinkedIn Sales Navigator",
         parse: parseLinkedIn,
+      },
+      {
+        id: "web-research",
+        label: "AI Research",
+        description: "Discover from public web (Beta)",
+        icon: Globe,
+        enabled: true,
+        accepts: null,
+        authRequired: false,
+        disabledTooltip: undefined,
+        // This provider doesn't use parse() - it has its own wizard flow
+        parse: async () => ({
+          success: false,
+          rows: [],
+          error: "Use the WebResearchWizard component for this provider",
+        }),
       },
     ];
 

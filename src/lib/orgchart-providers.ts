@@ -77,4 +77,4 @@ export type OrgChartProviderRegistry = Record<string, OrgChartSourceProvider>;
 /**
  * Provider IDs as a union type for type safety
  */
-export type OrgChartProviderId = "spreadsheet" | "paste" | "ocr" | "linkedin";
+export type OrgChartProviderId = "spreadsheet" | "paste" | "ocr" | "linkedin" | "web-research";

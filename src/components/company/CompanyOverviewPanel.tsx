@@ -26,6 +26,7 @@ import {
   MapPin,
   X,
   GitBranch,
+  Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CompanySnapshotCard } from "./CompanySnapshotCard";
@@ -34,6 +35,8 @@ import { CompanyContactsList } from "./CompanyContactsList";
 import { CompanyEngagementContext } from "./CompanyEngagementContext";
 import { CompanyLocationsSection } from "./CompanyLocationsSection";
 import { OrgChartBuilderModal } from "@/components/orgchart/OrgChartBuilderModal";
+import { WebResearchWizard } from "@/components/orgchart/WebResearchWizard";
+import { useToast } from "@/hooks/use-toast";
 
 interface CompanyOverviewPanelProps {
   company: Account | null;
@@ -52,6 +55,7 @@ export function CompanyOverviewPanel({
   onViewContacts,
   onContactClick,
 }: CompanyOverviewPanelProps) {
+  const { toast } = useToast();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     locations: false,
     intelligence: true,
@@ -60,6 +64,7 @@ export function CompanyOverviewPanel({
     documents: false,
   });
   const [showOrgChartBuilder, setShowOrgChartBuilder] = useState(false);
+  const [showWebResearch, setShowWebResearch] = useState(false);
 
   if (!company) return null;
 
@@ -68,6 +73,17 @@ export function CompanyOverviewPanel({
       ...prev,
       [section]: !prev[section],
     }));
+  };
+
+  // Handle import from web research
+  const handleWebResearchImport = () => {
+    // The WebResearchWizard handles the flow and closes itself
+    // We just need to show a success message
+    toast({
+      title: "Contacts Added",
+      description: "Web research contacts have been added to review",
+    });
+    setShowWebResearch(false);
   };
 
   return (
@@ -260,33 +276,48 @@ export function CompanyOverviewPanel({
 
         {/* Sticky Actions Footer - Minimal, Clear Actions */}
         <div className="border-t border-border bg-card px-6 py-4">
-          <div className="flex items-center gap-3">
-            <Button
-              className="flex-1"
-              onClick={() => onOpenCanvas(company)}
-            >
-              <Network className="h-4 w-4 mr-2" />
-              Open on Canvas
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => setShowOrgChartBuilder(true)}
-            >
-              <GitBranch className="h-4 w-4 mr-2" />
-              Build Org Chart
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => onViewContacts(company)}
-            >
-              <Users className="h-4 w-4 mr-2" />
-              View Contacts
-            </Button>
-            <Button variant="outline" size="icon">
-              <MessageSquare className="h-4 w-4" />
-            </Button>
+          <div className="flex flex-col gap-3">
+            {/* Primary Actions */}
+            <div className="flex items-center gap-3">
+              <Button
+                className="flex-1"
+                onClick={() => onOpenCanvas(company)}
+              >
+                <Network className="h-4 w-4 mr-2" />
+                Open on Canvas
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowOrgChartBuilder(true)}
+              >
+                <GitBranch className="h-4 w-4 mr-2" />
+                Build Org Chart
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => onViewContacts(company)}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                View Contacts
+              </Button>
+            </div>
+            {/* Secondary Actions - AI Research */}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="secondary"
+                className="flex-1 gap-2"
+                onClick={() => setShowWebResearch(true)}
+              >
+                <Globe className="h-4 w-4" />
+                AI Research Assistant
+                <Badge variant="outline" className="ml-1 text-xs">Beta</Badge>
+              </Button>
+              <Button variant="outline" size="icon">
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -296,6 +327,15 @@ export function CompanyOverviewPanel({
           onOpenChange={setShowOrgChartBuilder}
           companyId={company.id}
           companyName={company.name}
+        />
+
+        {/* Web Research Wizard */}
+        <WebResearchWizard
+          open={showWebResearch}
+          onOpenChange={setShowWebResearch}
+          companyId={company.id}
+          companyName={company.name}
+          onImportContacts={handleWebResearchImport}
         />
       </SheetContent>
     </Sheet>

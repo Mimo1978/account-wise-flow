@@ -14,6 +14,7 @@ import { OrgChartExtractStep } from "./steps/OrgChartExtractStep";
 import { OrgChartReviewStep } from "./steps/OrgChartReviewStep";
 import { OrgChartPreviewStep } from "./steps/OrgChartPreviewStep";
 import { OrgChartConfirmStep } from "./steps/OrgChartConfirmStep";
+import { WebResearchWizard } from "./WebResearchWizard";
 import { supabase } from "@/integrations/supabase/client";
 import type { LabeledPhone } from "@/lib/phone-utils";
 
@@ -78,6 +79,7 @@ export function OrgChartBuilderModal({
     return { type: "existing" };
   });
   const [detectedCompanyName, setDetectedCompanyName] = useState<string | undefined>();
+  const [showWebResearchWizard, setShowWebResearchWizard] = useState(false);
 
   // Fetch companies list
   useEffect(() => {
@@ -200,6 +202,13 @@ export function OrgChartBuilderModal({
     ? companyDestination.companyId
     : undefined;
 
+  // Handle web research results import
+  const handleWebResearchImport = (rows: OrgChartRow[]) => {
+    setExtractedRows(rows);
+    setCurrentStep("review");
+    setShowWebResearchWizard(false);
+  };
+
   const renderStepContent = () => {
     switch (currentStep) {
       case "source":
@@ -217,6 +226,7 @@ export function OrgChartBuilderModal({
             existingCompanyName={companyName}
             companies={companies}
             detectedCompanyName={detectedCompanyName}
+            onWebResearchClick={() => setShowWebResearchWizard(true)}
           />
         );
       case "extract":
@@ -349,6 +359,17 @@ export function OrgChartBuilderModal({
           </div>
         </div>
       </DialogContent>
+
+      {/* Web Research Wizard - separate modal */}
+      {effectiveCompanyId && effectiveCompanyName && (
+        <WebResearchWizard
+          open={showWebResearchWizard}
+          onOpenChange={setShowWebResearchWizard}
+          companyId={effectiveCompanyId}
+          companyName={effectiveCompanyName}
+          onImportContacts={handleWebResearchImport}
+        />
+      )}
     </Dialog>
   );
 }

@@ -58,6 +58,7 @@ interface OrgChartSourceStepProps {
   existingCompanyName?: string;
   companies?: CompanyWithDetails[];
   detectedCompanyName?: string; // For smart prefill from OCR
+  onWebResearchClick?: () => void; // Callback to open web research wizard
 }
 
 // Common countries for quick selection
@@ -87,6 +88,7 @@ export function OrgChartSourceStep({
   existingCompanyName,
   companies = [],
   detectedCompanyName,
+  onWebResearchClick,
 }: OrgChartSourceStepProps) {
   const providers = useOrgChartProviders();
   const [dragActive, setDragActive] = useState(false);
@@ -180,6 +182,14 @@ export function OrgChartSourceStep({
   const handleSourceOptionClick = (optionId: OrgChartProviderId) => {
     const provider = providers.find((p) => p.id === optionId);
     if (!provider?.enabled) return;
+    
+    // Special handling for web-research - opens a separate wizard
+    if (optionId === "web-research") {
+      if (onWebResearchClick && isDestinationValid) {
+        onWebResearchClick();
+      }
+      return;
+    }
     
     setSelectedSourceOption(optionId);
     onFileChange(null);

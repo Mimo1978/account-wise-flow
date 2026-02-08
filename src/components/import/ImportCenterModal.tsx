@@ -503,31 +503,34 @@ export function ImportCenterModal({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="text-primary">{entityIcons[entityType]}</span>
             Import {getEntityLabel(entityType, true)}
-            {isOcrMode && (
-              <Badge variant="outline" className="ml-1 text-xs">
-                OCR
-              </Badge>
-            )}
-            <Badge variant="outline" className="ml-2 font-normal">
+            <Badge variant="outline" className="ml-2 font-normal text-xs">
               {getStepNumber()}
             </Badge>
           </DialogTitle>
+          {isOcrMode && (
+            <p className="text-sm text-muted-foreground pt-1 flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Using AI-powered OCR scanning
+            </p>
+          )}
         </DialogHeader>
 
         <div className="flex-1 overflow-auto">
           {step === "upload" && (
             <ImportCenterDropzone
+              entityType={entityType}
               isDragging={isDragging}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onFileSelect={handleFileSelect}
               uploadedFile={uploadedFile}
+              onClearFile={() => setUploadedFile(null)}
               pastedData={pastedData}
               onPastedDataChange={setPastedData}
               onPasteConfirm={handlePasteConfirm}

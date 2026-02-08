@@ -26,6 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoWorkspace } from "@/hooks/use-demo-workspace";
+import { DemoBanner } from "@/components/layout/DemoBanner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -224,7 +225,7 @@ const DemoWorkspace = () => {
   if (isDemoLoading) {
     return (
       <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-amber-600 mb-4" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
         <p className="text-muted-foreground">Loading demo workspace...</p>
       </div>
     );
@@ -232,52 +233,12 @@ const DemoWorkspace = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-65px)]">
-      {/* Demo Workspace Banner */}
-      <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border-b border-amber-500/20 px-6 py-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => navigate('/workspace')}
-              className="gap-1 text-amber-700 hover:text-amber-800 hover:bg-amber-100/50"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Switch Workspace
-            </Button>
-          </div>
-          <div className="flex items-center gap-3">
-            <FlaskConical className="w-4 h-4 text-amber-600" />
-            <span className="text-sm font-medium text-amber-800 dark:text-amber-200">
-              Demo Workspace — All changes are isolated to demo data
-            </span>
-            <Badge variant="outline" className="bg-amber-100/50 text-amber-700 border-amber-300 text-xs">
-              {isDemoUser === true ? 'Demo User' : isDemoUser === false ? 'Joining Demo...' : 'Checking...'}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowResetDialog(true)}
-                  disabled={isResetting}
-                  className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-100/50"
-                >
-                  {isResetting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <RotateCcw className="w-4 h-4" />
-                  )}
-                  Reset Demo
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Reset demo data to default state</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-      </div>
+      {/* Demo Workspace Banner - Using unified component */}
+      <DemoBanner 
+        variant="authenticated" 
+        onReset={() => setShowResetDialog(true)}
+        isResetting={isResetting}
+      />
 
       {/* Sub-header with context controls */}
       <div className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-6 py-3">
@@ -571,7 +532,7 @@ const DemoWorkspace = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleResetDemo}
-              className="bg-amber-500 hover:bg-amber-600"
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               Reset Demo Data
             </AlertDialogAction>

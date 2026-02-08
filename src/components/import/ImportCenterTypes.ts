@@ -2,7 +2,7 @@
 
 export type EntityType = "companies" | "contacts" | "talent";
 
-export type ImportStep = "upload" | "ocr-upload" | "mapping" | "preview" | "confirm";
+export type ImportStep = "upload" | "ocr-upload" | "mapping" | "preview" | "review" | "confirm";
 export type ImportMethod = "file" | "paste" | "ocr";
 export type ConfidenceLevel = "high" | "medium" | "low";
 

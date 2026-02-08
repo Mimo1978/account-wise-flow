@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Alert,
+  AlertDescription,
+} from "@/components/ui/alert";
+import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
@@ -16,6 +20,8 @@ import {
   Building2,
   Users,
   Briefcase,
+  AlertTriangle,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -24,6 +30,9 @@ import { ImportCenterDropzone } from "./ImportCenterDropzone";
 import { ImportMappingStep } from "./ImportMappingStep";
 import { ImportPreviewStep } from "./ImportPreviewStep";
 import { OCRUploadStep } from "./OCRUploadStep";
+import { CompanyReviewStep, CompanyReviewItem, ReviewDecision } from "./CompanyReviewStep";
+import { useCompanyImport } from "@/hooks/use-company-import";
+import { detectCompanyNameColumn } from "@/lib/import-utils";
 import {
   EntityType,
   ImportStep,
@@ -77,10 +86,23 @@ export function ImportCenterModal({
 
   // Mapping state
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({});
+  const [mappingWarning, setMappingWarning] = useState<string | null>(null);
+  const [nameColumnDetected, setNameColumnDetected] = useState(false);
 
   // Preview state
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [importProgress, setImportProgress] = useState(0);
+
+  // Company review state (only for companies entity)
+  const [reviewItems, setReviewItems] = useState<CompanyReviewItem[]>([]);
+  const {
+    detectColumn,
+    buildReviewItems,
+    saveCompanies,
+    isLoadingDuplicates,
+    isSaving,
+    saveProgress,
+  } = useCompanyImport();
 
   // Get schema based on entity type
   const fieldSchema = useMemo(() => getFieldSchemaForEntity(entityType), [entityType]);
@@ -102,13 +124,16 @@ export function ImportCenterModal({
     setOcrFile(null);
     setOcrError(null);
     setIsOcrMode(initialMethod === "ocr");
+    setMappingWarning(null);
+    setNameColumnDetected(false);
+    setReviewItems([]);
   }, [initialMethod]);
 
   const handleClose = useCallback(() => {
-    if (isProcessing) return;
+    if (isProcessing || isSaving) return;
     resetState();
     onOpenChange(false);
-  }, [isProcessing, resetState, onOpenChange]);
+  }, [isProcessing, isSaving, resetState, onOpenChange]);
 
   // File handling
   const handleDragOver = (e: React.DragEvent) => {
@@ -185,25 +210,63 @@ export function ImportCenterModal({
     const rows = lines.slice(1).map((line) => parseCSVLine(line));
     setRawRows(rows);
 
-    // Auto-map columns based on header names
-    const autoMapping: Record<string, string> = {};
-    headers.forEach((header, index) => {
-      const headerLower = header.toLowerCase().trim();
+    // For companies, use intelligent column detection
+    let autoMapping: Record<string, string> = {};
+    let warning: string | null = null;
+    let detected = false;
+
+    if (entityType === "companies") {
+      // Use smart detection for company name
+      const detection = detectCompanyNameColumn(headers, rows.slice(0, 5));
       
-      // Check against auto-mapping rules
-      Object.entries(autoMappingRules).forEach(([fieldId, possibleMatches]) => {
-        if (!autoMapping[fieldId]) {
-          const isMatch = possibleMatches.some(
-            (match) => headerLower === match || headerLower.includes(match)
-          );
-          if (isMatch) {
-            autoMapping[fieldId] = String(index);
-          }
+      if (detection.columnIndex !== null) {
+        autoMapping.name = String(detection.columnIndex);
+        detected = true;
+        
+        if (detection.needsConfirmation && detection.alternatives.length > 0) {
+          warning = `Detected "${headers[detection.columnIndex]}" as Company Name. Please verify this is correct.`;
         }
+      } else {
+        warning = "Could not detect Company Name column. Please map it manually below.";
+      }
+
+      // Map other fields using standard rules
+      headers.forEach((header, index) => {
+        if (String(index) === autoMapping.name) return; // Skip already mapped name column
+        
+        const headerLower = header.toLowerCase().trim();
+        Object.entries(autoMappingRules).forEach(([fieldId, possibleMatches]) => {
+          if (fieldId === "name") return; // Already handled
+          if (!autoMapping[fieldId]) {
+            const isMatch = possibleMatches.some(
+              (match) => headerLower === match || headerLower.includes(match)
+            );
+            if (isMatch) {
+              autoMapping[fieldId] = String(index);
+            }
+          }
+        });
       });
-    });
+    } else {
+      // Standard auto-mapping for other entities
+      headers.forEach((header, index) => {
+        const headerLower = header.toLowerCase().trim();
+        Object.entries(autoMappingRules).forEach(([fieldId, possibleMatches]) => {
+          if (!autoMapping[fieldId]) {
+            const isMatch = possibleMatches.some(
+              (match) => headerLower === match || headerLower.includes(match)
+            );
+            if (isMatch) {
+              autoMapping[fieldId] = String(index);
+            }
+          }
+        });
+      });
+    }
 
     setColumnMapping(autoMapping);
+    setMappingWarning(warning);
+    setNameColumnDetected(detected);
     setIsProcessing(false);
     setStep("mapping");
   };
@@ -340,6 +403,11 @@ export function ImportCenterModal({
       ...prev,
       [fieldId]: columnIndex,
     }));
+    // Clear warning when user manually maps
+    if (fieldId === "name" && columnIndex) {
+      setMappingWarning(null);
+      setNameColumnDetected(true);
+    }
   };
 
   const handleProceedToPreview = () => {
@@ -394,6 +462,13 @@ export function ImportCenterModal({
       };
     });
 
+    // Check for zero valid companies
+    const validCount = parsed.filter((r) => r.isValid).length;
+    if (validCount === 0) {
+      toast.error("No valid records found. Please check your data and column mapping.");
+      return;
+    }
+
     setParsedRows(parsed);
     setStep("preview");
   };
@@ -437,8 +512,108 @@ export function ImportCenterModal({
     URL.revokeObjectURL(url);
   };
 
-  // Import execution
-  const handleImport = () => {
+  // Proceed to review step (for companies)
+  const handleProceedToReview = async () => {
+    const selectedRows = parsedRows.filter((r) => r.selected);
+    if (selectedRows.length === 0) {
+      toast.error("No rows selected for import");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const items = await buildReviewItems(selectedRows);
+      setReviewItems(items);
+      setStep("review");
+    } catch (error) {
+      console.error("Error building review items:", error);
+      toast.error("Failed to prepare review. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Review step handlers
+  const handleReviewDecisionChange = (
+    id: string,
+    decision: ReviewDecision,
+    matchedCompanyId?: string
+  ) => {
+    setReviewItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              decision,
+              matchedCompanyId: decision === "match" ? matchedCompanyId : undefined,
+              matchedCompanyName: decision === "match"
+                ? item.duplicateSuggestions.find((s) => s.id === matchedCompanyId)?.name
+                : undefined,
+            }
+          : item
+      )
+    );
+  };
+
+  const handleBulkAction = (action: "create-all" | "skip-all") => {
+    setReviewItems((prev) =>
+      prev.map((item) => ({
+        ...item,
+        decision: action === "create-all" 
+          ? (item.isValid ? "create" : "skip") 
+          : "skip",
+        matchedCompanyId: undefined,
+        matchedCompanyName: undefined,
+      }))
+    );
+  };
+
+  // Final import execution
+  const handleFinalImport = async () => {
+    if (entityType === "companies") {
+      // Use company-specific saving logic
+      const result = await saveCompanies(reviewItems);
+      
+      if (result.errors.length > 0) {
+        toast.error(result.errors[0]);
+        return;
+      }
+
+      const total = result.created + result.matched;
+      if (total === 0) {
+        toast.warning("No companies were imported. All rows were skipped.");
+        handleClose();
+        return;
+      }
+
+      // Build result message
+      const parts: string[] = [];
+      if (result.created > 0) {
+        parts.push(`${result.created} created`);
+      }
+      if (result.matched > 0) {
+        parts.push(`${result.matched} matched`);
+      }
+      if (result.skipped > 0) {
+        parts.push(`${result.skipped} skipped`);
+      }
+
+      toast.success(`Companies imported: ${parts.join(", ")}`);
+      
+      // Notify parent and close
+      onImportComplete([]);
+      setStep("confirm");
+      setTimeout(() => {
+        handleClose();
+      }, 1500);
+    } else {
+      // Original import logic for other entity types
+      handleLegacyImport();
+    }
+  };
+
+  // Legacy import for non-company entities
+  const handleLegacyImport = () => {
     const selectedRows = parsedRows.filter((r) => r.selected);
     if (selectedRows.length === 0) {
       toast.error("No rows selected for import");
@@ -487,6 +662,9 @@ export function ImportCenterModal({
   };
 
   const selectedCount = parsedRows.filter((r) => r.selected).length;
+  const reviewCreateCount = reviewItems.filter((i) => i.decision === "create" && i.isValid).length;
+  const reviewMatchCount = reviewItems.filter((i) => i.decision === "match" && i.matchedCompanyId).length;
+  const reviewActionCount = reviewCreateCount + reviewMatchCount;
 
   const getStepNumber = () => {
     if (isOcrMode) {
@@ -494,6 +672,15 @@ export function ImportCenterModal({
       if (step === "preview") return "Step 2/2";
       if (step === "confirm") return "Complete";
     }
+    // Company flow has 4 steps
+    if (entityType === "companies") {
+      if (step === "upload") return "Step 1/4";
+      if (step === "mapping") return "Step 2/4";
+      if (step === "preview") return "Step 3/4";
+      if (step === "review") return "Step 4/4";
+      if (step === "confirm") return "Complete";
+    }
+    // Other entities have 3 steps
     if (step === "upload") return "Step 1/3";
     if (step === "mapping") return "Step 2/3";
     if (step === "preview") return "Step 3/3";
@@ -501,9 +688,19 @@ export function ImportCenterModal({
     return "";
   };
 
+  const getStepTitle = () => {
+    if (step === "upload") return "Upload";
+    if (step === "ocr-upload") return "Upload Image";
+    if (step === "mapping") return "Map Columns";
+    if (step === "preview") return "Preview Data";
+    if (step === "review") return "Review Companies";
+    if (step === "confirm") return "Complete";
+    return "";
+  };
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="text-primary">{entityIcons[entityType]}</span>
@@ -512,12 +709,10 @@ export function ImportCenterModal({
               {getStepNumber()}
             </Badge>
           </DialogTitle>
-          {isOcrMode && (
-            <p className="text-sm text-muted-foreground pt-1 flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Using AI-powered OCR scanning
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground pt-1">
+            {getStepTitle()}
+            {isOcrMode && " • AI-powered OCR scanning"}
+          </p>
         </DialogHeader>
 
         <div className="flex-1 overflow-auto">
@@ -554,14 +749,26 @@ export function ImportCenterModal({
           )}
 
           {step === "mapping" && (
-            <ImportMappingStep
-              entityType={entityType}
-              rawHeaders={rawHeaders}
-              rawRows={rawRows}
-              fieldSchema={fieldSchema}
-              columnMapping={columnMapping}
-              onMappingChange={handleMappingChange}
-            />
+            <div className="space-y-4">
+              {/* Mapping warning */}
+              {mappingWarning && (
+                <Alert variant={nameColumnDetected ? "default" : "destructive"}>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    {mappingWarning}
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              <ImportMappingStep
+                entityType={entityType}
+                rawHeaders={rawHeaders}
+                rawRows={rawRows}
+                fieldSchema={fieldSchema}
+                columnMapping={columnMapping}
+                onMappingChange={handleMappingChange}
+              />
+            </div>
           )}
 
           {step === "preview" && (
@@ -575,6 +782,15 @@ export function ImportCenterModal({
               isProcessing={isProcessing}
               progress={importProgress}
               showConfidence={isOcrMode}
+            />
+          )}
+
+          {step === "review" && entityType === "companies" && (
+            <CompanyReviewStep
+              reviewItems={reviewItems}
+              onDecisionChange={handleReviewDecisionChange}
+              onBulkAction={handleBulkAction}
+              isLoading={isLoadingDuplicates}
             />
           )}
 
@@ -593,19 +809,15 @@ export function ImportCenterModal({
 
         <DialogFooter className="border-t pt-4">
           {step === "upload" && (
-            <>
-              <Button variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-            </>
+            <Button variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
           )}
 
           {step === "ocr-upload" && (
-            <>
-              <Button variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-            </>
+            <Button variant="outline" onClick={handleClose}>
+              Cancel
+            </Button>
           )}
 
           {step === "mapping" && (
@@ -635,19 +847,67 @@ export function ImportCenterModal({
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Back
               </Button>
+              {entityType === "companies" ? (
+                <Button
+                  onClick={handleProceedToReview}
+                  disabled={isProcessing || selectedCount === 0}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      Review {selectedCount} Companies
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleLegacyImport}
+                  disabled={isProcessing || selectedCount === 0}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      Import {selectedCount} {getEntityLabel(entityType, selectedCount !== 1)}
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </>
+                  )}
+                </Button>
+              )}
+            </>
+          )}
+
+          {step === "review" && entityType === "companies" && (
+            <>
               <Button
-                onClick={handleImport}
-                disabled={isProcessing || selectedCount === 0}
+                variant="outline"
+                onClick={() => setStep("preview")}
+                disabled={isSaving}
               >
-                {isProcessing ? (
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Back
+              </Button>
+              <Button
+                onClick={handleFinalImport}
+                disabled={isSaving || reviewActionCount === 0}
+              >
+                {isSaving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Importing...
+                    Saving...
                   </>
                 ) : (
                   <>
-                    Import {selectedCount} {getEntityLabel(entityType, selectedCount !== 1)}
-                    <ChevronRight className="h-4 w-4 ml-1" />
+                    Import {reviewActionCount} Companies
+                    <CheckCircle2 className="h-4 w-4 ml-1" />
                   </>
                 )}
               </Button>

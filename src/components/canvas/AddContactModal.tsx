@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -119,152 +120,154 @@ export const AddContactModal = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose} modal={false}>
-      <DialogContent className="sm:max-w-[425px] shadow-2xl border border-border/50 bg-background/95 backdrop-blur-sm">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-border/50 bg-background/95 backdrop-blur-sm">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Add Contact to {companyName}</DialogTitle>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
-          {/* Name */}
-          <div className="grid gap-2">
-            <Label htmlFor="name">Name *</Label>
-            <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Full name"
-            />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name}</p>
-            )}
-          </div>
-
-          {/* Department */}
-          <div className="grid gap-2">
-            <Label htmlFor="department">Department *</Label>
-            <Select value={department} onValueChange={setDepartment}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select department" />
-              </SelectTrigger>
-              <SelectContent>
-                {departmentOptions.map((dept) => (
-                  <SelectItem key={dept} value={dept}>
-                    {dept}
-                  </SelectItem>
-                ))}
-                <SelectItem value="other">Other (custom)</SelectItem>
-              </SelectContent>
-            </Select>
-            {department === "other" && (
+        <ScrollArea className="flex-1 -mx-6 px-6">
+          <div className="grid gap-4 py-4">
+            {/* Name */}
+            <div className="grid gap-2">
+              <Label htmlFor="name">Name *</Label>
               <Input
-                value={customDepartment}
-                onChange={(e) => setCustomDepartment(e.target.value)}
-                placeholder="Enter custom department"
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Full name"
               />
-            )}
-            {errors.department && (
-              <p className="text-sm text-destructive">{errors.department}</p>
-            )}
-          </div>
+              {errors.name && (
+                <p className="text-sm text-destructive">{errors.name}</p>
+              )}
+            </div>
 
-          {/* Job Title */}
-          <div className="grid gap-2">
-            <Label htmlFor="jobTitle">Job Title *</Label>
-            <Select value={jobTitle} onValueChange={setJobTitle}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select job title" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                {jobTitleOptionsFlat.map((title) => (
-                  <SelectItem key={title} value={title}>
-                    {title}
-                  </SelectItem>
-                ))}
-                <SelectItem value="other">Other (custom)</SelectItem>
-              </SelectContent>
-            </Select>
-            {jobTitle === "other" && (
-              <Input
-                value={customJobTitle}
-                onChange={(e) => setCustomJobTitle(e.target.value)}
-                placeholder="Enter custom job title"
-              />
-            )}
-            {errors.jobTitle && (
-              <p className="text-sm text-destructive">{errors.jobTitle}</p>
-            )}
-          </div>
-
-          {/* Seniority */}
-          <div className="grid gap-2">
-            <Label htmlFor="seniority">Seniority</Label>
-            <Select value={seniority} onValueChange={setSeniority}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select seniority (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                {seniorityOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Email */}
-          <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@company.com"
-            />
-          </div>
-
-          {/* Phone */}
-          <div className="grid gap-2">
-            <Label htmlFor="phone">Phone</Label>
-            <div className="flex gap-2">
-              <Input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1 234 567 8900"
-                className="flex-1"
-              />
-              <Select value={phoneLabel} onValueChange={(v) => setPhoneLabel(v as PhoneLabel)}>
-                <SelectTrigger className="w-24">
-                  <SelectValue />
+            {/* Department */}
+            <div className="grid gap-2">
+              <Label htmlFor="department">Department *</Label>
+              <Select value={department} onValueChange={setDepartment}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  {phoneLabelOptions.map((label) => (
-                    <SelectItem key={label} value={label}>
-                      {label}
+                  {departmentOptions.map((dept) => (
+                    <SelectItem key={dept} value={dept}>
+                      {dept}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="other">Other (custom)</SelectItem>
+                </SelectContent>
+              </Select>
+              {department === "other" && (
+                <Input
+                  value={customDepartment}
+                  onChange={(e) => setCustomDepartment(e.target.value)}
+                  placeholder="Enter custom department"
+                />
+              )}
+              {errors.department && (
+                <p className="text-sm text-destructive">{errors.department}</p>
+              )}
+            </div>
+
+            {/* Job Title */}
+            <div className="grid gap-2">
+              <Label htmlFor="jobTitle">Job Title *</Label>
+              <Select value={jobTitle} onValueChange={setJobTitle}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select job title" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {jobTitleOptionsFlat.map((title) => (
+                    <SelectItem key={title} value={title}>
+                      {title}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="other">Other (custom)</SelectItem>
+                </SelectContent>
+              </Select>
+              {jobTitle === "other" && (
+                <Input
+                  value={customJobTitle}
+                  onChange={(e) => setCustomJobTitle(e.target.value)}
+                  placeholder="Enter custom job title"
+                />
+              )}
+              {errors.jobTitle && (
+                <p className="text-sm text-destructive">{errors.jobTitle}</p>
+              )}
+            </div>
+
+            {/* Seniority */}
+            <div className="grid gap-2">
+              <Label htmlFor="seniority">Seniority</Label>
+              <Select value={seniority} onValueChange={setSeniority}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select seniority (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {seniorityOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          {/* Private Email */}
-          <div className="grid gap-2">
-            <Label htmlFor="privateEmail">Private Email</Label>
-            <Input
-              id="privateEmail"
-              type="email"
-              value={privateEmail}
-              onChange={(e) => setPrivateEmail(e.target.value)}
-              placeholder="personal@email.com"
-            />
-          </div>
-        </div>
+            {/* Email */}
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@company.com"
+              />
+            </div>
 
-        <DialogFooter>
+            {/* Phone */}
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Phone</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+1 234 567 8900"
+                  className="flex-1"
+                />
+                <Select value={phoneLabel} onValueChange={(v) => setPhoneLabel(v as PhoneLabel)}>
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {phoneLabelOptions.map((label) => (
+                      <SelectItem key={label} value={label}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Private Email */}
+            <div className="grid gap-2">
+              <Label htmlFor="privateEmail">Private Email</Label>
+              <Input
+                id="privateEmail"
+                type="email"
+                value={privateEmail}
+                onChange={(e) => setPrivateEmail(e.target.value)}
+                placeholder="personal@email.com"
+              />
+            </div>
+          </div>
+        </ScrollArea>
+
+        <DialogFooter className="flex-shrink-0 border-t pt-4">
           <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>

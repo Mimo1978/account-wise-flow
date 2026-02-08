@@ -17,7 +17,25 @@ interface ModalContainerProps {
  * Reusable modal container with fixed header/footer and scrollable content body.
  * Supports expand/collapse functionality for long-form configuration modals.
  *
- * Usage:
+ * ARCHITECTURE GUIDELINES:
+ * - Use this component inside DialogContent for complex wizard/config modals
+ * - Header and footer are always visible (fixed/sticky)
+ * - Middle content scrolls independently via flex-1 + min-h-0 + overflow-y-auto
+ * - Expand control provides near full-screen mode for dense forms
+ *
+ * MODAL SCROLL PATTERN:
+ * All modals in the app should follow this structure for proper scroll behavior:
+ * ```tsx
+ * <DialogContent className="max-h-[90vh] flex flex-col overflow-hidden">
+ *   <DialogHeader className="flex-shrink-0">...</DialogHeader>
+ *   <ScrollArea className="flex-1 -mx-6 px-6">
+ *     <div className="pb-4">...scrollable content...</div>
+ *   </ScrollArea>
+ *   <DialogFooter className="flex-shrink-0 border-t pt-4">...</DialogFooter>
+ * </DialogContent>
+ * ```
+ *
+ * Or use ModalContainer for complex AI/wizard flows:
  * ```tsx
  * <ModalContainer
  *   header={<DialogHeader>...</DialogHeader>}
@@ -49,7 +67,7 @@ export function ModalContainer({
     <div
       className={cn(
         "flex flex-col h-screen max-h-[90vh] transition-all duration-200",
-        expanded && "fixed inset-0 m-0 h-screen max-h-screen z-50 rounded-none",
+        expanded && "fixed inset-0 m-0 h-screen max-h-screen z-50 rounded-none bg-background",
         className
       )}
     >

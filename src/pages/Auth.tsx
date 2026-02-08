@@ -37,6 +37,10 @@ const Auth = () => {
   const { toast } = useToast();
   const shownAuthErrorRef = useRef(false);
 
+  // Determine initial tab from URL search params (?tab=signup or ?tab=signin)
+  const searchParams = new URLSearchParams(location.search);
+  const initialTab = searchParams.get('tab') === 'signup' ? 'signup' : 'signin';
+
   const from = location.state?.from?.pathname || '/companies';
 
   useEffect(() => {
@@ -190,7 +194,7 @@ const Auth = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
+            <Tabs defaultValue={initialTab} className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>

@@ -37,9 +37,11 @@ export function ImportMappingStep({
   onMappingChange,
 }: ImportMappingStepProps) {
   // Count mapped required fields
+  const SKIP_VALUE = "__skip__";
+
   const mappedRequiredCount = useMemo(() => {
     return fieldSchema.filter(
-      (f) => f.required && columnMapping[f.id] !== undefined && columnMapping[f.id] !== ""
+      (f) => f.required && columnMapping[f.id] !== undefined && columnMapping[f.id] !== "" && columnMapping[f.id] !== SKIP_VALUE
     ).length;
   }, [fieldSchema, columnMapping]);
 
@@ -91,13 +93,13 @@ export function ImportMappingStep({
               </div>
               <Select
                 value={columnMapping[field.id] ?? ""}
-                onValueChange={(v) => onMappingChange(field.id, v)}
+                onValueChange={(v) => onMappingChange(field.id, v === SKIP_VALUE ? "" : v)}
               >
                 <SelectTrigger className="w-48 h-8 text-xs">
                   <SelectValue placeholder="Select column..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Skip</SelectItem>
+                  <SelectItem value={SKIP_VALUE}>Skip</SelectItem>
                   {rawHeaders.map((header, idx) => (
                     <SelectItem key={idx} value={String(idx)}>
                       {header || `Column ${idx + 1}`}

@@ -83,9 +83,10 @@ interface CreateCompanyModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCompanyCreated: (company: Account) => void;
+  openRecordAfterCreate?: boolean;
 }
 
-export function CreateCompanyModal({ open, onOpenChange, onCompanyCreated }: CreateCompanyModalProps) {
+export function CreateCompanyModal({ open, onOpenChange, onCompanyCreated, openRecordAfterCreate = true }: CreateCompanyModalProps) {
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 

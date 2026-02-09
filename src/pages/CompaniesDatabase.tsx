@@ -220,8 +220,9 @@ export default function CompaniesDatabase() {
     setIsCreateModalOpen(true);
   };
 
-  const handleCompanyCreated = () => {
-    // Refetch companies after creation
+  const handleCompanyCreated = (company: Account) => {
+    // Open the company record panel with the newly created company
+    setSelectedCompany(company);
     // The query will automatically update via cache invalidation
   };
 

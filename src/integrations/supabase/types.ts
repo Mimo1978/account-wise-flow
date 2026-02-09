@@ -437,34 +437,55 @@ export type Database = {
       }
       companies: {
         Row: {
+          account_manager: string | null
           created_at: string
+          headquarters: string | null
           id: string
           industry: string | null
           name: string
+          notes: string | null
           owner_id: string | null
+          regions: string[] | null
+          relationship_status: string | null
           size: string | null
+          switchboard: string | null
           team_id: string | null
           updated_at: string
+          website: string | null
         }
         Insert: {
+          account_manager?: string | null
           created_at?: string
+          headquarters?: string | null
           id?: string
           industry?: string | null
           name: string
+          notes?: string | null
           owner_id?: string | null
+          regions?: string[] | null
+          relationship_status?: string | null
           size?: string | null
+          switchboard?: string | null
           team_id?: string | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
+          account_manager?: string | null
           created_at?: string
+          headquarters?: string | null
           id?: string
           industry?: string | null
           name?: string
+          notes?: string | null
           owner_id?: string | null
+          regions?: string[] | null
+          relationship_status?: string | null
           size?: string | null
+          switchboard?: string | null
           team_id?: string | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }

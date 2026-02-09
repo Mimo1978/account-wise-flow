@@ -142,11 +142,16 @@ export function CreateCompanyModal({ open, onOpenChange, onCompanyCreated, openR
         .from('companies')
         .insert({
           name: data.name,
-          industry: data.industry || 'Other',
+          industry: data.industry || null,
+          headquarters: data.headquarters || null,
+          switchboard: data.switchboard || null,
+          regions: selectedRegions.length > 0 ? selectedRegions : [],
+          relationship_status: data.relationshipStatus || 'warm',
+          notes: data.notes || null,
           size: null,
           team_id: currentWorkspace.id,
           owner_id: user?.id || null,
-        })
+        } as any)
         .select()
         .single();
 
@@ -159,8 +164,12 @@ export function CreateCompanyModal({ open, onOpenChange, onCompanyCreated, openR
       const newCompany: Account = {
         id: insertedCompany.id,
         name: insertedCompany.name,
-        industry: insertedCompany.industry || "Other",
-        size: insertedCompany.size || undefined,
+        industry: (insertedCompany as any).industry || "Other",
+        size: (insertedCompany as any).size || undefined,
+        headquarters: (insertedCompany as any).headquarters || undefined,
+        switchboard: (insertedCompany as any).switchboard || undefined,
+        regions: (insertedCompany as any).regions || [],
+        relationshipStatus: (insertedCompany as any).relationship_status || 'warm',
         dataQuality: "partial",
         lastUpdated: insertedCompany.updated_at,
         engagementScore: 50,

@@ -216,6 +216,7 @@ const Demo = () => {
             <div className="h-6 w-px bg-border" />
             <CompanySwitcher 
               currentCompany={account.name}
+              companies={scenarioAccounts}
               onCompanySelect={handleCompanySwitch}
             />
             <QRCodeButton 

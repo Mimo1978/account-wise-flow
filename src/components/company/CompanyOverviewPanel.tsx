@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Account, Contact } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ import {
   X,
   GitBranch,
   Globe,
+  ArrowLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CompanySnapshotCard } from "./CompanySnapshotCard";
@@ -45,6 +47,7 @@ interface CompanyOverviewPanelProps {
   onOpenCanvas: (company: Account) => void;
   onViewContacts: (company: Account) => void;
   onContactClick?: (contact: Contact) => void;
+  showBackToList?: boolean;
 }
 
 export function CompanyOverviewPanel({
@@ -54,7 +57,9 @@ export function CompanyOverviewPanel({
   onOpenCanvas,
   onViewContacts,
   onContactClick,
+  showBackToList = true,
 }: CompanyOverviewPanelProps) {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     locations: false,
@@ -96,15 +101,26 @@ export function CompanyOverviewPanel({
         <SheetHeader className="px-6 py-4 border-b border-border bg-card sticky top-0 z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              {showBackToList && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={onClose}
+                  className="gap-2 -ml-2"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span className="hidden sm:inline">Back</span>
+                </Button>
+              )}
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Building2 className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <SheetTitle className="text-lg font-bold">
-                  Company Record
+                  {company.name}
                 </SheetTitle>
                 <p className="text-sm text-muted-foreground">
-                  Single source of truth
+                  Company Record
                 </p>
               </div>
             </div>

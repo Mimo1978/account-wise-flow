@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch } from "lucide-react";
+import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
@@ -36,8 +37,10 @@ import {
 import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { GuidedTooltips } from "@/components/onboarding/GuidedTooltips";
 import { useOnboarding } from "@/hooks/use-onboarding";
+import { useCompanyCanvas } from "@/hooks/use-company-canvas";
 
 const Canvas = () => {
+  const navigate = useNavigate();
   const {
     showOnboardingModal,
     showTooltips,
@@ -46,7 +49,26 @@ const Canvas = () => {
     completeTooltips,
     dismissTooltips,
   } = useOnboarding();
-  const [account, setAccount] = useState(mockAccount);
+  
+  // Use the company canvas hook instead of mock data
+  const { 
+    account: loadedAccount, 
+    accounts: allAccounts, 
+    isLoading: isLoadingCompany,
+    switchCompany,
+    isUsingMockData,
+    setAccount: setLoadedAccount,
+  } = useCompanyCanvas({ fallbackToMock: true });
+  
+  // Local account state for canvas operations
+  const [account, setAccount] = useState<Account | null>(null);
+  
+  // Sync loaded account to local state
+  useEffect(() => {
+    if (loadedAccount) {
+      setAccount(loadedAccount);
+    }
+  }, [loadedAccount]);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -68,13 +90,13 @@ const Canvas = () => {
   const canvasRef = useRef<AccountCanvasRef>(null);
 
   // Get engagements for current company with talent data
-  const companyEngagements = mockEngagements
+  const companyEngagements = account ? mockEngagements
     .filter((eng) => eng.companyId === account.id)
     .map((eng) => ({
       ...eng,
       talent: mockTalents.find((t) => t.id === eng.talentId),
     }))
-    .filter((eng) => eng.talent) as (TalentEngagement & { talent: Talent })[];
+    .filter((eng) => eng.talent) as (TalentEngagement & { talent: Talent })[] : [];
 
   const handleCompanySwitch = (newAccount: Account) => {
     // If there are unsaved changes, show confirmation dialog
@@ -95,10 +117,15 @@ const Canvas = () => {
     // Reset the canvas search
     canvasRef.current?.clearSearch();
     
-    // Load the new account
-    setAccount(newAccount);
+    // Use the hook's switch function to navigate with URL
+    switchCompany(newAccount);
     
     toast.success(`Switched to ${newAccount.name}`);
+  };
+  
+  // Back to companies handler
+  const handleBackToCompanies = () => {
+    navigate('/companies');
   };
 
   const handleCompanySaveAndSwitch = () => {
@@ -281,8 +308,19 @@ const Canvas = () => {
   }, [isRoleSuggestionsOpen, isAIInsightsOpen, isAIKnowledgeOpen]);
 
   // Left side content for the toolbar
-  const toolbarLeftContent = (
+  const toolbarLeftContent = account ? (
     <>
+      {/* Back Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={handleBackToCompanies}
+        className="gap-2 shrink-0"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        <span className="hidden sm:inline">Companies</span>
+      </Button>
+      <div className="h-6 w-px bg-border shrink-0" />
       <div className="min-w-0 shrink-0">
         <h1 className="text-lg font-bold truncate">{account.name}</h1>
         <p className="text-sm text-muted-foreground truncate">{account.industry}</p>
@@ -290,6 +328,7 @@ const Canvas = () => {
       <div className="h-6 w-px bg-border shrink-0" />
       <CompanySwitcher 
         currentCompany={account.name}
+        companies={allAccounts}
         onCompanySelect={handleCompanySwitch}
       />
       <QRCodeButton 
@@ -343,7 +382,34 @@ const Canvas = () => {
         </ToggleGroupItem>
       </ToggleGroup>
     </>
-  );
+  ) : null;
+
+  // Loading state
+  if (isLoadingCompany) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        <p className="text-muted-foreground">Loading company...</p>
+      </div>
+    );
+  }
+
+  // No company state
+  if (!account) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center gap-4">
+        <Network className="w-12 h-12 text-muted-foreground" />
+        <h2 className="text-xl font-semibold">No Company Selected</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          Select a company from your database to view it on the canvas.
+        </p>
+        <Button onClick={handleBackToCompanies} className="gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          Go to Companies
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-65px)]">
@@ -373,7 +439,7 @@ const Canvas = () => {
         ) : (
           <CompanyDatabaseView
             account={account}
-            allAccounts={mockAccounts}
+            allAccounts={allAccounts}
             onAccountUpdate={setAccount}
             onViewCanvas={() => setViewMode("canvas")}
             onAddContact={() => setShowAddContactModal(true)}

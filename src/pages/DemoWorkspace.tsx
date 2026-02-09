@@ -251,6 +251,7 @@ const DemoWorkspace = () => {
             <div className="h-6 w-px bg-border" />
             <CompanySwitcher 
               currentCompany={account.name}
+              companies={mockAccounts}
               onCompanySelect={handleCompanySwitch}
             />
             <QRCodeButton 

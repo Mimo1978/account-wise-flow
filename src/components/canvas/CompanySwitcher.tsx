@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Search } from "lucide-react";
 import {
   Command,
@@ -13,21 +13,21 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { mockAccounts } from "@/lib/mock-data";
 import { Account } from "@/lib/types";
 
 interface CompanySwitcherProps {
   currentCompany: string;
+  companies: Account[];
   onCompanySelect: (account: Account) => void;
 }
 
-export const CompanySwitcher = ({ currentCompany, onCompanySelect }: CompanySwitcherProps) => {
+export const CompanySwitcher = ({ currentCompany, companies, onCompanySelect }: CompanySwitcherProps) => {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Filter out current company and apply search
   const filteredCompanies = useMemo(() => {
-    const otherCompanies = mockAccounts.filter(
+    const otherCompanies = companies.filter(
       (acc) => acc.name.toLowerCase() !== currentCompany.toLowerCase()
     );
     
@@ -39,7 +39,7 @@ export const CompanySwitcher = ({ currentCompany, onCompanySelect }: CompanySwit
       acc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       acc.industry.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery, currentCompany]);
+  }, [searchQuery, currentCompany, companies]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

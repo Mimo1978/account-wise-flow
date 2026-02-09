@@ -2,6 +2,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Building2, Plus, X } from "lucide-react";
+import { Building2, Plus, X, Loader2 } from "lucide-react";
 import { Account, RelationshipStatus } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
 
@@ -89,6 +93,9 @@ interface CreateCompanyModalProps {
 export function CreateCompanyModal({ open, onOpenChange, onCompanyCreated, openRecordAfterCreate = true }: CreateCompanyModalProps) {
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { currentWorkspace } = useWorkspace();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const form = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
@@ -118,30 +125,50 @@ export function CreateCompanyModal({ open, onOpenChange, onCompanyCreated, openR
   };
 
   const onSubmit = async (data: CompanyFormData) => {
+    if (!currentWorkspace?.id) {
+      toast({
+        title: "Error",
+        description: "No workspace selected. Please select a workspace first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     
     try {
-      // Create a new company object
+      // Insert company into Supabase
+      const { data: insertedCompany, error } = await supabase
+        .from('companies')
+        .insert({
+          name: data.name,
+          industry: data.industry || 'Other',
+          size: null,
+          team_id: currentWorkspace.id,
+          owner_id: user?.id || null,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating company:', error);
+        throw error;
+      }
+
+      // Transform to Account format for the callback
       const newCompany: Account = {
-        id: `company-${Date.now()}`,
-        name: data.name,
-        industry: data.industry || "Other",
-        headquarters: data.headquarters || undefined,
-        switchboard: data.switchboard || undefined,
-        regions: selectedRegions.length > 0 ? selectedRegions : undefined,
-        relationshipStatus: data.relationshipStatus || "warm",
+        id: insertedCompany.id,
+        name: insertedCompany.name,
+        industry: insertedCompany.industry || "Other",
+        size: insertedCompany.size || undefined,
         dataQuality: "partial",
-        lastUpdated: new Date().toISOString(),
-        accountManager: {
-          name: "Current User",
-          title: "Account Owner",
-        },
+        lastUpdated: insertedCompany.updated_at,
         engagementScore: 50,
         contacts: [],
       };
 
-      // Simulate a small delay for UX feedback
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      // Invalidate the companies query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['companies', currentWorkspace.id] });
 
       onCompanyCreated(newCompany);
       
@@ -152,10 +179,11 @@ export function CreateCompanyModal({ open, onOpenChange, onCompanyCreated, openR
 
       resetForm();
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error creating company:', error);
       toast({
         title: "Error",
-        description: "Failed to create company. Please try again.",
+        description: error.message || "Failed to create company. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -354,7 +382,10 @@ export function CreateCompanyModal({ open, onOpenChange, onCompanyCreated, openR
               </Button>
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? (
-                  "Creating..."
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
                 ) : (
                   <>
                     <Plus className="h-4 w-4 mr-2" />

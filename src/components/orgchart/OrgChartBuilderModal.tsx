@@ -33,6 +33,7 @@ export interface OrgChartRow {
   emailConfidence?: "high" | "medium" | "low";
   phone?: string; // Primary phone for display
   phones?: LabeledPhone[]; // All phones with labels
+  status?: string; // Contact status (warm, engaged, cold, etc.)
   confidence: "high" | "medium" | "low";
   isDuplicate: boolean;
   duplicateContactId?: string; // ID of existing contact if duplicate

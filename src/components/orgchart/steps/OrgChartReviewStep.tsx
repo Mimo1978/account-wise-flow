@@ -150,7 +150,7 @@ export function OrgChartReviewStep({
   const [titleFilter, setTitleFilter] = useState("");
   const [showFilterPopover, setShowFilterPopover] = useState(false);
 
-  // Run validation on initial mount only - bulk handlers validate inline
+  // Run validation on initial mount only
   useEffect(() => {
     const needsUpdate = extractedRows.some((row) => {
       const currentErrors = validateRow(row);
@@ -158,12 +158,12 @@ export function OrgChartReviewStep({
     });
 
     if (needsUpdate) {
-      const updated = extractedRows.map((row) => ({
-        ...row,
-        validationErrors: validateRow(row),
-      }));
-      // Use setTimeout to avoid overwriting concurrent state updates from bulk apply
-      setTimeout(() => onExtractedRowsChange(updated), 0);
+      onExtractedRowsChange(
+        extractedRows.map((row) => ({
+          ...row,
+          validationErrors: validateRow(row),
+        }))
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1049,7 +1049,7 @@ export function OrgChartReviewStep({
               <TableBody>
                 {extractedRows.map((row) => (
                   <ReviewTableRow
-                    key={`${row.id}-v${bulkApplyVersion}`}
+                    key={`${row.id}-v${bulkApplyVersion}-${row.department}-${row.location}-${row.status || ''}`}
                     row={row}
                     onSelect={handleSelectRow}
                     onEditField={handleEditField}
@@ -1430,7 +1430,7 @@ function DepartmentGroup({
               <TableBody>
                 {rows.map((row) => (
                   <ReviewTableRow
-                    key={row.id}
+                    key={`${row.id}-${row.department}-${row.location}-${row.status || ''}`}
                     row={row}
                     onSelect={onSelectRow}
                     onEditField={onEditField}
@@ -1529,7 +1529,7 @@ function SuggestionGroup({
               <TableBody>
                 {rows.map((row) => (
                   <ReviewTableRow
-                    key={row.id}
+                    key={`${row.id}-${row.department}-${row.location}-${row.status || ''}`}
                     row={row}
                     onSelect={onSelectRow}
                     onEditField={onEditField}
@@ -1662,7 +1662,7 @@ function TitleClusterGroup({
               <TableBody>
                 {rows.map((row) => (
                   <ReviewTableRow
-                    key={row.id}
+                    key={`${row.id}-${row.department}-${row.location}-${row.status || ''}`}
                     row={row}
                     onSelect={onSelectRow}
                     onEditField={onEditField}

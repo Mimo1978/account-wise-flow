@@ -143,8 +143,9 @@ export function OrgChartBuilderModal({
     }
   };
 
-  const handleClose = () => {
-    // Reset state
+  const hasData = extractedRows.length > 0 || rawData.trim().length > 0 || !!uploadedFile;
+
+  const resetAndClose = () => {
     setCurrentStep("source");
     setInputType(null);
     setRawData("");
@@ -153,6 +154,25 @@ export function OrgChartBuilderModal({
     setUploadedFile(null);
     setCompanyDestination(companyId ? { type: "existing", companyId, companyName } : { type: "existing" });
     onOpenChange(false);
+  };
+
+  const handleClose = () => {
+    if (hasData) {
+      // Show confirmation before closing
+      if (window.confirm("You have unsaved data in the Org Chart Builder. Are you sure you want to leave? Your progress will be lost.")) {
+        resetAndClose();
+      }
+    } else {
+      resetAndClose();
+    }
+  };
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      handleClose();
+    } else {
+      onOpenChange(true);
+    }
   };
 
   const isCompanyDestinationValid = () => {
@@ -272,7 +292,7 @@ export function OrgChartBuilderModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

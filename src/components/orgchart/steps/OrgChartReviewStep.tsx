@@ -1018,12 +1018,12 @@ export function OrgChartReviewStep({
 
       {/* Table View */}
       {viewMode === "table" && (
-        <div className="border rounded-lg">
-          <ScrollArea className="h-[350px]">
-            <Table>
-              <TableHeader>
+        <div className="border rounded-lg overflow-hidden">
+          <div className="overflow-auto max-h-[400px]" style={{ scrollbarWidth: 'thin' }}>
+            <Table className="min-w-[1100px]">
+              <TableHeader className="sticky top-0 bg-background z-20">
                 <TableRow>
-                  <TableHead className="w-[40px] sticky left-0 bg-background z-10">
+                  <TableHead className="w-[44px] sticky left-0 bg-background z-30">
                     <Checkbox
                       checked={allSelected}
                       ref={(el) => {
@@ -1034,23 +1034,23 @@ export function OrgChartReviewStep({
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
-                  <TableHead className="w-[140px]">Name *</TableHead>
-                  <TableHead className="w-[160px]">Job Title *</TableHead>
-                  <TableHead className="w-[150px]">Department *</TableHead>
-                  <TableHead className="w-[100px]">Location</TableHead>
-                  <TableHead className="w-[140px]">
+                  <TableHead className="min-w-[160px]">Name *</TableHead>
+                  <TableHead className="min-w-[160px]">Job Title *</TableHead>
+                  <TableHead className="min-w-[160px]">Department *</TableHead>
+                  <TableHead className="min-w-[120px]">Location</TableHead>
+                  <TableHead className="min-w-[160px]">
                     <div className="flex items-center gap-1">
                       <Mail className="h-3 w-3" /> Email
                     </div>
                   </TableHead>
-                  <TableHead className="w-[100px]">
+                  <TableHead className="min-w-[130px]">
                     <div className="flex items-center gap-1">
                       <Phone className="h-3 w-3" /> Phone
                     </div>
                   </TableHead>
-                  <TableHead className="w-[70px]">Conf.</TableHead>
-                  <TableHead className="w-[110px]">Status</TableHead>
-                  <TableHead className="w-[100px]">Validation</TableHead>
+                  <TableHead className="min-w-[70px]">Conf.</TableHead>
+                  <TableHead className="min-w-[120px]">Status</TableHead>
+                  <TableHead className="min-w-[110px]">Validation</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1065,7 +1065,7 @@ export function OrgChartReviewStep({
                 ))}
               </TableBody>
             </Table>
-          </ScrollArea>
+          </div>
         </div>
       )}
 

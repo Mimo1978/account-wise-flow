@@ -143,7 +143,7 @@ export function OrgChartReviewStep({
   const [bulkDepartment, setBulkDepartment] = useState("");
   const [bulkLocation, setBulkLocation] = useState("");
   const [bulkStatus, setBulkStatus] = useState("");
-  const [bulkApplyScope, setBulkApplyScope] = useState<BulkApplyScope>("selected");
+  const [bulkApplyScope, setBulkApplyScope] = useState<BulkApplyScope>("all");
   
   // Filter state
   const [titleFilter, setTitleFilter] = useState("");
@@ -440,69 +440,57 @@ export function OrgChartReviewStep({
   };
 
   // Bulk apply handlers with scope
-  const getTargetRows = () => {
-    if (bulkApplyScope === "all") {
-      return extractedRows;
-    }
-    return extractedRows.filter((r) => r.selected);
-  };
-
   const handleBulkApplyDepartment = () => {
     if (!bulkDepartment.trim()) return;
-    const targetRows = getTargetRows();
-    const count = targetRows.length;
+    const count = bulkApplyScope === "all" ? extractedRows.length : extractedRows.filter(r => r.selected).length;
     
-    onExtractedRowsChange(
-      extractedRows.map((row) => {
-        const isTarget = bulkApplyScope === "all" || row.selected;
-        if (!isTarget) return row;
-        const updated = { ...row, department: bulkDepartment };
-        updated.validationErrors = validateRow(updated);
-        return updated;
-      })
-    );
-    setBulkDepartment("");
+    const updatedRows = extractedRows.map((row) => {
+      const isTarget = bulkApplyScope === "all" || row.selected;
+      if (!isTarget) return row;
+      const updated = { ...row, department: bulkDepartment };
+      updated.validationErrors = validateRow(updated);
+      return updated;
+    });
+    onExtractedRowsChange(updatedRows);
     toast({
       title: "Department applied",
-      description: `Applied to ${count} rows`,
+      description: `Applied "${bulkDepartment}" to ${count} rows`,
     });
   };
 
   const handleBulkApplyLocation = () => {
     if (!bulkLocation.trim()) return;
-    const targetRows = getTargetRows();
-    const count = targetRows.length;
+    const count = bulkApplyScope === "all" ? extractedRows.length : extractedRows.filter(r => r.selected).length;
     
-    onExtractedRowsChange(
-      extractedRows.map((row) => {
-        const isTarget = bulkApplyScope === "all" || row.selected;
-        if (!isTarget) return row;
-        return { ...row, location: bulkLocation };
-      })
-    );
-    setBulkLocation("");
+    const updatedRows = extractedRows.map((row) => {
+      const isTarget = bulkApplyScope === "all" || row.selected;
+      if (!isTarget) return row;
+      const updated = { ...row, location: bulkLocation };
+      updated.validationErrors = validateRow(updated);
+      return updated;
+    });
+    onExtractedRowsChange(updatedRows);
     toast({
       title: "Location applied",
-      description: `Applied to ${count} rows`,
+      description: `Applied "${bulkLocation}" to ${count} rows`,
     });
   };
 
   const handleBulkApplyStatus = () => {
     if (!bulkStatus.trim()) return;
-    const targetRows = getTargetRows();
-    const count = targetRows.length;
+    const count = bulkApplyScope === "all" ? extractedRows.length : extractedRows.filter(r => r.selected).length;
     
-    onExtractedRowsChange(
-      extractedRows.map((row) => {
-        const isTarget = bulkApplyScope === "all" || row.selected;
-        if (!isTarget) return row;
-        return { ...row, status: bulkStatus } as OrgChartRow;
-      })
-    );
-    setBulkStatus("");
+    const updatedRows = extractedRows.map((row) => {
+      const isTarget = bulkApplyScope === "all" || row.selected;
+      if (!isTarget) return row;
+      const updated = { ...row, status: bulkStatus };
+      updated.validationErrors = validateRow(updated);
+      return updated;
+    }) as OrgChartRow[];
+    onExtractedRowsChange(updatedRows);
     toast({
       title: "Status applied",
-      description: `Applied to ${count} rows`,
+      description: `Applied "${bulkStatus}" to ${count} rows`,
     });
   };
 
@@ -1219,41 +1207,32 @@ function ReviewTableRow({
       </TableCell>
       <TableCell>
         <div className="space-y-1.5">
-          {row.department.trim() ? (
-            <FlexibleCombobox
-              value={row.department}
-              onChange={(val) => onEditField(row.id, "department", val)}
-              options={departmentOptions}
-              placeholder="Select or type..."
-            />
-          ) : (
-            <>
-              <FlexibleCombobox
-                value={row.department}
-                onChange={(val) => onEditField(row.id, "department", val)}
-                options={departmentOptions}
-                placeholder="Select or type..."
-                className={cn(
-                  row.selected && "ring-2 ring-destructive/50 rounded-md"
-                )}
-              />
-              {suggestedDept && (
-                <button
-                  type="button"
-                  onClick={() => onEditField(row.id, "department", suggestedDept)}
-                  className="flex items-center gap-1.5 w-full px-2 py-1 text-xs bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded text-primary transition-colors"
-                >
-                  <Sparkles className="h-3 w-3 shrink-0" />
-                  <span className="truncate">Suggested: <span className="font-medium">{suggestedDept}</span></span>
-                  <Check className="h-3 w-3 ml-auto shrink-0" />
-                </button>
-              )}
-            </>
+          <FlexibleCombobox
+            key={`dept-${row.id}-${row.department}`}
+            value={row.department}
+            onChange={(val) => onEditField(row.id, "department", val)}
+            options={departmentOptions}
+            placeholder="Select or type..."
+            className={cn(
+              row.selected && !row.department.trim() && "ring-2 ring-destructive/50 rounded-md"
+            )}
+          />
+          {suggestedDept && !row.department.trim() && (
+            <button
+              type="button"
+              onClick={() => onEditField(row.id, "department", suggestedDept)}
+              className="flex items-center gap-1.5 w-full px-2 py-1 text-xs bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded text-primary transition-colors"
+            >
+              <Sparkles className="h-3 w-3 shrink-0" />
+              <span className="truncate">Suggested: <span className="font-medium">{suggestedDept}</span></span>
+              <Check className="h-3 w-3 ml-auto shrink-0" />
+            </button>
           )}
         </div>
       </TableCell>
       <TableCell>
         <EditableTextCell
+          key={`loc-${row.id}-${row.location}`}
           value={row.location}
           onChange={(val) => onEditField(row.id, "location", val)}
           placeholder="—"

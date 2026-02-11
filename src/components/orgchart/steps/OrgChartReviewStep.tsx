@@ -144,12 +144,13 @@ export function OrgChartReviewStep({
   const [bulkLocation, setBulkLocation] = useState("");
   const [bulkStatus, setBulkStatus] = useState("");
   const [bulkApplyScope, setBulkApplyScope] = useState<BulkApplyScope>("all");
+  const [bulkApplyVersion, setBulkApplyVersion] = useState(0);
   
   // Filter state
   const [titleFilter, setTitleFilter] = useState("");
   const [showFilterPopover, setShowFilterPopover] = useState(false);
 
-  // Run validation whenever rows change
+  // Run validation on initial mount only - bulk handlers validate inline
   useEffect(() => {
     const needsUpdate = extractedRows.some((row) => {
       const currentErrors = validateRow(row);
@@ -157,14 +158,15 @@ export function OrgChartReviewStep({
     });
 
     if (needsUpdate) {
-      onExtractedRowsChange(
-        extractedRows.map((row) => ({
-          ...row,
-          validationErrors: validateRow(row),
-        }))
-      );
+      const updated = extractedRows.map((row) => ({
+        ...row,
+        validationErrors: validateRow(row),
+      }));
+      // Use setTimeout to avoid overwriting concurrent state updates from bulk apply
+      setTimeout(() => onExtractedRowsChange(updated), 0);
     }
-  }, [extractedRows, onExtractedRowsChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Computed stats
   const selectedCount = extractedRows.filter((r) => r.selected).length;
@@ -452,6 +454,7 @@ export function OrgChartReviewStep({
       return updated;
     });
     onExtractedRowsChange(updatedRows);
+    setBulkApplyVersion(v => v + 1);
     toast({
       title: "Department applied",
       description: `Applied "${bulkDepartment}" to ${count} rows`,
@@ -470,6 +473,7 @@ export function OrgChartReviewStep({
       return updated;
     });
     onExtractedRowsChange(updatedRows);
+    setBulkApplyVersion(v => v + 1);
     toast({
       title: "Location applied",
       description: `Applied "${bulkLocation}" to ${count} rows`,
@@ -488,6 +492,7 @@ export function OrgChartReviewStep({
       return updated;
     }) as OrgChartRow[];
     onExtractedRowsChange(updatedRows);
+    setBulkApplyVersion(v => v + 1);
     toast({
       title: "Status applied",
       description: `Applied "${bulkStatus}" to ${count} rows`,
@@ -1044,7 +1049,7 @@ export function OrgChartReviewStep({
               <TableBody>
                 {extractedRows.map((row) => (
                   <ReviewTableRow
-                    key={`${row.id}-${row.department}-${row.location}-${row.status || ''}`}
+                    key={`${row.id}-v${bulkApplyVersion}`}
                     row={row}
                     onSelect={handleSelectRow}
                     onEditField={handleEditField}

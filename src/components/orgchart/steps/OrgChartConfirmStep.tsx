@@ -4,6 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, Loader2, Users, Building2, AlertCircle, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useQueryClient } from "@tanstack/react-query";
 import type { OrgChartRow } from "../OrgChartBuilderModal";
 import type { CompanyDestination } from "./OrgChartSourceStep";
 
@@ -27,27 +30,97 @@ export function OrgChartConfirmStep({
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [progress, setProgress] = useState(0);
   const [importedCount, setImportedCount] = useState(0);
+  const [errorMessage, setErrorMessage] = useState("");
+  const { currentWorkspace } = useWorkspace();
+  const queryClient = useQueryClient();
 
   const handleImport = async () => {
+    if (!currentWorkspace?.id) {
+      toast.error("No workspace selected");
+      return;
+    }
+
     setStatus("importing");
     setProgress(0);
+    setErrorMessage("");
 
     try {
-      // Simulate import with progress
+      let targetCompanyId = companyId;
+
+      // Create new company if needed
+      if (companyDestination?.type === "new" && companyDestination.companyName) {
+        const { data: newCompany, error: companyError } = await supabase
+          .from("companies")
+          .insert({
+            name: companyDestination.companyName,
+            headquarters: companyDestination.country || null,
+            team_id: currentWorkspace.id,
+          })
+          .select("id")
+          .single();
+
+        if (companyError) {
+          throw new Error(`Failed to create company: ${companyError.message}`);
+        }
+        targetCompanyId = newCompany.id;
+      }
+
+      if (!targetCompanyId) {
+        throw new Error("No target company selected");
+      }
+
+      // Insert contacts in batches of 10
       const total = extractedRows.length;
       let imported = 0;
+      const batchSize = 10;
 
-      for (let i = 0; i < total; i++) {
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        imported++;
+      for (let i = 0; i < total; i += batchSize) {
+        const batch = extractedRows.slice(i, i + batchSize);
+        
+        const contactsToInsert = batch.map((row) => ({
+          name: row.full_name.trim(),
+          title: row.job_title.trim() || null,
+          department: row.department.trim() || null,
+          email: row.email?.trim() || null,
+          phone: row.phone?.trim() || null,
+          company_id: targetCompanyId,
+          team_id: currentWorkspace.id,
+        }));
+
+        const { error: insertError } = await supabase
+          .from("contacts")
+          .insert(contactsToInsert);
+
+        if (insertError) {
+          console.error("Batch insert error:", insertError);
+          throw new Error(`Failed to import contacts: ${insertError.message}`);
+        }
+
+        imported += batch.length;
         setImportedCount(imported);
         setProgress(Math.round((imported / total) * 100));
       }
 
+      // Invalidate queries to refresh canvas and contact lists
+      await queryClient.invalidateQueries({
+        queryKey: ["canvas-company", targetCompanyId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["canvas-companies"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["contacts"],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["companies"],
+      });
+
       setStatus("success");
-      toast.success(`Successfully imported ${total} contacts to org chart`);
+      toast.success(`Successfully imported ${total} contacts`);
     } catch (error) {
+      console.error("Import error:", error);
       setStatus("error");
+      setErrorMessage(error instanceof Error ? error.message : "Unknown error");
       toast.error("Failed to import contacts. Please try again.");
     }
   };
@@ -60,8 +133,8 @@ export function OrgChartConfirmStep({
         </div>
         <h3 className="text-xl font-semibold mb-2">Import Complete!</h3>
         <p className="text-muted-foreground mb-6">
-          {extractedRows.length} contacts have been added to the org chart
-          {companyName && ` for ${companyName}`}.
+          {importedCount} contacts have been added
+          {companyName && ` to ${companyName}`}.
         </p>
         <div className="flex items-center gap-3">
           <Button onClick={onComplete}>View on Canvas</Button>
@@ -99,7 +172,7 @@ export function OrgChartConfirmStep({
         </div>
         <h3 className="text-xl font-semibold mb-2">Import Failed</h3>
         <p className="text-muted-foreground mb-6">
-          An error occurred while importing contacts. Please try again.
+          {errorMessage || "An error occurred while importing contacts. Please try again."}
         </p>
         <div className="flex items-center gap-3">
           <Button onClick={handleImport}>Retry Import</Button>
@@ -117,7 +190,7 @@ export function OrgChartConfirmStep({
       <div className="text-center py-4">
         <h3 className="text-lg font-semibold mb-2">Ready to Import</h3>
         <p className="text-muted-foreground">
-          Review the summary below and click "Import" to add these contacts to the org chart.
+          Review the summary below and click "Import" to add these contacts.
         </p>
       </div>
 
@@ -180,7 +253,7 @@ export function OrgChartConfirmStep({
       </div>
 
       <p className="text-xs text-muted-foreground text-center">
-        This action will create new contacts and add them to the company's org chart.
+        This action will create new contacts and add them to the company record.
       </p>
     </div>
   );

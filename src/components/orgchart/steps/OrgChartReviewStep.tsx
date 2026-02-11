@@ -496,7 +496,7 @@ export function OrgChartReviewStep({
       extractedRows.map((row) => {
         const isTarget = bulkApplyScope === "all" || row.selected;
         if (!isTarget) return row;
-        return { ...row, status: bulkStatus };
+        return { ...row, status: bulkStatus } as OrgChartRow;
       })
     );
     setBulkStatus("");
@@ -1049,7 +1049,8 @@ export function OrgChartReviewStep({
                     </div>
                   </TableHead>
                   <TableHead className="w-[70px]">Conf.</TableHead>
-                  <TableHead className="w-[140px]">Status</TableHead>
+                  <TableHead className="w-[110px]">Status</TableHead>
+                  <TableHead className="w-[100px]">Validation</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1317,6 +1318,23 @@ function ReviewTableRow({
       </TableCell>
       <TableCell>
         <ConfidenceBadge confidence={row.confidence} />
+      </TableCell>
+      <TableCell>
+        <Select
+          value={row.status || ""}
+          onValueChange={(val) => onEditField(row.id, "status" as keyof OrgChartRow, val)}
+        >
+          <SelectTrigger className="h-7 text-xs w-[110px]">
+            <SelectValue placeholder="—" />
+          </SelectTrigger>
+          <SelectContent className="bg-popover border shadow-lg z-50">
+            {STATUS_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </TableCell>
       <TableCell>
         <RowStatusCell

@@ -1044,7 +1044,7 @@ export function OrgChartReviewStep({
               <TableBody>
                 {extractedRows.map((row) => (
                   <ReviewTableRow
-                    key={row.id}
+                    key={`${row.id}-${row.department}-${row.location}-${row.status || ''}`}
                     row={row}
                     onSelect={handleSelectRow}
                     onEditField={handleEditField}

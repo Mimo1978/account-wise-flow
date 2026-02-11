@@ -194,10 +194,13 @@ const Canvas = () => {
   };
 
   const handleAddContact = (contact: Contact) => {
-    setAccount((prev) => ({
-      ...prev,
-      contacts: [...prev.contacts, contact],
-    }));
+    setAccount((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        contacts: [...prev.contacts, contact],
+      };
+    });
   };
 
   const handleHighlightContacts = useCallback((contactIds: string[]) => {
@@ -217,7 +220,7 @@ const Canvas = () => {
 
   const handleGlobalSelectContact = useCallback((contact: Contact, selectedAccount: Account) => {
     // If the contact is from a different company, switch to that company first
-    if (selectedAccount.id !== account.id) {
+    if (account && selectedAccount.id !== account.id) {
       if (hasUnsavedChanges) {
         toast.info("Please save or discard changes before switching companies");
         return;
@@ -233,7 +236,7 @@ const Canvas = () => {
     // Highlight the contact on the canvas
     canvasRef.current?.highlightContacts([contact.id]);
     setHighlightedContactIds([contact.id]);
-  }, [account.id, hasUnsavedChanges]);
+  }, [account?.id, hasUnsavedChanges]);
 
   const handleTalentClick = useCallback((talent: Talent, engagement: TalentEngagement) => {
     setSelectedTalent(talent);

@@ -51,14 +51,14 @@ export function useDemoWorkspace() {
         console.log('[useDemoWorkspace] Is demo user:', isDemoData);
         setIsDemoUser(!!isDemoData);
         
-        // Get the workspace ID
+        // Get the demo workspace ID specifically (not the production one)
         if (isDemoData) {
-          const { data: wsId, error: wsError } = await supabase.rpc('get_current_workspace_id', { _user_id: user.id });
+          const { data: demoWs, error: wsError } = await supabase.functions.invoke('workspace-management/get-demo-workspace');
           if (wsError) {
-            console.error('[useDemoWorkspace] Error getting workspace ID:', wsError);
-          } else {
-            console.log('[useDemoWorkspace] Workspace ID:', wsId);
-            setWorkspaceId(wsId);
+            console.error('[useDemoWorkspace] Error getting demo workspace ID:', wsError);
+          } else if (demoWs?.workspaceId) {
+            console.log('[useDemoWorkspace] Demo Workspace ID:', demoWs.workspaceId);
+            setWorkspaceId(demoWs.workspaceId);
           }
         }
       } catch (error) {

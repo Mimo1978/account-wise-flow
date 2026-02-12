@@ -419,7 +419,7 @@ export function OrgChartBuilderModal({
 
         {/* Step Content with horizontal + vertical scroll */}
         <ScrollArea className="flex-1 min-h-0 py-4">
-          <div className="min-w-max pr-4">
+          <div className={cn("pr-4", currentStep === "review" && "min-w-max")}>
             {renderStepContent()}
           </div>
           <ScrollBar orientation="horizontal" />

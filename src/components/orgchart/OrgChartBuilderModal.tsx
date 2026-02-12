@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Check, FileUp, Scan, Eye, ListChecks, GitBranch } from "lucide-react";
 import { OrgChartSourceStep, CompanyDestination } from "./steps/OrgChartSourceStep";
 import { OrgChartExtractStep } from "./steps/OrgChartExtractStep";
@@ -293,7 +294,7 @@ export function OrgChartBuilderModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitBranch className="h-5 w-5 text-primary" />
@@ -357,9 +358,11 @@ export function OrgChartBuilderModal({
         </div>
 
         {/* Step Content */}
-        <div className="flex-1 overflow-y-auto py-4 min-h-[300px]">
-          {renderStepContent()}
-        </div>
+        <ScrollArea className="flex-1 min-h-0 py-4">
+          <div className="pr-4">
+            {renderStepContent()}
+          </div>
+        </ScrollArea>
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between border-t border-border pt-4">

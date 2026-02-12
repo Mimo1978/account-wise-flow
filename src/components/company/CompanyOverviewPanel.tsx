@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Account, Contact } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -71,6 +73,35 @@ export function CompanyOverviewPanel({
   const [showOrgChartBuilder, setShowOrgChartBuilder] = useState(false);
   const [showWebResearch, setShowWebResearch] = useState(false);
 
+  // Fetch real contacts from database for this company
+  const { data: dbContacts = [] } = useQuery({
+    queryKey: ['company-contacts', company?.id],
+    queryFn: async () => {
+      if (!company?.id) return [];
+      const { data, error } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('company_id', company.id)
+        .order('name');
+      if (error) {
+        console.error('Error fetching company contacts:', error);
+        return [];
+      }
+      return (data || []).map((c: any): Contact => ({
+        id: c.id,
+        name: c.name,
+        title: c.title || '',
+        department: c.department || '',
+        seniority: 'mid' as Contact['seniority'],
+        email: c.email || '',
+        phone: c.phone || '',
+        status: 'new' as Contact['status'],
+        engagementScore: 50,
+      }));
+    },
+    enabled: !!company?.id,
+  });
+
   if (!company) return null;
 
   const toggleSection = (section: string) => {
@@ -134,7 +165,7 @@ export function CompanyOverviewPanel({
           <div className="px-6 py-4 space-y-6">
             {/* A. Company Snapshot Card (Top) */}
             <section>
-              <CompanySnapshotCard company={company} />
+              <CompanySnapshotCard company={company} contactCount={dbContacts.length} />
             </section>
 
             <Separator />
@@ -207,7 +238,7 @@ export function CompanyOverviewPanel({
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="secondary" className="text-xs">
-                    {company.contacts.length}
+                    {dbContacts.length}
                   </Badge>
                   {expandedSections.contacts ? (
                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -218,7 +249,7 @@ export function CompanyOverviewPanel({
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-4">
                 <CompanyContactsList 
-                  contacts={company.contacts} 
+                  contacts={dbContacts} 
                   onContactClick={onContactClick}
                 />
               </CollapsibleContent>

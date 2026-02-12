@@ -18,6 +18,7 @@ import { format, parseISO } from "date-fns";
 
 interface CompanySnapshotCardProps {
   company: Account;
+  contactCount?: number;
   onEdit?: () => void;
 }
 
@@ -63,7 +64,7 @@ const formatDate = (dateString?: string) => {
   }
 };
 
-export function CompanySnapshotCard({ company, onEdit }: CompanySnapshotCardProps) {
+export function CompanySnapshotCard({ company, contactCount, onEdit }: CompanySnapshotCardProps) {
   const relationshipStatus = getRelationshipStatusConfig(company.relationshipStatus);
   const dataQuality = getDataQualityConfig(company.dataQuality);
 
@@ -139,7 +140,7 @@ export function CompanySnapshotCard({ company, onEdit }: CompanySnapshotCardProp
             <Users className="h-3 w-3" />
             Contacts
           </div>
-          <span className="text-2xl font-bold">{company.contacts.length}</span>
+          <span className="text-2xl font-bold">{contactCount ?? company.contacts.length}</span>
         </div>
 
         <div className="p-3 rounded-lg border border-border bg-card">

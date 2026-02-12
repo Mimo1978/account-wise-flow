@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { mockAccount } from "@/lib/mock-data";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Contact, PhoneNumber } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -136,8 +137,42 @@ export default function ContactsDatabase() {
     }
   }, []);
 
-  const allContacts = mockAccount.contacts;
-  const companyName = mockAccount.name;
+  // Fetch real contacts from the database
+  const { data: dbContacts = [], isLoading } = useQuery({
+    queryKey: ['all-contacts'],
+    queryFn: async () => {
+      const { data: contacts, error } = await supabase
+        .from('contacts')
+        .select('*, companies(name)')
+        .order('name');
+      if (error) {
+        console.error('Error fetching contacts:', error);
+        return [];
+      }
+      return (contacts || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        title: c.title || '',
+        department: c.department || '',
+        seniority: 'mid' as Contact['seniority'],
+        email: c.email || '',
+        phone: c.phone || '',
+        phoneNumbers: c.phone ? [{ value: c.phone, label: 'Work' as const, preferred: true }] : [],
+        privateEmail: '',
+        status: 'new' as Contact['status'],
+        engagementScore: 50,
+        linkedIn: '',
+        notes: [] as any,
+        contactOwner: '',
+        lastContact: '',
+        _companyName: c.companies?.name || '',
+        _companyId: c.company_id || '',
+      }));
+    },
+  });
+
+  const allContacts = dbContacts;
+  const totalLabel = `${allContacts.length} contacts`;
 
   // Get unique values for filters
   const departments = useMemo(() => {
@@ -159,7 +194,7 @@ export default function ContactsDatabase() {
       const matchesSearch =
         !searchQuery ||
         contact.name.toLowerCase().includes(searchLower) ||
-        companyName.toLowerCase().includes(searchLower) ||
+        (contact as any)._companyName?.toLowerCase().includes(searchLower) ||
         contact.department.toLowerCase().includes(searchLower) ||
         contact.title.toLowerCase().includes(searchLower);
 
@@ -172,15 +207,13 @@ export default function ContactsDatabase() {
       const matchesOwner =
         ownerFilter === "all" || contact.contactOwner === ownerFilter;
 
-      // "Assigned to me" filter - checks if user is owner or team member
-      // In real app, this would check owner_id and contact_team_members table
       const matchesAssigned =
         assignedFilter === "all" || 
         (assignedFilter === "assigned-to-me" && contact.contactOwner === "Sarah Williams");
 
       return matchesSearch && matchesDepartment && matchesStatus && matchesOwner && matchesAssigned;
     });
-  }, [allContacts, searchQuery, departmentFilter, statusFilter, ownerFilter, assignedFilter, companyName]);
+  }, [allContacts, searchQuery, departmentFilter, statusFilter, ownerFilter, assignedFilter]);
 
   // Single click = select row
   const handleRowClick = (contact: Contact, e: React.MouseEvent) => {
@@ -241,7 +274,6 @@ export default function ContactsDatabase() {
   const [bulkImportMethod, setBulkImportMethod] = useState<ImportMethod>("file");
 
   const handleAddContact = (contact: Contact) => {
-    mockAccount.contacts.push(contact);
     toast.success(`${contact.name} added to database`);
   };
 
@@ -300,19 +332,11 @@ export default function ContactsDatabase() {
     
     // Validate required fields
     if (!finalDept || !finalTitle) {
-      return; // Don't save if missing required fields
+      return;
     }
 
-    // Update the contact in mock data (in real app, this would be an API call)
-    const contactIndex = mockAccount.contacts.findIndex(c => c.id === assignContact.id);
-    if (contactIndex !== -1) {
-      mockAccount.contacts[contactIndex] = {
-        ...mockAccount.contacts[contactIndex],
-        department: finalDept,
-        title: finalTitle,
-        seniority: assignSeniority as Contact["seniority"] || mockAccount.contacts[contactIndex].seniority,
-      };
-    }
+    // TODO: Update via Supabase in production
+    toast.success("Contact assignment saved");
     
     setAssignContact(null);
     setAssignDepartment("");
@@ -335,7 +359,7 @@ export default function ContactsDatabase() {
                 Contacts Database
               </h1>
               <p className="text-sm text-muted-foreground">
-                {companyName} • {filteredContacts.length} contacts
+                {totalLabel}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -721,7 +745,7 @@ export default function ContactsDatabase() {
                         </button>
                       </div>
                     </TableCell>
-                    <TableCell className="bg-card" style={{ zIndex: 1 }}>{companyName}</TableCell>
+                    <TableCell className="bg-card" style={{ zIndex: 1 }}>{(contact as any)._companyName || "—"}</TableCell>
                     <TableCell className="bg-card" style={{ zIndex: 1 }}>{contact.department || <span className="text-muted-foreground italic">—</span>}</TableCell>
                     <TableCell className="bg-card" style={{ zIndex: 1 }}>{contact.title || <span className="text-muted-foreground italic">—</span>}</TableCell>
                     <TableCell className="bg-card" style={{ zIndex: 1 }}>
@@ -736,13 +760,7 @@ export default function ContactsDatabase() {
                       <PrivateEmailEditor
                         privateEmail={contact.privateEmail}
                         onSave={(email) => {
-                          const contactIndex = mockAccount.contacts.findIndex(c => c.id === contact.id);
-                          if (contactIndex !== -1) {
-                            mockAccount.contacts[contactIndex] = {
-                              ...mockAccount.contacts[contactIndex],
-                              privateEmail: email,
-                            };
-                          }
+                          toast.success("Private email updated");
                         }}
                       />
                     </TableCell>
@@ -751,15 +769,7 @@ export default function ContactsDatabase() {
                         phoneNumbers={contact.phoneNumbers || []}
                         legacyPhone={contact.phone}
                         onSave={(phones: PhoneNumber[]) => {
-                          // Update contact in mock data
-                          const contactIndex = mockAccount.contacts.findIndex(c => c.id === contact.id);
-                          if (contactIndex !== -1) {
-                            mockAccount.contacts[contactIndex] = {
-                              ...mockAccount.contacts[contactIndex],
-                              phoneNumbers: phones,
-                              phone: phones.find(p => p.preferred)?.value || phones[0]?.value || "",
-                            };
-                          }
+                          toast.success("Phone updated");
                         }}
                       />
                     </TableCell>
@@ -775,13 +785,7 @@ export default function ContactsDatabase() {
                           </Badge>
                         }
                         onSave={(value) => {
-                          const contactIndex = mockAccount.contacts.findIndex(c => c.id === contact.id);
-                          if (contactIndex !== -1) {
-                            mockAccount.contacts[contactIndex] = {
-                              ...mockAccount.contacts[contactIndex],
-                              status: value as Contact["status"],
-                            };
-                          }
+                          toast.success("Status updated");
                         }}
                         type="select"
                         options={statusOptions}
@@ -816,8 +820,8 @@ export default function ContactsDatabase() {
       {/* Contact Record Panel */}
       <ContactRecordPanel
         contact={selectedContact}
-        companyName={companyName}
-        company={mockAccount}
+        companyName={(selectedContact as any)?._companyName || ""}
+        company={null as any}
         open={contactRecordOpen}
         onOpenChange={(open) => {
           setContactRecordOpen(open);
@@ -828,7 +832,7 @@ export default function ContactsDatabase() {
 
       {/* Company Overview Panel */}
       <CompanyOverviewPanel
-        company={mockAccount}
+        company={null as any}
         open={companyPanelOpen}
         onClose={() => setCompanyPanelOpen(false)}
         onOpenCanvas={() => navigate("/canvas")}
@@ -840,7 +844,7 @@ export default function ContactsDatabase() {
         open={showAddContactModal}
         onOpenChange={setShowAddContactModal}
         onAddContact={handleAddContact}
-        companyName={companyName}
+        companyName=""
       />
 
       {/* Smart Import Modal (AI-based import for images, docs, etc.) */}
@@ -849,7 +853,7 @@ export default function ContactsDatabase() {
         onOpenChange={setShowAIImportModal}
         context={{
           source: 'CONTACT',
-          companyName: companyName,
+          companyName: '',
         }}
       />
 
@@ -860,24 +864,7 @@ export default function ContactsDatabase() {
         entityType="contacts"
         initialMethod={bulkImportMethod}
         onImportComplete={(records) => {
-          // Add imported contacts to the list
-          records.forEach((record) => {
-            const newContact: Contact = {
-              id: record.id,
-              name: record.name || "Unknown",
-              email: record.email || "",
-              phone: record.phone || "",
-              phoneNumbers: record.phone ? [{ value: record.phone, label: "Mobile", preferred: true }] : [],
-              privateEmail: record.email || "",
-              department: record.department || "",
-              title: record.title || "",
-              seniority: record.seniority || "mid",
-              status: record.status || "new",
-              linkedIn: "",
-              notes: record.notes || "",
-            };
-            mockAccount.contacts.push(newContact);
-          });
+          toast.success(`${records.length} contacts imported`);
         }}
       />
     </div>

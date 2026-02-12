@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Contact, PhoneNumber } from "@/lib/types";
@@ -64,6 +64,7 @@ import {
   ChevronDown,
   ExternalLink,
   ScanLine,
+  ArrowLeft,
 } from "lucide-react";
 import {
   departmentOptions,
@@ -110,6 +111,9 @@ const seniorityLabels: Record<string, string> = {
 export default function ContactsDatabase() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const companyFilterId = searchParams.get("company") || null;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -128,6 +132,21 @@ export default function ContactsDatabase() {
   // Mock current user ID (in real app, get from auth)
   const currentUserId = "user-1"; // Sarah Williams
 
+  // Fetch company name when filtering by company
+  const { data: filterCompany } = useQuery({
+    queryKey: ['company-name', companyFilterId],
+    queryFn: async () => {
+      if (!companyFilterId) return null;
+      const { data } = await supabase
+        .from('companies')
+        .select('id, name')
+        .eq('id', companyFilterId)
+        .single();
+      return data;
+    },
+    enabled: !!companyFilterId,
+  });
+
   // Check if this is the first visit to show scroll hint
   useEffect(() => {
     const visitedKey = "contacts-database-visited";
@@ -137,14 +156,20 @@ export default function ContactsDatabase() {
     }
   }, []);
 
-  // Fetch real contacts from the database
+  // Fetch contacts from the database — scoped to company if param present
   const { data: dbContacts = [], isLoading } = useQuery({
-    queryKey: ['all-contacts'],
+    queryKey: ['all-contacts', companyFilterId],
     queryFn: async () => {
-      const { data: contacts, error } = await supabase
+      let query = supabase
         .from('contacts')
         .select('*, companies(name)')
         .order('name');
+      
+      if (companyFilterId) {
+        query = query.eq('company_id', companyFilterId);
+      }
+
+      const { data: contacts, error } = await query;
       if (error) {
         console.error('Error fetching contacts:', error);
         return [];
@@ -172,7 +197,11 @@ export default function ContactsDatabase() {
   });
 
   const allContacts = dbContacts;
-  const totalLabel = `${allContacts.length} contacts`;
+  const isCompanyScoped = !!companyFilterId;
+  const companyName = filterCompany?.name || '';
+  const totalLabel = isCompanyScoped
+    ? `${allContacts.length} contacts at ${companyName}`
+    : `${allContacts.length} contacts`;
 
   // Get unique values for filters
   const departments = useMemo(() => {
@@ -354,13 +383,25 @@ export default function ContactsDatabase() {
       <div className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">
-                Contacts Database
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {totalLabel}
-              </p>
+            <div className="flex items-center gap-3">
+              {isCompanyScoped && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate('/companies')}
+                  className="shrink-0"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">
+                  {isCompanyScoped ? `${companyName} — Contacts` : 'Contacts Database'}
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {totalLabel}
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Tooltip>

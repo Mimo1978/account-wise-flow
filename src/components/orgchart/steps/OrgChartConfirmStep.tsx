@@ -16,6 +16,7 @@ interface OrgChartConfirmStepProps {
   companyName?: string;
   companyDestination?: CompanyDestination;
   onComplete: () => void;
+  onImportComplete?: (importedContactIds: string[], companyId: string) => void;
 }
 
 type ImportStatus = "idle" | "importing" | "success" | "error";
@@ -26,6 +27,7 @@ export function OrgChartConfirmStep({
   companyName,
   companyDestination,
   onComplete,
+  onImportComplete,
 }: OrgChartConfirmStepProps) {
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [progress, setProgress] = useState(0);
@@ -73,6 +75,7 @@ export function OrgChartConfirmStep({
       const total = extractedRows.length;
       let imported = 0;
       const batchSize = 10;
+      const allImportedIds: string[] = [];
 
       for (let i = 0; i < total; i += batchSize) {
         const batch = extractedRows.slice(i, i + batchSize);
@@ -87,13 +90,18 @@ export function OrgChartConfirmStep({
           team_id: currentWorkspace.id,
         }));
 
-        const { error: insertError } = await supabase
+        const { data: insertedData, error: insertError } = await supabase
           .from("contacts")
-          .insert(contactsToInsert);
+          .insert(contactsToInsert)
+          .select("id");
 
         if (insertError) {
           console.error("Batch insert error:", insertError);
           throw new Error(`Failed to import contacts: ${insertError.message}`);
+        }
+
+        if (insertedData) {
+          allImportedIds.push(...insertedData.map((c) => c.id));
         }
 
         imported += batch.length;
@@ -117,6 +125,13 @@ export function OrgChartConfirmStep({
 
       setStatus("success");
       toast.success(`Successfully imported ${total} contacts`);
+
+      // Auto-navigate to canvas with highlighted contacts
+      if (onImportComplete && targetCompanyId) {
+        setTimeout(() => {
+          onImportComplete(allImportedIds, targetCompanyId);
+        }, 800);
+      }
     } catch (error) {
       console.error("Import error:", error);
       setStatus("error");

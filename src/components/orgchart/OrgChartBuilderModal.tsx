@@ -49,6 +49,7 @@ interface OrgChartBuilderModalProps {
   onOpenChange: (open: boolean) => void;
   companyId?: string;
   companyName?: string;
+  onImportComplete?: (importedContactIds: string[], companyId: string) => void;
 }
 
 const STEPS = [
@@ -66,6 +67,7 @@ export function OrgChartBuilderModal({
   onOpenChange,
   companyId,
   companyName,
+  onImportComplete,
 }: OrgChartBuilderModalProps) {
   const [currentStep, setCurrentStep] = useState<StepId>("source");
   const [inputType, setInputType] = useState<OrgChartInputType | null>(null);
@@ -318,6 +320,10 @@ export function OrgChartBuilderModal({
             companyName={effectiveCompanyName}
             companyDestination={companyDestination}
             onComplete={handleClose}
+            onImportComplete={(contactIds, cId) => {
+              resetAndClose();
+              onImportComplete?.(contactIds, cId);
+            }}
           />
         );
       default:

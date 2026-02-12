@@ -533,6 +533,19 @@ const Canvas = () => {
         onOpenChange={setShowOrgChartBuilder}
         companyId={account.id}
         companyName={account.name}
+        onImportComplete={(contactIds, _companyId) => {
+          setShowOrgChartBuilder(false);
+          setViewMode("canvas");
+          // Highlight newly imported contacts on the canvas
+          setHighlightedContactIds(contactIds);
+          // Trigger canvas highlight for immediate visual feedback after re-render
+          setTimeout(() => {
+            canvasRef.current?.highlightContacts(contactIds);
+          }, 500);
+          // Clear highlight after 10 seconds
+          setTimeout(() => setHighlightedContactIds([]), 10000);
+          toast.success(`${contactIds.length} contacts imported and displayed on canvas`);
+        }}
       />
 
       {viewMode === "canvas" && (

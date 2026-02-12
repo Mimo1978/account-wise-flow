@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -189,6 +189,7 @@ export const FlexibleCombobox = ({
                 </div>
               )}
             </div>
+            <ScrollBar orientation="vertical" />
           </ScrollArea>
         </div>
       )}

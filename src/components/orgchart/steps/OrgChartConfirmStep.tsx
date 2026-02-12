@@ -151,12 +151,9 @@ export function OrgChartConfirmStep({
           {importedCount} contacts have been added
           {companyName && ` to ${companyName}`}.
         </p>
-        <div className="flex items-center gap-3">
-          <Button onClick={onComplete}>View on Canvas</Button>
-          <Button variant="outline" onClick={onComplete}>
-            Close
-          </Button>
-        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Navigating to canvas...
+        </p>
       </div>
     );
   }

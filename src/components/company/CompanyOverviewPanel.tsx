@@ -343,6 +343,11 @@ export function CompanyOverviewPanel({
           onOpenChange={setShowOrgChartBuilder}
           companyId={company.id}
           companyName={company.name}
+          onImportComplete={(contactIds, companyId) => {
+            setShowOrgChartBuilder(false);
+            onClose();
+            navigate(`/canvas?company=${companyId}&highlight=${contactIds.join(",")}`);
+          }}
         />
 
         {/* Web Research Wizard */}

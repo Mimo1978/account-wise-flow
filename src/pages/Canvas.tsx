@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
@@ -41,6 +41,7 @@ import { useCompanyCanvas } from "@/hooks/use-company-canvas";
 
 const Canvas = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const {
     showOnboardingModal,
     showTooltips,
@@ -69,6 +70,26 @@ const Canvas = () => {
       setAccount(loadedAccount);
     }
   }, [loadedAccount]);
+
+  // Handle highlight param from navigation (e.g. after org chart import)
+  useEffect(() => {
+    const highlightParam = searchParams.get("highlight");
+    if (highlightParam && account) {
+      const ids = highlightParam.split(",").filter(Boolean);
+      if (ids.length > 0) {
+        setHighlightedContactIds(ids);
+        setViewMode("canvas");
+        setTimeout(() => {
+          canvasRef.current?.highlightContacts(ids);
+        }, 500);
+        setTimeout(() => setHighlightedContactIds([]), 10000);
+        toast.success(`${ids.length} contacts imported and displayed on canvas`);
+        // Remove highlight param from URL
+        searchParams.delete("highlight");
+        setSearchParams(searchParams, { replace: true });
+      }
+    }
+  }, [searchParams, account]);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);

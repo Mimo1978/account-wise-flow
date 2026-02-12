@@ -5,6 +5,7 @@ import { CanvasSearch } from "./CanvasSearch";
 import { CanvasMinimap } from "./CanvasMinimap";
 import { CompanyInfoPopover } from "./CompanyInfoPopover";
 import { User, Users } from "lucide-react";
+import { buildOrgChartLayout, SENIORITY_LABELS } from "@/lib/seniority-inference";
 
 interface TalentEngagementWithData extends TalentEngagement {
   talent: Talent;
@@ -160,9 +161,22 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     contactNodesRef.current.clear();
 
     const allLines: Line[] = [];
+    const canvasW = fabricCanvas.width!;
 
-    // Render company node at top center
-    const companyNode = createCompanyNode(account.name, fabricCanvas.width! / 2, 80);
+    // ── Build hierarchical layout ──
+    const layout = buildOrgChartLayout(account.contacts);
+
+    // ── Layout constants ──
+    const NODE_W = 180;
+    const NODE_H = 90;
+    const VERTICAL_GAP = 60;
+    const HORIZONTAL_GAP = 40;
+    const DEPT_HEADER_H = 30;
+    const EXEC_ROW_Y = 200;
+    const DEPT_START_Y = EXEC_ROW_Y + NODE_H + VERTICAL_GAP + 30;
+
+    // ── Company node at top ──
+    const companyNode = createCompanyNode(account.name, canvasW / 2, 80);
     
     // Helper to cancel hover timer
     const cancelCompanyHoverTimer = () => {
@@ -172,22 +186,15 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       }
     };
 
-    // Add hover effects to company node with intent-based delay
     companyNode.on('mouseover', function() {
-      // Don't show hover if dragging
       if (isCompanyDraggingRef.current) return;
-      
       (this as FabricObject).set({ 
         shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 4 }
       });
       fabricCanvas.renderAll();
-      
-      // Start hover timer - only show popover after 700ms of continuous hover
       cancelCompanyHoverTimer();
       companyHoverTimerRef.current = setTimeout(() => {
-        if (!isCompanyDraggingRef.current) {
-          setShowCompanyHover(true);
-        }
+        if (!isCompanyDraggingRef.current) setShowCompanyHover(true);
       }, HOVER_DELAY);
     });
 
@@ -198,13 +205,11 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       setShowCompanyHover(false);
     });
 
-    // Track last position for panning
     let companyLastPosX = 0;
     let companyLastPosY = 0;
 
     companyNode.on('mousedown', (opt) => {
       const evt = opt.e as MouseEvent;
-      // Store the initial mouse position for drag detection
       companyDragStartPosRef.current = { x: evt.clientX, y: evt.clientY };
       companyLastPosX = evt.clientX;
       companyLastPosY = evt.clientY;
@@ -212,38 +217,29 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       cancelCompanyHoverTimer();
     });
 
-    // Handle canvas panning when dragging company node
     fabricCanvas.on('mouse:move', (opt) => {
       if (!companyDragStartPosRef.current) return;
-      
       const evt = opt.e as MouseEvent;
       if (evt.clientX === undefined) return;
-      
       const dx = Math.abs(evt.clientX - companyDragStartPosRef.current.x);
       const dy = Math.abs(evt.clientY - companyDragStartPosRef.current.y);
-      
-      // Start panning if threshold exceeded
       if (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
         if (!isCompanyDraggingRef.current) {
           isCompanyDraggingRef.current = true;
           cancelCompanyHoverTimer();
           setShowCompanyHover(false);
         }
-        
-        // Pan the canvas
         const vpt = fabricCanvas.viewportTransform!;
         vpt[4] += evt.clientX - companyLastPosX;
         vpt[5] += evt.clientY - companyLastPosY;
         fabricCanvas.requestRenderAll();
       }
-      
       companyLastPosX = evt.clientX;
       companyLastPosY = evt.clientY;
     });
 
     fabricCanvas.on('mouse:up', () => {
       if (companyDragStartPosRef.current) {
-        // Reset drag state after a short delay to allow hover to resume
         setTimeout(() => {
           isCompanyDraggingRef.current = false;
           companyDragStartPosRef.current = null;
@@ -254,194 +250,169 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     companyNodeRef.current = companyNode;
     fabricCanvas.add(companyNode);
 
-    // Find CEO (assuming CEO is in contacts)
-    const ceo = account.contacts.find(c => c.title.toLowerCase().includes('ceo'));
-    let ceoY = 200;
-    
-    if (ceo) {
-      const ceoNode = createContactNode(ceo, fabricCanvas.width! / 2, ceoY);
-      
-      // Calculate anchor points for CEO
-      const ceoAnchorPoints = [
-        new Point(fabricCanvas.width! / 2, ceoY - 50),
-        new Point(fabricCanvas.width! / 2 - 90, ceoY),
-        new Point(fabricCanvas.width! / 2 + 90, ceoY),
-        new Point(fabricCanvas.width! / 2, ceoY + 50),
-      ];
+    // ── Helper: wire up a contact node ──
+    const contactMap = new Map<string, Contact>();
+    account.contacts.forEach(c => contactMap.set(c.id, c));
 
-      const ceoLines: Line[] = [];
+    const wireContactNode = (contact: Contact, node: Group, x: number, y: number, parentLine?: Line) => {
+      const nodeLines: Line[] = parentLine ? [parentLine] : [];
 
-      // Draw line from company to CEO
-      const ceoLine = new Line([fabricCanvas.width! / 2, 120, fabricCanvas.width! / 2, ceoY - 50], {
+      node.on('moving', function() {
+        const center = node.getCenterPoint();
+        nodeLines.forEach(line => {
+          line.set({ x2: center.x, y2: center.y - NODE_H / 2 });
+          line.setCoords();
+        });
+        // Also update any child lines that start from this node
+        allLines.forEach(line => {
+          if (line.get('x1') === x && line.get('y1') === y + NODE_H / 2) {
+            line.set({ x1: center.x, y1: center.y + NODE_H / 2 });
+            line.setCoords();
+          }
+        });
+      });
+
+      node.on('mouseover', function() {
+        (this as FabricObject).set({ 
+          shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 }
+        });
+        nodeLines.forEach(l => l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
+        fabricCanvas.renderAll();
+      });
+
+      node.on('mouseout', function() {
+        (this as FabricObject).set({ shadow: null });
+        nodeLines.forEach(l => l.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
+        fabricCanvas.renderAll();
+      });
+
+      node.on('mousedown', () => onContactClick(contact));
+
+      node.on('mousedblclick', () => {
+        const center = node.getCenterPoint();
+        fabricCanvas.setZoom(1.5);
+        const vpt = fabricCanvas.viewportTransform!;
+        vpt[4] = canvasW / 2 - center.x * 1.5;
+        vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
+        fabricCanvas.renderAll();
+      });
+
+      fabricCanvas.add(node);
+
+      contactNodesRef.current.set(contact.id, {
+        contact,
+        group: node,
+        lines: nodeLines,
+        anchorPoints: [
+          new Point(x, y - NODE_H / 2),
+          new Point(x - NODE_W / 2, y),
+          new Point(x + NODE_W / 2, y),
+          new Point(x, y + NODE_H / 2),
+        ],
+        originalPosition: { x, y },
+      });
+    };
+
+    // ── Draw connecting line ──
+    const drawLine = (x1: number, y1: number, x2: number, y2: number): Line => {
+      const line = new Line([x1, y1, x2, y2], {
         stroke: "hsl(214 32% 91%)",
         strokeWidth: 2,
         selectable: false,
         evented: false,
       });
-      fabricCanvas.add(ceoLine);
-      fabricCanvas.sendObjectToBack(ceoLine);
-      allLines.push(ceoLine);
-      ceoLines.push(ceoLine);
+      fabricCanvas.add(line);
+      fabricCanvas.sendObjectToBack(line);
+      allLines.push(line);
+      return line;
+    };
 
-      // Make CEO node draggable with dynamic line updates
-      ceoNode.on('moving', function() {
-        const center = ceoNode.getCenterPoint();
-        ceoLines.forEach((line) => {
-          line.set({ x2: center.x, y2: center.y - 50 });
-          line.setCoords();
-        });
-      });
+    // ── Place executives row (C-suite) ──
+    const execCount = layout.executives.length;
+    if (execCount > 0) {
+      const execTotalW = execCount * NODE_W + (execCount - 1) * HORIZONTAL_GAP;
+      const execStartX = canvasW / 2 - execTotalW / 2 + NODE_W / 2;
 
-      // Hover effect
-      ceoNode.on('mouseover', function() {
-        (this as FabricObject).set({ 
-          shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 }
-        });
-        ceoLines.forEach(line => line.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
-        fabricCanvas.renderAll();
-      });
+      layout.executives.forEach((exec, i) => {
+        const x = execStartX + i * (NODE_W + HORIZONTAL_GAP);
+        const y = EXEC_ROW_Y;
+        const contact = contactMap.get(exec.contactId);
+        if (!contact) return;
 
-      ceoNode.on('mouseout', function() {
-        (this as FabricObject).set({ shadow: null });
-        ceoLines.forEach(line => line.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
-        fabricCanvas.renderAll();
-      });
-
-      ceoNode.on('mousedown', () => {
-        onContactClick(ceo);
-      });
-
-      ceoNode.on('mousedblclick', () => {
-        const center = ceoNode.getCenterPoint();
-        fabricCanvas.setZoom(1.5);
-        const vpt = fabricCanvas.viewportTransform!;
-        vpt[4] = fabricCanvas.width! / 2 - center.x * 1.5;
-        vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
-        fabricCanvas.renderAll();
-      });
-
-      fabricCanvas.add(ceoNode);
-
-      contactNodesRef.current.set(ceo.id, {
-        contact: ceo,
-        group: ceoNode,
-        lines: ceoLines,
-        anchorPoints: ceoAnchorPoints,
-        originalPosition: { x: fabricCanvas.width! / 2, y: ceoY },
+        // Line from company to exec
+        const line = drawLine(canvasW / 2, 120, x, y - NODE_H / 2);
+        const node = createContactNode(contact, x, y);
+        wireContactNode(contact, node, x, y, line);
       });
     }
 
-    // Group other contacts by department (excluding CEO)
-    const otherContacts = account.contacts.filter(c => !c.title.toLowerCase().includes('ceo'));
-    const departments = Array.from(new Set(otherContacts.map(c => c.department)));
-    const depWidth = fabricCanvas.width! / (departments.length + 1);
-    const startY = 350;
+    // ── Place department columns ──
+    const deptCount = layout.departments.length;
+    if (deptCount > 0) {
+      // Calculate department column widths
+      const maxNodesPerDept = layout.departments.map(d => d.nodes.length);
+      const deptTotalW = deptCount * NODE_W + (deptCount - 1) * (HORIZONTAL_GAP * 2);
+      const deptStartX = canvasW / 2 - deptTotalW / 2 + NODE_W / 2;
 
-    departments.forEach((dept, deptIdx) => {
-      const deptContacts = otherContacts.filter(c => c.department === dept);
-      const deptX = depWidth * (deptIdx + 1);
+      // Draw a horizontal connector bar from execs to departments
+      if (execCount > 0 && deptCount > 1) {
+        const barY = DEPT_START_Y - VERTICAL_GAP / 2 - 10;
+        const firstDeptX = deptStartX;
+        const lastDeptX = deptStartX + (deptCount - 1) * (NODE_W + HORIZONTAL_GAP * 2);
+        drawLine(firstDeptX, barY, lastDeptX, barY);
 
-      // Render contacts in this department
-      deptContacts.forEach((contact, idx) => {
-        const contactY = startY + idx * 140;
-        const contactNode = createContactNode(contact, deptX, contactY);
-        
-        // Calculate anchor points
-        const anchorPoints = [
-          new Point(deptX, contactY - 50),
-          new Point(deptX - 90, contactY),
-          new Point(deptX + 90, contactY),
-          new Point(deptX, contactY + 50),
-        ];
+        // Vertical line from exec center down to bar
+        drawLine(canvasW / 2, EXEC_ROW_Y + NODE_H / 2, canvasW / 2, barY);
+      }
 
-        const nodeLines: Line[] = [];
+      layout.departments.forEach((dept, deptIdx) => {
+        const deptX = deptStartX + deptIdx * (NODE_W + HORIZONTAL_GAP * 2);
+        const barY = DEPT_START_Y - VERTICAL_GAP / 2 - 10;
 
-        // Draw line from CEO to first contact in each dept
-        if (idx === 0) {
-          const line = new Line([fabricCanvas.width! / 2, ceoY + 50, deptX, contactY - 50], {
-            stroke: "hsl(214 32% 91%)",
-            strokeWidth: 2,
-            selectable: false,
-            evented: false,
-          });
-          fabricCanvas.add(line);
-          fabricCanvas.sendObjectToBack(line);
-          allLines.push(line);
-          nodeLines.push(line);
+        // Vertical line from bar down to first node
+        if (execCount > 0) {
+          drawLine(deptX, barY, deptX, DEPT_START_Y + DEPT_HEADER_H - NODE_H / 2);
+        } else {
+          // No execs – line from company directly
+          drawLine(canvasW / 2, 120, deptX, DEPT_START_Y + DEPT_HEADER_H - NODE_H / 2);
         }
 
-        // Draw lines between contacts in same dept
-        if (idx > 0) {
-          const prevY = startY + (idx - 1) * 140;
-          const line = new Line([deptX, prevY + 50, deptX, contactY - 50], {
-            stroke: "hsl(214 32% 91%)",
-            strokeWidth: 2,
-            selectable: false,
-            evented: false,
-          });
-          fabricCanvas.add(line);
-          fabricCanvas.sendObjectToBack(line);
-          allLines.push(line);
-          nodeLines.push(line);
-        }
-
-        // Make node draggable with dynamic line updates
-        contactNode.on('moving', function() {
-          const center = contactNode.getCenterPoint();
-          
-          // Update lines connected to this node
-          nodeLines.forEach((line) => {
-            const points = line.get('x1') === deptX ? 
-              [line.get('x1')!, line.get('y1')!, center.x, center.y - 50] :
-              [center.x, center.y + 50, line.get('x2')!, line.get('y2')!];
-            line.set({ x1: points[0], y1: points[1], x2: points[2], y2: points[3] });
-            line.setCoords();
-          });
+        // Department label
+        const deptLabel = new Text(dept.name, {
+          fontSize: 11,
+          fontWeight: "bold",
+          fill: "hsl(215 16% 47%)",
+          left: deptX,
+          top: DEPT_START_Y - 10,
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
         });
+        fabricCanvas.add(deptLabel);
 
-        // Hover effect - highlight node and connections
-        contactNode.on('mouseover', function() {
-          (this as FabricObject).set({ 
-            shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 }
-          });
-          nodeLines.forEach(line => line.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
-          fabricCanvas.renderAll();
-        });
+        // Place each node in the department column
+        dept.nodes.forEach((orgNode, nodeIdx) => {
+          const y = DEPT_START_Y + DEPT_HEADER_H + nodeIdx * (NODE_H + VERTICAL_GAP);
+          const contact = contactMap.get(orgNode.contactId);
+          if (!contact) return;
 
-        contactNode.on('mouseout', function() {
-          (this as FabricObject).set({ shadow: null });
-          nodeLines.forEach(line => line.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
-          fabricCanvas.renderAll();
-        });
+          // Line from previous node or dept header
+          let parentLine: Line | undefined;
+          if (nodeIdx === 0) {
+            // already drawn above
+          } else {
+            const prevY = DEPT_START_Y + DEPT_HEADER_H + (nodeIdx - 1) * (NODE_H + VERTICAL_GAP);
+            parentLine = drawLine(deptX, prevY + NODE_H / 2, deptX, y - NODE_H / 2);
+          }
 
-        // Click handler
-        contactNode.on('mousedown', () => {
-          onContactClick(contact);
-        });
-
-        // Double-click to center
-        contactNode.on('mousedblclick', () => {
-          const center = contactNode.getCenterPoint();
-          fabricCanvas.setZoom(1.5);
-          const vpt = fabricCanvas.viewportTransform!;
-          vpt[4] = fabricCanvas.width! / 2 - center.x * 1.5;
-          vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
-          fabricCanvas.renderAll();
-        });
-        
-        fabricCanvas.add(contactNode);
-
-        // Store contact node reference with its connections
-        contactNodesRef.current.set(contact.id, {
-          contact,
-          group: contactNode,
-          lines: nodeLines,
-          anchorPoints,
-          originalPosition: { x: deptX, y: contactY },
+          const node = createContactNode(contact, deptX, y);
+          wireContactNode(contact, node, deptX, y, parentLine);
         });
       });
-    });
+    }
 
+    // If no contacts at all, just render company
     fabricCanvas.renderAll();
   }, [fabricCanvas, account, onContactClick]);
 

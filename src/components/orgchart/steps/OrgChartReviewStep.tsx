@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -118,6 +118,23 @@ const STATUS_OPTIONS = [
   { value: "blocker", label: "Blocker" },
 ];
 
+// Auto-map confidence from status
+function getConfidenceFromStatus(status: string): "high" | "medium" | "low" {
+  switch (status) {
+    case "champion":
+      return "high";
+    case "warm":
+    case "engaged":
+      return "medium";
+    case "cold":
+    case "new":
+    case "blocker":
+      return "low";
+    default:
+      return "low";
+  }
+}
+
 // Common location options
 const LOCATION_OPTIONS = [
   "London, UK",
@@ -145,6 +162,11 @@ export function OrgChartReviewStep({
   const [bulkStatus, setBulkStatus] = useState("");
   const [bulkApplyScope, setBulkApplyScope] = useState<BulkApplyScope>("all");
   const [bulkApplyVersion, setBulkApplyVersion] = useState(0);
+  
+  // Refs to track latest bulk values (avoids stale closure issues)
+  const bulkDepartmentRef = useRef("");
+  const bulkLocationRef = useRef("");
+  const bulkStatusRef = useRef("");
   
   // Filter state
   const [titleFilter, setTitleFilter] = useState("");
@@ -335,6 +357,10 @@ export function OrgChartReviewStep({
       extractedRows.map((row) => {
         if (row.id !== id) return row;
         const updated = { ...row, [field]: value };
+        // Auto-map confidence when status changes
+        if (field === "status" && value) {
+          updated.confidence = getConfidenceFromStatus(value);
+        }
         updated.validationErrors = validateRow(updated);
         return updated;
       })
@@ -443,13 +469,14 @@ export function OrgChartReviewStep({
 
   // Bulk apply handlers with scope
   const handleBulkApplyDepartment = () => {
-    if (!bulkDepartment.trim()) return;
+    const dept = bulkDepartmentRef.current;
+    if (!dept.trim()) return;
     const count = bulkApplyScope === "all" ? extractedRows.length : extractedRows.filter(r => r.selected).length;
     
     const updatedRows = extractedRows.map((row) => {
       const isTarget = bulkApplyScope === "all" || row.selected;
       if (!isTarget) return row;
-      const updated = { ...row, department: bulkDepartment };
+      const updated = { ...row, department: dept };
       updated.validationErrors = validateRow(updated);
       return updated;
     });
@@ -457,18 +484,19 @@ export function OrgChartReviewStep({
     setBulkApplyVersion(v => v + 1);
     toast({
       title: "Department applied",
-      description: `Applied "${bulkDepartment}" to ${count} rows`,
+      description: `Applied "${dept}" to ${count} rows`,
     });
   };
 
   const handleBulkApplyLocation = () => {
-    if (!bulkLocation.trim()) return;
+    const loc = bulkLocationRef.current;
+    if (!loc.trim()) return;
     const count = bulkApplyScope === "all" ? extractedRows.length : extractedRows.filter(r => r.selected).length;
     
     const updatedRows = extractedRows.map((row) => {
       const isTarget = bulkApplyScope === "all" || row.selected;
       if (!isTarget) return row;
-      const updated = { ...row, location: bulkLocation };
+      const updated = { ...row, location: loc };
       updated.validationErrors = validateRow(updated);
       return updated;
     });
@@ -476,18 +504,20 @@ export function OrgChartReviewStep({
     setBulkApplyVersion(v => v + 1);
     toast({
       title: "Location applied",
-      description: `Applied "${bulkLocation}" to ${count} rows`,
+      description: `Applied "${loc}" to ${count} rows`,
     });
   };
 
   const handleBulkApplyStatus = () => {
-    if (!bulkStatus.trim()) return;
+    const status = bulkStatusRef.current;
+    if (!status.trim()) return;
     const count = bulkApplyScope === "all" ? extractedRows.length : extractedRows.filter(r => r.selected).length;
+    const confidence = getConfidenceFromStatus(status);
     
     const updatedRows = extractedRows.map((row) => {
       const isTarget = bulkApplyScope === "all" || row.selected;
       if (!isTarget) return row;
-      const updated = { ...row, status: bulkStatus };
+      const updated = { ...row, status, confidence };
       updated.validationErrors = validateRow(updated);
       return updated;
     }) as OrgChartRow[];
@@ -495,7 +525,7 @@ export function OrgChartReviewStep({
     setBulkApplyVersion(v => v + 1);
     toast({
       title: "Status applied",
-      description: `Applied "${bulkStatus}" to ${count} rows`,
+      description: `Applied "${status}" to ${count} rows`,
     });
   };
 
@@ -937,7 +967,7 @@ export function OrgChartReviewStep({
             <div className="flex gap-2">
               <FlexibleCombobox
                 value={bulkDepartment}
-                onChange={setBulkDepartment}
+                onChange={(val) => { setBulkDepartment(val); bulkDepartmentRef.current = val; }}
                 options={departmentOptions}
                 placeholder="Select department..."
                 className="flex-1"
@@ -958,7 +988,7 @@ export function OrgChartReviewStep({
             <div className="flex gap-2">
               <FlexibleCombobox
                 value={bulkLocation}
-                onChange={setBulkLocation}
+                onChange={(val) => { setBulkLocation(val); bulkLocationRef.current = val; }}
                 options={LOCATION_OPTIONS}
                 placeholder="Select location..."
                 className="flex-1"
@@ -977,7 +1007,7 @@ export function OrgChartReviewStep({
           <div className="space-y-1.5">
             <label className="text-xs text-muted-foreground font-medium">Status</label>
             <div className="flex gap-2">
-              <Select value={bulkStatus} onValueChange={setBulkStatus}>
+              <Select value={bulkStatus} onValueChange={(val) => { setBulkStatus(val); bulkStatusRef.current = val; }}>
                 <SelectTrigger className="flex-1 h-9">
                   <SelectValue placeholder="Select status..." />
                 </SelectTrigger>

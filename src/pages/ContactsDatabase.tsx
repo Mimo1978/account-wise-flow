@@ -41,6 +41,7 @@ import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { ImportCenterModal } from "@/components/import/ImportCenterModal";
 import { ImportMethod } from "@/components/import/ImportCenterTypes";
+import { DuplicateDetectionPanel } from "@/components/contact/DuplicateDetectionPanel";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { ContactRecordPanel } from "@/components/contact/ContactRecordPanel";
 import { CompanyOverviewPanel } from "@/components/company/CompanyOverviewPanel";
@@ -301,6 +302,18 @@ export default function ContactsDatabase() {
   const [showAIImportModal, setShowAIImportModal] = useState(false);
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
   const [bulkImportMethod, setBulkImportMethod] = useState<ImportMethod>("file");
+  const [showDuplicatePanel, setShowDuplicatePanel] = useState(false);
+
+  // Duplicate count for badge
+  const duplicateCount = useMemo(() => {
+    const nameMap = new Map<string, number>();
+    for (const c of allContacts) {
+      const key = c.name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+      if (!key) continue;
+      nameMap.set(key, (nameMap.get(key) || 0) + 1);
+    }
+    return Array.from(nameMap.values()).filter((count) => count > 1).reduce((sum, count) => sum + count - 1, 0);
+  }, [allContacts]);
 
   const handleAddContact = (contact: Contact) => {
     toast.success(`${contact.name} added to database`);
@@ -477,6 +490,17 @@ export default function ContactsDatabase() {
                   </TooltipContent>
                 )}
               </Tooltip>
+              {duplicateCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+                  onClick={() => setShowDuplicatePanel(true)}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  {duplicateCount} Duplicate{duplicateCount > 1 ? "s" : ""}
+                </Button>
+              )}
               <Button variant="default" size="sm" onClick={handleViewOrgChart}>
                 <Network className="h-4 w-4 mr-2" />
                 View Org Chart
@@ -907,6 +931,13 @@ export default function ContactsDatabase() {
         onImportComplete={(records) => {
           toast.success(`${records.length} contacts imported`);
         }}
+      />
+
+      <DuplicateDetectionPanel
+        contacts={allContacts}
+        open={showDuplicatePanel}
+        onOpenChange={setShowDuplicatePanel}
+        companyFilterId={companyFilterId}
       />
     </div>
   );

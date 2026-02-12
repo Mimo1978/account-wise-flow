@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,8 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Check, FileUp, Scan, Eye, ListChecks, GitBranch } from "lucide-react";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Check, FileUp, Scan, Eye, ListChecks, GitBranch, Maximize2, Minimize2, GripVertical } from "lucide-react";
 import { OrgChartSourceStep, CompanyDestination } from "./steps/OrgChartSourceStep";
 import { OrgChartExtractStep } from "./steps/OrgChartExtractStep";
 import { OrgChartReviewStep } from "./steps/OrgChartReviewStep";
@@ -82,6 +82,39 @@ export function OrgChartBuilderModal({
   });
   const [detectedCompanyName, setDetectedCompanyName] = useState<string | undefined>();
   const [showWebResearchWizard, setShowWebResearchWizard] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
+
+  // Reset position/fullscreen when modal opens
+  useEffect(() => {
+    if (open) {
+      setDragPosition(null);
+      setIsFullscreen(false);
+    }
+  }, [open]);
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    if (isFullscreen) return;
+    isDragging.current = true;
+    const pos = dragPosition || { x: 0, y: 0 };
+    dragStart.current = { x: e.clientX, y: e.clientY, posX: pos.x, posY: pos.y };
+    
+    const handleDragMove = (ev: MouseEvent) => {
+      if (!isDragging.current) return;
+      const dx = ev.clientX - dragStart.current.x;
+      const dy = ev.clientY - dragStart.current.y;
+      setDragPosition({ x: dragStart.current.posX + dx, y: dragStart.current.posY + dy });
+    };
+    const handleDragEnd = () => {
+      isDragging.current = false;
+      window.removeEventListener("mousemove", handleDragMove);
+      window.removeEventListener("mouseup", handleDragEnd);
+    };
+    window.addEventListener("mousemove", handleDragMove);
+    window.addEventListener("mouseup", handleDragEnd);
+  }, [isFullscreen, dragPosition]);
 
   // Fetch companies list
   useEffect(() => {
@@ -294,21 +327,48 @@ export function OrgChartBuilderModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <GitBranch className="h-5 w-5 text-primary" />
-            Org Chart Builder
-            {(effectiveCompanyName || companyName) && (
-              <span className="text-muted-foreground font-normal">
-                — {effectiveCompanyName || companyName}
-              </span>
-            )}
-          </DialogTitle>
-          <DialogDescription>
-            Import and build an organizational chart from various sources
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        className={cn(
+          "flex flex-col transition-all duration-200",
+          isFullscreen
+            ? "!max-w-[100vw] !w-[100vw] !h-[100vh] !max-h-[100vh] !rounded-none !translate-x-[-50%] !translate-y-[-50%]"
+            : "max-w-5xl h-[90vh]"
+        )}
+        style={!isFullscreen && dragPosition ? {
+          transform: `translate(calc(-50% + ${dragPosition.x}px), calc(-50% + ${dragPosition.y}px))`,
+        } : undefined}
+      >
+        {/* Draggable header bar */}
+        <div className="flex items-center justify-between">
+          <DialogHeader className="flex-1">
+            <DialogTitle className="flex items-center gap-2">
+              <div
+                className={cn("cursor-grab active:cursor-grabbing p-1 -ml-1 rounded hover:bg-muted", isFullscreen && "cursor-default")}
+                onMouseDown={handleDragStart}
+              >
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <GitBranch className="h-5 w-5 text-primary" />
+              Org Chart Builder
+              {(effectiveCompanyName || companyName) && (
+                <span className="text-muted-foreground font-normal">
+                  — {effectiveCompanyName || companyName}
+                </span>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              Import and build an organizational chart from various sources
+            </DialogDescription>
+          </DialogHeader>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => { setIsFullscreen((f) => !f); setDragPosition(null); }}
+          >
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </Button>
+        </div>
 
         {/* Stepper */}
         <div className="flex items-center justify-between px-2 py-4 border-b border-border">
@@ -357,11 +417,12 @@ export function OrgChartBuilderModal({
           })}
         </div>
 
-        {/* Step Content */}
+        {/* Step Content with horizontal + vertical scroll */}
         <ScrollArea className="flex-1 min-h-0 py-4">
-          <div className="pr-4">
+          <div className="min-w-max pr-4">
             {renderStepContent()}
           </div>
+          <ScrollBar orientation="horizontal" />
         </ScrollArea>
 
         {/* Footer Actions */}

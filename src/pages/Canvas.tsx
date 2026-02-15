@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2, Link2, Unlink, Lock, Eye } from "lucide-react";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
@@ -38,6 +38,9 @@ import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { GuidedTooltips } from "@/components/onboarding/GuidedTooltips";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { useCompanyCanvas } from "@/hooks/use-company-canvas";
+import { useCanvasMode } from "@/hooks/use-canvas-mode";
+import { CanvasModeToggle } from "@/components/canvas/CanvasModeToggle";
+import { StructureToolbar } from "@/components/canvas/StructureToolbar";
 
 const Canvas = () => {
   const navigate = useNavigate();
@@ -109,6 +112,18 @@ const Canvas = () => {
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [showTalentPanel, setShowTalentPanel] = useState(false);
   const canvasRef = useRef<AccountCanvasRef>(null);
+  const [structureToolbarPos, setStructureToolbarPos] = useState<{ x: number; y: number } | null>(null);
+  
+  // Canvas interaction mode
+  const {
+    mode: canvasMode,
+    isEditMode,
+    setMode: setCanvasMode,
+    selectedNodeId,
+    setSelectedNodeId,
+    lockedNodeIds,
+    toggleLockNode,
+  } = useCanvasMode();
 
   // Get engagements for current company with talent data
   const companyEngagements = account ? mockEngagements
@@ -269,6 +284,23 @@ const Canvas = () => {
     setShowTalentPanel(false);
   };
 
+  // Handle node selection in edit mode
+  const handleNodeSelect = useCallback((contactId: string | null) => {
+    setSelectedNodeId(contactId);
+    if (contactId && canvasRef.current) {
+      const pos = canvasRef.current.getNodeScreenPosition(contactId);
+      setStructureToolbarPos(pos);
+    } else {
+      setStructureToolbarPos(null);
+    }
+  }, [setSelectedNodeId]);
+
+  // Get selected contact for structure toolbar actions
+  const selectedNodeContact = useMemo(() => {
+    if (!selectedNodeId || !account) return null;
+    return account.contacts.find(c => c.id === selectedNodeId) || null;
+  }, [selectedNodeId, account]);
+
   // Build toolbar actions with proper priority grouping
   const toolbarActions: ToolbarAction[] = useMemo(() => {
     const actions: ToolbarAction[] = [];
@@ -405,6 +437,7 @@ const Canvas = () => {
           <span className="hidden lg:inline">Database</span>
         </ToggleGroupItem>
       </ToggleGroup>
+
     </>
   ) : null;
 
@@ -440,12 +473,24 @@ const Canvas = () => {
       {/* Sub-header with context controls */}
       <div 
         data-toolbar-ribbon
-        className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-4 py-3 overflow-hidden"
+        className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-4 py-3 flex items-center gap-3"
       >
-        <ResponsiveToolbar
-          leftContent={toolbarLeftContent}
-          actions={toolbarActions}
-        />
+        <div className="flex-1 min-w-0">
+          <ResponsiveToolbar
+            leftContent={toolbarLeftContent}
+            actions={toolbarActions}
+          />
+        </div>
+        {/* Canvas Mode Toggle - always visible in canvas view */}
+        {viewMode === "canvas" && account && (
+          <>
+            <div className="h-6 w-px bg-border shrink-0" />
+            <CanvasModeToggle
+              mode={canvasMode}
+              onModeChange={setCanvasMode}
+            />
+          </>
+        )}
       </div>
 
       {/* Main Content Area */}
@@ -459,6 +504,10 @@ const Canvas = () => {
             highlightedContactIds={highlightedContactIds}
             showTalentOverlay={showTalentOverlay}
             talentEngagements={companyEngagements}
+            interactionMode={canvasMode}
+            selectedNodeId={selectedNodeId}
+            onNodeSelect={handleNodeSelect}
+            lockedNodeIds={lockedNodeIds}
           />
         ) : (
           <CompanyDatabaseView
@@ -471,6 +520,23 @@ const Canvas = () => {
           />
         )}
       </main>
+
+      {/* Structure Toolbar - floating controls in edit mode */}
+      {viewMode === "canvas" && isEditMode && selectedNodeId && structureToolbarPos && (
+        <StructureToolbar
+          position={structureToolbarPos}
+          isLocked={lockedNodeIds.has(selectedNodeId)}
+          onLink={() => { /* TODO: link flow */ }}
+          onUnlink={() => { /* TODO: unlink flow */ }}
+          onToggleLock={() => toggleLockNode(selectedNodeId)}
+          onViewProfile={() => {
+            const contact = account.contacts.find(c => c.id === selectedNodeId);
+            if (contact) {
+              handleContactClick(contact);
+            }
+          }}
+        />
+      )}
 
       {/* Floating Contact Panel - Only show in canvas mode */}
       {viewMode === "canvas" && selectedContact && (
@@ -628,7 +694,10 @@ const Canvas = () => {
               </div>
             </div>
             <p className="text-muted-foreground">
-              Drag nodes to reposition • Click to see details
+              {isEditMode 
+                ? "Click to select • Drag to reposition • Double-click to view profile"
+                : "Drag nodes to reposition • Click to see details"
+              }
             </p>
           </div>
         </div>

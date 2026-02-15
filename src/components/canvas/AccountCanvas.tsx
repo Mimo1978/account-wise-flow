@@ -41,7 +41,6 @@ interface ContactNodeData {
   group: Group;
   originalStroke?: string | null;
   originalStrokeWidth?: number;
-  lines: Line[];
   anchorPoints: Point[];
   originalPosition: { x: number; y: number };
 }
@@ -91,6 +90,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
   const companyNodeRef = useRef<Group | null>(null);
   const isCanvasDisposedRef = useRef(false);
+  const hierarchyLinesRef = useRef<Line[]>([]);
   
   // Smart snap system refs
   const guideLinesToRef = useRef<Line[]>([]);
@@ -293,8 +293,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     fabricCanvas.clear();
     fabricCanvas.backgroundColor = "hsl(210 40% 98%)";
     contactNodesRef.current.clear();
+    hierarchyLinesRef.current = [];
 
-    const allLines: Line[] = [];
     const canvasW = fabricCanvas.width!;
 
     // ── Build hierarchical layout ──
@@ -414,8 +414,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     };
     account.contacts.forEach(c => computeDepth(c.id));
 
-    const wireContactNode = (contact: Contact, node: Group, x: number, y: number, parentLine?: Line, depth: number = 0) => {
-      const nodeLines: Line[] = parentLine ? [parentLine] : [];
+    const wireContactNode = (contact: Contact, node: Group, x: number, y: number, depth: number = 0) => {
+      depthMap.set(contact.id, depth);
       depthMap.set(contact.id, depth);
 
       node.on('moving', function(opt) {
@@ -426,17 +426,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           return;
         }
         const center = node.getCenterPoint();
-        nodeLines.forEach(line => {
-          line.set({ x2: center.x, y2: center.y - NODE_H / 2 });
-          line.setCoords();
-        });
-        // Also update any child lines that start from this node
-        allLines.forEach(line => {
-          if (line.get('x1') === x && line.get('y1') === y + NODE_H / 2) {
-            line.set({ x1: center.x, y1: center.y + NODE_H / 2 });
-            line.setCoords();
-          }
-        });
+        // Rebuild all edges from scratch on every move (ephemeral edges)
+        rebuildAllEdges(fabricCanvas, canvasW);
         
         // ── Smart Snap System ──
         clearGuideLines(fabricCanvas);
@@ -581,7 +572,6 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           
           if (ancestors.has(otherId) || descendants.has(otherId)) {
             // Bold highlight related nodes
-            otherData.lines.forEach(l => l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
             otherData.group.set({ opacity: 1 });
           } else {
             // Fade unrelated nodes
@@ -589,7 +579,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           }
         });
 
-        nodeLines.forEach(l => l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
+        // Bold hierarchy lines for related nodes
+        hierarchyLinesRef.current.forEach(l => {
+          l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 });
+        });
         fabricCanvas.renderAll();
       });
 
@@ -603,20 +596,11 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
         // Reset all nodes to normal
         contactNodesRef.current.forEach((otherData, otherId) => {
-          const depth = depthMap.get(otherId) || 0;
-          const lightness = Math.min(91 + depth * 1, 95);
-          otherData.lines.forEach(l => l.set({ 
-            stroke: `hsl(214 32% ${lightness}%)`, 
-            strokeWidth: depth === 0 ? 3 : 2 
-          }));
           otherData.group.set({ opacity: 1 });
         });
 
-        nodeLines.forEach(l => {
-          const depth = depthMap.get(contact.id) || 0;
-          const lightness = Math.min(91 + depth * 1, 95);
-          l.set({ stroke: `hsl(214 32% ${lightness}%)`, strokeWidth: depth === 0 ? 3 : 2 });
-        });
+        // Reset all hierarchy lines to depth-based defaults
+        rebuildAllEdges(fabricCanvas, canvasW);
         fabricCanvas.renderAll();
       });
 
@@ -649,7 +633,6 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       contactNodesRef.current.set(contact.id, {
         contact,
         group: node,
-        lines: nodeLines,
         anchorPoints: [
           new Point(x, y - NODE_H / 2),
           new Point(x - NODE_W / 2, y),
@@ -660,22 +643,47 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       });
     };
 
-    // ── Draw connecting line with depth-based styling ──
-    const drawLine = (x1: number, y1: number, x2: number, y2: number, depth: number = 0): Line => {
-      // Root (depth 0) lines are thicker; deeper lines get progressively lighter
-      const baseStrokeWidth = depth === 0 ? 3 : 2;
-      // Lightness increases with depth: 91% base, up to 95% at depth 4+
-      const lightness = Math.min(91 + depth * 1, 95);
-      const line = new Line([x1, y1, x2, y2], {
-        stroke: `hsl(214 32% ${lightness}%)`,
-        strokeWidth: baseStrokeWidth,
-        selectable: false,
-        evented: false,
+    // ── Ephemeral edge rebuild: clears all hierarchy lines and redraws from manager_id ──
+    const rebuildAllEdges = (canvas: FabricCanvas, cw: number) => {
+      // 1. Remove all existing hierarchy lines
+      hierarchyLinesRef.current.forEach(line => {
+        try { canvas.remove(line); } catch {}
       });
-      fabricCanvas.add(line);
-      fabricCanvas.sendObjectToBack(line);
-      allLines.push(line);
-      return line;
+      hierarchyLinesRef.current = [];
+
+      // 2. Redraw edges from current node positions + manager_id
+      contactNodesRef.current.forEach((childData, childId) => {
+        const contact = childData.contact;
+        if (contact.managerId && contactNodesRef.current.has(contact.managerId)) {
+          const parentData = contactNodesRef.current.get(contact.managerId)!;
+          const parentCenter = parentData.group.getCenterPoint();
+          const childCenter = childData.group.getCenterPoint();
+          const depth = depthMap.get(childId) || 1;
+          const baseStrokeWidth = depth === 0 ? 3 : 2;
+          const lightness = Math.min(91 + depth * 1, 95);
+          const line = new Line([parentCenter.x, parentCenter.y + NODE_H / 2, childCenter.x, childCenter.y - NODE_H / 2], {
+            stroke: `hsl(214 32% ${lightness}%)`,
+            strokeWidth: baseStrokeWidth,
+            selectable: false,
+            evented: false,
+          });
+          canvas.add(line);
+          canvas.sendObjectToBack(line);
+          hierarchyLinesRef.current.push(line);
+        } else if (!contact.managerId) {
+          // Root node: line from company node
+          const childCenter = childData.group.getCenterPoint();
+          const line = new Line([cw / 2, 120, childCenter.x, childCenter.y - NODE_H / 2], {
+            stroke: `hsl(214 32% 91%)`,
+            strokeWidth: 3,
+            selectable: false,
+            evented: false,
+          });
+          canvas.add(line);
+          canvas.sendObjectToBack(line);
+          hierarchyLinesRef.current.push(line);
+        }
+      });
     };
 
     // ── Place executives row (C-suite) ──
@@ -691,7 +699,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         if (!contact) return;
 
         const node = createContactNode(contact, x, y);
-        wireContactNode(contact, node, x, y, undefined, depthMap.get(contact.id) || 0);
+        wireContactNode(contact, node, x, y, depthMap.get(contact.id) || 0);
       });
     }
 
@@ -724,31 +732,13 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           if (!contact) return;
 
           const node = createContactNode(contact, deptX, y);
-          wireContactNode(contact, node, deptX, y, undefined, depthMap.get(contact.id) || 0);
+          wireContactNode(contact, node, deptX, y, depthMap.get(contact.id) || 0);
         });
       });
     }
 
-    // ── Draw edges from manager_id relationships (authoritative source) ──
-    // Also draw company-to-root lines for contacts without a manager
-    contactNodesRef.current.forEach((childData, childId) => {
-      const contact = childData.contact;
-      if (contact.managerId && contactNodesRef.current.has(contact.managerId)) {
-        // Draw line from manager to child
-        const parentData = contactNodesRef.current.get(contact.managerId)!;
-        const parentCenter = parentData.group.getCenterPoint();
-        const childCenter = childData.group.getCenterPoint();
-        const depth = depthMap.get(childId) || 1;
-        const line = drawLine(parentCenter.x, parentCenter.y + NODE_H / 2, childCenter.x, childCenter.y - NODE_H / 2, depth);
-        childData.lines.push(line);
-        parentData.lines.push(line);
-      } else if (!contact.managerId) {
-        // Root node: draw line from company node
-        const childCenter = childData.group.getCenterPoint();
-        const line = drawLine(canvasW / 2, 120, childCenter.x, childCenter.y - NODE_H / 2, 0);
-        childData.lines.push(line);
-      }
-    });
+    // ── Draw initial edges from manager_id (ephemeral) ──
+    rebuildAllEdges(fabricCanvas, canvasW);
 
     fabricCanvas.renderAll();
   }, [fabricCanvas, account]);
@@ -762,21 +752,23 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const cardBg = group.getObjects()[0] as Rect;
 
       if (interactionMode === "edit" && selectedNodeId === id) {
-        // Selected node: bold blue border
         cardBg.set({ stroke: "hsl(221 83% 53%)", strokeWidth: 3 });
         group.set({ opacity: 1 });
-        // Bold its parent lines
-        nodeData.lines.forEach(l => l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
       } else if (interactionMode === "edit" && selectedNodeId) {
-        // Unselected nodes: dim slightly
         cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
         group.set({ opacity: 0.9 });
-        nodeData.lines.forEach(l => l.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
       } else {
-        // Browse mode or no selection: normal
         cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
         group.set({ opacity: 1 });
-        nodeData.lines.forEach(l => l.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
+      }
+    });
+
+    // Style hierarchy lines based on selection
+    hierarchyLinesRef.current.forEach(l => {
+      if (interactionMode === "edit" && selectedNodeId) {
+        l.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 });
+      } else {
+        // restore default depth-based styling by rebuilding
       }
     });
 

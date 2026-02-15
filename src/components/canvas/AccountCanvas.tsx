@@ -383,8 +383,14 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     const contactMap = new Map<string, Contact>();
     account.contacts.forEach(c => contactMap.set(c.id, c));
 
-    const wireContactNode = (contact: Contact, node: Group, x: number, y: number, parentLine?: Line) => {
+    // ── Hierarchy relationship maps for hover highlighting ──
+    const parentMap = new Map<string, string>(); // child -> parent contact id
+    const childrenMap = new Map<string, string[]>(); // parent -> child contact ids
+    const depthMap = new Map<string, number>(); // contact id -> depth level (0 = exec/root)
+
+    const wireContactNode = (contact: Contact, node: Group, x: number, y: number, parentLine?: Line, depth: number = 0) => {
       const nodeLines: Line[] = parentLine ? [parentLine] : [];
+      depthMap.set(contact.id, depth);
 
       node.on('moving', function(opt) {
         // Only allow movement in edit mode and if not locked
@@ -500,6 +506,44 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         (this as FabricObject).set({ 
           shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 }
         });
+
+        // ── Hierarchy hover highlighting ──
+        // Build ancestor chain (manager chain upward)
+        const ancestors = new Set<string>();
+        let current = contact.id;
+        while (parentMap.has(current)) {
+          current = parentMap.get(current)!;
+          ancestors.add(current);
+        }
+
+        // Build descendant set (direct reports downward)
+        const descendants = new Set<string>();
+        const collectDescendants = (id: string) => {
+          const kids = childrenMap.get(id) || [];
+          kids.forEach(kid => {
+            descendants.add(kid);
+            collectDescendants(kid);
+          });
+        };
+        collectDescendants(contact.id);
+
+        const related = new Set([contact.id, ...ancestors, ...descendants]);
+
+        // Apply highlighting to all nodes
+        contactNodesRef.current.forEach((otherData, otherId) => {
+          const otherCardBg = otherData.group.getObjects()[0] as Rect;
+          if (otherId === contact.id) return; // skip hovered node itself
+          
+          if (ancestors.has(otherId) || descendants.has(otherId)) {
+            // Bold highlight related nodes
+            otherData.lines.forEach(l => l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
+            otherData.group.set({ opacity: 1 });
+          } else {
+            // Fade unrelated nodes
+            otherData.group.set({ opacity: 0.8 });
+          }
+        });
+
         nodeLines.forEach(l => l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
         fabricCanvas.renderAll();
       });
@@ -511,7 +555,23 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         } else {
           (this as FabricObject).set({ shadow: null });
         }
-        nodeLines.forEach(l => l.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
+
+        // Reset all nodes to normal
+        contactNodesRef.current.forEach((otherData, otherId) => {
+          const depth = depthMap.get(otherId) || 0;
+          const lightness = Math.min(91 + depth * 1, 95);
+          otherData.lines.forEach(l => l.set({ 
+            stroke: `hsl(214 32% ${lightness}%)`, 
+            strokeWidth: depth === 0 ? 3 : 2 
+          }));
+          otherData.group.set({ opacity: 1 });
+        });
+
+        nodeLines.forEach(l => {
+          const depth = depthMap.get(contact.id) || 0;
+          const lightness = Math.min(91 + depth * 1, 95);
+          l.set({ stroke: `hsl(214 32% ${lightness}%)`, strokeWidth: depth === 0 ? 3 : 2 });
+        });
         fabricCanvas.renderAll();
       });
 
@@ -555,11 +615,15 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       });
     };
 
-    // ── Draw connecting line ──
-    const drawLine = (x1: number, y1: number, x2: number, y2: number): Line => {
+    // ── Draw connecting line with depth-based styling ──
+    const drawLine = (x1: number, y1: number, x2: number, y2: number, depth: number = 0): Line => {
+      // Root (depth 0) lines are thicker; deeper lines get progressively lighter
+      const baseStrokeWidth = depth === 0 ? 3 : 2;
+      // Lightness increases with depth: 91% base, up to 95% at depth 4+
+      const lightness = Math.min(91 + depth * 1, 95);
       const line = new Line([x1, y1, x2, y2], {
-        stroke: "hsl(214 32% 91%)",
-        strokeWidth: 2,
+        stroke: `hsl(214 32% ${lightness}%)`,
+        strokeWidth: baseStrokeWidth,
         selectable: false,
         evented: false,
       });
@@ -581,10 +645,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         const contact = contactMap.get(exec.contactId);
         if (!contact) return;
 
-        // Line from company to exec
-        const line = drawLine(canvasW / 2, 120, x, y - NODE_H / 2);
+        // Line from company to exec (depth 0 = root level, thicker)
+        const line = drawLine(canvasW / 2, 120, x, y - NODE_H / 2, 0);
         const node = createContactNode(contact, x, y);
-        wireContactNode(contact, node, x, y, line);
+        wireContactNode(contact, node, x, y, line, 0);
       });
     }
 
@@ -601,10 +665,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         const barY = DEPT_START_Y - VERTICAL_GAP / 2 - 10;
         const firstDeptX = deptStartX;
         const lastDeptX = deptStartX + (deptCount - 1) * (NODE_W + HORIZONTAL_GAP * 2);
-        drawLine(firstDeptX, barY, lastDeptX, barY);
+        drawLine(firstDeptX, barY, lastDeptX, barY, 1);
 
         // Vertical line from exec center down to bar
-        drawLine(canvasW / 2, EXEC_ROW_Y + NODE_H / 2, canvasW / 2, barY);
+        drawLine(canvasW / 2, EXEC_ROW_Y + NODE_H / 2, canvasW / 2, barY, 1);
       }
 
       layout.departments.forEach((dept, deptIdx) => {
@@ -613,10 +677,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
         // Vertical line from bar down to first node
         if (execCount > 0) {
-          drawLine(deptX, barY, deptX, DEPT_START_Y + DEPT_HEADER_H - NODE_H / 2);
+          drawLine(deptX, barY, deptX, DEPT_START_Y + DEPT_HEADER_H - NODE_H / 2, 1);
         } else {
           // No execs – line from company directly
-          drawLine(canvasW / 2, 120, deptX, DEPT_START_Y + DEPT_HEADER_H - NODE_H / 2);
+          drawLine(canvasW / 2, 120, deptX, DEPT_START_Y + DEPT_HEADER_H - NODE_H / 2, 0);
         }
 
         // Department label
@@ -639,17 +703,29 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           const contact = contactMap.get(orgNode.contactId);
           if (!contact) return;
 
+          const depthLevel = nodeIdx + 1; // dept nodes start at depth 1+
+
+          // Build parent-child maps
+          if (nodeIdx > 0) {
+            const prevContact = contactMap.get(dept.nodes[nodeIdx - 1].contactId);
+            if (prevContact) {
+              parentMap.set(contact.id, prevContact.id);
+              if (!childrenMap.has(prevContact.id)) childrenMap.set(prevContact.id, []);
+              childrenMap.get(prevContact.id)!.push(contact.id);
+            }
+          }
+
           // Line from previous node or dept header
           let parentLine: Line | undefined;
           if (nodeIdx === 0) {
             // already drawn above
           } else {
             const prevY = DEPT_START_Y + DEPT_HEADER_H + (nodeIdx - 1) * (NODE_H + VERTICAL_GAP);
-            parentLine = drawLine(deptX, prevY + NODE_H / 2, deptX, y - NODE_H / 2);
+            parentLine = drawLine(deptX, prevY + NODE_H / 2, deptX, y - NODE_H / 2, depthLevel);
           }
 
           const node = createContactNode(contact, deptX, y);
-          wireContactNode(contact, node, deptX, y, parentLine);
+          wireContactNode(contact, node, deptX, y, parentLine, depthLevel);
         });
       });
     }

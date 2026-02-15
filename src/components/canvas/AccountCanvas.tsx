@@ -11,6 +11,8 @@ interface TalentEngagementWithData extends TalentEngagement {
   talent: Talent;
 }
 
+export type CanvasInteractionMode = "browse" | "edit";
+
 interface AccountCanvasProps {
   account: Account;
   onContactClick: (contact: Contact) => void;
@@ -18,11 +20,16 @@ interface AccountCanvasProps {
   highlightedContactIds?: string[];
   showTalentOverlay?: boolean;
   talentEngagements?: TalentEngagementWithData[];
+  interactionMode?: CanvasInteractionMode;
+  selectedNodeId?: string | null;
+  onNodeSelect?: (contactId: string | null) => void;
+  lockedNodeIds?: Set<string>;
 }
 
 export interface AccountCanvasRef {
   clearSearch: () => void;
   highlightContacts: (contactIds: string[]) => void;
+  getNodeScreenPosition: (contactId: string) => { x: number; y: number } | null;
 }
 
 interface ContactNodeData {
@@ -47,6 +54,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   highlightedContactIds = [],
   showTalentOverlay = false,
   talentEngagements = [],
+  interactionMode = "browse",
+  selectedNodeId = null,
+  onNodeSelect,
+  lockedNodeIds = new Set(),
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
@@ -58,6 +69,19 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const talentNodesRef = useRef<Map<string, TalentNodeData>>(new Map());
   const [showCompanyHover, setShowCompanyHover] = useState(false);
   const [companyHoverPosition, setCompanyHoverPosition] = useState({ x: 0, y: 0 });
+  
+  // Refs for interaction mode (so canvas event handlers always have current values)
+  const interactionModeRef = useRef(interactionMode);
+  const selectedNodeIdRef = useRef(selectedNodeId);
+  const lockedNodeIdsRef = useRef(lockedNodeIds);
+  const onNodeSelectRef = useRef(onNodeSelect);
+  const onContactClickRef = useRef(onContactClick);
+  
+  useEffect(() => { interactionModeRef.current = interactionMode; }, [interactionMode]);
+  useEffect(() => { selectedNodeIdRef.current = selectedNodeId; }, [selectedNodeId]);
+  useEffect(() => { lockedNodeIdsRef.current = lockedNodeIds; }, [lockedNodeIds]);
+  useEffect(() => { onNodeSelectRef.current = onNodeSelect; }, [onNodeSelect]);
+  useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
   const companyNodeRef = useRef<Group | null>(null);
   const isCanvasDisposedRef = useRef(false);
   
@@ -258,6 +282,13 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const nodeLines: Line[] = parentLine ? [parentLine] : [];
 
       node.on('moving', function() {
+        // Only allow movement in edit mode and if not locked
+        if (interactionModeRef.current !== 'edit' || lockedNodeIdsRef.current.has(contact.id)) {
+          // Snap back to original position
+          node.set({ left: x, top: y });
+          node.setCoords();
+          return;
+        }
         const center = node.getCenterPoint();
         nodeLines.forEach(line => {
           line.set({ x2: center.x, y2: center.y - NODE_H / 2 });
@@ -281,20 +312,38 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       });
 
       node.on('mouseout', function() {
-        (this as FabricObject).set({ shadow: null });
+        // Don't clear selection highlight in edit mode
+        if (interactionModeRef.current === 'edit' && selectedNodeIdRef.current === contact.id) {
+          (this as FabricObject).set({ shadow: null });
+        } else {
+          (this as FabricObject).set({ shadow: null });
+        }
         nodeLines.forEach(l => l.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
         fabricCanvas.renderAll();
       });
 
-      node.on('mousedown', () => onContactClick(contact));
+      node.on('mousedown', () => {
+        if (interactionModeRef.current === 'edit') {
+          // In edit mode: select node, don't open profile
+          onNodeSelectRef.current?.(contact.id);
+        } else {
+          // In browse mode: open profile (existing behavior)
+          onContactClickRef.current(contact);
+        }
+      });
 
       node.on('mousedblclick', () => {
-        const center = node.getCenterPoint();
-        fabricCanvas.setZoom(1.5);
-        const vpt = fabricCanvas.viewportTransform!;
-        vpt[4] = canvasW / 2 - center.x * 1.5;
-        vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
-        fabricCanvas.renderAll();
+        if (interactionModeRef.current === 'edit') {
+          // In edit mode, double-click opens profile
+          onContactClickRef.current(contact);
+        } else {
+          const center = node.getCenterPoint();
+          fabricCanvas.setZoom(1.5);
+          const vpt = fabricCanvas.viewportTransform!;
+          vpt[4] = canvasW / 2 - center.x * 1.5;
+          vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
+          fabricCanvas.renderAll();
+        }
       });
 
       fabricCanvas.add(node);
@@ -414,7 +463,37 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
     // If no contacts at all, just render company
     fabricCanvas.renderAll();
-  }, [fabricCanvas, account, onContactClick]);
+  }, [fabricCanvas, account]);
+
+  // Effect: highlight selected node and its edges in edit mode
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    contactNodesRef.current.forEach((nodeData, id) => {
+      const { group } = nodeData;
+      const cardBg = group.getObjects()[0] as Rect;
+
+      if (interactionMode === "edit" && selectedNodeId === id) {
+        // Selected node: bold blue border
+        cardBg.set({ stroke: "hsl(221 83% 53%)", strokeWidth: 3 });
+        group.set({ opacity: 1 });
+        // Bold its parent lines
+        nodeData.lines.forEach(l => l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
+      } else if (interactionMode === "edit" && selectedNodeId) {
+        // Unselected nodes: dim slightly
+        cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
+        group.set({ opacity: 0.9 });
+        nodeData.lines.forEach(l => l.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
+      } else {
+        // Browse mode or no selection: normal
+        cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
+        group.set({ opacity: 1 });
+        nodeData.lines.forEach(l => l.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
+      }
+    });
+
+    fabricCanvas.renderAll();
+  }, [fabricCanvas, interactionMode, selectedNodeId]);
 
   // Effect to render/remove talent overlay nodes
   useEffect(() => {
@@ -704,6 +783,18 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   useImperativeHandle(ref, () => ({
     clearSearch: handleClearSearch,
     highlightContacts: highlightContactsById,
+    getNodeScreenPosition: (contactId: string) => {
+      const nodeData = contactNodesRef.current.get(contactId);
+      if (!nodeData || !fabricCanvas || !containerRef.current) return null;
+      const center = nodeData.group.getCenterPoint();
+      const zoom = fabricCanvas.getZoom();
+      const vpt = fabricCanvas.viewportTransform!;
+      const containerRect = containerRef.current.getBoundingClientRect();
+      return {
+        x: center.x * zoom + vpt[4] + containerRect.left,
+        y: (center.y - 45) * zoom + vpt[5] + containerRect.top, // top of node
+      };
+    },
   }));
 
   const handleResetPositions = () => {

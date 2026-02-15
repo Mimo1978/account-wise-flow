@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from "react";
 import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Image as FabricImage, Point, Rect } from "fabric";
 import { Account, Contact, Talent, TalentEngagement, EngagementStatus } from "@/lib/types";
 import { CanvasSearch } from "./CanvasSearch";
@@ -6,6 +6,7 @@ import { CanvasMinimap } from "./CanvasMinimap";
 import { CompanyInfoPopover } from "./CompanyInfoPopover";
 import { User, Users } from "lucide-react";
 import { buildOrgChartLayout, SENIORITY_LABELS } from "@/lib/seniority-inference";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TalentEngagementWithData extends TalentEngagement {
   talent: Talent;
@@ -24,6 +25,8 @@ interface AccountCanvasProps {
   selectedNodeId?: string | null;
   onNodeSelect?: (contactId: string | null) => void;
   lockedNodeIds?: Set<string>;
+  onSnapEdgeCreate?: (fromContactId: string, toContactId: string) => void;
+  workspaceId?: string;
 }
 
 export interface AccountCanvasRef {
@@ -58,6 +61,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   selectedNodeId = null,
   onNodeSelect,
   lockedNodeIds = new Set(),
+  onSnapEdgeCreate,
+  workspaceId,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
@@ -84,6 +89,106 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
   const companyNodeRef = useRef<Group | null>(null);
   const isCanvasDisposedRef = useRef(false);
+  
+  // Smart snap system refs
+  const guideLinesToRef = useRef<Line[]>([]);
+  const snapHighlightRef = useRef<Rect | null>(null);
+  const snapTargetRef = useRef<string | null>(null); // contact id of potential parent
+  const autoPanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onSnapEdgeCreateRef = useRef(onSnapEdgeCreate);
+  useEffect(() => { onSnapEdgeCreateRef.current = onSnapEdgeCreate; }, [onSnapEdgeCreate]);
+  
+  // Snap constants
+  const SNAP_VERTICAL_THRESHOLD = 80; // px below a node to trigger "reports to"
+  const SNAP_HORIZONTAL_THRESHOLD = 30; // px alignment tolerance
+  const SIBLING_SNAP_THRESHOLD = 25; // px to snap siblings equally spaced
+  const AUTO_PAN_EDGE = 60; // px from viewport edge to start auto-pan
+  const AUTO_PAN_SPEED = 8;
+  
+  // Guide line management
+  const clearGuideLines = useCallback((canvas: FabricCanvas) => {
+    guideLinesToRef.current.forEach(line => {
+      try { canvas.remove(line); } catch {}
+    });
+    guideLinesToRef.current = [];
+    if (snapHighlightRef.current) {
+      try { canvas.remove(snapHighlightRef.current); } catch {}
+      snapHighlightRef.current = null;
+    }
+    snapTargetRef.current = null;
+  }, []);
+  
+  const addGuideLine = useCallback((canvas: FabricCanvas, x1: number, y1: number, x2: number, y2: number) => {
+    const line = new Line([x1, y1, x2, y2], {
+      stroke: "hsl(221 83% 53%)",
+      strokeWidth: 1,
+      strokeDashArray: [6, 4],
+      selectable: false,
+      evented: false,
+      opacity: 0.7,
+    });
+    canvas.add(line);
+    guideLinesToRef.current.push(line);
+  }, []);
+  
+  const showSnapHighlight = useCallback((canvas: FabricCanvas, targetGroup: Group) => {
+    if (snapHighlightRef.current) {
+      try { canvas.remove(snapHighlightRef.current); } catch {}
+    }
+    const bounds = targetGroup.getBoundingRect();
+    const highlight = new Rect({
+      left: targetGroup.left! - 95,
+      top: targetGroup.top! - 50,
+      width: 190,
+      height: 100,
+      fill: "transparent",
+      stroke: "hsl(221 83% 53%)",
+      strokeWidth: 3,
+      rx: 12,
+      ry: 12,
+      selectable: false,
+      evented: false,
+      opacity: 0.6,
+    });
+    canvas.add(highlight);
+    snapHighlightRef.current = highlight;
+  }, []);
+
+  // Auto-pan when near edges
+  const startAutoPan = useCallback((canvas: FabricCanvas, mouseX: number, mouseY: number) => {
+    if (autoPanIntervalRef.current) clearInterval(autoPanIntervalRef.current);
+    
+    const cw = canvas.width!;
+    const ch = canvas.height!;
+    let dx = 0, dy = 0;
+    
+    if (mouseX < AUTO_PAN_EDGE) dx = AUTO_PAN_SPEED;
+    else if (mouseX > cw - AUTO_PAN_EDGE) dx = -AUTO_PAN_SPEED;
+    if (mouseY < AUTO_PAN_EDGE) dy = AUTO_PAN_SPEED;
+    else if (mouseY > ch - AUTO_PAN_EDGE) dy = -AUTO_PAN_SPEED;
+    
+    if (dx === 0 && dy === 0) {
+      if (autoPanIntervalRef.current) {
+        clearInterval(autoPanIntervalRef.current);
+        autoPanIntervalRef.current = null;
+      }
+      return;
+    }
+    
+    autoPanIntervalRef.current = setInterval(() => {
+      const vpt = canvas.viewportTransform!;
+      vpt[4] += dx;
+      vpt[5] += dy;
+      canvas.requestRenderAll();
+    }, 16);
+  }, []);
+  
+  const stopAutoPan = useCallback(() => {
+    if (autoPanIntervalRef.current) {
+      clearInterval(autoPanIntervalRef.current);
+      autoPanIntervalRef.current = null;
+    }
+  }, []);
   
   // Hover intent tracking for company node
   const companyHoverTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -281,10 +386,9 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     const wireContactNode = (contact: Contact, node: Group, x: number, y: number, parentLine?: Line) => {
       const nodeLines: Line[] = parentLine ? [parentLine] : [];
 
-      node.on('moving', function() {
+      node.on('moving', function(opt) {
         // Only allow movement in edit mode and if not locked
         if (interactionModeRef.current !== 'edit' || lockedNodeIdsRef.current.has(contact.id)) {
-          // Snap back to original position
           node.set({ left: x, top: y });
           node.setCoords();
           return;
@@ -301,6 +405,95 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
             line.setCoords();
           }
         });
+        
+        // ── Smart Snap System ──
+        clearGuideLines(fabricCanvas);
+        
+        const dragX = center.x;
+        const dragY = center.y;
+        
+        // Check all other nodes for snap relationships
+        let bestParent: { id: string; group: Group; dist: number } | null = null;
+        const siblingYMatches: { x: number; y: number }[] = [];
+        const alignXMatches: number[] = [];
+        const alignYMatches: number[] = [];
+        
+        contactNodesRef.current.forEach((otherData, otherId) => {
+          if (otherId === contact.id) return;
+          const otherCenter = otherData.group.getCenterPoint();
+          
+          // Check vertical alignment (same X axis)
+          if (Math.abs(dragX - otherCenter.x) < SNAP_HORIZONTAL_THRESHOLD) {
+            alignXMatches.push(otherCenter.x);
+          }
+          
+          // Check horizontal alignment (same Y axis)
+          if (Math.abs(dragY - otherCenter.y) < SIBLING_SNAP_THRESHOLD) {
+            alignYMatches.push(otherCenter.y);
+            siblingYMatches.push({ x: otherCenter.x, y: otherCenter.y });
+          }
+          
+          // Check "reports to" – node is positioned directly below another
+          const verticalDist = dragY - otherCenter.y;
+          const horizontalDist = Math.abs(dragX - otherCenter.x);
+          if (
+            verticalDist > NODE_H / 2 && 
+            verticalDist < NODE_H + SNAP_VERTICAL_THRESHOLD &&
+            horizontalDist < NODE_W / 2 + 20
+          ) {
+            const dist = Math.sqrt(verticalDist * verticalDist + horizontalDist * horizontalDist);
+            if (!bestParent || dist < bestParent.dist) {
+              bestParent = { id: otherId, group: otherData.group, dist };
+            }
+          }
+        });
+        
+        // Draw vertical alignment guides
+        alignXMatches.forEach(ax => {
+          addGuideLine(fabricCanvas, ax, dragY - 200, ax, dragY + 200);
+        });
+        
+        // Draw horizontal alignment guides (sibling row)
+        if (alignYMatches.length > 0) {
+          const snapY = alignYMatches[0];
+          addGuideLine(fabricCanvas, dragX - 200, snapY, dragX + 200, snapY);
+        }
+        
+        // Show parent highlight and parent-child axis
+        if (bestParent) {
+          const parentCenter = bestParent.group.getCenterPoint();
+          showSnapHighlight(fabricCanvas, bestParent.group);
+          addGuideLine(fabricCanvas, parentCenter.x, parentCenter.y + NODE_H / 2, dragX, dragY - NODE_H / 2);
+          snapTargetRef.current = bestParent.id;
+        } else {
+          snapTargetRef.current = null;
+        }
+        
+        // Auto-pan near edges
+        if (opt.e) {
+          const evt = opt.e as MouseEvent;
+          startAutoPan(fabricCanvas, evt.offsetX, evt.offsetY);
+        }
+        
+        fabricCanvas.renderAll();
+      });
+      
+      // On drop: clear guides, create edge if snapped, persist position
+      node.on('modified', function() {
+        stopAutoPan();
+        clearGuideLines(fabricCanvas);
+        
+        if (interactionModeRef.current !== 'edit') return;
+        
+        const center = node.getCenterPoint();
+        
+        // If there's a snap target, create the edge
+        if (snapTargetRef.current) {
+          onSnapEdgeCreateRef.current?.(contact.id, snapTargetRef.current);
+          snapTargetRef.current = null;
+        }
+        
+        fabricCanvas.renderAll();
       });
 
       node.on('mouseover', function() {

@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2, Link2, Unlink, Lock, Eye } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
@@ -41,6 +42,7 @@ import { useCompanyCanvas } from "@/hooks/use-company-canvas";
 import { useCanvasMode } from "@/hooks/use-canvas-mode";
 import { CanvasModeToggle } from "@/components/canvas/CanvasModeToggle";
 import { StructureToolbar } from "@/components/canvas/StructureToolbar";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 const Canvas = () => {
   const navigate = useNavigate();
@@ -54,6 +56,7 @@ const Canvas = () => {
     dismissTooltips,
   } = useOnboarding();
   
+  const { currentWorkspace } = useWorkspace();
   // Use the company canvas hook instead of mock data
   const { 
     account: loadedAccount, 
@@ -295,6 +298,61 @@ const Canvas = () => {
     }
   }, [setSelectedNodeId]);
 
+  // Handle snap-to-parent edge creation
+  const handleSnapEdgeCreate = useCallback(async (childContactId: string, parentContactId: string) => {
+    if (!currentWorkspace) return;
+    try {
+      const { data: existingNodes } = await supabase
+        .from('canvas_nodes')
+        .select('id, contact_id')
+        .eq('workspace_id', currentWorkspace.id)
+        .in('contact_id', [childContactId, parentContactId]);
+      
+      const nodeMap = new Map(existingNodes?.map(n => [n.contact_id!, n.id]) || []);
+      
+      const missingContacts = [childContactId, parentContactId].filter(id => !nodeMap.has(id));
+      if (missingContacts.length > 0) {
+        const { data: newNodes } = await supabase
+          .from('canvas_nodes')
+          .insert(missingContacts.map(cid => ({
+            workspace_id: currentWorkspace.id,
+            contact_id: cid,
+            company_id: account?.id,
+            x: 0,
+            y: 0,
+          })))
+          .select('id, contact_id');
+        newNodes?.forEach(n => nodeMap.set(n.contact_id!, n.id));
+      }
+      
+      const fromNodeId = nodeMap.get(parentContactId);
+      const toNodeId = nodeMap.get(childContactId);
+      
+      if (fromNodeId && toNodeId) {
+        const { data: existing } = await supabase
+          .from('canvas_edges')
+          .select('id')
+          .eq('workspace_id', currentWorkspace.id)
+          .eq('from_node_id', fromNodeId)
+          .eq('to_node_id', toNodeId)
+          .maybeSingle();
+        
+        if (!existing) {
+          await supabase.from('canvas_edges').insert({
+            workspace_id: currentWorkspace.id,
+            company_id: account?.id,
+            from_node_id: fromNodeId,
+            to_node_id: toNodeId,
+            relationship_type: 'reports_to',
+          });
+          toast.success("Reporting relationship created");
+        }
+      }
+    } catch (err) {
+      console.error('Failed to create snap edge:', err);
+    }
+  }, [currentWorkspace, account?.id]);
+
   // Get selected contact for structure toolbar actions
   const selectedNodeContact = useMemo(() => {
     if (!selectedNodeId || !account) return null;
@@ -508,6 +566,8 @@ const Canvas = () => {
             selectedNodeId={selectedNodeId}
             onNodeSelect={handleNodeSelect}
             lockedNodeIds={lockedNodeIds}
+            onSnapEdgeCreate={handleSnapEdgeCreate}
+            workspaceId={currentWorkspace?.id}
           />
         ) : (
           <CompanyDatabaseView

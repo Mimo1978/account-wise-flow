@@ -527,10 +527,16 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         
         // If snapped to company root, unlink from manager (make top-level)
         if (snapTargetRef.current === "__company_root__") {
+          // Animate edges, then fire DB update (no delay on DB side)
+          rebuildAllEdges(fabricCanvas, canvasW, true);
+          if (companyNodeRef.current) pulseNode(fabricCanvas, companyNodeRef.current);
           onUnlinkFromManagerRef.current?.(contact.id);
           snapTargetRef.current = null;
         } else if (snapTargetRef.current) {
           // Snapped to another contact — set as manager
+          const targetData = contactNodesRef.current.get(snapTargetRef.current);
+          rebuildAllEdges(fabricCanvas, canvasW, true);
+          if (targetData) pulseNode(fabricCanvas, targetData.group);
           onSnapEdgeCreateRef.current?.(contact.id, snapTargetRef.current);
           snapTargetRef.current = null;
         }
@@ -643,15 +649,109 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       });
     };
 
-    // ── Ephemeral edge rebuild: clears all hierarchy lines and redraws from manager_id ──
-    const rebuildAllEdges = (canvas: FabricCanvas, cw: number) => {
-      // 1. Remove all existing hierarchy lines
-      hierarchyLinesRef.current.forEach(line => {
-        try { canvas.remove(line); } catch {}
+    // ── Animation helpers ──
+    const animateFadeOut = (canvas: FabricCanvas, line: Line, duration: number = 150): Promise<void> => {
+      return new Promise(resolve => {
+        const steps = Math.max(1, Math.round(duration / 16));
+        let step = 0;
+        const initialOpacity = line.opacity ?? 1;
+        // Retract: animate x2/y2 toward x1/y1
+        const startX2 = line.x2!;
+        const startY2 = line.y2!;
+        const endX2 = line.x1!;
+        const endY2 = line.y1!;
+        const tick = () => {
+          step++;
+          const t = step / steps;
+          line.set({
+            opacity: initialOpacity * (1 - t),
+            x2: startX2 + (endX2 - startX2) * t,
+            y2: startY2 + (endY2 - startY2) * t,
+          });
+          line.setCoords();
+          canvas.requestRenderAll();
+          if (step < steps) {
+            requestAnimationFrame(tick);
+          } else {
+            try { canvas.remove(line); } catch {}
+            resolve();
+          }
+        };
+        requestAnimationFrame(tick);
       });
+    };
+
+    const animateDrawIn = (canvas: FabricCanvas, line: Line, duration: number = 200) => {
+      const targetX2 = line.x2!;
+      const targetY2 = line.y2!;
+      const startX = line.x1!;
+      const startY = line.y1!;
+      line.set({ x2: startX, y2: startY, opacity: 0 });
+      line.setCoords();
+      const steps = Math.max(1, Math.round(duration / 16));
+      let step = 0;
+      const tick = () => {
+        step++;
+        const t = step / steps;
+        // Ease-out quad
+        const eased = 1 - (1 - t) * (1 - t);
+        line.set({
+          x2: startX + (targetX2 - startX) * eased,
+          y2: startY + (targetY2 - startY) * eased,
+          opacity: eased,
+        });
+        line.setCoords();
+        canvas.requestRenderAll();
+        if (step < steps) requestAnimationFrame(tick);
+        else {
+          line.set({ opacity: 1 });
+          canvas.requestRenderAll();
+        }
+      };
+      requestAnimationFrame(tick);
+    };
+
+    const pulseNode = (canvas: FabricCanvas, group: Group) => {
+      const steps = 20; // ~320ms
+      let step = 0;
+      const tick = () => {
+        step++;
+        const t = step / steps;
+        // Pulse up then down
+        const intensity = t < 0.5 ? t * 2 : (1 - t) * 2;
+        group.set({
+          shadow: { color: 'hsl(221 83% 53%)', blur: 10 + intensity * 20, offsetX: 0, offsetY: 0 },
+        });
+        canvas.requestRenderAll();
+        if (step < steps) requestAnimationFrame(tick);
+        else {
+          group.set({ shadow: null });
+          canvas.requestRenderAll();
+        }
+      };
+      requestAnimationFrame(tick);
+    };
+
+    // ── Ephemeral edge rebuild: clears all hierarchy lines and redraws from manager_id ──
+    // animated=true triggers transition animations (used after relationship changes)
+    const rebuildAllEdges = (canvas: FabricCanvas, cw: number, animated: boolean = false) => {
+      // 1. Fade out and remove old lines
+      const oldLines = [...hierarchyLinesRef.current];
       hierarchyLinesRef.current = [];
 
-      // 2. Redraw edges from current node positions + manager_id
+      if (animated && oldLines.length > 0) {
+        // Animate old lines out, then draw new ones in
+        oldLines.forEach(line => animateFadeOut(canvas, line, 150));
+        // Small delay so fade-out is visible before draw-in
+        setTimeout(() => drawFreshEdges(canvas, cw, true), 100);
+      } else {
+        // Instant: remove old, draw new
+        oldLines.forEach(line => { try { canvas.remove(line); } catch {} });
+        drawFreshEdges(canvas, cw, false);
+      }
+    };
+
+    const drawFreshEdges = (canvas: FabricCanvas, cw: number, animated: boolean) => {
       contactNodesRef.current.forEach((childData, childId) => {
         const contact = childData.contact;
         if (contact.managerId && contactNodesRef.current.has(contact.managerId)) {
@@ -670,8 +770,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           canvas.add(line);
           canvas.sendObjectToBack(line);
           hierarchyLinesRef.current.push(line);
+          if (animated) animateDrawIn(canvas, line, 200);
         } else if (!contact.managerId) {
-          // Root node: line from company node
           const childCenter = childData.group.getCenterPoint();
           const line = new Line([cw / 2, 120, childCenter.x, childCenter.y - NODE_H / 2], {
             stroke: `hsl(214 32% 91%)`,
@@ -682,6 +782,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           canvas.add(line);
           canvas.sendObjectToBack(line);
           hierarchyLinesRef.current.push(line);
+          if (animated) animateDrawIn(canvas, line, 200);
         }
       });
     };

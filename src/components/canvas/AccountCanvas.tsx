@@ -1233,13 +1233,13 @@ const createCompanyNode = (name: string, x: number, y: number): Group => {
     }
   }
 
-  const text = new Text(name, {
-    fontSize: 13,
+  const text = new Text(name.toUpperCase(), {
+    fontSize: 14,
     fontWeight: "bold",
     fill: "hsl(221 83% 53%)",
     originX: "center",
     originY: "center",
-    top: 45,
+    top: -55,
   });
 
   const group = new Group([buildingMain, buildingTop, ...windows, text], {

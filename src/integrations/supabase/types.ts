@@ -357,6 +357,8 @@ export type Database = {
       }
       candidates: {
         Row: {
+          ai_overview: string | null
+          availability_status: string | null
           created_at: string
           current_company: string | null
           current_title: string | null
@@ -380,6 +382,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_overview?: string | null
+          availability_status?: string | null
           created_at?: string
           current_company?: string | null
           current_title?: string | null
@@ -403,6 +407,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_overview?: string | null
+          availability_status?: string | null
           created_at?: string
           current_company?: string | null
           current_title?: string | null
@@ -435,10 +441,147 @@ export type Database = {
           },
         ]
       }
+      canvas_edges: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          from_node_id: string
+          id: string
+          relationship_type: string | null
+          to_node_id: string
+          workspace_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          from_node_id: string
+          id?: string
+          relationship_type?: string | null
+          to_node_id: string
+          workspace_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          from_node_id?: string
+          id?: string
+          relationship_type?: string | null
+          to_node_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_edges_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_edges_from_node_id_fkey"
+            columns: ["from_node_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_edges_to_node_id_fkey"
+            columns: ["to_node_id"]
+            isOneToOne: false
+            referencedRelation: "canvas_nodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_edges_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canvas_nodes: {
+        Row: {
+          candidate_id: string | null
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          department: string | null
+          id: string
+          label_name: string | null
+          label_title: string | null
+          updated_at: string
+          verification_status: string | null
+          workspace_id: string
+          x: number
+          y: number
+        }
+        Insert: {
+          candidate_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          department?: string | null
+          id?: string
+          label_name?: string | null
+          label_title?: string | null
+          updated_at?: string
+          verification_status?: string | null
+          workspace_id: string
+          x?: number
+          y?: number
+        }
+        Update: {
+          candidate_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          department?: string | null
+          id?: string
+          label_name?: string | null
+          label_title?: string | null
+          updated_at?: string
+          verification_status?: string | null
+          workspace_id?: string
+          x?: number
+          y?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_nodes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_nodes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_nodes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_nodes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           account_manager: string | null
           created_at: string
+          data_quality: string | null
           headquarters: string | null
           id: string
           industry: string | null
@@ -456,6 +599,7 @@ export type Database = {
         Insert: {
           account_manager?: string | null
           created_at?: string
+          data_quality?: string | null
           headquarters?: string | null
           id?: string
           industry?: string | null
@@ -473,6 +617,7 @@ export type Database = {
         Update: {
           account_manager?: string | null
           created_at?: string
+          data_quality?: string | null
           headquarters?: string | null
           id?: string
           industry?: string | null
@@ -559,39 +704,57 @@ export type Database = {
           created_at: string
           department: string | null
           email: string | null
+          email_private: string | null
           id: string
+          location: string | null
           name: string
+          notes: string | null
           owner_id: string | null
           phone: string | null
+          seniority: string | null
+          status: string | null
           team_id: string | null
           title: string | null
           updated_at: string
+          verification_status: string | null
         }
         Insert: {
           company_id?: string | null
           created_at?: string
           department?: string | null
           email?: string | null
+          email_private?: string | null
           id?: string
+          location?: string | null
           name: string
+          notes?: string | null
           owner_id?: string | null
           phone?: string | null
+          seniority?: string | null
+          status?: string | null
           team_id?: string | null
           title?: string | null
           updated_at?: string
+          verification_status?: string | null
         }
         Update: {
           company_id?: string | null
           created_at?: string
           department?: string | null
           email?: string | null
+          email_private?: string | null
           id?: string
+          location?: string | null
           name?: string
+          notes?: string | null
           owner_id?: string | null
           phone?: string | null
+          seniority?: string | null
+          status?: string | null
           team_id?: string | null
           title?: string | null
           updated_at?: string
+          verification_status?: string | null
         }
         Relationships: [
           {

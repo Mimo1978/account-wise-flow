@@ -565,6 +565,7 @@ const Canvas = () => {
             onNodeSelect={handleNodeSelect}
             lockedNodeIds={lockedNodeIds}
             onSnapEdgeCreate={handleSnapEdgeCreate}
+            onUnlinkFromManager={handleUnlinkFromManager}
             workspaceId={currentWorkspace?.id}
           />
         ) : (

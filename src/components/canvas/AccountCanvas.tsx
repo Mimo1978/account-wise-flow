@@ -26,6 +26,7 @@ interface AccountCanvasProps {
   onNodeSelect?: (contactId: string | null) => void;
   lockedNodeIds?: Set<string>;
   onSnapEdgeCreate?: (fromContactId: string, toContactId: string) => void;
+  onUnlinkFromManager?: (contactId: string) => void;
   workspaceId?: string;
 }
 
@@ -62,6 +63,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   onNodeSelect,
   lockedNodeIds = new Set(),
   onSnapEdgeCreate,
+  onUnlinkFromManager,
   workspaceId,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -97,13 +99,16 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const autoPanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onSnapEdgeCreateRef = useRef(onSnapEdgeCreate);
   useEffect(() => { onSnapEdgeCreateRef.current = onSnapEdgeCreate; }, [onSnapEdgeCreate]);
+  const onUnlinkFromManagerRef = useRef(onUnlinkFromManager);
+  useEffect(() => { onUnlinkFromManagerRef.current = onUnlinkFromManager; }, [onUnlinkFromManager]);
   
   // Snap constants
-  const SNAP_VERTICAL_THRESHOLD = 80; // px below a node to trigger "reports to"
+  const SNAP_RADIUS = 40; // px radius to trigger "reports to" snap
   const SNAP_HORIZONTAL_THRESHOLD = 30; // px alignment tolerance
   const SIBLING_SNAP_THRESHOLD = 25; // px to snap siblings equally spaced
   const AUTO_PAN_EDGE = 60; // px from viewport edge to start auto-pan
   const AUTO_PAN_SPEED = 8;
+  const COMPANY_SNAP_RADIUS = 60; // px radius around company node to unlink (make top-level)
   
   // Guide line management
   const clearGuideLines = useCallback((canvas: FabricCanvas) => {
@@ -441,9 +446,22 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         
         // Check all other nodes for snap relationships
         let bestParent: { id: string; group: Group; dist: number } | null = null;
-        const siblingYMatches: { x: number; y: number }[] = [];
         const alignXMatches: number[] = [];
         const alignYMatches: number[] = [];
+        
+        // Check company node for root snap (unlink / make top-level)
+        if (companyNodeRef.current) {
+          const companyCenter = companyNodeRef.current.getCenterPoint();
+          const distToCompany = Math.sqrt(
+            Math.pow(dragX - companyCenter.x, 2) + Math.pow(dragY - companyCenter.y, 2)
+          );
+          if (distToCompany < COMPANY_SNAP_RADIUS + NODE_H / 2 && contact.managerId) {
+            // Show highlight on company node
+            showSnapHighlight(fabricCanvas, companyNodeRef.current);
+            addGuideLine(fabricCanvas, companyCenter.x, companyCenter.y + 40, dragX, dragY - NODE_H / 2);
+            snapTargetRef.current = "__company_root__";
+          }
+        }
         
         contactNodesRef.current.forEach((otherData, otherId) => {
           if (otherId === contact.id) return;
@@ -457,20 +475,19 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           // Check horizontal alignment (same Y axis)
           if (Math.abs(dragY - otherCenter.y) < SIBLING_SNAP_THRESHOLD) {
             alignYMatches.push(otherCenter.y);
-            siblingYMatches.push({ x: otherCenter.x, y: otherCenter.y });
           }
           
-          // Check "reports to" – node is positioned directly below another
-          const verticalDist = dragY - otherCenter.y;
-          const horizontalDist = Math.abs(dragX - otherCenter.x);
-          if (
-            verticalDist > NODE_H / 2 && 
-            verticalDist < NODE_H + SNAP_VERTICAL_THRESHOLD &&
-            horizontalDist < NODE_W / 2 + 20
-          ) {
-            const dist = Math.sqrt(verticalDist * verticalDist + horizontalDist * horizontalDist);
-            if (!bestParent || dist < bestParent.dist) {
-              bestParent = { id: otherId, group: otherData.group, dist };
+          // Check "reports to" – use 40px radius from bottom anchor of target node
+          const targetBottomX = otherCenter.x;
+          const targetBottomY = otherCenter.y + NODE_H / 2;
+          const dragTopY = dragY - NODE_H / 2;
+          const distFromTargetBottom = Math.sqrt(
+            Math.pow(dragX - targetBottomX, 2) + Math.pow(dragTopY - targetBottomY, 2)
+          );
+          
+          if (distFromTargetBottom < SNAP_RADIUS && dragY > otherCenter.y) {
+            if (!bestParent || distFromTargetBottom < bestParent.dist) {
+              bestParent = { id: otherId, group: otherData.group, dist: distFromTargetBottom };
             }
           }
         });
@@ -486,13 +503,18 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           addGuideLine(fabricCanvas, dragX - 200, snapY, dragX + 200, snapY);
         }
         
-        // Show parent highlight and parent-child axis
+        // Show parent highlight and parent-child axis (takes priority over company snap)
         if (bestParent) {
+          // Clear any company snap highlight first
+          if (snapTargetRef.current === "__company_root__" && snapHighlightRef.current) {
+            try { fabricCanvas.remove(snapHighlightRef.current); } catch {}
+            snapHighlightRef.current = null;
+          }
           const parentCenter = bestParent.group.getCenterPoint();
           showSnapHighlight(fabricCanvas, bestParent.group);
           addGuideLine(fabricCanvas, parentCenter.x, parentCenter.y + NODE_H / 2, dragX, dragY - NODE_H / 2);
           snapTargetRef.current = bestParent.id;
-        } else {
+        } else if (snapTargetRef.current !== "__company_root__") {
           snapTargetRef.current = null;
         }
         
@@ -512,10 +534,12 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         
         if (interactionModeRef.current !== 'edit') return;
         
-        const center = node.getCenterPoint();
-        
-        // If there's a snap target, create the edge
-        if (snapTargetRef.current) {
+        // If snapped to company root, unlink from manager (make top-level)
+        if (snapTargetRef.current === "__company_root__") {
+          onUnlinkFromManagerRef.current?.(contact.id);
+          snapTargetRef.current = null;
+        } else if (snapTargetRef.current) {
+          // Snapped to another contact — set as manager
           onSnapEdgeCreateRef.current?.(contact.id, snapTargetRef.current);
           snapTargetRef.current = null;
         }

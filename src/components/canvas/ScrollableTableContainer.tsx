@@ -245,8 +245,10 @@ export const ScrollableTableContainer = forwardRef<HTMLDivElement, ScrollableTab
         ref={scrollRef}
         className={cn(
           "overflow-x-auto overflow-y-auto scroll-smooth",
-          // Hide scrollbar but keep functionality for cleaner look
-          "scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent"
+          // Always show scrollbar when content overflows for discoverability
+          "[&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2",
+          "[&::-webkit-scrollbar-track]:bg-transparent",
+          "[&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/60 hover:[&::-webkit-scrollbar-thumb]:bg-border",
         )}
         style={{ maxHeight }}
         onScroll={handleScrollInternal}

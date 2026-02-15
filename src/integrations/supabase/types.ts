@@ -707,6 +707,7 @@ export type Database = {
           email_private: string | null
           id: string
           location: string | null
+          manager_id: string | null
           name: string
           notes: string | null
           owner_id: string | null
@@ -726,6 +727,7 @@ export type Database = {
           email_private?: string | null
           id?: string
           location?: string | null
+          manager_id?: string | null
           name: string
           notes?: string | null
           owner_id?: string | null
@@ -745,6 +747,7 @@ export type Database = {
           email_private?: string | null
           id?: string
           location?: string | null
+          manager_id?: string | null
           name?: string
           notes?: string | null
           owner_id?: string | null
@@ -762,6 +765,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]

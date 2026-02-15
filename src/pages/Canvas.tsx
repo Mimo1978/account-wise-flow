@@ -298,60 +298,58 @@ const Canvas = () => {
     }
   }, [setSelectedNodeId]);
 
-  // Handle snap-to-parent edge creation
+  // Handle snap-to-parent edge creation — sets manager_id on the child contact
   const handleSnapEdgeCreate = useCallback(async (childContactId: string, parentContactId: string) => {
     if (!currentWorkspace) return;
     try {
-      const { data: existingNodes } = await supabase
-        .from('canvas_nodes')
-        .select('id, contact_id')
-        .eq('workspace_id', currentWorkspace.id)
-        .in('contact_id', [childContactId, parentContactId]);
+      // Clear any existing parent first (one manager rule)
+      await supabase
+        .from('contacts')
+        .update({ manager_id: parentContactId } as any)
+        .eq('id', childContactId);
       
-      const nodeMap = new Map(existingNodes?.map(n => [n.contact_id!, n.id]) || []);
+      // Update local state so canvas re-renders with correct hierarchy
+      setAccount((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          contacts: prev.contacts.map(c =>
+            c.id === childContactId ? { ...c, managerId: parentContactId } : c
+          ),
+        };
+      });
       
-      const missingContacts = [childContactId, parentContactId].filter(id => !nodeMap.has(id));
-      if (missingContacts.length > 0) {
-        const { data: newNodes } = await supabase
-          .from('canvas_nodes')
-          .insert(missingContacts.map(cid => ({
-            workspace_id: currentWorkspace.id,
-            contact_id: cid,
-            company_id: account?.id,
-            x: 0,
-            y: 0,
-          })))
-          .select('id, contact_id');
-        newNodes?.forEach(n => nodeMap.set(n.contact_id!, n.id));
-      }
-      
-      const fromNodeId = nodeMap.get(parentContactId);
-      const toNodeId = nodeMap.get(childContactId);
-      
-      if (fromNodeId && toNodeId) {
-        const { data: existing } = await supabase
-          .from('canvas_edges')
-          .select('id')
-          .eq('workspace_id', currentWorkspace.id)
-          .eq('from_node_id', fromNodeId)
-          .eq('to_node_id', toNodeId)
-          .maybeSingle();
-        
-        if (!existing) {
-          await supabase.from('canvas_edges').insert({
-            workspace_id: currentWorkspace.id,
-            company_id: account?.id,
-            from_node_id: fromNodeId,
-            to_node_id: toNodeId,
-            relationship_type: 'reports_to',
-          });
-          toast.success("Reporting relationship created");
-        }
-      }
+      toast.success("Reporting relationship created");
     } catch (err) {
-      console.error('Failed to create snap edge:', err);
+      console.error('Failed to set manager:', err);
+      toast.error("Failed to create relationship");
     }
-  }, [currentWorkspace, account?.id]);
+  }, [currentWorkspace]);
+
+  // Unlink a contact from its manager
+  const handleUnlinkFromManager = useCallback(async (contactId: string) => {
+    try {
+      await supabase
+        .from('contacts')
+        .update({ manager_id: null } as any)
+        .eq('id', contactId);
+      
+      setAccount((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          contacts: prev.contacts.map(c =>
+            c.id === contactId ? { ...c, managerId: null } : c
+          ),
+        };
+      });
+      
+      toast.success("Manager relationship removed");
+    } catch (err) {
+      console.error('Failed to unlink manager:', err);
+      toast.error("Failed to remove relationship");
+    }
+  }, []);
 
   // Get selected contact for structure toolbar actions
   const selectedNodeContact = useMemo(() => {
@@ -586,8 +584,8 @@ const Canvas = () => {
         <StructureToolbar
           position={structureToolbarPos}
           isLocked={lockedNodeIds.has(selectedNodeId)}
-          onLink={() => { /* TODO: link flow */ }}
-          onUnlink={() => { /* TODO: unlink flow */ }}
+          onLink={() => { /* Link mode activated via snap – drag node below target */ toast.info("Drag this node below another to create a reporting link"); }}
+          onUnlink={() => { if (selectedNodeId) handleUnlinkFromManager(selectedNodeId); }}
           onToggleLock={() => toggleLockNode(selectedNodeId)}
           onViewProfile={() => {
             const contact = account.contacts.find(c => c.id === selectedNodeId);

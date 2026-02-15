@@ -383,10 +383,31 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     const contactMap = new Map<string, Contact>();
     account.contacts.forEach(c => contactMap.set(c.id, c));
 
-    // ── Hierarchy relationship maps for hover highlighting ──
+    // ── Build hierarchy from manager_id (authoritative source) ──
     const parentMap = new Map<string, string>(); // child -> parent contact id
     const childrenMap = new Map<string, string[]>(); // parent -> child contact ids
-    const depthMap = new Map<string, number>(); // contact id -> depth level (0 = exec/root)
+    const depthMap = new Map<string, number>(); // contact id -> depth level
+
+    // Build parent/children maps from manager_id
+    account.contacts.forEach(c => {
+      if (c.managerId) {
+        parentMap.set(c.id, c.managerId);
+        if (!childrenMap.has(c.managerId)) childrenMap.set(c.managerId, []);
+        childrenMap.get(c.managerId)!.push(c.id);
+      }
+    });
+
+    // Compute depth for each contact
+    const computeDepth = (id: string, visited = new Set<string>()): number => {
+      if (visited.has(id)) return 0; // cycle guard
+      visited.add(id);
+      if (depthMap.has(id)) return depthMap.get(id)!;
+      const parent = parentMap.get(id);
+      const d = parent ? computeDepth(parent, visited) + 1 : 0;
+      depthMap.set(id, d);
+      return d;
+    };
+    account.contacts.forEach(c => computeDepth(c.id));
 
     const wireContactNode = (contact: Contact, node: Group, x: number, y: number, parentLine?: Line, depth: number = 0) => {
       const nodeLines: Line[] = parentLine ? [parentLine] : [];
@@ -645,43 +666,19 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         const contact = contactMap.get(exec.contactId);
         if (!contact) return;
 
-        // Line from company to exec (depth 0 = root level, thicker)
-        const line = drawLine(canvasW / 2, 120, x, y - NODE_H / 2, 0);
         const node = createContactNode(contact, x, y);
-        wireContactNode(contact, node, x, y, line, 0);
+        wireContactNode(contact, node, x, y, undefined, depthMap.get(contact.id) || 0);
       });
     }
 
     // ── Place department columns ──
     const deptCount = layout.departments.length;
     if (deptCount > 0) {
-      // Calculate department column widths
-      const maxNodesPerDept = layout.departments.map(d => d.nodes.length);
       const deptTotalW = deptCount * NODE_W + (deptCount - 1) * (HORIZONTAL_GAP * 2);
       const deptStartX = canvasW / 2 - deptTotalW / 2 + NODE_W / 2;
 
-      // Draw a horizontal connector bar from execs to departments
-      if (execCount > 0 && deptCount > 1) {
-        const barY = DEPT_START_Y - VERTICAL_GAP / 2 - 10;
-        const firstDeptX = deptStartX;
-        const lastDeptX = deptStartX + (deptCount - 1) * (NODE_W + HORIZONTAL_GAP * 2);
-        drawLine(firstDeptX, barY, lastDeptX, barY, 1);
-
-        // Vertical line from exec center down to bar
-        drawLine(canvasW / 2, EXEC_ROW_Y + NODE_H / 2, canvasW / 2, barY, 1);
-      }
-
       layout.departments.forEach((dept, deptIdx) => {
         const deptX = deptStartX + deptIdx * (NODE_W + HORIZONTAL_GAP * 2);
-        const barY = DEPT_START_Y - VERTICAL_GAP / 2 - 10;
-
-        // Vertical line from bar down to first node
-        if (execCount > 0) {
-          drawLine(deptX, barY, deptX, DEPT_START_Y + DEPT_HEADER_H - NODE_H / 2, 1);
-        } else {
-          // No execs – line from company directly
-          drawLine(canvasW / 2, 120, deptX, DEPT_START_Y + DEPT_HEADER_H - NODE_H / 2, 0);
-        }
 
         // Department label
         const deptLabel = new Text(dept.name, {
@@ -697,40 +694,38 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         });
         fabricCanvas.add(deptLabel);
 
-        // Place each node in the department column
         dept.nodes.forEach((orgNode, nodeIdx) => {
           const y = DEPT_START_Y + DEPT_HEADER_H + nodeIdx * (NODE_H + VERTICAL_GAP);
           const contact = contactMap.get(orgNode.contactId);
           if (!contact) return;
 
-          const depthLevel = nodeIdx + 1; // dept nodes start at depth 1+
-
-          // Build parent-child maps
-          if (nodeIdx > 0) {
-            const prevContact = contactMap.get(dept.nodes[nodeIdx - 1].contactId);
-            if (prevContact) {
-              parentMap.set(contact.id, prevContact.id);
-              if (!childrenMap.has(prevContact.id)) childrenMap.set(prevContact.id, []);
-              childrenMap.get(prevContact.id)!.push(contact.id);
-            }
-          }
-
-          // Line from previous node or dept header
-          let parentLine: Line | undefined;
-          if (nodeIdx === 0) {
-            // already drawn above
-          } else {
-            const prevY = DEPT_START_Y + DEPT_HEADER_H + (nodeIdx - 1) * (NODE_H + VERTICAL_GAP);
-            parentLine = drawLine(deptX, prevY + NODE_H / 2, deptX, y - NODE_H / 2, depthLevel);
-          }
-
           const node = createContactNode(contact, deptX, y);
-          wireContactNode(contact, node, deptX, y, parentLine, depthLevel);
+          wireContactNode(contact, node, deptX, y, undefined, depthMap.get(contact.id) || 0);
         });
       });
     }
 
-    // If no contacts at all, just render company
+    // ── Draw edges from manager_id relationships (authoritative source) ──
+    // Also draw company-to-root lines for contacts without a manager
+    contactNodesRef.current.forEach((childData, childId) => {
+      const contact = childData.contact;
+      if (contact.managerId && contactNodesRef.current.has(contact.managerId)) {
+        // Draw line from manager to child
+        const parentData = contactNodesRef.current.get(contact.managerId)!;
+        const parentCenter = parentData.group.getCenterPoint();
+        const childCenter = childData.group.getCenterPoint();
+        const depth = depthMap.get(childId) || 1;
+        const line = drawLine(parentCenter.x, parentCenter.y + NODE_H / 2, childCenter.x, childCenter.y - NODE_H / 2, depth);
+        childData.lines.push(line);
+        parentData.lines.push(line);
+      } else if (!contact.managerId) {
+        // Root node: draw line from company node
+        const childCenter = childData.group.getCenterPoint();
+        const line = drawLine(canvasW / 2, 120, childCenter.x, childCenter.y - NODE_H / 2, 0);
+        childData.lines.push(line);
+      }
+    });
+
     fabricCanvas.renderAll();
   }, [fabricCanvas, account]);
 

@@ -21,6 +21,7 @@ export interface Contact {
   lastContact?: string;
   role?: "economic-buyer" | "technical-evaluator" | "champion" | "blocker" | "influencer";
   reportsTo?: string;
+  managerId?: string | null; // authoritative parent FK for hierarchy
   linkedIn?: string;
   contactOwner?: string;
   profilePhoto?: string;

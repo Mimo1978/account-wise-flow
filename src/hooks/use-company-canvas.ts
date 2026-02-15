@@ -79,6 +79,7 @@ export function useCompanyCanvas(options: UseCompanyCanvasOptions = {}): UseComp
           phone: c.phone || '',
           status: 'new',
           engagementScore: 50,
+          managerId: c.manager_id || null,
         })),
         lastUpdated: data.updated_at,
         engagementScore: 50,

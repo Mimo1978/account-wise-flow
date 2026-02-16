@@ -91,6 +91,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const companyNodeRef = useRef<Group | null>(null);
   const isCanvasDisposedRef = useRef(false);
   const hierarchyLinesRef = useRef<Line[]>([]);
+  const edgeRebuildGenRef = useRef(0); // generation counter to invalidate stale animated rebuilds
   
   // Smart snap system refs
   const guideLinesToRef = useRef<Line[]>([]);
@@ -518,27 +519,35 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         fabricCanvas.renderAll();
       });
       
-      // On drop: clear guides, create edge if snapped, persist position
+      // On drop: clear ALL ephemeral state, create edge if snapped, persist position
       node.on('modified', function() {
         stopAutoPan();
         clearGuideLines(fabricCanvas);
         
-        if (interactionModeRef.current !== 'edit') return;
+        if (interactionModeRef.current !== 'edit') {
+          // Still rebuild edges to sync positions after drag
+          rebuildAllEdges(fabricCanvas, canvasW);
+          return;
+        }
+        
+        // Capture snap target before clearing
+        const currentSnapTarget = snapTargetRef.current;
+        snapTargetRef.current = null;
         
         // If snapped to company root, unlink from manager (make top-level)
-        if (snapTargetRef.current === "__company_root__") {
-          // Animate edges, then fire DB update (no delay on DB side)
+        if (currentSnapTarget === "__company_root__") {
           rebuildAllEdges(fabricCanvas, canvasW, true);
           if (companyNodeRef.current) pulseNode(fabricCanvas, companyNodeRef.current);
           onUnlinkFromManagerRef.current?.(contact.id);
-          snapTargetRef.current = null;
-        } else if (snapTargetRef.current) {
+        } else if (currentSnapTarget) {
           // Snapped to another contact — set as manager
-          const targetData = contactNodesRef.current.get(snapTargetRef.current);
+          const targetData = contactNodesRef.current.get(currentSnapTarget);
           rebuildAllEdges(fabricCanvas, canvasW, true);
           if (targetData) pulseNode(fabricCanvas, targetData.group);
-          onSnapEdgeCreateRef.current?.(contact.id, snapTargetRef.current);
-          snapTargetRef.current = null;
+          onSnapEdgeCreateRef.current?.(contact.id, currentSnapTarget);
+        } else {
+          // No snap — just update positions, rebuild edges to match new node positions
+          rebuildAllEdges(fabricCanvas, canvasW);
         }
         
         fabricCanvas.renderAll();
@@ -593,20 +602,18 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       });
 
       node.on('mouseout', function() {
-        // Don't clear selection highlight in edit mode
-        if (interactionModeRef.current === 'edit' && selectedNodeIdRef.current === contact.id) {
-          (this as FabricObject).set({ shadow: null });
-        } else {
-          (this as FabricObject).set({ shadow: null });
-        }
+        (this as FabricObject).set({ shadow: null });
 
-        // Reset all nodes to normal
+        // Reset all nodes to normal opacity
         contactNodesRef.current.forEach((otherData, otherId) => {
           otherData.group.set({ opacity: 1 });
         });
 
-        // Reset all hierarchy lines to depth-based defaults
-        rebuildAllEdges(fabricCanvas, canvasW);
+        // Reset hierarchy line styles to depth-based defaults (no full rebuild needed)
+        hierarchyLinesRef.current.forEach(l => {
+          // Restore default subtle style
+          l.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 });
+        });
         fabricCanvas.renderAll();
       });
 
@@ -734,24 +741,28 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
     // ── Ephemeral edge rebuild: clears all hierarchy lines and redraws from manager_id ──
     // animated=true triggers transition animations (used after relationship changes)
+    // CRITICAL: Always synchronously remove old lines first to prevent ghost artefacts.
     const rebuildAllEdges = (canvas: FabricCanvas, cw: number, animated: boolean = false) => {
-      // 1. Fade out and remove old lines
+      // Increment generation — any pending animated rebuild from a prior call is now stale
+      const gen = ++edgeRebuildGenRef.current;
+
+      // 1. Synchronously remove ALL old lines from canvas immediately
       const oldLines = [...hierarchyLinesRef.current];
       hierarchyLinesRef.current = [];
+      oldLines.forEach(line => { try { canvas.remove(line); } catch {} });
 
-      if (animated && oldLines.length > 0) {
-        // Animate old lines out, then draw new ones in
-        oldLines.forEach(line => animateFadeOut(canvas, line, 150));
-        // Small delay so fade-out is visible before draw-in
-        setTimeout(() => drawFreshEdges(canvas, cw, true), 100);
+      if (animated) {
+        // Draw new edges with draw-in animation (no setTimeout — immediate but animated)
+        drawFreshEdges(canvas, cw, true, gen);
       } else {
-        // Instant: remove old, draw new
-        oldLines.forEach(line => { try { canvas.remove(line); } catch {} });
-        drawFreshEdges(canvas, cw, false);
+        drawFreshEdges(canvas, cw, false, gen);
       }
     };
 
-    const drawFreshEdges = (canvas: FabricCanvas, cw: number, animated: boolean) => {
+    const drawFreshEdges = (canvas: FabricCanvas, cw: number, animated: boolean, gen: number) => {
+      // If a newer rebuild was triggered, abort this one
+      if (gen !== edgeRebuildGenRef.current) return;
+
       contactNodesRef.current.forEach((childData, childId) => {
         const contact = childData.contact;
         if (contact.managerId && contactNodesRef.current.has(contact.managerId)) {

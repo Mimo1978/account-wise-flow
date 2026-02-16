@@ -24,10 +24,13 @@ interface AccountCanvasProps {
   interactionMode?: CanvasInteractionMode;
   selectedNodeId?: string | null;
   onNodeSelect?: (contactId: string | null) => void;
-  lockedNodeIds?: Set<string>;
   onSnapEdgeCreate?: (fromContactId: string, toContactId: string) => void;
   onUnlinkFromManager?: (contactId: string) => void;
   workspaceId?: string;
+  // Org chart edges as single source of truth
+  edgeParentMap?: Map<string, string | null>;
+  edgeChildrenMap?: Map<string, string[]>;
+  rootContactId?: string | null;
 }
 
 export interface AccountCanvasRef {
@@ -60,10 +63,12 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   interactionMode = "browse",
   selectedNodeId = null,
   onNodeSelect,
-  lockedNodeIds = new Set(),
   onSnapEdgeCreate,
   onUnlinkFromManager,
   workspaceId,
+  edgeParentMap = new Map(),
+  edgeChildrenMap = new Map(),
+  rootContactId = null,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
@@ -79,13 +84,11 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   // Refs for interaction mode (so canvas event handlers always have current values)
   const interactionModeRef = useRef(interactionMode);
   const selectedNodeIdRef = useRef(selectedNodeId);
-  const lockedNodeIdsRef = useRef(lockedNodeIds);
   const onNodeSelectRef = useRef(onNodeSelect);
   const onContactClickRef = useRef(onContactClick);
   
   useEffect(() => { interactionModeRef.current = interactionMode; }, [interactionMode]);
   useEffect(() => { selectedNodeIdRef.current = selectedNodeId; }, [selectedNodeId]);
-  useEffect(() => { lockedNodeIdsRef.current = lockedNodeIds; }, [lockedNodeIds]);
   useEffect(() => { onNodeSelectRef.current = onNodeSelect; }, [onNodeSelect]);
   useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
   const companyNodeRef = useRef<Group | null>(null);
@@ -384,27 +387,17 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     companyNodeRef.current = companyNode;
     fabricCanvas.add(companyNode);
 
-    // ── Helper: wire up a contact node ──
+    // ── Contact lookup map ──
     const contactMap = new Map<string, Contact>();
     account.contacts.forEach(c => contactMap.set(c.id, c));
 
-    // ── Build hierarchy from manager_id (authoritative source) ──
-    const parentMap = new Map<string, string>(); // child -> parent contact id
-    const childrenMap = new Map<string, string[]>(); // parent -> child contact ids
-    const depthMap = new Map<string, number>(); // contact id -> depth level
+    const parentMap = edgeParentMap;
+    const childrenMap = edgeChildrenMap;
+    const depthMap = new Map<string, number>();
 
-    // Build parent/children maps from manager_id
-    account.contacts.forEach(c => {
-      if (c.managerId) {
-        parentMap.set(c.id, c.managerId);
-        if (!childrenMap.has(c.managerId)) childrenMap.set(c.managerId, []);
-        childrenMap.get(c.managerId)!.push(c.id);
-      }
-    });
-
-    // Compute depth for each contact
+    // Compute depth for each contact from edge maps
     const computeDepth = (id: string, visited = new Set<string>()): number => {
-      if (visited.has(id)) return 0; // cycle guard
+      if (visited.has(id)) return 0;
       visited.add(id);
       if (depthMap.has(id)) return depthMap.get(id)!;
       const parent = parentMap.get(id);
@@ -416,11 +409,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
     const wireContactNode = (contact: Contact, node: Group, x: number, y: number, depth: number = 0) => {
       depthMap.set(contact.id, depth);
-      depthMap.set(contact.id, depth);
 
       node.on('moving', function(opt) {
-        // Only allow movement in edit mode and if not locked
-        if (interactionModeRef.current !== 'edit' || lockedNodeIdsRef.current.has(contact.id)) {
+        // Only allow movement in edit mode
+        if (interactionModeRef.current !== 'edit') {
           node.set({ left: x, top: y });
           node.setCoords();
           return;

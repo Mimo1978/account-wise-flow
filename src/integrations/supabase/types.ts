@@ -580,7 +580,6 @@ export type Database = {
       companies: {
         Row: {
           account_manager: string | null
-          ceo_contact_id: string | null
           created_at: string
           data_quality: string | null
           headquarters: string | null
@@ -599,7 +598,6 @@ export type Database = {
         }
         Insert: {
           account_manager?: string | null
-          ceo_contact_id?: string | null
           created_at?: string
           data_quality?: string | null
           headquarters?: string | null
@@ -618,7 +616,6 @@ export type Database = {
         }
         Update: {
           account_manager?: string | null
-          ceo_contact_id?: string | null
           created_at?: string
           data_quality?: string | null
           headquarters?: string | null
@@ -635,15 +632,7 @@ export type Database = {
           updated_at?: string
           website?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "companies_ceo_contact_id_fkey"
-            columns: ["ceo_contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       company_team_members: {
         Row: {
@@ -1457,58 +1446,6 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      org_chart_edges: {
-        Row: {
-          child_contact_id: string
-          company_id: string
-          created_at: string
-          id: string
-          parent_contact_id: string | null
-          position_index: number
-          updated_at: string
-        }
-        Insert: {
-          child_contact_id: string
-          company_id: string
-          created_at?: string
-          id?: string
-          parent_contact_id?: string | null
-          position_index?: number
-          updated_at?: string
-        }
-        Update: {
-          child_contact_id?: string
-          company_id?: string
-          created_at?: string
-          id?: string
-          parent_contact_id?: string | null
-          position_index?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "org_chart_edges_child_contact_id_fkey"
-            columns: ["child_contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "org_chart_edges_company_id_fkey"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "org_chart_edges_parent_contact_id_fkey"
-            columns: ["parent_contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
         ]

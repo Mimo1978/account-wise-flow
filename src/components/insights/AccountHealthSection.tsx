@@ -67,8 +67,8 @@ export const AccountHealthSection: React.FC<AccountHealthSectionProps> = ({
       const signals: HealthSignal[] = [];
       
       companies?.forEach(company => {
-        const contacts = Array.isArray(company.contacts) ? company.contacts : [];
-        const notes = Array.isArray(company.notes) ? company.notes : [];
+        const contacts = company.contacts || [];
+        const notes = company.notes || [];
         
         // Check for engagement recency
         const lastContactUpdate = contacts.length > 0 
@@ -94,7 +94,7 @@ export const AccountHealthSection: React.FC<AccountHealthSectionProps> = ({
 
         // Check for single-threaded risk
         const seniorTitles = ['CEO', 'CFO', 'CTO', 'VP', 'Director', 'Head'];
-        const seniorContacts = contacts.filter((c: any) => 
+        const seniorContacts = contacts.filter(c => 
           seniorTitles.some(title => c.title?.toLowerCase().includes(title.toLowerCase()))
         );
         

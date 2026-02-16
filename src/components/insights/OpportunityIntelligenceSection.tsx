@@ -63,12 +63,12 @@ export const OpportunityIntelligenceSection: React.FC<OpportunityIntelligenceSec
       const opps: Opportunity[] = [];
       
       companies?.forEach(company => {
-        const contacts = Array.isArray(company.contacts) ? company.contacts : [];
-        const departments = [...new Set(contacts.map((c: any) => c.department).filter(Boolean))];
+        const contacts = company.contacts || [];
+        const departments = [...new Set(contacts.map(c => c.department).filter(Boolean))];
         
         // Find departments with contacts but no senior sponsor
-        const deptWithNoSenior = departments.filter((dept: string) => {
-          const deptContacts = contacts.filter((c: any) => c.department === dept);
+        const deptWithNoSenior = departments.filter(dept => {
+          const deptContacts = contacts.filter(c => c.department === dept);
           const seniorTitles = ['VP', 'Director', 'Head', 'Chief', 'President'];
           return !deptContacts.some(c => 
             seniorTitles.some(title => c.title?.toLowerCase().includes(title.toLowerCase()))
@@ -93,7 +93,7 @@ export const OpportunityIntelligenceSection: React.FC<OpportunityIntelligenceSec
         // Find companies with good coverage where cross-sell might work
         if (contacts.length >= 5 && departments.length >= 2) {
           const uncoveredDepts = ['Finance', 'Operations', 'IT', 'HR', 'Sales', 'Marketing']
-            .filter(d => !departments.some((existing: string) => 
+            .filter(d => !departments.some(existing => 
               existing?.toLowerCase().includes(d.toLowerCase())
             ));
 
@@ -114,7 +114,7 @@ export const OpportunityIntelligenceSection: React.FC<OpportunityIntelligenceSec
         }
 
         // Identify relationship strengthening opportunities
-        const seniorContacts = contacts.filter((c: any) => {
+        const seniorContacts = contacts.filter(c => {
           const seniorTitles = ['VP', 'Director', 'Head', 'Chief'];
           return seniorTitles.some(title => c.title?.toLowerCase().includes(title.toLowerCase()));
         });

@@ -65,7 +65,7 @@ export const AlertsTriggersSection: React.FC<AlertsTriggersSectionProps> = ({
       const alertsList: Alert[] = [];
 
       companies?.forEach(company => {
-        const contacts = Array.isArray(company.contacts) ? company.contacts : [];
+        const contacts = company.contacts || [];
         
         // Check for quiet accounts (no updates in 60+ days)
         const lastUpdate = contacts.length > 0 
@@ -122,7 +122,7 @@ export const AlertsTriggersSection: React.FC<AlertsTriggersSectionProps> = ({
         }
 
         // Check for single-threaded risk with senior contacts
-        const seniorContacts = contacts.filter((c: any) => {
+        const seniorContacts = contacts.filter(c => {
           const titles = ['CEO', 'CFO', 'CTO', 'VP', 'Director'];
           return titles.some(t => c.title?.toLowerCase().includes(t.toLowerCase()));
         });

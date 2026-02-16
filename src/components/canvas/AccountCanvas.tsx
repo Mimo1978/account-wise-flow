@@ -125,9 +125,20 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const SNAP_RADIUS = 40; // px radius to trigger "reports to" snap
   const SNAP_HORIZONTAL_THRESHOLD = 30; // px alignment tolerance
   const SIBLING_SNAP_THRESHOLD = 25; // px to snap siblings equally spaced
+  const LANE_SNAP_THRESHOLD = 20; // px to snap into peer/child lanes
   const AUTO_PAN_EDGE = 40; // px from viewport edge to start auto-pan
   const AUTO_PAN_SPEED = 10;
   const COMPANY_SNAP_RADIUS = 60; // px radius around company node to unlink (make top-level)
+  
+  // Alt key tracking for free-place override
+  const altKeyRef = useRef(false);
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => { if (e.key === 'Alt') altKeyRef.current = true; };
+    const up = (e: KeyboardEvent) => { if (e.key === 'Alt') altKeyRef.current = false; };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up); };
+  }, []);
   
   // Guide line management
   const clearGuideLines = useCallback((canvas: FabricCanvas) => {
@@ -505,13 +516,36 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       depthMap.set(contact.id, depth);
       depthMap.set(contact.id, depth);
 
+      // Track whether we already showed a lock toast this drag
+      let lockToastShown = false;
+
       node.on('moving', function(opt) {
         activeDragNodeRef.current = node;
         // Only allow movement in edit mode and if not locked
-        if (interactionModeRef.current !== 'edit' || lockedNodeIdsRef.current.has(contact.id)) {
+        if (interactionModeRef.current !== 'edit') {
           node.set({ left: x, top: y });
           node.setCoords();
           fabricCanvas.requestRenderAll();
+          return;
+        }
+        if (lockedNodeIdsRef.current.has(contact.id)) {
+          node.set({ left: x, top: y });
+          node.setCoords();
+          fabricCanvas.requestRenderAll();
+          if (!lockToastShown) {
+            lockToastShown = true;
+            toast("Position locked", {
+              action: {
+                label: "Unlock",
+                onClick: () => {
+                  // Toggle lock via the callback
+                  const toggleEvt = new CustomEvent('unlock-node', { detail: contact.id });
+                  window.dispatchEvent(toggleEvt);
+                },
+              },
+              duration: 3000,
+            });
+          }
           return;
         }
         const center = node.getCenterPoint();
@@ -607,16 +641,57 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         fabricCanvas.renderAll();
       });
       
-      // On drop: clear ALL ephemeral state, create edge if snapped, persist position
+      // On drop: clear ALL ephemeral state, create edge if snapped, snap to lane, persist position
       node.on('modified', function() {
         activeDragNodeRef.current = null;
+        lockToastShown = false;
         stopAutoPan();
         clearGuideLines(fabricCanvas);
         
         if (interactionModeRef.current !== 'edit') {
-          // Still rebuild edges to sync positions after drag
           rebuildAllEdges(fabricCanvas, canvasW);
           return;
+        }
+        
+        // ── Lane snapping on drop (unless Alt held) ──
+        if (!altKeyRef.current) {
+          const center = node.getCenterPoint();
+          let snapX: number | null = null;
+          let snapY: number | null = null;
+
+          // Compute lane positions: siblings share a Y row, children share parent X column
+          const myManager = contact.managerId;
+          
+          // Collect all nodes at similar depth or same parent for lane snapping
+          contactNodesRef.current.forEach((otherData, otherId) => {
+            if (otherId === contact.id) return;
+            const otherCenter = otherData.group.getCenterPoint();
+            
+            // Peer lane: same manager → snap to same Y row
+            if (myManager && otherData.contact.managerId === myManager) {
+              if (Math.abs(center.y - otherCenter.y) < LANE_SNAP_THRESHOLD + 40) {
+                snapY = otherCenter.y;
+              }
+            }
+            
+            // Vertical lane: snap X if close to another node's X (column alignment)
+            if (Math.abs(center.x - otherCenter.x) < LANE_SNAP_THRESHOLD) {
+              snapX = otherCenter.x;
+            }
+            
+            // Horizontal lane: snap Y if close to same row
+            if (Math.abs(center.y - otherCenter.y) < LANE_SNAP_THRESHOLD) {
+              snapY = otherCenter.y;
+            }
+          });
+          
+          if (snapX !== null || snapY !== null) {
+            node.set({
+              left: snapX !== null ? snapX - NODE_W / 2 : node.left,
+              top: snapY !== null ? snapY - NODE_H / 2 : node.top,
+            });
+            node.setCoords();
+          }
         }
         
         // Capture snap target before clearing
@@ -627,12 +702,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         if (currentSnapTarget === "__company_root__") {
           const isCeo = account.ceoContactId === contact.id;
           if (isCeo) {
-            // CEO reconnecting to root — just unlink from any manager
             rebuildAllEdges(fabricCanvas, canvasW, true);
             if (companyNodeRef.current) pulseNode(fabricCanvas, companyNodeRef.current);
             onUnlinkFromManagerRef.current?.(contact.id);
           } else {
-            // Non-CEO trying to connect to root — show toast with action
             toast("Only the CEO connects to the company root. Set this contact as CEO to link here.", {
               action: {
                 label: "Set as CEO",
@@ -640,17 +713,14 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
               },
               duration: 6000,
             });
-            // Rebuild edges without changes
             rebuildAllEdges(fabricCanvas, canvasW);
           }
         } else if (currentSnapTarget) {
-          // Snapped to another contact — set as manager
           const targetData = contactNodesRef.current.get(currentSnapTarget);
           rebuildAllEdges(fabricCanvas, canvasW, true);
           if (targetData) pulseNode(fabricCanvas, targetData.group);
           onSnapEdgeCreateRef.current?.(contact.id, currentSnapTarget);
         } else {
-          // No snap — just update positions, rebuild edges to match new node positions
           rebuildAllEdges(fabricCanvas, canvasW);
         }
         
@@ -862,6 +932,36 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       }
     };
 
+    // Helper: create orthogonal edge (vertical down from parent, horizontal, vertical down to child)
+    const createOrthogonalEdge = (
+      canvas: FabricCanvas,
+      x1: number, y1: number, // parent bottom anchor
+      x2: number, y2: number, // child top anchor
+      strokeColor: string,
+      strokeWidth: number,
+      animated: boolean,
+    ) => {
+      const midY = y1 + (y2 - y1) / 2;
+      // Three segments: vertical down, horizontal across, vertical down
+      const segments = [
+        [x1, y1, x1, midY],
+        [x1, midY, x2, midY],
+        [x2, midY, x2, y2],
+      ];
+      segments.forEach(([sx1, sy1, sx2, sy2]) => {
+        const line = new Line([sx1, sy1, sx2, sy2], {
+          stroke: strokeColor,
+          strokeWidth,
+          selectable: false,
+          evented: false,
+        });
+        canvas.add(line);
+        canvas.sendObjectToBack(line);
+        hierarchyLinesRef.current.push(line);
+        if (animated) animateDrawIn(canvas, line, 200);
+      });
+    };
+
     const drawFreshEdges = (canvas: FabricCanvas, cw: number, animated: boolean, gen: number) => {
       // If a newer rebuild was triggered, abort this one
       if (gen !== edgeRebuildGenRef.current) return;
@@ -875,31 +975,52 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           const depth = depthMap.get(childId) || 1;
           const baseStrokeWidth = depth === 0 ? 3 : 2;
           const lightness = Math.min(91 + depth * 1, 95);
-          const line = new Line([parentCenter.x, parentCenter.y + NODE_H / 2, childCenter.x, childCenter.y - NODE_H / 2], {
-            stroke: `hsl(214 32% ${lightness}%)`,
-            strokeWidth: baseStrokeWidth,
-            selectable: false,
-            evented: false,
-          });
-          canvas.add(line);
-          canvas.sendObjectToBack(line);
-          hierarchyLinesRef.current.push(line);
-          if (animated) animateDrawIn(canvas, line, 200);
+
+          // Use orthogonal routing if nodes are offset horizontally, straight line if aligned
+          const px = parentCenter.x;
+          const py = parentCenter.y + NODE_H / 2;
+          const cx = childCenter.x;
+          const cy = childCenter.y - NODE_H / 2;
+
+          if (Math.abs(px - cx) < 4) {
+            // Vertically aligned — single straight line
+            const line = new Line([px, py, cx, cy], {
+              stroke: `hsl(214 32% ${lightness}%)`,
+              strokeWidth: baseStrokeWidth,
+              selectable: false,
+              evented: false,
+            });
+            canvas.add(line);
+            canvas.sendObjectToBack(line);
+            hierarchyLinesRef.current.push(line);
+            if (animated) animateDrawIn(canvas, line, 200);
+          } else {
+            // Orthogonal L-shaped connector
+            createOrthogonalEdge(canvas, px, py, cx, cy, `hsl(214 32% ${lightness}%)`, baseStrokeWidth, animated);
+          }
         } else if (!contact.managerId && account.ceoContactId === childId) {
-          // Root edge: ONLY drawn between company root and CEO
+          // Root edge: company root to CEO
           const childCenter = childData.group.getCenterPoint();
-          const line = new Line([cw / 2, 120, childCenter.x, childCenter.y - NODE_H / 2], {
-            stroke: `hsl(214 32% 91%)`,
-            strokeWidth: 3,
-            selectable: false,
-            evented: false,
-          });
-          canvas.add(line);
-          canvas.sendObjectToBack(line);
-          hierarchyLinesRef.current.push(line);
-          if (animated) animateDrawIn(canvas, line, 200);
+          const px = cw / 2;
+          const py = 120;
+          const cx = childCenter.x;
+          const cy = childCenter.y - NODE_H / 2;
+
+          if (Math.abs(px - cx) < 4) {
+            const line = new Line([px, py, cx, cy], {
+              stroke: `hsl(214 32% 91%)`,
+              strokeWidth: 3,
+              selectable: false,
+              evented: false,
+            });
+            canvas.add(line);
+            canvas.sendObjectToBack(line);
+            hierarchyLinesRef.current.push(line);
+            if (animated) animateDrawIn(canvas, line, 200);
+          } else {
+            createOrthogonalEdge(canvas, px, py, cx, cy, `hsl(214 32% 91%)`, 3, animated);
+          }
         }
-        // Contacts without managerId that are NOT the CEO get no root edge — they float
       });
     };
 

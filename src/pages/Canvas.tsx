@@ -155,6 +155,18 @@ const Canvas = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setCanvasMode, linkModeSourceId, selectedNodeId, setSelectedNodeId]);
 
+  // Listen for unlock-node custom events from canvas lock toast
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const contactId = (e as CustomEvent).detail;
+      if (contactId && lockedNodeIds.has(contactId)) {
+        toggleLockNode(contactId);
+      }
+    };
+    window.addEventListener('unlock-node', handler);
+    return () => window.removeEventListener('unlock-node', handler);
+  }, [lockedNodeIds, toggleLockNode]);
+
   // Get engagements for current company with talent data
   const companyEngagements = account ? mockEngagements
     .filter((eng) => eng.companyId === account.id)

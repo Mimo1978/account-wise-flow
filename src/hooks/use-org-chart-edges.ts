@@ -1,6 +1,7 @@
-import { useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { inferSeniority, SENIORITY_ORDER } from "@/lib/seniority-inference";
 
 export interface OrgChartEdge {
   id: string;
@@ -19,12 +20,14 @@ interface UseOrgChartEdgesOptions {
 
 /**
  * Hook to manage org_chart_edges as the single source of truth for hierarchy.
- * Reads/writes to the org_chart_edges table. Canvas connectors are rendered
- * ONLY from these edges, never from UI state.
  */
 export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
   const queryClient = useQueryClient();
   const queryKey = ["org-chart-edges", companyId];
+  
+  // Undo snapshot storage
+  const [canUndo, setCanUndo] = useState(false);
+  const undoSnapshotRef = useRef<OrgChartEdge[]>([]);
 
   // Fetch all edges for this company
   const { data: edges = [], isLoading } = useQuery({
@@ -46,11 +49,10 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
   });
 
   // Build parent/children maps from edges
-  const parentMap = new Map<string, string | null>(); // child -> parent
-  const childrenMap = new Map<string, string[]>(); // parent -> children (sorted by position_index)
+  const parentMap = new Map<string, string | null>();
+  const childrenMap = new Map<string, string[]>();
   let rootContactId: string | null = null;
 
-  // Sort edges by position_index for consistent child ordering
   const sortedEdges = [...edges].sort((a, b) => a.position_index - b.position_index);
 
   sortedEdges.forEach((edge) => {
@@ -66,7 +68,6 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
     }
   });
 
-  // Cycle detection: walk from child to ancestors, check if newParent would create a loop
   const wouldCreateCycle = useCallback(
     (childId: string, newParentId: string): boolean => {
       const visited = new Set<string>();
@@ -79,10 +80,9 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
       }
       return false;
     },
-    [edges] // eslint-disable-line react-hooks/exhaustive-deps
+    [edges]
   );
 
-  // Helper: reindex siblings under a parent to be contiguous 0..n-1
   const reindexSiblings = async (parentId: string | null) => {
     if (!companyId) return;
     const siblings = sortedEdges.filter(e => e.parent_contact_id === parentId);
@@ -96,7 +96,6 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
     }
   };
 
-  // Set parent (upsert edge). Handles root replacement rule.
   const setParentMutation = useMutation({
     mutationFn: async ({
       childContactId,
@@ -108,23 +107,16 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
       positionIndex?: number;
     }) => {
       if (!companyId) throw new Error("No company");
-
-      // Validate no cycles
       if (parentContactId && wouldCreateCycle(childContactId, parentContactId)) {
         throw new Error("Cycle detected");
       }
-
-      // If setting as root (parentContactId=null), handle root replacement
       if (parentContactId === null && rootContactId && rootContactId !== childContactId) {
-        // Old root becomes child of new root
         await supabase
           .from("org_chart_edges" as any)
           .update({ parent_contact_id: childContactId, position_index: 0 } as any)
           .eq("company_id", companyId)
           .eq("child_contact_id", rootContactId);
       }
-
-      // Determine position_index: use provided or append at end
       let idx = positionIndex ?? 0;
       if (positionIndex === undefined && parentContactId !== null) {
         const existingSiblings = sortedEdges.filter(
@@ -132,8 +124,6 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
         );
         idx = existingSiblings.length;
       }
-
-      // Upsert the child's edge
       const { error } = await supabase
         .from("org_chart_edges" as any)
         .upsert(
@@ -145,7 +135,6 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
           } as any,
           { onConflict: "company_id,child_contact_id" }
         );
-
       if (error) throw error;
     },
     onSuccess: () => {
@@ -153,7 +142,6 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
     },
   });
 
-  // Insert as sibling: place dragged node next to target with same parent, shifting indices
   const insertAsSiblingMutation = useMutation({
     mutationFn: async ({
       draggedContactId,
@@ -165,32 +153,19 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
       side: "before" | "after";
     }) => {
       if (!companyId) throw new Error("No company");
-
-      // Find target's parent
       const targetEdge = sortedEdges.find(e => e.child_contact_id === targetContactId);
       if (!targetEdge) throw new Error("Target not in tree");
-
       const targetParentId = targetEdge.parent_contact_id;
-
-      // Validate no cycles
       if (targetParentId && wouldCreateCycle(draggedContactId, targetParentId)) {
         throw new Error("Cycle detected");
       }
-
-      // Get current siblings under target's parent (excluding dragged node)
       const siblings = sortedEdges
         .filter(e => e.parent_contact_id === targetParentId && e.child_contact_id !== draggedContactId)
         .sort((a, b) => a.position_index - b.position_index);
-
-      // Find target's position in siblings list
       const targetIdx = siblings.findIndex(e => e.child_contact_id === targetContactId);
       const insertAt = side === "before" ? targetIdx : targetIdx + 1;
-
-      // Build new ordering
       const newOrder: string[] = siblings.map(e => e.child_contact_id);
       newOrder.splice(insertAt, 0, draggedContactId);
-
-      // Update all indices
       for (let i = 0; i < newOrder.length; i++) {
         await supabase
           .from("org_chart_edges" as any)
@@ -210,7 +185,6 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
     },
   });
 
-  // Insert dragged node as parent of target (TOP drop zone)
   const insertAsParentMutation = useMutation({
     mutationFn: async ({
       draggedContactId,
@@ -220,18 +194,12 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
       targetContactId: string;
     }) => {
       if (!companyId) throw new Error("No company");
-
       const targetEdge = sortedEdges.find(e => e.child_contact_id === targetContactId);
       if (!targetEdge) throw new Error("Target not in tree");
-
       const targetOldParent = targetEdge.parent_contact_id;
-
-      // Validate: dragged cannot be in target's subtree (would create cycle)
       if (wouldCreateCycle(draggedContactId, targetContactId)) {
         throw new Error("Cycle detected");
       }
-
-      // 1. Place dragged node where target was (same parent, same position_index)
       await supabase
         .from("org_chart_edges" as any)
         .upsert(
@@ -243,8 +211,6 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
           } as any,
           { onConflict: "company_id,child_contact_id" }
         );
-
-      // 2. Make target a child of dragged
       await supabase
         .from("org_chart_edges" as any)
         .update({ parent_contact_id: draggedContactId, position_index: 0 } as any)
@@ -256,7 +222,6 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
     },
   });
 
-  // Remove a contact from the tree entirely
   const removeEdgeMutation = useMutation({
     mutationFn: async ({ childContactId }: { childContactId: string }) => {
       if (!companyId) throw new Error("No company");
@@ -272,6 +237,94 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
     },
   });
 
+  /**
+   * Auto-arrange contacts by seniority: CEO at root, then all others as siblings sorted by seniority.
+   * Saves a snapshot of current edges for undo.
+   */
+  const autoArrangeBySeniority = useMutation({
+    mutationFn: async (contacts: { id: string; title: string }[]) => {
+      if (!companyId || contacts.length === 0) throw new Error("No company or contacts");
+
+      // Save snapshot for undo
+      undoSnapshotRef.current = [...edges];
+
+      // Sort contacts by seniority (most senior first)
+      const ranked = contacts
+        .map(c => ({
+          id: c.id,
+          seniority: inferSeniority(c.title),
+          order: SENIORITY_ORDER[inferSeniority(c.title)],
+          title: c.title,
+        }))
+        .sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
+
+      // Delete all existing edges for this company
+      await supabase
+        .from("org_chart_edges" as any)
+        .delete()
+        .eq("company_id", companyId);
+
+      // Most senior = root (parent_contact_id = null)
+      const rootId = ranked[0].id;
+      await supabase
+        .from("org_chart_edges" as any)
+        .insert({
+          company_id: companyId,
+          child_contact_id: rootId,
+          parent_contact_id: null,
+          position_index: 0,
+        } as any);
+
+      // All others = siblings under root, ordered by seniority
+      for (let i = 1; i < ranked.length; i++) {
+        await supabase
+          .from("org_chart_edges" as any)
+          .insert({
+            company_id: companyId,
+            child_contact_id: ranked[i].id,
+            parent_contact_id: rootId,
+            position_index: i - 1,
+          } as any);
+      }
+    },
+    onSuccess: () => {
+      setCanUndo(true);
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
+  /**
+   * Undo auto-arrange: restore the previous edge snapshot.
+   */
+  const undoAutoArrange = useMutation({
+    mutationFn: async () => {
+      if (!companyId || undoSnapshotRef.current.length === 0) throw new Error("Nothing to undo");
+
+      // Delete current edges
+      await supabase
+        .from("org_chart_edges" as any)
+        .delete()
+        .eq("company_id", companyId);
+
+      // Restore snapshot
+      for (const edge of undoSnapshotRef.current) {
+        await supabase
+          .from("org_chart_edges" as any)
+          .insert({
+            company_id: companyId,
+            child_contact_id: edge.child_contact_id,
+            parent_contact_id: edge.parent_contact_id,
+            position_index: edge.position_index,
+          } as any);
+      }
+    },
+    onSuccess: () => {
+      setCanUndo(false);
+      undoSnapshotRef.current = [];
+      queryClient.invalidateQueries({ queryKey });
+    },
+  });
+
   return {
     edges,
     isLoading,
@@ -283,5 +336,9 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
     insertAsParent: insertAsParentMutation.mutateAsync,
     removeEdge: removeEdgeMutation.mutateAsync,
     wouldCreateCycle,
+    autoArrangeBySeniority: autoArrangeBySeniority.mutateAsync,
+    undoAutoArrange: undoAutoArrange.mutateAsync,
+    canUndo,
+    isAutoArranging: autoArrangeBySeniority.isPending,
   };
 }

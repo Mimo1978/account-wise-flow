@@ -442,6 +442,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         if (interactionModeRef.current !== 'edit' || lockedNodeIdsRef.current.has(contact.id)) {
           node.set({ left: x, top: y });
           node.setCoords();
+          fabricCanvas.requestRenderAll();
           return;
         }
         const center = node.getCenterPoint();
@@ -657,26 +658,20 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           return;
         }
         if (interactionModeRef.current === 'edit') {
-          // In edit mode: select node, don't open profile
+          // In edit mode: select node for structure editing
           onNodeSelectRef.current?.(contact.id);
         } else {
-          // In browse mode: open profile (existing behavior)
-          onContactClickRef.current(contact);
+          // In browse mode: single click selects node (highlights it)
+          onNodeSelectRef.current?.(contact.id);
         }
       });
 
       node.on('mousedblclick', () => {
-        if (interactionModeRef.current === 'edit') {
-          // In edit mode, double-click opens profile
+        if (interactionModeRef.current === 'browse') {
+          // In browse mode, double-click opens profile
           onContactClickRef.current(contact);
-        } else {
-          const center = node.getCenterPoint();
-          fabricCanvas.setZoom(1.5);
-          const vpt = fabricCanvas.viewportTransform!;
-          vpt[4] = canvasW / 2 - center.x * 1.5;
-          vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
-          fabricCanvas.renderAll();
         }
+        // In edit mode, double-click does nothing
       });
 
       fabricCanvas.add(node);

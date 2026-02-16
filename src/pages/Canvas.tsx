@@ -129,6 +129,32 @@ const Canvas = () => {
     toggleLockNode,
   } = useCanvasMode();
 
+  // Keyboard shortcuts for mode switching and cancellation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        setCanvasMode('edit');
+      } else if (e.key === 'b' || e.key === 'B') {
+        e.preventDefault();
+        setCanvasMode('browse');
+      } else if (e.key === 'Escape') {
+        if (linkModeSourceId) {
+          setLinkModeSourceId(null);
+        } else if (selectedNodeId) {
+          setSelectedNodeId(null);
+          setStructureToolbarPos(null);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setCanvasMode, linkModeSourceId, selectedNodeId, setSelectedNodeId]);
+
   // Get engagements for current company with talent data
   const companyEngagements = account ? mockEngagements
     .filter((eng) => eng.companyId === account.id)
@@ -818,9 +844,10 @@ const Canvas = () => {
             </div>
             <p className="text-muted-foreground">
               {isEditMode 
-                ? "Click to select • Drag to reposition • Double-click to view profile"
-                : "Drag nodes to reposition • Click to see details"
+                ? "Click to select • Drag to reposition • Link/Unlink via toolbar"
+                : "Click to select • Double-click to view profile • Drag background to pan"
               }
+              <span className="ml-3 text-xs opacity-60">Press E / B to switch mode</span>
             </p>
           </div>
         </div>

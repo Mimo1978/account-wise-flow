@@ -847,18 +847,15 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       if (gen !== undefined && gen !== edgeRebuildGenRef.current) return;
 
       const BLUE = "hsl(221 83% 53%)";
-      const BLUE_LIGHT = "hsl(221 83% 70%)";
 
-      // Draw vertical parent→child edges (blue)
-      contactNodesRef.current.forEach((childData, childId) => {
-        const parentId = parentMap.get(childId);
-        if (parentId && contactNodesRef.current.has(parentId)) {
-          const parentData = contactNodesRef.current.get(parentId)!;
-          const parentCenter = parentData.group.getCenterPoint();
-          const childCenter = childData.group.getCenterPoint();
-          const line = new Line([parentCenter.x, parentCenter.y + NODE_H / 2, childCenter.x, childCenter.y - NODE_H / 2], {
+      // 1. Single vertical line: company icon → root contact only
+      if (rootContactId) {
+        const rootData = contactNodesRef.current.get(rootContactId);
+        if (rootData) {
+          const rootCenter = rootData.group.getCenterPoint();
+          const line = new Line([cw / 2, COMPANY_Y + 40, rootCenter.x, rootCenter.y - NODE_H / 2], {
             stroke: BLUE,
-            strokeWidth: 2,
+            strokeWidth: 3,
             selectable: false,
             evented: false,
           });
@@ -866,25 +863,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           canvas.sendObjectToBack(line);
           hierarchyLinesRef.current.push(line);
           if (animated) animateDrawIn(canvas, line, 200);
-        } else if (parentId === null || parentId === undefined) {
-          // Root node → draw line from company icon
-          if (childId === rootContactId) {
-            const childCenter = childData.group.getCenterPoint();
-            const line = new Line([cw / 2, COMPANY_Y + 40, childCenter.x, childCenter.y - NODE_H / 2], {
-              stroke: BLUE,
-              strokeWidth: 3,
-              selectable: false,
-              evented: false,
-            });
-            canvas.add(line);
-            canvas.sendObjectToBack(line);
-            hierarchyLinesRef.current.push(line);
-            if (animated) animateDrawIn(canvas, line, 200);
-          }
         }
-      });
+      }
 
-      // Draw horizontal sibling connectors (blue, lighter)
+      // 2. Horizontal sibling connectors only (left ↔ right between adjacent siblings)
       childrenMap.forEach((siblings) => {
         if (siblings.length < 2) return;
         for (let i = 0; i < siblings.length - 1; i++) {
@@ -897,8 +879,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
             leftCenter.x + NODE_W / 2, leftCenter.y,
             rightCenter.x - NODE_W / 2, rightCenter.y,
           ], {
-            stroke: BLUE_LIGHT,
-            strokeWidth: 1.5,
+            stroke: BLUE,
+            strokeWidth: 2,
             selectable: false,
             evented: false,
           });

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2, Wand2, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
@@ -83,6 +83,10 @@ const Canvas = () => {
     insertAsSibling,
     insertAsParent,
     wouldCreateCycle,
+    autoArrangeBySeniority,
+    undoAutoArrange,
+    canUndo,
+    isAutoArranging,
   } = useOrgChartEdges({ companyId: account?.id });
 
   // Handle highlight param from navigation
@@ -307,9 +311,44 @@ const Canvas = () => {
     }
   }, [setParent, insertAsSibling, insertAsParent]);
 
+  const handleAutoArrange = useCallback(async () => {
+    if (!account) return;
+    try {
+      await autoArrangeBySeniority(account.contacts.map(c => ({ id: c.id, title: c.title })));
+      toast.success("Contacts arranged by seniority — most senior at top");
+    } catch (err) {
+      toast.error("Failed to auto-arrange");
+    }
+  }, [account, autoArrangeBySeniority]);
+
+  const handleUndoArrange = useCallback(async () => {
+    try {
+      await undoAutoArrange();
+      toast.success("Arrangement reverted");
+    } catch (err) {
+      toast.error("Failed to undo");
+    }
+  }, [undoAutoArrange]);
+
   // Build toolbar actions
   const toolbarActions: ToolbarAction[] = useMemo(() => {
     const actions: ToolbarAction[] = [];
+    actions.push({
+      id: "auto-arrange",
+      label: isAutoArranging ? "Arranging..." : "Auto-Arrange",
+      icon: <Wand2 className="w-4 h-4" />,
+      onClick: handleAutoArrange,
+      priority: "secondary",
+    });
+    if (canUndo) {
+      actions.push({
+        id: "undo-arrange",
+        label: "Undo Arrange",
+        icon: <Undo2 className="w-4 h-4" />,
+        onClick: handleUndoArrange,
+        priority: "secondary",
+      });
+    }
     actions.push({
       id: "org-chart",
       label: "Build Org Chart",
@@ -358,7 +397,7 @@ const Canvas = () => {
       priority: "critical",
     });
     return actions;
-  }, [isRoleSuggestionsOpen, isAIInsightsOpen, isAIKnowledgeOpen]);
+  }, [isRoleSuggestionsOpen, isAIInsightsOpen, isAIKnowledgeOpen, handleAutoArrange, handleUndoArrange, canUndo, isAutoArranging]);
 
   const toolbarLeftContent = account ? (
     <>

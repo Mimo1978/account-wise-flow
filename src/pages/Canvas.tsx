@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2, Link2, Unlink, Lock, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
@@ -39,6 +39,9 @@ import { OnboardingModal } from "@/components/onboarding/OnboardingModal";
 import { GuidedTooltips } from "@/components/onboarding/GuidedTooltips";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { useCompanyCanvas } from "@/hooks/use-company-canvas";
+import { useCanvasMode } from "@/hooks/use-canvas-mode";
+import { CanvasModeToggle } from "@/components/canvas/CanvasModeToggle";
+import { StructureToolbar } from "@/components/canvas/StructureToolbar";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 const Canvas = () => {
@@ -54,6 +57,7 @@ const Canvas = () => {
   } = useOnboarding();
   
   const { currentWorkspace } = useWorkspace();
+  // Use the company canvas hook instead of mock data
   const { 
     account: loadedAccount, 
     accounts: allAccounts, 
@@ -63,14 +67,17 @@ const Canvas = () => {
     setAccount: setLoadedAccount,
   } = useCompanyCanvas({ fallbackToMock: true });
   
+  // Local account state for canvas operations
   const [account, setAccount] = useState<Account | null>(null);
   
+  // Sync loaded account to local state
   useEffect(() => {
     if (loadedAccount) {
       setAccount(loadedAccount);
     }
   }, [loadedAccount]);
 
+  // Handle highlight param from navigation (e.g. after org chart import)
   useEffect(() => {
     const highlightParam = searchParams.get("highlight");
     if (highlightParam && account) {
@@ -83,12 +90,12 @@ const Canvas = () => {
         }, 500);
         setTimeout(() => setHighlightedContactIds([]), 10000);
         toast.success(`${ids.length} contacts imported and displayed on canvas`);
+        // Remove highlight param from URL
         searchParams.delete("highlight");
         setSearchParams(searchParams, { replace: true });
       }
     }
   }, [searchParams, account]);
-
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -108,6 +115,18 @@ const Canvas = () => {
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [showTalentPanel, setShowTalentPanel] = useState(false);
   const canvasRef = useRef<AccountCanvasRef>(null);
+  const [structureToolbarPos, setStructureToolbarPos] = useState<{ x: number; y: number } | null>(null);
+  
+  // Canvas interaction mode
+  const {
+    mode: canvasMode,
+    isEditMode,
+    setMode: setCanvasMode,
+    selectedNodeId,
+    setSelectedNodeId,
+    lockedNodeIds,
+    toggleLockNode,
+  } = useCanvasMode();
 
   // Get engagements for current company with talent data
   const companyEngagements = account ? mockEngagements
@@ -119,6 +138,7 @@ const Canvas = () => {
     .filter((eng) => eng.talent) as (TalentEngagement & { talent: Talent })[] : [];
 
   const handleCompanySwitch = (newAccount: Account) => {
+    // If there are unsaved changes, show confirmation dialog
     if (hasUnsavedChanges) {
       setPendingCompany(newAccount);
       setShowCompanySaveDialog(true);
@@ -128,14 +148,21 @@ const Canvas = () => {
   };
 
   const performCompanySwitch = (newAccount: Account) => {
+    // Clear any open contact card
     setSelectedContact(null);
     setIsExpanded(false);
     setHasUnsavedChanges(false);
+    
+    // Reset the canvas search
     canvasRef.current?.clearSearch();
+    
+    // Use the hook's switch function to navigate with URL
     switchCompany(newAccount);
+    
     toast.success(`Switched to ${newAccount.name}`);
   };
   
+  // Back to companies handler
   const handleBackToCompanies = () => {
     navigate('/companies');
   };
@@ -163,7 +190,10 @@ const Canvas = () => {
   };
 
   const handleContactClick = (contact: Contact) => {
+    // If clicking the same contact, do nothing
     if (selectedContact?.id === contact.id) return;
+
+    // If there are unsaved changes, show confirmation dialog
     if (hasUnsavedChanges) {
       setPendingContact(contact);
       setShowSaveDialog(true);
@@ -174,6 +204,7 @@ const Canvas = () => {
   };
 
   const handleSaveAndSwitch = () => {
+    // In real implementation, save the changes here
     toast.success("Changes saved");
     setSelectedContact(pendingContact);
     setPendingContact(null);
@@ -213,6 +244,7 @@ const Canvas = () => {
 
   const handleHighlightContacts = useCallback((contactIds: string[]) => {
     setHighlightedContactIds(contactIds);
+    // Also call the canvas method directly for immediate visual feedback
     canvasRef.current?.highlightContacts(contactIds);
   }, []);
 
@@ -226,6 +258,7 @@ const Canvas = () => {
   }, [hasUnsavedChanges]);
 
   const handleGlobalSelectContact = useCallback((contact: Contact, selectedAccount: Account) => {
+    // If the contact is from a different company, switch to that company first
     if (account && selectedAccount.id !== account.id) {
       if (hasUnsavedChanges) {
         toast.info("Please save or discard changes before switching companies");
@@ -233,9 +266,13 @@ const Canvas = () => {
       }
       performCompanySwitch(selectedAccount);
     }
+    
+    // Set the selected contact and switch to canvas view
     setSelectedContact(contact);
     setViewMode("canvas");
     setIsExpanded(false);
+    
+    // Highlight the contact on the canvas
     canvasRef.current?.highlightContacts([contact.id]);
     setHighlightedContactIds([contact.id]);
   }, [account?.id, hasUnsavedChanges]);
@@ -250,15 +287,28 @@ const Canvas = () => {
     setShowTalentPanel(false);
   };
 
-  // Handle parent reassignment from tree drag-drop
-  const handleSetParent = useCallback(async (childContactId: string, parentContactId: string | null) => {
+  // Handle node selection in edit mode
+  const handleNodeSelect = useCallback((contactId: string | null) => {
+    setSelectedNodeId(contactId);
+    if (contactId && canvasRef.current) {
+      const pos = canvasRef.current.getNodeScreenPosition(contactId);
+      setStructureToolbarPos(pos);
+    } else {
+      setStructureToolbarPos(null);
+    }
+  }, [setSelectedNodeId]);
+
+  // Handle snap-to-parent edge creation — sets manager_id on the child contact
+  const handleSnapEdgeCreate = useCallback(async (childContactId: string, parentContactId: string) => {
     if (!currentWorkspace) return;
     try {
+      // Clear any existing parent first (one manager rule)
       await supabase
         .from('contacts')
         .update({ manager_id: parentContactId } as any)
         .eq('id', childContactId);
       
+      // Update local state so canvas re-renders with correct hierarchy
       setAccount((prev) => {
         if (!prev) return prev;
         return {
@@ -269,68 +319,49 @@ const Canvas = () => {
         };
       });
       
-      if (parentContactId) {
-        toast.success("Hierarchy updated");
-      } else {
-        toast.success("Moved to top level");
-      }
+      toast.success("Reporting relationship created");
     } catch (err) {
-      console.error('Failed to set parent:', err);
-      toast.error("Failed to update hierarchy");
+      console.error('Failed to set manager:', err);
+      toast.error("Failed to create relationship");
     }
   }, [currentWorkspace]);
 
-  // Set a contact as CEO (structural root under company)
-  const handleSetCeo = useCallback(async (contactId: string) => {
-    if (!account) return;
+  // Unlink a contact from its manager
+  const handleUnlinkFromManager = useCallback(async (contactId: string) => {
     try {
-      const oldCeoId = account.ceoContactId;
-
-      // Update company's ceo_contact_id
-      await supabase
-        .from('companies')
-        .update({ ceo_contact_id: contactId } as any)
-        .eq('id', account.id);
-
-      // New CEO reports to no one (root)
       await supabase
         .from('contacts')
         .update({ manager_id: null } as any)
         .eq('id', contactId);
-
-      // If there was a previous CEO, make them report to the new CEO
-      if (oldCeoId && oldCeoId !== contactId) {
-        await supabase
-          .from('contacts')
-          .update({ manager_id: contactId } as any)
-          .eq('id', oldCeoId);
-      }
-
+      
       setAccount((prev) => {
         if (!prev) return prev;
         return {
           ...prev,
-          ceoContactId: contactId,
-          contacts: prev.contacts.map(c => {
-            if (c.id === contactId) return { ...c, managerId: null };
-            if (c.id === oldCeoId) return { ...c, managerId: contactId };
-            return c;
-          }),
+          contacts: prev.contacts.map(c =>
+            c.id === contactId ? { ...c, managerId: null } : c
+          ),
         };
       });
-
-      const contactName = account.contacts.find(c => c.id === contactId)?.name || "Contact";
-      toast.success(`${contactName} set as structural root`);
+      
+      toast.success("Manager relationship removed");
     } catch (err) {
-      console.error('Failed to set CEO:', err);
-      toast.error("Failed to set structural root");
+      console.error('Failed to unlink manager:', err);
+      toast.error("Failed to remove relationship");
     }
-  }, [account]);
+  }, []);
 
-  // Build toolbar actions
+  // Get selected contact for structure toolbar actions
+  const selectedNodeContact = useMemo(() => {
+    if (!selectedNodeId || !account) return null;
+    return account.contacts.find(c => c.id === selectedNodeId) || null;
+  }, [selectedNodeId, account]);
+
+  // Build toolbar actions with proper priority grouping
   const toolbarActions: ToolbarAction[] = useMemo(() => {
     const actions: ToolbarAction[] = [];
 
+    // Secondary actions (can overflow into "More" menu)
     actions.push({
       id: "org-chart",
       label: "Build Org Chart",
@@ -366,6 +397,7 @@ const Canvas = () => {
       priority: "secondary",
     });
 
+    // Critical actions (always visible)
     actions.push({
       id: "import",
       label: "Import Contacts",
@@ -387,8 +419,10 @@ const Canvas = () => {
     return actions;
   }, [isRoleSuggestionsOpen, isAIInsightsOpen, isAIKnowledgeOpen]);
 
+  // Left side content for the toolbar
   const toolbarLeftContent = account ? (
     <>
+      {/* Back Button */}
       <Button
         variant="ghost"
         size="sm"
@@ -420,6 +454,7 @@ const Canvas = () => {
       />
       <div className="h-6 w-px bg-border shrink-0" />
       
+      {/* Talent Overlay Toggle - Only show in canvas mode */}
       {viewMode === "canvas" && companyEngagements.length > 0 && (
         <>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50 shrink-0">
@@ -442,6 +477,7 @@ const Canvas = () => {
         </>
       )}
       
+      {/* View Toggle */}
       <ToggleGroup 
         type="single" 
         value={viewMode} 
@@ -457,9 +493,11 @@ const Canvas = () => {
           <span className="hidden lg:inline">Database</span>
         </ToggleGroupItem>
       </ToggleGroup>
+
     </>
   ) : null;
 
+  // Loading state
   if (isLoadingCompany) {
     return (
       <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center gap-4">
@@ -469,6 +507,7 @@ const Canvas = () => {
     );
   }
 
+  // No company state
   if (!account) {
     return (
       <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center gap-4">
@@ -487,6 +526,7 @@ const Canvas = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-65px)]">
+      {/* Sub-header with context controls */}
       <div 
         data-toolbar-ribbon
         className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-4 py-3 flex items-center gap-3"
@@ -497,8 +537,19 @@ const Canvas = () => {
             actions={toolbarActions}
           />
         </div>
+        {/* Canvas Mode Toggle - always visible in canvas view */}
+        {viewMode === "canvas" && account && (
+          <>
+            <div className="h-6 w-px bg-border shrink-0" />
+            <CanvasModeToggle
+              mode={canvasMode}
+              onModeChange={setCanvasMode}
+            />
+          </>
+        )}
       </div>
 
+      {/* Main Content Area */}
       <main className="flex-1 overflow-hidden relative pointer-events-auto">
         {viewMode === "canvas" ? (
           <AccountCanvas 
@@ -509,8 +560,12 @@ const Canvas = () => {
             highlightedContactIds={highlightedContactIds}
             showTalentOverlay={showTalentOverlay}
             talentEngagements={companyEngagements}
-            onSetParent={handleSetParent}
-            onSetCeo={handleSetCeo}
+            interactionMode={canvasMode}
+            selectedNodeId={selectedNodeId}
+            onNodeSelect={handleNodeSelect}
+            lockedNodeIds={lockedNodeIds}
+            onSnapEdgeCreate={handleSnapEdgeCreate}
+            onUnlinkFromManager={handleUnlinkFromManager}
             workspaceId={currentWorkspace?.id}
           />
         ) : (
@@ -525,7 +580,24 @@ const Canvas = () => {
         )}
       </main>
 
-      {/* Floating Contact Panel */}
+      {/* Structure Toolbar - floating controls in edit mode */}
+      {viewMode === "canvas" && isEditMode && selectedNodeId && structureToolbarPos && (
+        <StructureToolbar
+          position={structureToolbarPos}
+          isLocked={lockedNodeIds.has(selectedNodeId)}
+          onLink={() => { /* Link mode activated via snap – drag node below target */ toast.info("Drag this node below another to create a reporting link"); }}
+          onUnlink={() => { if (selectedNodeId) handleUnlinkFromManager(selectedNodeId); }}
+          onToggleLock={() => toggleLockNode(selectedNodeId)}
+          onViewProfile={() => {
+            const contact = account.contacts.find(c => c.id === selectedNodeId);
+            if (contact) {
+              handleContactClick(contact);
+            }
+          }}
+        />
+      )}
+
+      {/* Floating Contact Panel - Only show in canvas mode */}
       {viewMode === "canvas" && selectedContact && (
         <ContactDetailPanel 
           contact={selectedContact} 
@@ -559,6 +631,7 @@ const Canvas = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Company Switch Save Confirmation Dialog */}
       <AlertDialog open={showCompanySaveDialog} onOpenChange={setShowCompanySaveDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -581,6 +654,7 @@ const Canvas = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Add Contact Modal */}
       <AddContactModal
         open={showAddContactModal}
         onOpenChange={setShowAddContactModal}
@@ -588,6 +662,7 @@ const Canvas = () => {
         companyName={account.name}
       />
 
+      {/* Smart Import Modal */}
       <SmartImportModal
         open={showAIImportModal}
         onOpenChange={setShowAIImportModal}
@@ -598,6 +673,7 @@ const Canvas = () => {
         }}
       />
 
+      {/* Org Chart Builder Modal */}
       <OrgChartBuilderModal
         open={showOrgChartBuilder}
         onOpenChange={setShowOrgChartBuilder}
@@ -606,10 +682,13 @@ const Canvas = () => {
         onImportComplete={(contactIds, _companyId) => {
           setShowOrgChartBuilder(false);
           setViewMode("canvas");
+          // Highlight newly imported contacts on the canvas
           setHighlightedContactIds(contactIds);
+          // Trigger canvas highlight for immediate visual feedback after re-render
           setTimeout(() => {
             canvasRef.current?.highlightContacts(contactIds);
           }, 500);
+          // Clear highlight after 10 seconds
           setTimeout(() => setHighlightedContactIds([]), 10000);
           toast.success(`${contactIds.length} contacts imported and displayed on canvas`);
         }}
@@ -624,6 +703,7 @@ const Canvas = () => {
         />
       )}
 
+      {/* AI Insights Panel */}
       {viewMode === "canvas" && (
         <AIInsightsPanel
           account={account}
@@ -633,6 +713,7 @@ const Canvas = () => {
         />
       )}
 
+      {/* AI Role Suggestions Panel */}
       {viewMode === "canvas" && (
         <AIRoleSuggestionsPanel
           account={account}
@@ -642,13 +723,14 @@ const Canvas = () => {
         />
       )}
 
+      {/* Talent Profile Panel */}
       <TalentProfilePanel
         talent={selectedTalent}
         open={showTalentPanel}
         onClose={handleCloseTalentPanel}
       />
 
-      {/* Bottom Info Bar */}
+      {/* Bottom Info Bar - Only show in canvas mode */}
       {viewMode === "canvas" && (
         <div className="border-t border-border/50 bg-muted/30 px-6 py-3">
           <div className="container mx-auto flex items-center justify-between text-sm">
@@ -671,18 +753,23 @@ const Canvas = () => {
               </div>
             </div>
             <p className="text-muted-foreground">
-              Drag cards to restructure • Drop near a node to reparent • Double-click to view profile
+              {isEditMode 
+                ? "Click to select • Drag to reposition • Double-click to view profile"
+                : "Drag nodes to reposition • Click to see details"
+              }
             </p>
           </div>
         </div>
       )}
 
+      {/* Onboarding Modal */}
       <OnboardingModal
         open={showOnboardingModal}
         onComplete={completeOnboarding}
         onSkip={skipOnboarding}
       />
 
+      {/* Guided Tooltips */}
       {showTooltips && (
         <GuidedTooltips
           onComplete={completeTooltips}

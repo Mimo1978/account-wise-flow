@@ -65,7 +65,7 @@ export const AlertsTriggersSection: React.FC<AlertsTriggersSectionProps> = ({
       const alertsList: Alert[] = [];
 
       companies?.forEach(company => {
-        const contacts = Array.isArray(company.contacts) ? company.contacts : [];
+        const contacts = company.contacts || [];
         
         // Check for quiet accounts (no updates in 60+ days)
         const lastUpdate = contacts.length > 0 

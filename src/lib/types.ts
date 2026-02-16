@@ -105,7 +105,6 @@ export interface Account {
   dataQuality?: DataQuality;
   aiSummary?: string;
   logo?: string;
-  ceoContactId?: string | null;
 }
 
 export interface Department {

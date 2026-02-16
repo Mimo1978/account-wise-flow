@@ -580,7 +580,6 @@ export type Database = {
       companies: {
         Row: {
           account_manager: string | null
-          ceo_contact_id: string | null
           created_at: string
           data_quality: string | null
           headquarters: string | null
@@ -599,7 +598,6 @@ export type Database = {
         }
         Insert: {
           account_manager?: string | null
-          ceo_contact_id?: string | null
           created_at?: string
           data_quality?: string | null
           headquarters?: string | null
@@ -618,7 +616,6 @@ export type Database = {
         }
         Update: {
           account_manager?: string | null
-          ceo_contact_id?: string | null
           created_at?: string
           data_quality?: string | null
           headquarters?: string | null
@@ -635,15 +632,7 @@ export type Database = {
           updated_at?: string
           website?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "companies_ceo_contact_id_fkey"
-            columns: ["ceo_contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       company_team_members: {
         Row: {

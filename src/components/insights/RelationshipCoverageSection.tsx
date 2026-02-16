@@ -48,7 +48,7 @@ export const RelationshipCoverageSection: React.FC<RelationshipCoverageSectionPr
 
       // Calculate coverage metrics for each company
       return companies?.map(company => {
-        const contacts = Array.isArray(company.contacts) ? company.contacts : [];
+        const contacts = company.contacts || [];
         const departments = [...new Set(contacts.map(c => c.department).filter(Boolean))];
         const seniorTitles = ['CEO', 'CFO', 'CTO', 'COO', 'VP', 'Director', 'Head', 'President', 'Chief'];
         const seniorContacts = contacts.filter(c => 

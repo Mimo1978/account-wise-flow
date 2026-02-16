@@ -1,15 +1,18 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from "react";
-import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Point, Rect } from "fabric";
+import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Image as FabricImage, Point, Rect } from "fabric";
 import { Account, Contact, Talent, TalentEngagement, EngagementStatus } from "@/lib/types";
-import { toast } from "sonner";
 import { CanvasSearch } from "./CanvasSearch";
 import { CanvasMinimap } from "./CanvasMinimap";
 import { CompanyInfoPopover } from "./CompanyInfoPopover";
-import { buildOrgChartLayout } from "@/lib/seniority-inference";
+import { User, Users } from "lucide-react";
+import { buildOrgChartLayout, SENIORITY_LABELS } from "@/lib/seniority-inference";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TalentEngagementWithData extends TalentEngagement {
   talent: Talent;
 }
+
+export type CanvasInteractionMode = "browse" | "edit";
 
 interface AccountCanvasProps {
   account: Account;
@@ -18,8 +21,12 @@ interface AccountCanvasProps {
   highlightedContactIds?: string[];
   showTalentOverlay?: boolean;
   talentEngagements?: TalentEngagementWithData[];
-  onSetParent?: (childContactId: string, parentContactId: string | null) => void;
-  onSetCeo?: (contactId: string) => void;
+  interactionMode?: CanvasInteractionMode;
+  selectedNodeId?: string | null;
+  onNodeSelect?: (contactId: string | null) => void;
+  lockedNodeIds?: Set<string>;
+  onSnapEdgeCreate?: (fromContactId: string, toContactId: string) => void;
+  onUnlinkFromManager?: (contactId: string) => void;
   workspaceId?: string;
 }
 
@@ -43,15 +50,6 @@ interface TalentNodeData {
   group: Group;
 }
 
-// ── Drop zone types for insertion hints ──
-type DropZone = "child" | "sibling" | "root-replace";
-
-interface DropTarget {
-  contactId: string;
-  zone: DropZone;
-  group: Group;
-}
-
 export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({ 
   account, 
   onContactClick,
@@ -59,8 +57,12 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   highlightedContactIds = [],
   showTalentOverlay = false,
   talentEngagements = [],
-  onSetParent,
-  onSetCeo,
+  interactionMode = "browse",
+  selectedNodeId = null,
+  onNodeSelect,
+  lockedNodeIds = new Set(),
+  onSnapEdgeCreate,
+  onUnlinkFromManager,
   workspaceId,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -72,158 +74,157 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const contactNodesRef = useRef<Map<string, ContactNodeData>>(new Map());
   const talentNodesRef = useRef<Map<string, TalentNodeData>>(new Map());
   const [showCompanyHover, setShowCompanyHover] = useState(false);
+  const [companyHoverPosition, setCompanyHoverPosition] = useState({ x: 0, y: 0 });
   
+  // Refs for interaction mode (so canvas event handlers always have current values)
+  const interactionModeRef = useRef(interactionMode);
+  const selectedNodeIdRef = useRef(selectedNodeId);
+  const lockedNodeIdsRef = useRef(lockedNodeIds);
+  const onNodeSelectRef = useRef(onNodeSelect);
   const onContactClickRef = useRef(onContactClick);
-  useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
-  const onSetParentRef = useRef(onSetParent);
-  useEffect(() => { onSetParentRef.current = onSetParent; }, [onSetParent]);
-  const onSetCeoRef = useRef(onSetCeo);
-  useEffect(() => { onSetCeoRef.current = onSetCeo; }, [onSetCeo]);
   
+  useEffect(() => { interactionModeRef.current = interactionMode; }, [interactionMode]);
+  useEffect(() => { selectedNodeIdRef.current = selectedNodeId; }, [selectedNodeId]);
+  useEffect(() => { lockedNodeIdsRef.current = lockedNodeIds; }, [lockedNodeIds]);
+  useEffect(() => { onNodeSelectRef.current = onNodeSelect; }, [onNodeSelect]);
+  useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
   const companyNodeRef = useRef<Group | null>(null);
   const isCanvasDisposedRef = useRef(false);
   const hierarchyLinesRef = useRef<Line[]>([]);
-  const edgeRebuildGenRef = useRef(0);
   
-  // Drop hint visuals
-  const dropHintRef = useRef<Rect | null>(null);
-  const dropTargetRef = useRef<DropTarget | null>(null);
-  const dropGuideLineRef = useRef<Line | null>(null);
-  
-  // Auto-pan
+  // Smart snap system refs
+  const guideLinesToRef = useRef<Line[]>([]);
+  const snapHighlightRef = useRef<Rect | null>(null);
+  const snapTargetRef = useRef<string | null>(null); // contact id of potential parent
   const autoPanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const activeDragNodeRef = useRef<Group | null>(null);
-  const AUTO_PAN_EDGE = 40;
-  const AUTO_PAN_SPEED = 10;
+  const onSnapEdgeCreateRef = useRef(onSnapEdgeCreate);
+  useEffect(() => { onSnapEdgeCreateRef.current = onSnapEdgeCreate; }, [onSnapEdgeCreate]);
+  const onUnlinkFromManagerRef = useRef(onUnlinkFromManager);
+  useEffect(() => { onUnlinkFromManagerRef.current = onUnlinkFromManager; }, [onUnlinkFromManager]);
   
-  // Layout constants
-  const NODE_W = 180;
-  const NODE_H = 90;
-  const VERTICAL_GAP = 60;
-  const HORIZONTAL_GAP = 40;
-  const SNAP_RADIUS = 50; // px to detect drop target
-  const COMPANY_SNAP_RADIUS = 70;
+  // Snap constants
+  const SNAP_RADIUS = 40; // px radius to trigger "reports to" snap
+  const SNAP_HORIZONTAL_THRESHOLD = 30; // px alignment tolerance
+  const SIBLING_SNAP_THRESHOLD = 25; // px to snap siblings equally spaced
+  const AUTO_PAN_EDGE = 60; // px from viewport edge to start auto-pan
+  const AUTO_PAN_SPEED = 8;
+  const COMPANY_SNAP_RADIUS = 60; // px radius around company node to unlink (make top-level)
   
-  // Hover intent for company node
-  const companyHoverTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isCompanyDraggingRef = useRef(false);
-  const companyDragStartPosRef = useRef<{ x: number; y: number } | null>(null);
-  const HOVER_DELAY = 700;
-  const DRAG_THRESHOLD = 5;
+  // Guide line management
+  const clearGuideLines = useCallback((canvas: FabricCanvas) => {
+    guideLinesToRef.current.forEach(line => {
+      try { canvas.remove(line); } catch {}
+    });
+    guideLinesToRef.current = [];
+    if (snapHighlightRef.current) {
+      try { canvas.remove(snapHighlightRef.current); } catch {}
+      snapHighlightRef.current = null;
+    }
+    snapTargetRef.current = null;
+  }, []);
   
-  // ── Auto-pan near edges ──
+  const addGuideLine = useCallback((canvas: FabricCanvas, x1: number, y1: number, x2: number, y2: number) => {
+    const line = new Line([x1, y1, x2, y2], {
+      stroke: "hsl(221 83% 53%)",
+      strokeWidth: 1,
+      strokeDashArray: [6, 4],
+      selectable: false,
+      evented: false,
+      opacity: 0.7,
+    });
+    canvas.add(line);
+    guideLinesToRef.current.push(line);
+  }, []);
+  
+  const showSnapHighlight = useCallback((canvas: FabricCanvas, targetGroup: Group) => {
+    if (snapHighlightRef.current) {
+      try { canvas.remove(snapHighlightRef.current); } catch {}
+    }
+    const bounds = targetGroup.getBoundingRect();
+    const highlight = new Rect({
+      left: targetGroup.left! - 95,
+      top: targetGroup.top! - 50,
+      width: 190,
+      height: 100,
+      fill: "transparent",
+      stroke: "hsl(221 83% 53%)",
+      strokeWidth: 3,
+      rx: 12,
+      ry: 12,
+      selectable: false,
+      evented: false,
+      opacity: 0.6,
+    });
+    canvas.add(highlight);
+    snapHighlightRef.current = highlight;
+  }, []);
+
+  // Auto-pan when near edges
   const startAutoPan = useCallback((canvas: FabricCanvas, mouseX: number, mouseY: number) => {
     if (autoPanIntervalRef.current) clearInterval(autoPanIntervalRef.current);
+    
     const cw = canvas.width!;
     const ch = canvas.height!;
     let dx = 0, dy = 0;
-    if (mouseX < AUTO_PAN_EDGE) dx = AUTO_PAN_SPEED * ((AUTO_PAN_EDGE - mouseX) / AUTO_PAN_EDGE);
-    else if (mouseX > cw - AUTO_PAN_EDGE) dx = -AUTO_PAN_SPEED * ((mouseX - (cw - AUTO_PAN_EDGE)) / AUTO_PAN_EDGE);
-    if (mouseY < AUTO_PAN_EDGE) dy = AUTO_PAN_SPEED * ((AUTO_PAN_EDGE - mouseY) / AUTO_PAN_EDGE);
-    else if (mouseY > ch - AUTO_PAN_EDGE) dy = -AUTO_PAN_SPEED * ((mouseY - (ch - AUTO_PAN_EDGE)) / AUTO_PAN_EDGE);
+    
+    if (mouseX < AUTO_PAN_EDGE) dx = AUTO_PAN_SPEED;
+    else if (mouseX > cw - AUTO_PAN_EDGE) dx = -AUTO_PAN_SPEED;
+    if (mouseY < AUTO_PAN_EDGE) dy = AUTO_PAN_SPEED;
+    else if (mouseY > ch - AUTO_PAN_EDGE) dy = -AUTO_PAN_SPEED;
+    
     if (dx === 0 && dy === 0) {
-      if (autoPanIntervalRef.current) { clearInterval(autoPanIntervalRef.current); autoPanIntervalRef.current = null; }
+      if (autoPanIntervalRef.current) {
+        clearInterval(autoPanIntervalRef.current);
+        autoPanIntervalRef.current = null;
+      }
       return;
     }
+    
     autoPanIntervalRef.current = setInterval(() => {
       const vpt = canvas.viewportTransform!;
-      vpt[4] += dx; vpt[5] += dy;
-      const dragNode = activeDragNodeRef.current;
-      if (dragNode) {
-        const zoom = canvas.getZoom();
-        dragNode.set({ left: (dragNode.left ?? 0) - dx / zoom, top: (dragNode.top ?? 0) - dy / zoom });
-        dragNode.setCoords();
-      }
+      vpt[4] += dx;
+      vpt[5] += dy;
       canvas.requestRenderAll();
     }, 16);
   }, []);
   
   const stopAutoPan = useCallback(() => {
-    if (autoPanIntervalRef.current) { clearInterval(autoPanIntervalRef.current); autoPanIntervalRef.current = null; }
-  }, []);
-
-  // ── Clear drop hints ──
-  const clearDropHints = useCallback((canvas: FabricCanvas) => {
-    if (dropHintRef.current) { try { canvas.remove(dropHintRef.current); } catch {} dropHintRef.current = null; }
-    if (dropGuideLineRef.current) { try { canvas.remove(dropGuideLineRef.current); } catch {} dropGuideLineRef.current = null; }
-    dropTargetRef.current = null;
-  }, []);
-
-  // ── Show drop hint ──
-  const showDropHint = useCallback((canvas: FabricCanvas, targetGroup: Group, zone: DropZone) => {
-    clearDropHints(canvas);
-    const tc = targetGroup.getCenterPoint();
-    
-    let hintX = tc.x;
-    let hintY = tc.y;
-    let hintW = NODE_W + 20;
-    let hintH = 6;
-    
-    if (zone === "child") {
-      // Below the target
-      hintY = tc.y + NODE_H / 2 + VERTICAL_GAP / 2;
-      hintW = NODE_W;
-      hintH = 6;
-    } else if (zone === "sibling") {
-      // To the right of the target
-      hintX = tc.x + NODE_W / 2 + HORIZONTAL_GAP / 2;
-      hintW = 6;
-      hintH = NODE_H;
-    } else if (zone === "root-replace") {
-      // Highlight company root area
-      hintY = tc.y + 50;
-      hintW = NODE_W;
-      hintH = 6;
+    if (autoPanIntervalRef.current) {
+      clearInterval(autoPanIntervalRef.current);
+      autoPanIntervalRef.current = null;
     }
-    
-    const hint = new Rect({
-      left: hintX - hintW / 2,
-      top: hintY - hintH / 2,
-      width: hintW,
-      height: hintH,
-      fill: "hsl(221 83% 53%)",
-      opacity: 0.6,
-      rx: 3,
-      ry: 3,
-      selectable: false,
-      evented: false,
-    });
-    canvas.add(hint);
-    dropHintRef.current = hint;
-    
-    // Guide line from target to hint
-    const guide = new Line([tc.x, tc.y + NODE_H / 2, hintX, hintY], {
-      stroke: "hsl(221 83% 53%)",
-      strokeWidth: 2,
-      strokeDashArray: [6, 4],
-      selectable: false,
-      evented: false,
-      opacity: 0.5,
-    });
-    canvas.add(guide);
-    dropGuideLineRef.current = guide;
-  }, [clearDropHints]);
+  }, []);
+  
+  // Hover intent tracking for company node
+  const companyHoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isCompanyDraggingRef = useRef(false);
+  const companyDragStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const HOVER_DELAY = 700;
+  const DRAG_THRESHOLD = 5;
 
-  // ── Canvas initialization ──
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
+
     isCanvasDisposedRef.current = false;
+    
     const container = containerRef.current;
     const width = container.clientWidth;
     const height = container.clientHeight;
 
     const canvas = new FabricCanvas(canvasRef.current, {
-      width, height,
+      width,
+      height,
       backgroundColor: "hsl(210 40% 98%)",
       selection: false,
     });
 
-    // Zoom
+    // Enable zoom and pan
     canvas.on('mouse:wheel', (opt) => {
       const delta = opt.e.deltaY;
       let zoom = canvas.getZoom();
       zoom *= 0.999 ** delta;
-      zoom = Math.max(0.3, Math.min(3, zoom));
+      if (zoom > 3) zoom = 3;
+      if (zoom < 0.3) zoom = 0.3;
       canvas.zoomToPoint(new Point(opt.e.offsetX, opt.e.offsetY), zoom);
       opt.e.preventDefault();
       opt.e.stopPropagation();
@@ -231,14 +232,16 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
     // Pan on background drag
     let isDragging = false;
-    let lastPosX = 0, lastPosY = 0;
+    let lastPosX = 0;
+    let lastPosY = 0;
 
     canvas.on('mouse:down', (opt) => {
+      const evt = opt.e as MouseEvent;
       if (!opt.target) {
         isDragging = true;
         canvas.selection = false;
-        lastPosX = (opt.e as MouseEvent).clientX;
-        lastPosY = (opt.e as MouseEvent).clientY;
+        lastPosX = evt.clientX;
+        lastPosY = evt.clientY;
         canvas.setCursor('grab');
       }
     });
@@ -264,12 +267,17 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
     setFabricCanvas(canvas);
 
+    // Handle window resize
     const handleResize = () => {
       if (containerRef.current) {
-        canvas.setDimensions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
+        canvas.setDimensions({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight,
+        });
         canvas.renderAll();
       }
     };
+
     window.addEventListener("resize", handleResize);
 
     return () => {
@@ -279,7 +287,6 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     };
   }, []);
 
-  // ── Main render effect ──
   useEffect(() => {
     if (!fabricCanvas || !account || isCanvasDisposedRef.current) return;
 
@@ -289,22 +296,35 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     hierarchyLinesRef.current = [];
 
     const canvasW = fabricCanvas.width!;
+
+    // ── Build hierarchical layout ──
     const layout = buildOrgChartLayout(account.contacts);
 
-    const EXEC_ROW_Y = 200;
+    // ── Layout constants ──
+    const NODE_W = 180;
+    const NODE_H = 90;
+    const VERTICAL_GAP = 60;
+    const HORIZONTAL_GAP = 40;
     const DEPT_HEADER_H = 30;
+    const EXEC_ROW_Y = 200;
     const DEPT_START_Y = EXEC_ROW_Y + NODE_H + VERTICAL_GAP + 30;
 
     // ── Company node at top ──
     const companyNode = createCompanyNode(account.name, canvasW / 2, 80);
     
+    // Helper to cancel hover timer
     const cancelCompanyHoverTimer = () => {
-      if (companyHoverTimerRef.current) { clearTimeout(companyHoverTimerRef.current); companyHoverTimerRef.current = null; }
+      if (companyHoverTimerRef.current) {
+        clearTimeout(companyHoverTimerRef.current);
+        companyHoverTimerRef.current = null;
+      }
     };
 
     companyNode.on('mouseover', function() {
       if (isCompanyDraggingRef.current) return;
-      (this as FabricObject).set({ shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 4 } });
+      (this as FabricObject).set({ 
+        shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 4 }
+      });
       fabricCanvas.renderAll();
       cancelCompanyHoverTimer();
       companyHoverTimerRef.current = setTimeout(() => {
@@ -319,7 +339,9 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       setShowCompanyHover(false);
     });
 
-    let companyLastPosX = 0, companyLastPosY = 0;
+    let companyLastPosX = 0;
+    let companyLastPosY = 0;
+
     companyNode.on('mousedown', (opt) => {
       const evt = opt.e as MouseEvent;
       companyDragStartPosRef.current = { x: evt.clientX, y: evt.clientY };
@@ -352,21 +374,26 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
     fabricCanvas.on('mouse:up', () => {
       if (companyDragStartPosRef.current) {
-        setTimeout(() => { isCompanyDraggingRef.current = false; companyDragStartPosRef.current = null; }, 100);
+        setTimeout(() => {
+          isCompanyDraggingRef.current = false;
+          companyDragStartPosRef.current = null;
+        }, 100);
       }
     });
 
     companyNodeRef.current = companyNode;
     fabricCanvas.add(companyNode);
 
-    // ── Build hierarchy maps ──
+    // ── Helper: wire up a contact node ──
     const contactMap = new Map<string, Contact>();
     account.contacts.forEach(c => contactMap.set(c.id, c));
 
-    const parentMap = new Map<string, string>();
-    const childrenMap = new Map<string, string[]>();
-    const depthMap = new Map<string, number>();
+    // ── Build hierarchy from manager_id (authoritative source) ──
+    const parentMap = new Map<string, string>(); // child -> parent contact id
+    const childrenMap = new Map<string, string[]>(); // parent -> child contact ids
+    const depthMap = new Map<string, number>(); // contact id -> depth level
 
+    // Build parent/children maps from manager_id
     account.contacts.forEach(c => {
       if (c.managerId) {
         parentMap.set(c.id, c.managerId);
@@ -375,8 +402,9 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       }
     });
 
+    // Compute depth for each contact
     const computeDepth = (id: string, visited = new Set<string>()): number => {
-      if (visited.has(id)) return 0;
+      if (visited.has(id)) return 0; // cycle guard
       visited.add(id);
       if (depthMap.has(id)) return depthMap.get(id)!;
       const parent = parentMap.get(id);
@@ -386,136 +414,224 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     };
     account.contacts.forEach(c => computeDepth(c.id));
 
-    // ── Wire up contact node with tree drag-drop ──
-    const wireContactNode = (contact: Contact, node: Group, x: number, y: number) => {
-      // --- DRAG: show insertion hints ---
-      node.on('moving', function(opt) {
-        activeDragNodeRef.current = node;
-        const center = node.getCenterPoint();
-        
-        // Rebuild edges during drag for real-time visual feedback
-        rebuildAllEdges(fabricCanvas, canvasW);
-        clearDropHints(fabricCanvas);
+    const wireContactNode = (contact: Contact, node: Group, x: number, y: number, depth: number = 0) => {
+      depthMap.set(contact.id, depth);
+      depthMap.set(contact.id, depth);
 
-        // Check proximity to company root
+      node.on('moving', function(opt) {
+        // Only allow movement in edit mode and if not locked
+        if (interactionModeRef.current !== 'edit' || lockedNodeIdsRef.current.has(contact.id)) {
+          node.set({ left: x, top: y });
+          node.setCoords();
+          return;
+        }
+        const center = node.getCenterPoint();
+        // Rebuild all edges from scratch on every move (ephemeral edges)
+        rebuildAllEdges(fabricCanvas, canvasW);
+        
+        // ── Smart Snap System ──
+        clearGuideLines(fabricCanvas);
+        
+        const dragX = center.x;
+        const dragY = center.y;
+        
+        // Check all other nodes for snap relationships
+        let bestParent: { id: string; group: Group; dist: number } | null = null;
+        const alignXMatches: number[] = [];
+        const alignYMatches: number[] = [];
+        
+        // Check company node for root snap (unlink / make top-level)
         if (companyNodeRef.current) {
           const companyCenter = companyNodeRef.current.getCenterPoint();
-          const dist = Math.sqrt(Math.pow(center.x - companyCenter.x, 2) + Math.pow(center.y - companyCenter.y, 2));
-          if (dist < COMPANY_SNAP_RADIUS + NODE_H / 2) {
-            showDropHint(fabricCanvas, companyNodeRef.current, "root-replace");
-            dropTargetRef.current = { contactId: "__company_root__", zone: "root-replace", group: companyNodeRef.current };
-            if (opt.e) startAutoPan(fabricCanvas, (opt.e as MouseEvent).offsetX, (opt.e as MouseEvent).offsetY);
-            fabricCanvas.renderAll();
-            return;
+          const distToCompany = Math.sqrt(
+            Math.pow(dragX - companyCenter.x, 2) + Math.pow(dragY - companyCenter.y, 2)
+          );
+          if (distToCompany < COMPANY_SNAP_RADIUS + NODE_H / 2 && contact.managerId) {
+            // Show highlight on company node
+            showSnapHighlight(fabricCanvas, companyNodeRef.current);
+            addGuideLine(fabricCanvas, companyCenter.x, companyCenter.y + 40, dragX, dragY - NODE_H / 2);
+            snapTargetRef.current = "__company_root__";
           }
         }
-
-        // Find nearest contact node for drop target
-        let bestTarget: { id: string; group: Group; dist: number; zone: DropZone } | null = null;
-
+        
         contactNodesRef.current.forEach((otherData, otherId) => {
           if (otherId === contact.id) return;
           const otherCenter = otherData.group.getCenterPoint();
-          const dx = center.x - otherCenter.x;
-          const dy = center.y - otherCenter.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < SNAP_RADIUS + NODE_H) {
-            // Determine zone: below = child, side = sibling
-            let zone: DropZone;
-            if (dy > NODE_H / 3) {
-              zone = "child"; // dragged node is below target → becomes child
-            } else if (Math.abs(dx) > NODE_W / 3) {
-              zone = "sibling"; // dragged node is beside target → becomes sibling
-            } else {
-              zone = "child"; // default to child
-            }
-
-            if (!bestTarget || dist < bestTarget.dist) {
-              bestTarget = { id: otherId, group: otherData.group, dist, zone };
+          
+          // Check vertical alignment (same X axis)
+          if (Math.abs(dragX - otherCenter.x) < SNAP_HORIZONTAL_THRESHOLD) {
+            alignXMatches.push(otherCenter.x);
+          }
+          
+          // Check horizontal alignment (same Y axis)
+          if (Math.abs(dragY - otherCenter.y) < SIBLING_SNAP_THRESHOLD) {
+            alignYMatches.push(otherCenter.y);
+          }
+          
+          // Check "reports to" – use 40px radius from bottom anchor of target node
+          const targetBottomX = otherCenter.x;
+          const targetBottomY = otherCenter.y + NODE_H / 2;
+          const dragTopY = dragY - NODE_H / 2;
+          const distFromTargetBottom = Math.sqrt(
+            Math.pow(dragX - targetBottomX, 2) + Math.pow(dragTopY - targetBottomY, 2)
+          );
+          
+          if (distFromTargetBottom < SNAP_RADIUS && dragY > otherCenter.y) {
+            if (!bestParent || distFromTargetBottom < bestParent.dist) {
+              bestParent = { id: otherId, group: otherData.group, dist: distFromTargetBottom };
             }
           }
         });
-
-        if (bestTarget) {
-          showDropHint(fabricCanvas, bestTarget.group, bestTarget.zone);
-          dropTargetRef.current = { contactId: bestTarget.id, zone: bestTarget.zone, group: bestTarget.group };
-        }
-
-        if (opt.e) startAutoPan(fabricCanvas, (opt.e as MouseEvent).offsetX, (opt.e as MouseEvent).offsetY);
-        fabricCanvas.renderAll();
-      });
-
-      // --- DROP: commit hierarchy change ---
-      node.on('modified', function() {
-        activeDragNodeRef.current = null;
-        stopAutoPan();
         
-        const target = dropTargetRef.current;
-        clearDropHints(fabricCanvas);
-
-        if (target) {
-          if (target.contactId === "__company_root__") {
-            // Dropped on company root → replace structural root
-            const isCeo = account.ceoContactId === contact.id;
-            if (!isCeo) {
-              toast("Replace the current structural root?", {
-                action: { label: "Set as Root", onClick: () => onSetCeoRef.current?.(contact.id) },
-                duration: 6000,
-              });
-            }
-          } else if (target.zone === "child") {
-            // Become child of target
-            onSetParentRef.current?.(contact.id, target.contactId);
-          } else if (target.zone === "sibling") {
-            // Become sibling: share parent of target
-            const targetContact = contactMap.get(target.contactId);
-            const newParent = targetContact?.managerId || null;
-            onSetParentRef.current?.(contact.id, newParent);
+        // Draw vertical alignment guides
+        alignXMatches.forEach(ax => {
+          addGuideLine(fabricCanvas, ax, dragY - 200, ax, dragY + 200);
+        });
+        
+        // Draw horizontal alignment guides (sibling row)
+        if (alignYMatches.length > 0) {
+          const snapY = alignYMatches[0];
+          addGuideLine(fabricCanvas, dragX - 200, snapY, dragX + 200, snapY);
+        }
+        
+        // Show parent highlight and parent-child axis (takes priority over company snap)
+        if (bestParent) {
+          // Clear any company snap highlight first
+          if (snapTargetRef.current === "__company_root__" && snapHighlightRef.current) {
+            try { fabricCanvas.remove(snapHighlightRef.current); } catch {}
+            snapHighlightRef.current = null;
           }
+          const parentCenter = bestParent.group.getCenterPoint();
+          showSnapHighlight(fabricCanvas, bestParent.group);
+          addGuideLine(fabricCanvas, parentCenter.x, parentCenter.y + NODE_H / 2, dragX, dragY - NODE_H / 2);
+          snapTargetRef.current = bestParent.id;
+        } else if (snapTargetRef.current !== "__company_root__") {
+          snapTargetRef.current = null;
         }
-
-        rebuildAllEdges(fabricCanvas, canvasW);
+        
+        // Auto-pan near edges
+        if (opt.e) {
+          const evt = opt.e as MouseEvent;
+          startAutoPan(fabricCanvas, evt.offsetX, evt.offsetY);
+        }
+        
+        fabricCanvas.renderAll();
+      });
+      
+      // On drop: clear guides, create edge if snapped, persist position
+      node.on('modified', function() {
+        stopAutoPan();
+        clearGuideLines(fabricCanvas);
+        
+        if (interactionModeRef.current !== 'edit') return;
+        
+        // If snapped to company root, unlink from manager (make top-level)
+        if (snapTargetRef.current === "__company_root__") {
+          // Animate edges, then fire DB update (no delay on DB side)
+          rebuildAllEdges(fabricCanvas, canvasW, true);
+          if (companyNodeRef.current) pulseNode(fabricCanvas, companyNodeRef.current);
+          onUnlinkFromManagerRef.current?.(contact.id);
+          snapTargetRef.current = null;
+        } else if (snapTargetRef.current) {
+          // Snapped to another contact — set as manager
+          const targetData = contactNodesRef.current.get(snapTargetRef.current);
+          rebuildAllEdges(fabricCanvas, canvasW, true);
+          if (targetData) pulseNode(fabricCanvas, targetData.group);
+          onSnapEdgeCreateRef.current?.(contact.id, snapTargetRef.current);
+          snapTargetRef.current = null;
+        }
+        
         fabricCanvas.renderAll();
       });
 
-      // --- Hover: hierarchy highlighting ---
       node.on('mouseover', function() {
-        (this as FabricObject).set({ shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 } });
-        
+        (this as FabricObject).set({ 
+          shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 }
+        });
+
+        // ── Hierarchy hover highlighting ──
+        // Build ancestor chain (manager chain upward)
         const ancestors = new Set<string>();
         let current = contact.id;
-        while (parentMap.has(current)) { current = parentMap.get(current)!; ancestors.add(current); }
+        while (parentMap.has(current)) {
+          current = parentMap.get(current)!;
+          ancestors.add(current);
+        }
 
+        // Build descendant set (direct reports downward)
         const descendants = new Set<string>();
-        const collectDesc = (id: string) => {
-          (childrenMap.get(id) || []).forEach(kid => { descendants.add(kid); collectDesc(kid); });
+        const collectDescendants = (id: string) => {
+          const kids = childrenMap.get(id) || [];
+          kids.forEach(kid => {
+            descendants.add(kid);
+            collectDescendants(kid);
+          });
         };
-        collectDesc(contact.id);
+        collectDescendants(contact.id);
 
+        const related = new Set([contact.id, ...ancestors, ...descendants]);
+
+        // Apply highlighting to all nodes
         contactNodesRef.current.forEach((otherData, otherId) => {
-          if (otherId === contact.id) return;
+          const otherCardBg = otherData.group.getObjects()[0] as Rect;
+          if (otherId === contact.id) return; // skip hovered node itself
+          
           if (ancestors.has(otherId) || descendants.has(otherId)) {
+            // Bold highlight related nodes
             otherData.group.set({ opacity: 1 });
           } else {
+            // Fade unrelated nodes
             otherData.group.set({ opacity: 0.8 });
           }
         });
 
-        hierarchyLinesRef.current.forEach(l => l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 }));
+        // Bold hierarchy lines for related nodes
+        hierarchyLinesRef.current.forEach(l => {
+          l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 });
+        });
         fabricCanvas.renderAll();
       });
 
       node.on('mouseout', function() {
-        (this as FabricObject).set({ shadow: null });
-        contactNodesRef.current.forEach((otherData) => otherData.group.set({ opacity: 1 }));
-        hierarchyLinesRef.current.forEach(l => l.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 }));
+        // Don't clear selection highlight in edit mode
+        if (interactionModeRef.current === 'edit' && selectedNodeIdRef.current === contact.id) {
+          (this as FabricObject).set({ shadow: null });
+        } else {
+          (this as FabricObject).set({ shadow: null });
+        }
+
+        // Reset all nodes to normal
+        contactNodesRef.current.forEach((otherData, otherId) => {
+          otherData.group.set({ opacity: 1 });
+        });
+
+        // Reset all hierarchy lines to depth-based defaults
+        rebuildAllEdges(fabricCanvas, canvasW);
         fabricCanvas.renderAll();
       });
 
-      // --- Click / double-click ---
+      node.on('mousedown', () => {
+        if (interactionModeRef.current === 'edit') {
+          // In edit mode: select node, don't open profile
+          onNodeSelectRef.current?.(contact.id);
+        } else {
+          // In browse mode: open profile (existing behavior)
+          onContactClickRef.current(contact);
+        }
+      });
+
       node.on('mousedblclick', () => {
-        onContactClickRef.current(contact);
+        if (interactionModeRef.current === 'edit') {
+          // In edit mode, double-click opens profile
+          onContactClickRef.current(contact);
+        } else {
+          const center = node.getCenterPoint();
+          fabricCanvas.setZoom(1.5);
+          const vpt = fabricCanvas.viewportTransform!;
+          vpt[4] = canvasW / 2 - center.x * 1.5;
+          vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
+          fabricCanvas.renderAll();
+        }
       });
 
       fabricCanvas.add(node);
@@ -534,6 +650,37 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     };
 
     // ── Animation helpers ──
+    const animateFadeOut = (canvas: FabricCanvas, line: Line, duration: number = 150): Promise<void> => {
+      return new Promise(resolve => {
+        const steps = Math.max(1, Math.round(duration / 16));
+        let step = 0;
+        const initialOpacity = line.opacity ?? 1;
+        // Retract: animate x2/y2 toward x1/y1
+        const startX2 = line.x2!;
+        const startY2 = line.y2!;
+        const endX2 = line.x1!;
+        const endY2 = line.y1!;
+        const tick = () => {
+          step++;
+          const t = step / steps;
+          line.set({
+            opacity: initialOpacity * (1 - t),
+            x2: startX2 + (endX2 - startX2) * t,
+            y2: startY2 + (endY2 - startY2) * t,
+          });
+          line.setCoords();
+          canvas.requestRenderAll();
+          if (step < steps) {
+            requestAnimationFrame(tick);
+          } else {
+            try { canvas.remove(line); } catch {}
+            resolve();
+          }
+        };
+        requestAnimationFrame(tick);
+      });
+    };
+
     const animateDrawIn = (canvas: FabricCanvas, line: Line, duration: number = 200) => {
       const targetX2 = line.x2!;
       const targetY2 = line.y2!;
@@ -546,61 +693,65 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const tick = () => {
         step++;
         const t = step / steps;
+        // Ease-out quad
         const eased = 1 - (1 - t) * (1 - t);
-        line.set({ x2: startX + (targetX2 - startX) * eased, y2: startY + (targetY2 - startY) * eased, opacity: eased });
+        line.set({
+          x2: startX + (targetX2 - startX) * eased,
+          y2: startY + (targetY2 - startY) * eased,
+          opacity: eased,
+        });
         line.setCoords();
         canvas.requestRenderAll();
         if (step < steps) requestAnimationFrame(tick);
-        else { line.set({ opacity: 1 }); canvas.requestRenderAll(); }
+        else {
+          line.set({ opacity: 1 });
+          canvas.requestRenderAll();
+        }
       };
       requestAnimationFrame(tick);
     };
 
     const pulseNode = (canvas: FabricCanvas, group: Group) => {
-      const steps = 20;
+      const steps = 20; // ~320ms
       let step = 0;
       const tick = () => {
         step++;
         const t = step / steps;
+        // Pulse up then down
         const intensity = t < 0.5 ? t * 2 : (1 - t) * 2;
-        group.set({ shadow: { color: 'hsl(221 83% 53%)', blur: 10 + intensity * 20, offsetX: 0, offsetY: 0 } });
+        group.set({
+          shadow: { color: 'hsl(221 83% 53%)', blur: 10 + intensity * 20, offsetX: 0, offsetY: 0 },
+        });
         canvas.requestRenderAll();
         if (step < steps) requestAnimationFrame(tick);
-        else { group.set({ shadow: null }); canvas.requestRenderAll(); }
+        else {
+          group.set({ shadow: null });
+          canvas.requestRenderAll();
+        }
       };
       requestAnimationFrame(tick);
     };
 
-    // ── Orthogonal edge helper ──
-    const createOrthogonalEdge = (
-      canvas: FabricCanvas, x1: number, y1: number, x2: number, y2: number,
-      strokeColor: string, strokeWidth: number, animated: boolean,
-    ) => {
-      const midY = y1 + (y2 - y1) / 2;
-      const segments = [[x1, y1, x1, midY], [x1, midY, x2, midY], [x2, midY, x2, y2]];
-      segments.forEach(([sx1, sy1, sx2, sy2]) => {
-        const line = new Line([sx1, sy1, sx2, sy2], {
-          stroke: strokeColor, strokeWidth, selectable: false, evented: false,
-        });
-        canvas.add(line);
-        canvas.sendObjectToBack(line);
-        hierarchyLinesRef.current.push(line);
-        if (animated) animateDrawIn(canvas, line, 200);
-      });
-    };
-
-    // ── Ephemeral edge rebuild ──
+    // ── Ephemeral edge rebuild: clears all hierarchy lines and redraws from manager_id ──
+    // animated=true triggers transition animations (used after relationship changes)
     const rebuildAllEdges = (canvas: FabricCanvas, cw: number, animated: boolean = false) => {
-      const gen = ++edgeRebuildGenRef.current;
+      // 1. Fade out and remove old lines
       const oldLines = [...hierarchyLinesRef.current];
       hierarchyLinesRef.current = [];
-      oldLines.forEach(line => { try { canvas.remove(line); } catch {} });
-      drawFreshEdges(canvas, cw, animated, gen);
+
+      if (animated && oldLines.length > 0) {
+        // Animate old lines out, then draw new ones in
+        oldLines.forEach(line => animateFadeOut(canvas, line, 150));
+        // Small delay so fade-out is visible before draw-in
+        setTimeout(() => drawFreshEdges(canvas, cw, true), 100);
+      } else {
+        // Instant: remove old, draw new
+        oldLines.forEach(line => { try { canvas.remove(line); } catch {} });
+        drawFreshEdges(canvas, cw, false);
+      }
     };
 
-    const drawFreshEdges = (canvas: FabricCanvas, cw: number, animated: boolean, gen: number) => {
-      if (gen !== edgeRebuildGenRef.current) return;
-
+    const drawFreshEdges = (canvas: FabricCanvas, cw: number, animated: boolean) => {
       contactNodesRef.current.forEach((childData, childId) => {
         const contact = childData.contact;
         if (contact.managerId && contactNodesRef.current.has(contact.managerId)) {
@@ -610,40 +761,33 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           const depth = depthMap.get(childId) || 1;
           const baseStrokeWidth = depth === 0 ? 3 : 2;
           const lightness = Math.min(91 + depth * 1, 95);
-
-          const px = parentCenter.x, py = parentCenter.y + NODE_H / 2;
-          const cx = childCenter.x, cy = childCenter.y - NODE_H / 2;
-
-          if (Math.abs(px - cx) < 4) {
-            const line = new Line([px, py, cx, cy], {
-              stroke: `hsl(214 32% ${lightness}%)`, strokeWidth: baseStrokeWidth, selectable: false, evented: false,
-            });
-            canvas.add(line); canvas.sendObjectToBack(line);
-            hierarchyLinesRef.current.push(line);
-            if (animated) animateDrawIn(canvas, line, 200);
-          } else {
-            createOrthogonalEdge(canvas, px, py, cx, cy, `hsl(214 32% ${lightness}%)`, baseStrokeWidth, animated);
-          }
-        } else if (!contact.managerId && account.ceoContactId === childId) {
+          const line = new Line([parentCenter.x, parentCenter.y + NODE_H / 2, childCenter.x, childCenter.y - NODE_H / 2], {
+            stroke: `hsl(214 32% ${lightness}%)`,
+            strokeWidth: baseStrokeWidth,
+            selectable: false,
+            evented: false,
+          });
+          canvas.add(line);
+          canvas.sendObjectToBack(line);
+          hierarchyLinesRef.current.push(line);
+          if (animated) animateDrawIn(canvas, line, 200);
+        } else if (!contact.managerId) {
           const childCenter = childData.group.getCenterPoint();
-          const px = cw / 2, py = 120;
-          const cx = childCenter.x, cy = childCenter.y - NODE_H / 2;
-
-          if (Math.abs(px - cx) < 4) {
-            const line = new Line([px, py, cx, cy], {
-              stroke: `hsl(214 32% 91%)`, strokeWidth: 3, selectable: false, evented: false,
-            });
-            canvas.add(line); canvas.sendObjectToBack(line);
-            hierarchyLinesRef.current.push(line);
-            if (animated) animateDrawIn(canvas, line, 200);
-          } else {
-            createOrthogonalEdge(canvas, px, py, cx, cy, `hsl(214 32% 91%)`, 3, animated);
-          }
+          const line = new Line([cw / 2, 120, childCenter.x, childCenter.y - NODE_H / 2], {
+            stroke: `hsl(214 32% 91%)`,
+            strokeWidth: 3,
+            selectable: false,
+            evented: false,
+          });
+          canvas.add(line);
+          canvas.sendObjectToBack(line);
+          hierarchyLinesRef.current.push(line);
+          if (animated) animateDrawIn(canvas, line, 200);
         }
       });
     };
 
-    // ── Place executives row ──
+    // ── Place executives row (C-suite) ──
     const execCount = layout.executives.length;
     if (execCount > 0) {
       const execTotalW = execCount * NODE_W + (execCount - 1) * HORIZONTAL_GAP;
@@ -654,8 +798,9 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         const y = EXEC_ROW_Y;
         const contact = contactMap.get(exec.contactId);
         if (!contact) return;
+
         const node = createContactNode(contact, x, y);
-        wireContactNode(contact, node, x, y);
+        wireContactNode(contact, node, x, y, depthMap.get(contact.id) || 0);
       });
     }
 
@@ -668,10 +813,17 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       layout.departments.forEach((dept, deptIdx) => {
         const deptX = deptStartX + deptIdx * (NODE_W + HORIZONTAL_GAP * 2);
 
+        // Department label
         const deptLabel = new Text(dept.name, {
-          fontSize: 11, fontWeight: "bold", fill: "hsl(215 16% 47%)",
-          left: deptX, top: DEPT_START_Y - 10, originX: "center", originY: "center",
-          selectable: false, evented: false,
+          fontSize: 11,
+          fontWeight: "bold",
+          fill: "hsl(215 16% 47%)",
+          left: deptX,
+          top: DEPT_START_Y - 10,
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
         });
         fabricCanvas.add(deptLabel);
 
@@ -679,21 +831,59 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           const y = DEPT_START_Y + DEPT_HEADER_H + nodeIdx * (NODE_H + VERTICAL_GAP);
           const contact = contactMap.get(orgNode.contactId);
           if (!contact) return;
+
           const node = createContactNode(contact, deptX, y);
-          wireContactNode(contact, node, deptX, y);
+          wireContactNode(contact, node, deptX, y, depthMap.get(contact.id) || 0);
         });
       });
     }
 
-    // ── Draw initial edges ──
+    // ── Draw initial edges from manager_id (ephemeral) ──
     rebuildAllEdges(fabricCanvas, canvasW);
+
     fabricCanvas.renderAll();
   }, [fabricCanvas, account]);
 
-  // ── Talent overlay ──
+  // Effect: highlight selected node and its edges in edit mode
   useEffect(() => {
     if (!fabricCanvas) return;
-    talentNodesRef.current.forEach(({ group }) => fabricCanvas.remove(group));
+
+    contactNodesRef.current.forEach((nodeData, id) => {
+      const { group } = nodeData;
+      const cardBg = group.getObjects()[0] as Rect;
+
+      if (interactionMode === "edit" && selectedNodeId === id) {
+        cardBg.set({ stroke: "hsl(221 83% 53%)", strokeWidth: 3 });
+        group.set({ opacity: 1 });
+      } else if (interactionMode === "edit" && selectedNodeId) {
+        cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
+        group.set({ opacity: 0.9 });
+      } else {
+        cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
+        group.set({ opacity: 1 });
+      }
+    });
+
+    // Style hierarchy lines based on selection
+    hierarchyLinesRef.current.forEach(l => {
+      if (interactionMode === "edit" && selectedNodeId) {
+        l.set({ stroke: 'hsl(214 32% 91%)', strokeWidth: 2 });
+      } else {
+        // restore default depth-based styling by rebuilding
+      }
+    });
+
+    fabricCanvas.renderAll();
+  }, [fabricCanvas, interactionMode, selectedNodeId]);
+
+  // Effect to render/remove talent overlay nodes
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    // Remove existing talent nodes
+    talentNodesRef.current.forEach(({ group }) => {
+      fabricCanvas.remove(group);
+    });
     talentNodesRef.current.clear();
 
     if (!showTalentOverlay || talentEngagements.length === 0) {
@@ -701,13 +891,17 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       return;
     }
 
+    // Group engagements by department to position them near relevant contacts
     const engagementsByDept = new Map<string, TalentEngagementWithData[]>();
     talentEngagements.forEach((eng) => {
       const dept = eng.department || "Other";
-      if (!engagementsByDept.has(dept)) engagementsByDept.set(dept, []);
+      if (!engagementsByDept.has(dept)) {
+        engagementsByDept.set(dept, []);
+      }
       engagementsByDept.get(dept)!.push(eng);
     });
 
+    // Find department positions from existing contact nodes
     const deptPositions = new Map<string, { x: number; y: number; count: number }>();
     contactNodesRef.current.forEach(({ contact, group }) => {
       const dept = contact.department;
@@ -721,6 +915,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       }
     });
 
+    // Create talent nodes positioned near their department
     let talentIndex = 0;
     engagementsByDept.forEach((engagements, dept) => {
       const deptPos = deptPositions.get(dept);
@@ -730,22 +925,38 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       engagements.forEach((eng, idx) => {
         const x = baseX;
         const y = baseY + idx * 100;
+        
         const talentNode = createTalentNode(eng, x, y);
+        
+        // Add hover effects
         talentNode.on('mouseover', function() {
           fabricCanvas.setCursor('pointer');
-          (this as FabricObject).set({ shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 } });
+          (this as FabricObject).set({ 
+            shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 }
+          });
           fabricCanvas.renderAll();
         });
+
         talentNode.on('mouseout', function() {
           fabricCanvas.setCursor('default');
           (this as FabricObject).set({ shadow: null });
           fabricCanvas.renderAll();
         });
+
+        // Click handler to open talent profile
         talentNode.on('mousedown', () => {
-          if (onTalentClick) onTalentClick(eng.talent, eng);
+          if (onTalentClick) {
+            onTalentClick(eng.talent, eng);
+          }
         });
+        
         fabricCanvas.add(talentNode);
-        talentNodesRef.current.set(eng.id, { engagement: eng, group: talentNode });
+        
+        talentNodesRef.current.set(eng.id, {
+          engagement: eng,
+          group: talentNode,
+        });
+        
         talentIndex++;
       });
     });
@@ -753,17 +964,25 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     fabricCanvas.renderAll();
   }, [fabricCanvas, showTalentOverlay, talentEngagements, onTalentClick]);
 
-  // ── Search ──
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     setCurrentMatchIndex(0);
+
     if (!query.trim() || !fabricCanvas) {
-      contactNodesRef.current.forEach(({ group, originalStroke, originalStrokeWidth }) => {
-        const cardBg = group.getObjects()[0] as Rect;
-        cardBg.set({ stroke: originalStroke as string || "hsl(214 32% 91%)", strokeWidth: originalStrokeWidth || 1 });
-      });
+      // Clear all highlights
+    contactNodesRef.current.forEach(({ group, originalStroke, originalStrokeWidth }) => {
+      const cardBg = group.getObjects()[0] as Rect;
+      if (originalStroke !== undefined) {
+        cardBg.set({ 
+          stroke: originalStroke as string | undefined, 
+          strokeWidth: originalStrokeWidth || 1 
+        });
+      } else {
+        cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
+      }
+    });
       setMatchedNodes([]);
-      fabricCanvas?.renderAll();
+      fabricCanvas.renderAll();
       return;
     }
 
@@ -773,36 +992,54 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     contactNodesRef.current.forEach((nodeData) => {
       const { contact, group } = nodeData;
       const cardBg = group.getObjects()[0] as Rect;
+
+      // Store original stroke if not already stored
       if (nodeData.originalStroke === undefined) {
         nodeData.originalStroke = typeof cardBg.stroke === 'string' ? cardBg.stroke : null;
         nodeData.originalStrokeWidth = cardBg.strokeWidth;
       }
 
-      const isMatch = contact.name.toLowerCase().includes(lowerQuery) ||
+      const isMatch =
+        contact.name.toLowerCase().includes(lowerQuery) ||
         contact.title.toLowerCase().includes(lowerQuery) ||
-        contact.department.toLowerCase().includes(lowerQuery);
+        contact.department.toLowerCase().includes(lowerQuery) ||
+        contact.status.toLowerCase().includes(lowerQuery);
 
       if (isMatch) {
         matches.push(nodeData);
-        cardBg.set({ stroke: "hsl(221 83% 53%)", strokeWidth: 3 });
+        cardBg.set({
+          stroke: "hsl(221 83% 53%)",
+          strokeWidth: 3,
+        });
       } else {
-        cardBg.set({ stroke: nodeData.originalStroke as string || "hsl(214 32% 91%)", strokeWidth: nodeData.originalStrokeWidth || 1 });
+        // Reset to original
+        cardBg.set({
+          stroke: nodeData.originalStroke as string | undefined,
+          strokeWidth: nodeData.originalStrokeWidth || 1,
+        });
       }
     });
 
     setMatchedNodes(matches);
-    if (matches.length > 0) zoomToNode(matches[0].group);
+
+    if (matches.length > 0) {
+      zoomToNode(matches[0].group);
+    }
+
     fabricCanvas.renderAll();
   };
 
   const zoomToNode = (group: Group) => {
     if (!fabricCanvas) return;
+
     const center = group.getCenterPoint();
     fabricCanvas.viewportTransform = [1, 0, 0, 1, 0, 0];
     fabricCanvas.setZoom(1.5);
+
     const vpt = fabricCanvas.viewportTransform!;
     vpt[4] = fabricCanvas.width! / 2 - center.x * 1.5;
     vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
+
     fabricCanvas.renderAll();
   };
 
@@ -824,40 +1061,75 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     setSearchQuery("");
     setMatchedNodes([]);
     setCurrentMatchIndex(0);
+
     if (!fabricCanvas) return;
+
+    // Reset zoom
     fabricCanvas.setZoom(1);
     fabricCanvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+
+    // Clear highlights
     contactNodesRef.current.forEach(({ group, originalStroke, originalStrokeWidth }) => {
       const cardBg = group.getObjects()[0] as Rect;
-      cardBg.set({ stroke: originalStroke as string || "hsl(214 32% 91%)", strokeWidth: originalStrokeWidth || 1 });
+      if (originalStroke !== undefined) {
+        cardBg.set({ 
+          stroke: originalStroke as string | undefined, 
+          strokeWidth: originalStrokeWidth || 1 
+        });
+      } else {
+        cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
+      }
     });
+
     fabricCanvas.renderAll();
   };
 
+  // Function to highlight specific contacts by ID (for AI knowledge panel)
   const highlightContactsById = (contactIds: string[]) => {
     if (!fabricCanvas) return;
+
     contactNodesRef.current.forEach((nodeData, id) => {
       const { group } = nodeData;
       const cardBg = group.getObjects()[0] as Rect;
+
+      // Store original stroke if not already stored
       if (nodeData.originalStroke === undefined) {
         nodeData.originalStroke = typeof cardBg.stroke === 'string' ? cardBg.stroke : null;
         nodeData.originalStrokeWidth = cardBg.strokeWidth;
       }
+
       if (contactIds.includes(id)) {
-        cardBg.set({ stroke: "hsl(45 93% 47%)", strokeWidth: 4 });
-        group.set({ shadow: { color: 'hsl(45 93% 47%)', blur: 15, offsetX: 0, offsetY: 0 } });
+        // Highlight with a distinct gold/yellow color for AI highlights
+        cardBg.set({
+          stroke: "hsl(45 93% 47%)", // Gold color
+          strokeWidth: 4,
+        });
+        // Add pulsing shadow effect
+        group.set({
+          shadow: { color: 'hsl(45 93% 47%)', blur: 15, offsetX: 0, offsetY: 0 }
+        });
       } else {
-        cardBg.set({ stroke: nodeData.originalStroke as string || "hsl(214 32% 91%)", strokeWidth: nodeData.originalStrokeWidth || 1 });
+        // Reset to original
+        cardBg.set({
+          stroke: nodeData.originalStroke as string | undefined,
+          strokeWidth: nodeData.originalStrokeWidth || 1,
+        });
         group.set({ shadow: null });
       }
     });
+
     fabricCanvas.renderAll();
 
+    // If there are highlighted contacts, zoom to show them all
     if (contactIds.length > 0) {
-      const highlightedNodes = contactIds.map(id => contactNodesRef.current.get(id)).filter(Boolean);
+      const highlightedNodes = contactIds
+        .map(id => contactNodesRef.current.get(id))
+        .filter(Boolean);
+
       if (highlightedNodes.length === 1) {
         zoomToNode(highlightedNodes[0]!.group);
       } else if (highlightedNodes.length > 1) {
+        // Calculate bounding box of all highlighted nodes
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         highlightedNodes.forEach(node => {
           if (node) {
@@ -868,14 +1140,17 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
             maxY = Math.max(maxY, bounds.top + bounds.height);
           }
         });
+
         const padding = 100;
         const contentCenterX = (minX + maxX) / 2;
         const contentCenterY = (minY + maxY) / 2;
         const contentWidth = maxX - minX + padding * 2;
         const contentHeight = maxY - minY + padding * 2;
+
         const canvasWidth = fabricCanvas.width!;
         const canvasHeight = fabricCanvas.height!;
         const targetZoom = Math.min(canvasWidth / contentWidth, canvasHeight / contentHeight, 1.2);
+
         fabricCanvas.setZoom(targetZoom);
         const vpt = fabricCanvas.viewportTransform!;
         vpt[4] = canvasWidth / 2 - contentCenterX * targetZoom;
@@ -885,6 +1160,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     }
   };
 
+  // Expose clearSearch and highlightContacts to parent via ref
   useImperativeHandle(ref, () => ({
     clearSearch: handleClearSearch,
     highlightContacts: highlightContactsById,
@@ -897,52 +1173,94 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const containerRect = containerRef.current.getBoundingClientRect();
       return {
         x: center.x * zoom + vpt[4] + containerRect.left,
-        y: (center.y - 45) * zoom + vpt[5] + containerRect.top,
+        y: (center.y - 45) * zoom + vpt[5] + containerRect.top, // top of node
       };
     },
   }));
 
   const handleResetPositions = () => {
     if (!fabricCanvas) return;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    if (companyNodeRef.current) {
-      const b = companyNodeRef.current.getBoundingRect();
-      minX = Math.min(minX, b.left); minY = Math.min(minY, b.top);
-      maxX = Math.max(maxX, b.left + b.width); maxY = Math.max(maxY, b.top + b.height);
-    }
-    contactNodesRef.current.forEach(({ group }) => {
-      const b = group.getBoundingRect();
-      minX = Math.min(minX, b.left); minY = Math.min(minY, b.top);
-      maxX = Math.max(maxX, b.left + b.width); maxY = Math.max(maxY, b.top + b.height);
-    });
-    if (minX === Infinity) {
-      fabricCanvas.setZoom(1); fabricCanvas.viewportTransform = [1, 0, 0, 1, 0, 0]; fabricCanvas.renderAll(); return;
-    }
-    const padding = 50;
-    minX -= padding; minY -= padding; maxX += padding; maxY += padding;
-    const cw2 = maxX - minX, ch2 = maxY - minY;
-    const ccx = (minX + maxX) / 2, ccy = (minY + maxY) / 2;
-    const canvasWidth = fabricCanvas.width!, canvasHeight = fabricCanvas.height!;
-    const targetZoom = Math.min(canvasWidth / cw2, canvasHeight / ch2, 1);
-    const targetVptX = canvasWidth / 2 - ccx * targetZoom;
-    const targetVptY = canvasHeight / 2 - ccy * targetZoom;
 
+    // Calculate the bounding box of all content (current positions, not original)
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    // Include company node
+    if (companyNodeRef.current) {
+      const companyBounds = companyNodeRef.current.getBoundingRect();
+      minX = Math.min(minX, companyBounds.left);
+      minY = Math.min(minY, companyBounds.top);
+      maxX = Math.max(maxX, companyBounds.left + companyBounds.width);
+      maxY = Math.max(maxY, companyBounds.top + companyBounds.height);
+    }
+    
+    // Include all contact nodes
+    contactNodesRef.current.forEach(({ group }) => {
+      const bounds = group.getBoundingRect();
+      minX = Math.min(minX, bounds.left);
+      minY = Math.min(minY, bounds.top);
+      maxX = Math.max(maxX, bounds.left + bounds.width);
+      maxY = Math.max(maxY, bounds.top + bounds.height);
+    });
+
+    // If no content, reset to default
+    if (minX === Infinity) {
+      fabricCanvas.setZoom(1);
+      fabricCanvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+      fabricCanvas.renderAll();
+      return;
+    }
+
+    // Add padding around content
+    const padding = 50;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+    const contentCenterX = (minX + maxX) / 2;
+    const contentCenterY = (minY + maxY) / 2;
+
+    // Calculate zoom to fit content in viewport
+    const canvasWidth = fabricCanvas.width!;
+    const canvasHeight = fabricCanvas.height!;
+    const zoomX = canvasWidth / contentWidth;
+    const zoomY = canvasHeight / contentHeight;
+    const targetZoom = Math.min(zoomX, zoomY, 1); // Don't zoom in more than 1x
+
+    // Calculate target viewport position to center content
+    const targetVptX = canvasWidth / 2 - contentCenterX * targetZoom;
+    const targetVptY = canvasHeight / 2 - contentCenterY * targetZoom;
+
+    // Animate to the target state
     const currentZoom = fabricCanvas.getZoom();
     const currentVpt = [...fabricCanvas.viewportTransform!];
-    const steps = 20;
+    
+    const zoomSteps = 20;
+    const zoomIncrement = (targetZoom - currentZoom) / zoomSteps;
+    const vptXIncrement = (targetVptX - currentVpt[4]) / zoomSteps;
+    const vptYIncrement = (targetVptY - currentVpt[5]) / zoomSteps;
+    
     let step = 0;
-    const animate = () => {
-      if (step < steps) {
+    const animateZoom = () => {
+      if (step < zoomSteps) {
         step++;
-        fabricCanvas.setZoom(currentZoom + ((targetZoom - currentZoom) / steps) * step);
+        fabricCanvas.setZoom(currentZoom + zoomIncrement * step);
         const vpt = fabricCanvas.viewportTransform!;
-        vpt[4] = currentVpt[4] + ((targetVptX - currentVpt[4]) / steps) * step;
-        vpt[5] = currentVpt[5] + ((targetVptY - currentVpt[5]) / steps) * step;
+        vpt[4] = currentVpt[4] + vptXIncrement * step;
+        vpt[5] = currentVpt[5] + vptYIncrement * step;
         fabricCanvas.renderAll();
-        requestAnimationFrame(animate);
+        requestAnimationFrame(animateZoom);
+      } else {
+        fabricCanvas.setZoom(targetZoom);
+        const vpt = fabricCanvas.viewportTransform!;
+        vpt[4] = targetVptX;
+        vpt[5] = targetVptY;
+        fabricCanvas.renderAll();
       }
     };
-    animate();
+    animateZoom();
   };
 
   return (
@@ -961,6 +1279,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       <canvas ref={canvasRef} className="w-full h-full block" />
       <CanvasMinimap mainCanvas={fabricCanvas} />
       
+      {/* Company Info Popover */}
       {showCompanyHover && companyNodeRef.current && (
         <CompanyInfoPopover 
           account={account}
@@ -978,75 +1297,320 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
 AccountCanvas.displayName = "AccountCanvas";
 
-// ── Static node creation helpers ──
-
 const createCompanyNode = (name: string, x: number, y: number): Group => {
-  const buildingMain = new Rect({ width: 50, height: 60, fill: "hsl(221 83% 53%)", originX: "center", originY: "center" });
-  const buildingTop = new Rect({ width: 30, height: 15, fill: "hsl(221 83% 53%)", originX: "center", originY: "center", top: -30 });
+  // Building icon using rectangles
+  const buildingMain = new Rect({
+    width: 50,
+    height: 60,
+    fill: "hsl(221 83% 53%)",
+    originX: "center",
+    originY: "center",
+  });
 
+  const buildingTop = new Rect({
+    width: 30,
+    height: 15,
+    fill: "hsl(221 83% 53%)",
+    originX: "center",
+    originY: "center",
+    top: -30,
+  });
+
+  // Windows
   const windows: Rect[] = [];
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 3; col++) {
-      windows.push(new Rect({
-        width: 6, height: 8, fill: "white", opacity: 0.7,
-        left: -15 + col * 10, top: -20 + row * 12, originX: "center", originY: "center",
-      }));
+      const window = new Rect({
+        width: 6,
+        height: 8,
+        fill: "white",
+        opacity: 0.7,
+        left: -15 + col * 10,
+        top: -20 + row * 12,
+        originX: "center",
+        originY: "center",
+      });
+      windows.push(window);
     }
   }
 
   const text = new Text(name.toUpperCase(), {
-    fontSize: 14, fontWeight: "bold", fill: "hsl(221 83% 53%)",
-    originX: "center", originY: "center", top: -55,
+    fontSize: 14,
+    fontWeight: "bold",
+    fill: "hsl(221 83% 53%)",
+    originX: "center",
+    originY: "center",
+    top: -55,
   });
 
-  return new Group([buildingMain, buildingTop, ...windows, text], {
-    left: x, top: y, originX: "center", originY: "center",
-    selectable: false, hasControls: false, hasBorders: false,
+  const group = new Group([buildingMain, buildingTop, ...windows, text], {
+    left: x,
+    top: y,
+    originX: "center",
+    originY: "center",
+    selectable: false,
+    hasControls: false,
+    hasBorders: false,
   });
+
+  return group;
 };
 
 const createContactNode = (contact: Contact, x: number, y: number): Group => {
   const statusColors: Record<string, string> = {
-    champion: "hsl(142 71% 45%)", engaged: "hsl(142 71% 45%)", warm: "hsl(38 92% 50%)",
-    new: "hsl(221 83% 53%)", blocker: "hsl(0 84% 60%)", unknown: "hsl(210 20% 90%)",
+    champion: "hsl(142 71% 45%)",
+    engaged: "hsl(142 71% 45%)",
+    warm: "hsl(38 92% 50%)",
+    new: "hsl(221 83% 53%)",
+    blocker: "hsl(0 84% 60%)",
+    unknown: "hsl(210 20% 90%)",
   };
+
   const bgColor = statusColors[contact.status] || statusColors.unknown;
 
-  const cardBg = new Rect({ width: 180, height: 90, fill: "white", stroke: "hsl(214 32% 91%)", strokeWidth: 1, rx: 8, ry: 8, left: -90, top: -45 });
-  const profileCircle = new Circle({ radius: 25, fill: "hsl(210 20% 90%)", left: -75, top: -20 });
-  const silhouetteText = new Text("👤", { fontSize: 24, fill: "hsl(215 16% 47%)", left: -75, top: -20, originX: "center", originY: "center" });
-  const nameText = new Text(contact.name, { fontSize: 11, fontWeight: "600", fill: "hsl(222 47% 11%)", left: -40, top: -25, width: 110 });
-  const titleText = new Text(contact.title, { fontSize: 9, fill: "hsl(215 16% 47%)", left: -40, top: -8, width: 110 });
-  const deptText = new Text(contact.department, { fontSize: 8, fill: "hsl(215 16% 47%)", left: -40, top: 8, width: 110 });
-  const statusIndicator = new Circle({ radius: 5, fill: bgColor, left: 65, top: -35 });
-  const anchorTop = new Circle({ radius: 4, fill: "hsl(221 83% 53%)", top: -50, opacity: 0 });
-  const anchorBottom = new Circle({ radius: 4, fill: "hsl(221 83% 53%)", top: 50, opacity: 0 });
-
-  return new Group([cardBg, profileCircle, silhouetteText, nameText, titleText, deptText, statusIndicator, anchorTop, anchorBottom], {
-    left: x, top: y, originX: "center", originY: "center",
-    selectable: true, hasControls: false, hasBorders: false,
-    lockRotation: true, lockScalingX: true, lockScalingY: true,
+  // Card background
+  const cardBg = new Rect({
+    width: 180,
+    height: 90,
+    fill: "white",
+    stroke: "hsl(214 32% 91%)",
+    strokeWidth: 1,
+    rx: 8,
+    ry: 8,
+    left: -90,
+    top: -45,
   });
+
+  // Profile circle
+  const profileCircle = new Circle({
+    radius: 25,
+    fill: "hsl(210 20% 90%)",
+    left: -75,
+    top: -20,
+  });
+
+  // Silhouette icon
+  const isMale = Math.random() > 0.5;
+  const silhouetteText = new Text(isMale ? "👤" : "👤", {
+    fontSize: 24,
+    fill: "hsl(215 16% 47%)",
+    left: -75,
+    top: -20,
+    originX: "center",
+    originY: "center",
+  });
+
+  // Name text
+  const nameText = new Text(contact.name, {
+    fontSize: 11,
+    fontWeight: "600",
+    fill: "hsl(222 47% 11%)",
+    left: -40,
+    top: -25,
+    width: 110,
+  });
+
+  // Title text
+  const titleText = new Text(contact.title, {
+    fontSize: 9,
+    fill: "hsl(215 16% 47%)",
+    left: -40,
+    top: -8,
+    width: 110,
+  });
+
+  // Department text
+  const deptText = new Text(contact.department, {
+    fontSize: 8,
+    fill: "hsl(215 16% 47%)",
+    left: -40,
+    top: 8,
+    width: 110,
+  });
+
+  // Status indicator (small colored circle)
+  const statusIndicator = new Circle({
+    radius: 5,
+    fill: bgColor,
+    left: 65,
+    top: -35,
+  });
+
+  // Magnetic anchor points
+  const anchorTop = new Circle({
+    radius: 4,
+    fill: "hsl(221 83% 53%)",
+    top: -50,
+    opacity: 0,
+  });
+
+  const anchorBottom = new Circle({
+    radius: 4,
+    fill: "hsl(221 83% 53%)",
+    top: 50,
+    opacity: 0,
+  });
+
+  const group = new Group([
+    cardBg,
+    profileCircle,
+    silhouetteText,
+    nameText,
+    titleText,
+    deptText,
+    statusIndicator,
+    anchorTop,
+    anchorBottom
+  ], {
+    left: x,
+    top: y,
+    originX: "center",
+    originY: "center",
+    selectable: true,
+    hasControls: false,
+    hasBorders: false,
+    lockRotation: true,
+    lockScalingX: true,
+    lockScalingY: true,
+  });
+
+  return group;
 };
 
 const createTalentNode = (engagement: TalentEngagementWithData, x: number, y: number): Group => {
   const statusColors: Record<EngagementStatus, { bg: string; border: string; text: string }> = {
-    proposed: { bg: "hsl(45 93% 95%)", border: "hsl(45 93% 47%)", text: "Proposed" },
-    interviewing: { bg: "hsl(221 83% 95%)", border: "hsl(221 83% 53%)", text: "Interviewing" },
-    deployed: { bg: "hsl(142 71% 95%)", border: "hsl(142 71% 45%)", text: "Deployed" },
+    proposed: { 
+      bg: "hsl(45 93% 95%)", 
+      border: "hsl(45 93% 47%)", 
+      text: "Proposed" 
+    },
+    interviewing: { 
+      bg: "hsl(221 83% 95%)", 
+      border: "hsl(221 83% 53%)", 
+      text: "Interviewing" 
+    },
+    deployed: { 
+      bg: "hsl(142 71% 95%)", 
+      border: "hsl(142 71% 45%)", 
+      text: "Deployed" 
+    },
   };
+
   const colors = statusColors[engagement.status];
   const talent = engagement.talent;
 
-  const cardBg = new Rect({ width: 180, height: 90, fill: colors.bg, stroke: colors.border, strokeWidth: 2, strokeDashArray: [8, 4], rx: 8, ry: 8, left: -90, top: -45 });
-  const badgeBg = new Rect({ width: 60, height: 18, fill: colors.border, rx: 9, ry: 9, left: -30, top: -40 });
-  const badgeText = new Text(colors.text, { fontSize: 8, fill: "white", fontWeight: "bold", left: 0, top: -40, originX: "center", originY: "center" });
-  const nameText = new Text(talent.name, { fontSize: 11, fontWeight: "600", fill: "hsl(222 47% 11%)", left: -75, top: -15, width: 150 });
-  const roleText = new Text(engagement.roleType || talent.roleType, { fontSize: 9, fill: "hsl(215 16% 47%)", left: -75, top: 2, width: 150 });
-  const rateText = new Text(talent.rate || "", { fontSize: 8, fill: "hsl(215 16% 47%)", left: -75, top: 18, width: 150 });
-
-  return new Group([cardBg, badgeBg, badgeText, nameText, roleText, rateText], {
-    left: x, top: y, originX: "center", originY: "center",
-    selectable: false, hasControls: false, hasBorders: false,
+  // Card background with dashed border
+  const cardBg = new Rect({
+    width: 180,
+    height: 90,
+    fill: colors.bg,
+    stroke: colors.border,
+    strokeWidth: 2,
+    strokeDashArray: [8, 4],
+    rx: 8,
+    ry: 8,
+    left: -90,
+    top: -45,
   });
+
+  // Talent badge indicator
+  const badgeBg = new Rect({
+    width: 60,
+    height: 18,
+    fill: colors.border,
+    rx: 9,
+    ry: 9,
+    left: -30,
+    top: -55,
+  });
+
+  const badgeText = new Text("TALENT", {
+    fontSize: 9,
+    fontWeight: "bold",
+    fill: "white",
+    originX: "center",
+    originY: "center",
+    left: 0,
+    top: -46,
+  });
+
+  // Profile circle
+  const profileCircle = new Circle({
+    radius: 20,
+    fill: colors.border,
+    opacity: 0.3,
+    left: -75,
+    top: -15,
+  });
+
+  // User icon placeholder
+  const silhouetteText = new Text("👤", {
+    fontSize: 18,
+    fill: colors.border,
+    left: -75,
+    top: -15,
+    originX: "center",
+    originY: "center",
+  });
+
+  // Name text
+  const nameText = new Text(talent.name, {
+    fontSize: 11,
+    fontWeight: "600",
+    fill: "hsl(222 47% 11%)",
+    left: -45,
+    top: -20,
+    width: 110,
+  });
+
+  // Role type text
+  const roleText = new Text(engagement.roleType, {
+    fontSize: 9,
+    fill: "hsl(215 16% 47%)",
+    left: -45,
+    top: -3,
+    width: 110,
+  });
+
+  // Status text
+  const statusText = new Text(colors.text, {
+    fontSize: 8,
+    fontWeight: "600",
+    fill: colors.border,
+    left: -45,
+    top: 12,
+    width: 110,
+  });
+
+  // Rate if available
+  const rateText = talent.rate ? new Text(talent.rate, {
+    fontSize: 8,
+    fill: "hsl(142 71% 35%)",
+    left: 55,
+    top: 25,
+  }) : null;
+
+  const elements = [
+    cardBg,
+    badgeBg,
+    badgeText,
+    profileCircle,
+    silhouetteText,
+    nameText,
+    roleText,
+    statusText,
+    ...(rateText ? [rateText] : []),
+  ];
+
+  const group = new Group(elements, {
+    left: x,
+    top: y,
+    originX: "center",
+    originY: "center",
+    selectable: false,
+    hasControls: false,
+    hasBorders: false,
+  });
+
+  return group;
 };

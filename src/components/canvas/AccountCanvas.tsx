@@ -30,6 +30,9 @@ interface AccountCanvasProps {
   onUnlinkFromManager?: (contactId: string) => void;
   onSetCeo?: (contactId: string) => void;
   workspaceId?: string;
+  linkModeSourceId?: string | null;
+  onLinkModeSelect?: (targetContactId: string) => void;
+  onLinkModeCancel?: () => void;
 }
 
 export interface AccountCanvasRef {
@@ -67,6 +70,9 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   onUnlinkFromManager,
   onSetCeo,
   workspaceId,
+  linkModeSourceId = null,
+  onLinkModeSelect,
+  onLinkModeCancel,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
@@ -107,6 +113,13 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   useEffect(() => { onUnlinkFromManagerRef.current = onUnlinkFromManager; }, [onUnlinkFromManager]);
   const onSetCeoRef = useRef(onSetCeo);
   useEffect(() => { onSetCeoRef.current = onSetCeo; }, [onSetCeo]);
+  const linkModeSourceIdRef = useRef(linkModeSourceId);
+  useEffect(() => { linkModeSourceIdRef.current = linkModeSourceId; }, [linkModeSourceId]);
+  const onLinkModeSelectRef = useRef(onLinkModeSelect);
+  useEffect(() => { onLinkModeSelectRef.current = onLinkModeSelect; }, [onLinkModeSelect]);
+  const onLinkModeCancelRef = useRef(onLinkModeCancel);
+  useEffect(() => { onLinkModeCancelRef.current = onLinkModeCancel; }, [onLinkModeCancel]);
+  const linkPreviewLineRef = useRef<Line | null>(null);
   
   // Snap constants
   const SNAP_RADIUS = 40; // px radius to trigger "reports to" snap
@@ -638,6 +651,11 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       });
 
       node.on('mousedown', () => {
+        // Link mode: clicking any other node selects it as the manager target
+        if (linkModeSourceIdRef.current && linkModeSourceIdRef.current !== contact.id) {
+          onLinkModeSelectRef.current?.(contact.id);
+          return;
+        }
         if (interactionModeRef.current === 'edit') {
           // In edit mode: select node, don't open profile
           onNodeSelectRef.current?.(contact.id);
@@ -908,6 +926,99 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
     fabricCanvas.renderAll();
   }, [fabricCanvas, interactionMode, selectedNodeId]);
+
+  // Effect: Link Mode visual highlighting + preview line + Escape key
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    // Clean up preview line when link mode ends
+    if (!linkModeSourceId) {
+      if (linkPreviewLineRef.current) {
+        try { fabricCanvas.remove(linkPreviewLineRef.current); } catch {}
+        linkPreviewLineRef.current = null;
+      }
+      // Reset all node opacities
+      contactNodesRef.current.forEach((nodeData) => {
+        const cardBg = nodeData.group.getObjects()[0] as Rect;
+        nodeData.group.set({ opacity: 1 });
+        cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
+      });
+      fabricCanvas.renderAll();
+      return;
+    }
+
+    // Highlight potential targets, dim the source node
+    contactNodesRef.current.forEach((nodeData, id) => {
+      const cardBg = nodeData.group.getObjects()[0] as Rect;
+      if (id === linkModeSourceId) {
+        // Source node: blue border, slightly dimmed
+        cardBg.set({ stroke: "hsl(221 83% 53%)", strokeWidth: 3 });
+        nodeData.group.set({ opacity: 0.7 });
+      } else {
+        // Potential target: subtle green glow to indicate clickable
+        cardBg.set({ stroke: "hsl(142 71% 45%)", strokeWidth: 2 });
+        nodeData.group.set({ opacity: 1 });
+        nodeData.group.set({
+          shadow: { color: 'hsl(142 71% 45%)', blur: 8, offsetX: 0, offsetY: 0 },
+        });
+      }
+    });
+    fabricCanvas.renderAll();
+
+    // Mouse move handler for preview line
+    const handleMouseMove = (opt: any) => {
+      if (!linkModeSourceIdRef.current) return;
+      const sourceData = contactNodesRef.current.get(linkModeSourceIdRef.current);
+      if (!sourceData) return;
+
+      const pointer = fabricCanvas.getScenePoint(opt.e);
+      const sourceCenter = sourceData.group.getCenterPoint();
+
+      if (linkPreviewLineRef.current) {
+        try { fabricCanvas.remove(linkPreviewLineRef.current); } catch {}
+      }
+
+      const previewLine = new Line(
+        [sourceCenter.x, sourceCenter.y - 45, pointer.x, pointer.y],
+        {
+          stroke: "hsl(221 83% 53%)",
+          strokeWidth: 2,
+          strokeDashArray: [8, 4],
+          selectable: false,
+          evented: false,
+          opacity: 0.6,
+        }
+      );
+      fabricCanvas.add(previewLine);
+      linkPreviewLineRef.current = previewLine;
+      fabricCanvas.renderAll();
+    };
+
+    fabricCanvas.on('mouse:move', handleMouseMove);
+
+    // Escape key handler
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onLinkModeCancelRef.current?.();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      fabricCanvas.off('mouse:move', handleMouseMove);
+      window.removeEventListener('keydown', handleKeyDown);
+      // Clean up preview line
+      if (linkPreviewLineRef.current) {
+        try { fabricCanvas.remove(linkPreviewLineRef.current); } catch {}
+        linkPreviewLineRef.current = null;
+      }
+      // Reset node shadows
+      contactNodesRef.current.forEach((nodeData) => {
+        nodeData.group.set({ shadow: null });
+      });
+      fabricCanvas.renderAll();
+    };
+  }, [fabricCanvas, linkModeSourceId]);
 
   // Effect to render/remove talent overlay nodes
   useEffect(() => {

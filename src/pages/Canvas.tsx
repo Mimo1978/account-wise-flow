@@ -116,6 +116,7 @@ const Canvas = () => {
   const [showTalentPanel, setShowTalentPanel] = useState(false);
   const canvasRef = useRef<AccountCanvasRef>(null);
   const [structureToolbarPos, setStructureToolbarPos] = useState<{ x: number; y: number } | null>(null);
+  const [linkModeSourceId, setLinkModeSourceId] = useState<string | null>(null);
   
   // Canvas interaction mode
   const {
@@ -609,6 +610,14 @@ const Canvas = () => {
             onUnlinkFromManager={handleUnlinkFromManager}
             onSetCeo={handleSetCeo}
             workspaceId={currentWorkspace?.id}
+            linkModeSourceId={linkModeSourceId}
+            onLinkModeSelect={(targetId) => {
+              if (linkModeSourceId) {
+                handleSnapEdgeCreate(linkModeSourceId, targetId);
+                setLinkModeSourceId(null);
+              }
+            }}
+            onLinkModeCancel={() => setLinkModeSourceId(null)}
           />
         ) : (
           <CompanyDatabaseView
@@ -623,11 +632,13 @@ const Canvas = () => {
       </main>
 
       {/* Structure Toolbar - floating controls in edit mode */}
-      {viewMode === "canvas" && isEditMode && selectedNodeId && structureToolbarPos && (
+      {viewMode === "canvas" && isEditMode && selectedNodeId && structureToolbarPos && !linkModeSourceId && (
         <StructureToolbar
           position={structureToolbarPos}
           isLocked={lockedNodeIds.has(selectedNodeId)}
-          onLink={() => { /* Link mode activated via snap – drag node below target */ toast.info("Drag this node below another to create a reporting link"); }}
+          onLink={() => {
+            setLinkModeSourceId(selectedNodeId);
+          }}
           onUnlink={() => { if (selectedNodeId) handleUnlinkFromManager(selectedNodeId); }}
           onToggleLock={() => toggleLockNode(selectedNodeId)}
           onViewProfile={() => {
@@ -637,6 +648,17 @@ const Canvas = () => {
             }
           }}
         />
+      )}
+
+      {/* Link Mode helper overlay */}
+      {linkModeSourceId && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+          <div className="bg-background/95 backdrop-blur-sm border border-primary/30 rounded-lg px-4 py-2 shadow-lg flex items-center gap-2 pointer-events-auto">
+            <Link2 className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">Select a manager…</span>
+            <span className="text-xs text-muted-foreground">(Esc to cancel)</span>
+          </div>
+        </div>
       )}
 
       {/* Floating Contact Panel - Only show in canvas mode */}

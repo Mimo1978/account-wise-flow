@@ -95,6 +95,13 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const isCanvasDisposedRef = useRef(false);
   const hierarchyLinesRef = useRef<Line[]>([]);
   
+  // Ghost-line prevention: generation counter invalidates stale async edge rebuilds
+  const edgeRebuildGenRef = useRef(0);
+  // Store previous node positions for smooth animation between layout changes
+  const previousPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  // Active animation frame ID for cleanup
+  const animationFrameRef = useRef<number | null>(null);
+  
   // Smart snap system refs
   const guideLinesToRef = useRef<Line[]>([]);
   const snapHighlightRef = useRef<Rect | null>(null);
@@ -380,6 +387,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     return () => {
       window.removeEventListener("resize", handleResize);
       isCanvasDisposedRef.current = true;
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       canvas.dispose();
     };
   }, []);
@@ -600,11 +608,19 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         const dropInfo = activeDropZoneRef.current;
         clearGuideLines(fabricCanvas);
         
-        if (interactionModeRef.current !== 'edit') return;
+        if (interactionModeRef.current !== 'edit') {
+          // Snap back to original position
+          const origPos = contactNodesRef.current.get(contact.id)?.originalPosition;
+          if (origPos) {
+            node.set({ left: origPos.x, top: origPos.y });
+            node.setCoords();
+          }
+          rebuildAllEdges(fabricCanvas, canvasW);
+          fabricCanvas.renderAll();
+          return;
+        }
         
         if (dropInfo) {
-          rebuildAllEdges(fabricCanvas, canvasW, true);
-          
           // Pulse the target node
           if (dropInfo.targetId) {
             const targetData = contactNodesRef.current.get(dropInfo.targetId);
@@ -613,10 +629,19 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
             pulseNode(fabricCanvas, companyNodeRef.current);
           }
           
-          // Fire the callback
+          // Fire the callback (will trigger edge data change → layout recompute → animation)
           onDropZoneRef.current?.(contact.id, dropInfo.targetId, dropInfo.zone);
+        } else {
+          // No valid drop zone: snap back to original position
+          const origPos = contactNodesRef.current.get(contact.id)?.originalPosition;
+          if (origPos) {
+            node.set({ left: origPos.x, top: origPos.y });
+            node.setCoords();
+          }
         }
         
+        // Always rebuild edges after drop to clear any artifacts
+        rebuildAllEdges(fabricCanvas, canvasW);
         fabricCanvas.renderAll();
       });
 
@@ -811,23 +836,21 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     // ── Ephemeral edge rebuild: clears all hierarchy lines and redraws from manager_id ──
     // animated=true triggers transition animations (used after relationship changes)
     const rebuildAllEdges = (canvas: FabricCanvas, cw: number, animated: boolean = false) => {
-      // 1. Fade out and remove old lines
+      // Increment generation to invalidate any in-flight async rebuilds
+      const gen = ++edgeRebuildGenRef.current;
+      
+      // Synchronous purge: remove ALL old lines immediately (ghost-line prevention)
       const oldLines = [...hierarchyLinesRef.current];
       hierarchyLinesRef.current = [];
+      oldLines.forEach(line => { try { canvas.remove(line); } catch {} });
 
-      if (animated && oldLines.length > 0) {
-        // Animate old lines out, then draw new ones in
-        oldLines.forEach(line => animateFadeOut(canvas, line, 150));
-        // Small delay so fade-out is visible before draw-in
-        setTimeout(() => drawFreshEdges(canvas, cw, true), 100);
-      } else {
-        // Instant: remove old, draw new
-        oldLines.forEach(line => { try { canvas.remove(line); } catch {} });
-        drawFreshEdges(canvas, cw, false);
-      }
+      // Draw fresh edges; if animated, use draw-in animation
+      drawFreshEdges(canvas, cw, animated, gen);
     };
 
-    const drawFreshEdges = (canvas: FabricCanvas, cw: number, animated: boolean) => {
+    const drawFreshEdges = (canvas: FabricCanvas, cw: number, animated: boolean, gen?: number) => {
+      // If a newer generation has started, bail out (ghost-line prevention)
+      if (gen !== undefined && gen !== edgeRebuildGenRef.current) return;
       // Draw edges from edgeParentMap (single source of truth)
       contactNodesRef.current.forEach((childData, childId) => {
         const parentId = parentMap.get(childId);
@@ -879,18 +902,70 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     // Merge all positions
     const allPositions = new Map([...treePositions, ...unlinkedPositions]);
 
+    // Capture old positions for animation
+    const oldPositions = previousPositionsRef.current;
+    const newPositions = new Map<string, { x: number; y: number }>();
+
     // ── Place all contacts using computed positions ──
     allPositions.forEach((pos, contactId) => {
       const contact = contactMap.get(contactId);
       if (!contact) return;
-      const node = createContactNode(contact, pos.x, pos.y);
-      wireContactNode(contact, node, pos.x, pos.y, pos.depth >= 0 ? pos.depth : 0);
+      
+      // Start at old position if available, otherwise at final position
+      const startPos = oldPositions.get(contactId) || { x: pos.x, y: pos.y };
+      const node = createContactNode(contact, startPos.x, startPos.y);
+      wireContactNode(contact, node, startPos.x, startPos.y, pos.depth >= 0 ? pos.depth : 0);
+      newPositions.set(contactId, { x: pos.x, y: pos.y });
     });
 
-    // ── Draw initial edges (ephemeral, from org_chart_edges) ──
-    rebuildAllEdges(fabricCanvas, canvasW);
+    // Save new positions for next re-render
+    previousPositionsRef.current = newPositions;
 
-    fabricCanvas.renderAll();
+    // ── Animate nodes from old to new positions (200ms ease-out) ──
+    const hasOldPositions = oldPositions.size > 0;
+    if (hasOldPositions) {
+      // Cancel any running animation
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+
+      const ANIM_DURATION = 200; // ms
+      const startTime = performance.now();
+
+      const animateNodes = (now: number) => {
+        if (isCanvasDisposedRef.current) return;
+        const elapsed = now - startTime;
+        const rawT = Math.min(elapsed / ANIM_DURATION, 1);
+        // Ease-out quad
+        const t = 1 - (1 - rawT) * (1 - rawT);
+
+        contactNodesRef.current.forEach((nodeData, contactId) => {
+          const oldPos = oldPositions.get(contactId);
+          const newPos = newPositions.get(contactId);
+          if (!oldPos || !newPos) return;
+          if (oldPos.x === newPos.x && oldPos.y === newPos.y) return;
+
+          const currentX = oldPos.x + (newPos.x - oldPos.x) * t;
+          const currentY = oldPos.y + (newPos.y - oldPos.y) * t;
+          nodeData.group.set({ left: currentX, top: currentY });
+          nodeData.group.setCoords();
+        });
+
+        // Rebuild edges each frame during animation (attach to moving nodes)
+        rebuildAllEdges(fabricCanvas, canvasW);
+        fabricCanvas.requestRenderAll();
+
+        if (rawT < 1) {
+          animationFrameRef.current = requestAnimationFrame(animateNodes);
+        } else {
+          animationFrameRef.current = null;
+        }
+      };
+
+      animationFrameRef.current = requestAnimationFrame(animateNodes);
+    } else {
+      // No animation needed — first render or no previous positions
+      rebuildAllEdges(fabricCanvas, canvasW);
+      fabricCanvas.renderAll();
+    }
   }, [fabricCanvas, account, edgeParentMap, edgeChildrenMap, rootContactId]);
 
   // Effect: highlight selected node and its edges in edit mode

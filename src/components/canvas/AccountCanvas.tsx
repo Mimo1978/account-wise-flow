@@ -149,8 +149,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
   /**
    * Determine which drop zone the pointer is in relative to a target card.
-   * Divides the card rect into: top 25%, bottom 25%, left 25%, right 25%.
-   * The middle 50%×50% is "no action" to prevent accidental snaps.
+   * Simplified to 3 zones: LEFT (sibling before), RIGHT (sibling after), CENTER (child).
+   * Left 30% = left, Right 30% = right, Center 40% = child (drop onto).
    */
   const detectDropZone = useCallback((
     pointerX: number,
@@ -169,15 +169,12 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     if (relX < 0 || relX > nodeW || relY < 0 || relY > nodeH) return null;
 
     const fracX = relX / nodeW;
-    const fracY = relY / nodeH;
 
-    // Check corners/edges: top/bottom take priority in top/bottom 25% strips
-    if (fracY < 0.25) return "top";
-    if (fracY > 0.75) return "bottom";
-    if (fracX < 0.25) return "left";
-    if (fracX > 0.75) return "right";
+    // Left 30% = sibling before, Right 30% = sibling after, Center = child
+    if (fracX < 0.3) return "left";
+    if (fracX > 0.7) return "right";
 
-    return null; // middle 50% = no action
+    return "bottom"; // center = become child of target
   }, []);
 
   const showDropZoneIndicator = useCallback((canvas: FabricCanvas, targetGroup: Group, zone: DropZone) => {
@@ -193,10 +190,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     const hh = CARD_H / 2;
 
     const zoneColors: Record<DropZone, string> = {
-      top: "hsl(280 70% 55%)",    // purple - insert as parent
+      top: "hsl(221 83% 53%)",
       bottom: "hsl(221 83% 53%)", // blue - insert as child
-      left: "hsl(142 71% 45%)",   // green - sibling before
-      right: "hsl(38 92% 50%)",   // amber - sibling after
+      left: "hsl(221 83% 53%)",   // blue - sibling before
+      right: "hsl(221 83% 53%)",  // blue - sibling after
       company_root: "hsl(221 83% 53%)",
     };
 
@@ -204,25 +201,19 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     let indicator: Rect;
 
     switch (zone) {
-      case "top":
-        indicator = new Rect({
-          left: cx - hw, top: cy - hh - 6,
-          width: CARD_W, height: 6,
-          fill: color, rx: 3, ry: 3,
-          selectable: false, evented: false, opacity: 0.8,
-        });
-        break;
       case "bottom":
+        // Highlight entire card for "become child" drop
         indicator = new Rect({
-          left: cx - hw, top: cy + hh,
-          width: CARD_W, height: 6,
-          fill: color, rx: 3, ry: 3,
+          left: cx - hw - 2, top: cy - hh - 2,
+          width: CARD_W + 4, height: CARD_H + 4,
+          fill: "transparent", stroke: color, strokeWidth: 3,
+          rx: 10, ry: 10,
           selectable: false, evented: false, opacity: 0.8,
         });
         break;
       case "left":
         indicator = new Rect({
-          left: cx - hw - 6, top: cy - hh,
+          left: cx - hw - 8, top: cy - hh,
           width: 6, height: CARD_H,
           fill: color, rx: 3, ry: 3,
           selectable: false, evented: false, opacity: 0.8,
@@ -230,7 +221,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         break;
       case "right":
         indicator = new Rect({
-          left: cx + hw, top: cy - hh,
+          left: cx + hw + 2, top: cy - hh,
           width: 6, height: CARD_H,
           fill: color, rx: 3, ry: 3,
           selectable: false, evented: false, opacity: 0.8,
@@ -578,10 +569,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
             const tc = bestTarget.group.getCenterPoint();
             switch (bestTarget.zone) {
               case "bottom":
+                // Draw line from target bottom to dragged top (child relationship)
                 addGuideLine(fabricCanvas, tc.x, tc.y + NODE_H / 2, dragX, dragY - NODE_H / 2);
-                break;
-              case "top":
-                addGuideLine(fabricCanvas, dragX, dragY + NODE_H / 2, tc.x, tc.y - NODE_H / 2);
                 break;
               case "left":
                 addGuideLine(fabricCanvas, tc.x - NODE_W / 2 - 10, tc.y, dragX + NODE_W / 2, dragY);
@@ -686,7 +675,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           }
         });
 
-        // Bold hierarchy lines for related nodes
+        // Blue highlight hierarchy lines for related nodes
         hierarchyLinesRef.current.forEach(l => {
           l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 });
         });
@@ -851,19 +840,20 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     const drawFreshEdges = (canvas: FabricCanvas, cw: number, animated: boolean, gen?: number) => {
       // If a newer generation has started, bail out (ghost-line prevention)
       if (gen !== undefined && gen !== edgeRebuildGenRef.current) return;
-      // Draw edges from edgeParentMap (single source of truth)
+
+      const BLUE = "hsl(221 83% 53%)";
+      const BLUE_LIGHT = "hsl(221 83% 70%)";
+
+      // Draw vertical parent→child edges (blue)
       contactNodesRef.current.forEach((childData, childId) => {
         const parentId = parentMap.get(childId);
         if (parentId && contactNodesRef.current.has(parentId)) {
           const parentData = contactNodesRef.current.get(parentId)!;
           const parentCenter = parentData.group.getCenterPoint();
           const childCenter = childData.group.getCenterPoint();
-          const depth = depthMap.get(childId) || 1;
-          const baseStrokeWidth = depth <= 1 ? 3 : 2;
-          const lightness = Math.min(91 + depth * 1, 95);
           const line = new Line([parentCenter.x, parentCenter.y + NODE_H / 2, childCenter.x, childCenter.y - NODE_H / 2], {
-            stroke: `hsl(214 32% ${lightness}%)`,
-            strokeWidth: baseStrokeWidth,
+            stroke: BLUE,
+            strokeWidth: 2,
             selectable: false,
             evented: false,
           });
@@ -876,7 +866,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           if (childId === rootContactId) {
             const childCenter = childData.group.getCenterPoint();
             const line = new Line([cw / 2, COMPANY_Y + 40, childCenter.x, childCenter.y - NODE_H / 2], {
-              stroke: `hsl(214 32% 91%)`,
+              stroke: BLUE,
               strokeWidth: 3,
               selectable: false,
               evented: false,
@@ -886,6 +876,31 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
             hierarchyLinesRef.current.push(line);
             if (animated) animateDrawIn(canvas, line, 200);
           }
+        }
+      });
+
+      // Draw horizontal sibling connectors (blue, lighter)
+      childrenMap.forEach((siblings) => {
+        if (siblings.length < 2) return;
+        for (let i = 0; i < siblings.length - 1; i++) {
+          const leftData = contactNodesRef.current.get(siblings[i]);
+          const rightData = contactNodesRef.current.get(siblings[i + 1]);
+          if (!leftData || !rightData) continue;
+          const leftCenter = leftData.group.getCenterPoint();
+          const rightCenter = rightData.group.getCenterPoint();
+          const line = new Line([
+            leftCenter.x + NODE_W / 2, leftCenter.y,
+            rightCenter.x - NODE_W / 2, rightCenter.y,
+          ], {
+            stroke: BLUE_LIGHT,
+            strokeWidth: 1.5,
+            selectable: false,
+            evented: false,
+          });
+          canvas.add(line);
+          canvas.sendObjectToBack(line);
+          hierarchyLinesRef.current.push(line);
+          if (animated) animateDrawIn(canvas, line, 200);
         }
       });
     };
@@ -976,13 +991,21 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const { group } = nodeData;
       const cardBg = group.getObjects()[0] as Rect;
 
-      if (interactionMode === "edit" && selectedNodeId === id) {
-        cardBg.set({ stroke: "hsl(221 83% 53%)", strokeWidth: 3 });
-        group.set({ opacity: 1 });
-      } else if (interactionMode === "edit" && selectedNodeId) {
-        cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
-        group.set({ opacity: 0.9 });
+      if (interactionMode === "edit") {
+        // In edit mode, all contacts get a blue glow
+        group.set({
+          shadow: { color: 'hsl(221 83% 53%)', blur: 12, offsetX: 0, offsetY: 0 },
+        });
+        if (selectedNodeId === id) {
+          cardBg.set({ stroke: "hsl(221 83% 53%)", strokeWidth: 3 });
+          group.set({ opacity: 1 });
+        } else {
+          cardBg.set({ stroke: "hsl(221 70% 80%)", strokeWidth: 1.5 });
+          group.set({ opacity: 1 });
+        }
       } else {
+        // Browse mode: no glow
+        group.set({ shadow: null });
         cardBg.set({ stroke: "hsl(214 32% 91%)", strokeWidth: 1 });
         group.set({ opacity: 1 });
       }

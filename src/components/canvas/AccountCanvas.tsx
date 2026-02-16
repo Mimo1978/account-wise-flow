@@ -125,8 +125,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const SNAP_RADIUS = 40; // px radius to trigger "reports to" snap
   const SNAP_HORIZONTAL_THRESHOLD = 30; // px alignment tolerance
   const SIBLING_SNAP_THRESHOLD = 25; // px to snap siblings equally spaced
-  const AUTO_PAN_EDGE = 60; // px from viewport edge to start auto-pan
-  const AUTO_PAN_SPEED = 8;
+  const AUTO_PAN_EDGE = 40; // px from viewport edge to start auto-pan
+  const AUTO_PAN_SPEED = 10;
   const COMPANY_SNAP_RADIUS = 60; // px radius around company node to unlink (make top-level)
   
   // Guide line management
@@ -178,7 +178,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     snapHighlightRef.current = highlight;
   }, []);
 
-  // Auto-pan when near edges
+  // Track the actively-dragged node so auto-pan can move it along with viewport
+  const activeDragNodeRef = useRef<Group | null>(null);
+
+  // Auto-pan when near edges – moves both viewport AND the dragged node
   const startAutoPan = useCallback((canvas: FabricCanvas, mouseX: number, mouseY: number) => {
     if (autoPanIntervalRef.current) clearInterval(autoPanIntervalRef.current);
     
@@ -186,10 +189,17 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     const ch = canvas.height!;
     let dx = 0, dy = 0;
     
-    if (mouseX < AUTO_PAN_EDGE) dx = AUTO_PAN_SPEED;
-    else if (mouseX > cw - AUTO_PAN_EDGE) dx = -AUTO_PAN_SPEED;
-    if (mouseY < AUTO_PAN_EDGE) dy = AUTO_PAN_SPEED;
-    else if (mouseY > ch - AUTO_PAN_EDGE) dy = -AUTO_PAN_SPEED;
+    // Gradual speed: closer to edge = faster pan
+    if (mouseX < AUTO_PAN_EDGE) {
+      dx = AUTO_PAN_SPEED * ((AUTO_PAN_EDGE - mouseX) / AUTO_PAN_EDGE);
+    } else if (mouseX > cw - AUTO_PAN_EDGE) {
+      dx = -AUTO_PAN_SPEED * ((mouseX - (cw - AUTO_PAN_EDGE)) / AUTO_PAN_EDGE);
+    }
+    if (mouseY < AUTO_PAN_EDGE) {
+      dy = AUTO_PAN_SPEED * ((AUTO_PAN_EDGE - mouseY) / AUTO_PAN_EDGE);
+    } else if (mouseY > ch - AUTO_PAN_EDGE) {
+      dy = -AUTO_PAN_SPEED * ((mouseY - (ch - AUTO_PAN_EDGE)) / AUTO_PAN_EDGE);
+    }
     
     if (dx === 0 && dy === 0) {
       if (autoPanIntervalRef.current) {
@@ -203,6 +213,16 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const vpt = canvas.viewportTransform!;
       vpt[4] += dx;
       vpt[5] += dy;
+      // Move the dragged node in the OPPOSITE direction so it stays under the cursor
+      const dragNode = activeDragNodeRef.current;
+      if (dragNode) {
+        const zoom = canvas.getZoom();
+        dragNode.set({
+          left: (dragNode.left ?? 0) - dx / zoom,
+          top: (dragNode.top ?? 0) - dy / zoom,
+        });
+        dragNode.setCoords();
+      }
       canvas.requestRenderAll();
     }, 16);
   }, []);
@@ -213,6 +233,54 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       autoPanIntervalRef.current = null;
     }
   }, []);
+
+  // Spacebar-to-pan: while dragging a node, hold Space to pan canvas with node attached
+  const spacebarPanRef = useRef(false);
+  const spacebarLastMouseRef = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && activeDragNodeRef.current && !spacebarPanRef.current) {
+        e.preventDefault();
+        spacebarPanRef.current = true;
+        stopAutoPan(); // pause edge auto-pan while spacebar panning
+      }
+    };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && spacebarPanRef.current) {
+        e.preventDefault();
+        spacebarPanRef.current = false;
+        spacebarLastMouseRef.current = null;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [stopAutoPan]);
+
+  // Mouse-move handler for spacebar panning
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!spacebarPanRef.current || !fabricCanvas) return;
+      const last = spacebarLastMouseRef.current;
+      if (last) {
+        const dx = e.clientX - last.x;
+        const dy = e.clientY - last.y;
+        const vpt = fabricCanvas.viewportTransform!;
+        vpt[4] += dx;
+        vpt[5] += dy;
+        fabricCanvas.requestRenderAll();
+      }
+      spacebarLastMouseRef.current = { x: e.clientX, y: e.clientY };
+    };
+    el.addEventListener('mousemove', handleMouseMove);
+    return () => el.removeEventListener('mousemove', handleMouseMove);
+  }, [fabricCanvas]);
   
   // Hover intent tracking for company node
   const companyHoverTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -438,6 +506,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       depthMap.set(contact.id, depth);
 
       node.on('moving', function(opt) {
+        activeDragNodeRef.current = node;
         // Only allow movement in edit mode and if not locked
         if (interactionModeRef.current !== 'edit' || lockedNodeIdsRef.current.has(contact.id)) {
           node.set({ left: x, top: y });
@@ -540,6 +609,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       
       // On drop: clear ALL ephemeral state, create edge if snapped, persist position
       node.on('modified', function() {
+        activeDragNodeRef.current = null;
         stopAutoPan();
         clearGuideLines(fabricCanvas);
         

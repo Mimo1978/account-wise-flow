@@ -386,7 +386,12 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   useEffect(() => {
     if (!fabricCanvas || !account || isCanvasDisposedRef.current) return;
 
-    fabricCanvas.clear();
+    try {
+      fabricCanvas.clear();
+    } catch (e) {
+      // Canvas context already disposed during unmount race
+      return;
+    }
     fabricCanvas.backgroundColor = "hsl(210 40% 98%)";
     contactNodesRef.current.clear();
     hierarchyLinesRef.current = [];

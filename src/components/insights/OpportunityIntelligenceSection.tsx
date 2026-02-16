@@ -63,7 +63,7 @@ export const OpportunityIntelligenceSection: React.FC<OpportunityIntelligenceSec
       const opps: Opportunity[] = [];
       
       companies?.forEach(company => {
-        const contacts = company.contacts || [];
+        const contacts = Array.isArray(company.contacts) ? company.contacts : [];
         const departments = [...new Set(contacts.map(c => c.department).filter(Boolean))];
         
         // Find departments with contacts but no senior sponsor

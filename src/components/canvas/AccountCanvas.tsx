@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from "react";
 import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Image as FabricImage, Point, Rect } from "fabric";
 import { Account, Contact, Talent, TalentEngagement, EngagementStatus } from "@/lib/types";
+import { toast } from "sonner";
 import { CanvasSearch } from "./CanvasSearch";
 import { CanvasMinimap } from "./CanvasMinimap";
 import { CompanyInfoPopover } from "./CompanyInfoPopover";
@@ -27,6 +28,7 @@ interface AccountCanvasProps {
   lockedNodeIds?: Set<string>;
   onSnapEdgeCreate?: (fromContactId: string, toContactId: string) => void;
   onUnlinkFromManager?: (contactId: string) => void;
+  onSetCeo?: (contactId: string) => void;
   workspaceId?: string;
 }
 
@@ -63,6 +65,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   lockedNodeIds = new Set(),
   onSnapEdgeCreate,
   onUnlinkFromManager,
+  onSetCeo,
   workspaceId,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -102,6 +105,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   useEffect(() => { onSnapEdgeCreateRef.current = onSnapEdgeCreate; }, [onSnapEdgeCreate]);
   const onUnlinkFromManagerRef = useRef(onUnlinkFromManager);
   useEffect(() => { onUnlinkFromManagerRef.current = onUnlinkFromManager; }, [onUnlinkFromManager]);
+  const onSetCeoRef = useRef(onSetCeo);
+  useEffect(() => { onSetCeoRef.current = onSetCeo; }, [onSetCeo]);
   
   // Snap constants
   const SNAP_RADIUS = 40; // px radius to trigger "reports to" snap
@@ -441,14 +446,14 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         const alignXMatches: number[] = [];
         const alignYMatches: number[] = [];
         
-        // Check company node for root snap (unlink / make top-level)
+        // Check company node for root snap (CEO-only connection)
         if (companyNodeRef.current) {
           const companyCenter = companyNodeRef.current.getCenterPoint();
           const distToCompany = Math.sqrt(
             Math.pow(dragX - companyCenter.x, 2) + Math.pow(dragY - companyCenter.y, 2)
           );
-          if (distToCompany < COMPANY_SNAP_RADIUS + NODE_H / 2 && contact.managerId) {
-            // Show highlight on company node
+          if (distToCompany < COMPANY_SNAP_RADIUS + NODE_H / 2) {
+            // Show highlight on company node (visual feedback regardless of CEO status)
             showSnapHighlight(fabricCanvas, companyNodeRef.current);
             addGuideLine(fabricCanvas, companyCenter.x, companyCenter.y + 40, dragX, dragY - NODE_H / 2);
             snapTargetRef.current = "__company_root__";
@@ -534,11 +539,26 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         const currentSnapTarget = snapTargetRef.current;
         snapTargetRef.current = null;
         
-        // If snapped to company root, unlink from manager (make top-level)
+        // If snapped to company root — only CEO can connect here
         if (currentSnapTarget === "__company_root__") {
-          rebuildAllEdges(fabricCanvas, canvasW, true);
-          if (companyNodeRef.current) pulseNode(fabricCanvas, companyNodeRef.current);
-          onUnlinkFromManagerRef.current?.(contact.id);
+          const isCeo = account.ceoContactId === contact.id;
+          if (isCeo) {
+            // CEO reconnecting to root — just unlink from any manager
+            rebuildAllEdges(fabricCanvas, canvasW, true);
+            if (companyNodeRef.current) pulseNode(fabricCanvas, companyNodeRef.current);
+            onUnlinkFromManagerRef.current?.(contact.id);
+          } else {
+            // Non-CEO trying to connect to root — show toast with action
+            toast("Only the CEO connects to the company root. Set this contact as CEO to link here.", {
+              action: {
+                label: "Set as CEO",
+                onClick: () => onSetCeoRef.current?.(contact.id),
+              },
+              duration: 6000,
+            });
+            // Rebuild edges without changes
+            rebuildAllEdges(fabricCanvas, canvasW);
+          }
         } else if (currentSnapTarget) {
           // Snapped to another contact — set as manager
           const targetData = contactNodesRef.current.get(currentSnapTarget);
@@ -782,7 +802,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           canvas.sendObjectToBack(line);
           hierarchyLinesRef.current.push(line);
           if (animated) animateDrawIn(canvas, line, 200);
-        } else if (!contact.managerId) {
+        } else if (!contact.managerId && account.ceoContactId === childId) {
+          // Root edge: ONLY drawn between company root and CEO
           const childCenter = childData.group.getCenterPoint();
           const line = new Line([cw / 2, 120, childCenter.x, childCenter.y - NODE_H / 2], {
             stroke: `hsl(214 32% 91%)`,
@@ -795,6 +816,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           hierarchyLinesRef.current.push(line);
           if (animated) animateDrawIn(canvas, line, 200);
         }
+        // Contacts without managerId that are NOT the CEO get no root edge — they float
       });
     };
 

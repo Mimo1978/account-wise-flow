@@ -515,12 +515,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           return;
         }
         const center = node.getCenterPoint();
-        // Throttle edge rebuilds during drag to prevent freezing
-        const now = performance.now();
-        if (now - lastEdgeRebuildRef.current > EDGE_REBUILD_THROTTLE) {
-          lastEdgeRebuildRef.current = now;
-          rebuildAllEdges(fabricCanvas, canvasW);
-        }
+        // Do NOT rebuild edges during drag — only on drop (prevents freezing)
         
         // ── 4-Zone Drop Detection ──
         clearGuideLines(fabricCanvas);
@@ -711,8 +706,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           otherData.group.set({ opacity: 1 });
         });
 
-        // Reset all hierarchy lines to depth-based defaults
-        rebuildAllEdges(fabricCanvas, canvasW);
+        // Reset hierarchy line colors without full rebuild
+        hierarchyLinesRef.current.forEach(l => {
+          l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 2 });
+        });
         fabricCanvas.renderAll();
       });
 

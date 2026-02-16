@@ -274,33 +274,27 @@ const Canvas = () => {
     try {
       switch (zone) {
         case "company_root":
-          // Make dragged node the root
+          // Make dragged node the root (most senior position)
           await setParent({ childContactId: draggedContactId, parentContactId: null });
           toast.success("Set as top-level contact");
           break;
         case "bottom":
-          // Make dragged node a child of target
+          // Drop onto card = become child of target
           if (!targetContactId) return;
           await setParent({ childContactId: draggedContactId, parentContactId: targetContactId });
-          toast.success("Reporting relationship created");
-          break;
-        case "top":
-          // Insert dragged node as parent of target
-          if (!targetContactId) return;
-          await insertAsParent({ draggedContactId, targetContactId });
-          toast.success("Inserted as manager");
+          toast.success("Connected as report");
           break;
         case "left":
           // Insert as sibling before target
           if (!targetContactId) return;
           await insertAsSibling({ draggedContactId, targetContactId, side: "before" });
-          toast.success("Inserted as peer (before)");
+          toast.success("Inserted before");
           break;
         case "right":
           // Insert as sibling after target
           if (!targetContactId) return;
           await insertAsSibling({ draggedContactId, targetContactId, side: "after" });
-          toast.success("Inserted as peer (after)");
+          toast.success("Inserted after");
           break;
       }
     } catch (err: any) {
@@ -636,8 +630,8 @@ const Canvas = () => {
             </div>
             <p className="text-muted-foreground">
               {isEditMode 
-                ? "Click to select • Drag to reposition • Double-click to view profile"
-                : "Drag nodes to reposition • Click to see details"
+                ? "Drag contacts to reposition • Drop on card = child • Drop left/right = sibling • Drop on company = top contact"
+                : "Click to see details • Scroll to zoom"
               }
             </p>
           </div>

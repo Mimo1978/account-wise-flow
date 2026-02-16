@@ -69,6 +69,7 @@ export function useCompanyCanvas(options: UseCompanyCanvasOptions = {}): UseComp
         name: data.name,
         industry: data.industry || 'Other',
         size: data.size || 'Unknown',
+        ceoContactId: data.ceo_contact_id || null,
         contacts: (contacts || []).map((c: any): Contact => ({
           id: c.id,
           name: c.name,

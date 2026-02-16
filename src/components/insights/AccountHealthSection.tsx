@@ -67,7 +67,7 @@ export const AccountHealthSection: React.FC<AccountHealthSectionProps> = ({
       const signals: HealthSignal[] = [];
       
       companies?.forEach(company => {
-        const contacts = company.contacts || [];
+        const contacts = Array.isArray(company.contacts) ? company.contacts : [];
         const notes = company.notes || [];
         
         // Check for engagement recency

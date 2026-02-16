@@ -351,6 +351,47 @@ const Canvas = () => {
     }
   }, []);
 
+  // Set a contact as CEO (connects to company root)
+  const handleSetCeo = useCallback(async (contactId: string) => {
+    if (!account) return;
+    try {
+      // Get old CEO id to unlink
+      const oldCeoId = account.ceoContactId;
+
+      // Update company's ceo_contact_id
+      await supabase
+        .from('companies')
+        .update({ ceo_contact_id: contactId } as any)
+        .eq('id', account.id);
+
+      // Unlink new CEO from any manager (CEO reports to root)
+      await supabase
+        .from('contacts')
+        .update({ manager_id: null } as any)
+        .eq('id', contactId);
+
+      // If there was a previous CEO, unlink them from root (nullify their special status)
+      // Previous CEO becomes free-floating; user can reattach manually
+
+      setAccount((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          ceoContactId: contactId,
+          contacts: prev.contacts.map(c =>
+            c.id === contactId ? { ...c, managerId: null } : c
+          ),
+        };
+      });
+
+      const contactName = account.contacts.find(c => c.id === contactId)?.name || "Contact";
+      toast.success(`${contactName} set as CEO`);
+    } catch (err) {
+      console.error('Failed to set CEO:', err);
+      toast.error("Failed to set CEO");
+    }
+  }, [account]);
+
   // Get selected contact for structure toolbar actions
   const selectedNodeContact = useMemo(() => {
     if (!selectedNodeId || !account) return null;
@@ -566,6 +607,7 @@ const Canvas = () => {
             lockedNodeIds={lockedNodeIds}
             onSnapEdgeCreate={handleSnapEdgeCreate}
             onUnlinkFromManager={handleUnlinkFromManager}
+            onSetCeo={handleSetCeo}
             workspaceId={currentWorkspace?.id}
           />
         ) : (

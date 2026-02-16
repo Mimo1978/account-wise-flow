@@ -33,6 +33,7 @@ interface AccountCanvasProps {
   linkModeSourceId?: string | null;
   onLinkModeSelect?: (targetContactId: string) => void;
   onLinkModeCancel?: () => void;
+  autoArrangeOnDrop?: boolean;
 }
 
 export interface AccountCanvasRef {
@@ -73,6 +74,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   linkModeSourceId = null,
   onLinkModeSelect,
   onLinkModeCancel,
+  autoArrangeOnDrop = true,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
@@ -120,6 +122,19 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const onLinkModeCancelRef = useRef(onLinkModeCancel);
   useEffect(() => { onLinkModeCancelRef.current = onLinkModeCancel; }, [onLinkModeCancel]);
   const linkPreviewLineRef = useRef<Line | null>(null);
+  
+  // Auto-reflow system refs
+  const autoArrangeRef = useRef(autoArrangeOnDrop);
+  useEffect(() => { autoArrangeRef.current = autoArrangeOnDrop; }, [autoArrangeOnDrop]);
+  // Stores pre-drag positions of all nodes (keyed by contact id)
+  const preDragPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  // Tracks which nodes were displaced during this drag
+  const displacedNodesRef = useRef<Set<string>>(new Set());
+  // Whether a drag is currently active (to know when to revert)
+  const isDragActiveRef = useRef(false);
+  // Reflow overlap margin
+  const REFLOW_OVERLAP_MARGIN = 20; // px buffer around node bounding box
+  const REFLOW_PUSH_DISTANCE = 60; // px to push overlapping nodes away
   
   // Snap constants
   const SNAP_RADIUS = 40; // px radius to trigger "reports to" snap
@@ -188,6 +203,87 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     canvas.add(highlight);
     snapHighlightRef.current = highlight;
   }, []);
+
+  // ── Auto-reflow: push nearby nodes when dragging over them ──
+  const reflowAnimFrames = useRef<Map<string, number>>(new Map());
+  
+  const animateNodeTo = useCallback((canvas: FabricCanvas, nodeData: ContactNodeData, targetX: number, targetY: number, duration = 120) => {
+    const group = nodeData.group;
+    const startX = group.left!;
+    const startY = group.top!;
+    if (Math.abs(startX - targetX) < 1 && Math.abs(startY - targetY) < 1) return;
+    
+    // Cancel any existing animation for this node
+    const existing = reflowAnimFrames.current.get(nodeData.contact.id);
+    if (existing) cancelAnimationFrame(existing);
+    
+    const steps = Math.max(1, Math.round(duration / 16));
+    let step = 0;
+    const tick = () => {
+      step++;
+      const t = step / steps;
+      const eased = 1 - (1 - t) * (1 - t); // ease-out quad
+      group.set({
+        left: startX + (targetX - startX) * eased,
+        top: startY + (targetY - startY) * eased,
+      });
+      group.setCoords();
+      canvas.requestRenderAll();
+      if (step < steps) {
+        reflowAnimFrames.current.set(nodeData.contact.id, requestAnimationFrame(tick));
+      } else {
+        reflowAnimFrames.current.delete(nodeData.contact.id);
+      }
+    };
+    reflowAnimFrames.current.set(nodeData.contact.id, requestAnimationFrame(tick));
+  }, []);
+
+  const performReflow = useCallback((canvas: FabricCanvas, dragContactId: string, dragCenterX: number, dragCenterY: number, nodeW: number, nodeH: number) => {
+    if (!autoArrangeRef.current) return;
+    
+    const overlapW = nodeW + REFLOW_OVERLAP_MARGIN * 2;
+    const overlapH = nodeH + REFLOW_OVERLAP_MARGIN * 2;
+    
+    contactNodesRef.current.forEach((otherData, otherId) => {
+      if (otherId === dragContactId) return;
+      if (lockedNodeIdsRef.current.has(otherId)) return;
+      
+      // Use pre-drag position for stable comparison (avoids jitter from already-displaced nodes)
+      const preDragOther = preDragPositionsRef.current.get(otherId);
+      if (!preDragOther) return;
+      const otherX = preDragOther.x;
+      const otherY = preDragOther.y;
+      const dx = dragCenterX - otherX;
+      const dy = dragCenterY - otherY;
+      
+      // Check bounding box overlap
+      if (Math.abs(dx) < overlapW / 2 + nodeW / 2 && Math.abs(dy) < overlapH / 2 + nodeH / 2) {
+        // Overlapping — push this node away
+        if (!displacedNodesRef.current.has(otherId)) {
+          displacedNodesRef.current.add(otherId);
+        }
+        
+        // Determine push direction (primarily horizontal to preserve hierarchy rows)
+        const pushX = dx <= 0 ? REFLOW_PUSH_DISTANCE : -REFLOW_PUSH_DISTANCE;
+        animateNodeTo(canvas, otherData, otherX - nodeW / 2 + pushX, otherY - nodeH / 2);
+      } else if (displacedNodesRef.current.has(otherId)) {
+        // No longer overlapping — spring back to pre-drag position
+        animateNodeTo(canvas, otherData, otherX - nodeW / 2, otherY - nodeH / 2);
+        displacedNodesRef.current.delete(otherId);
+      }
+    });
+  }, [animateNodeTo]);
+  
+  const revertAllDisplaced = useCallback((canvas: FabricCanvas, nodeW: number, nodeH: number) => {
+    displacedNodesRef.current.forEach(id => {
+      const nodeData = contactNodesRef.current.get(id);
+      const preDrag = preDragPositionsRef.current.get(id);
+      if (nodeData && preDrag) {
+        animateNodeTo(canvas, nodeData, preDrag.x - nodeW / 2, preDrag.y - nodeH / 2, 200);
+      }
+    });
+    displacedNodesRef.current.clear();
+  }, [animateNodeTo]);
 
   // Track the actively-dragged node so auto-pan can move it along with viewport
   const activeDragNodeRef = useRef<Group | null>(null);
@@ -521,6 +617,17 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
       node.on('moving', function(opt) {
         activeDragNodeRef.current = node;
+        
+        // Capture pre-drag positions of all nodes on first move
+        if (!isDragActiveRef.current) {
+          isDragActiveRef.current = true;
+          preDragPositionsRef.current.clear();
+          displacedNodesRef.current.clear();
+          contactNodesRef.current.forEach((nd, nid) => {
+            const c = nd.group.getCenterPoint();
+            preDragPositionsRef.current.set(nid, { x: c.x, y: c.y });
+          });
+        }
         // Only allow movement in edit mode and if not locked
         if (interactionModeRef.current !== 'edit') {
           node.set({ left: x, top: y });
@@ -638,6 +745,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           startAutoPan(fabricCanvas, evt.offsetX, evt.offsetY);
         }
         
+        // Auto-reflow: push overlapping nodes aside
+        const dragCenter = node.getCenterPoint();
+        performReflow(fabricCanvas, contact.id, dragCenter.x, dragCenter.y, NODE_W, NODE_H);
+        
         fabricCanvas.renderAll();
       });
       
@@ -645,13 +756,21 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       node.on('modified', function() {
         activeDragNodeRef.current = null;
         lockToastShown = false;
+        isDragActiveRef.current = false;
         stopAutoPan();
         clearGuideLines(fabricCanvas);
         
         if (interactionModeRef.current !== 'edit') {
+          // Revert any displaced nodes
+          revertAllDisplaced(fabricCanvas, NODE_W, NODE_H);
           rebuildAllEdges(fabricCanvas, canvasW);
           return;
         }
+        
+        // Commit displaced node positions (they stay where they are)
+        // and rebuild edges to reflect new positions
+        displacedNodesRef.current.clear();
+        preDragPositionsRef.current.clear();
         
         // ── Lane snapping on drop (unless Alt held) ──
         if (!altKeyRef.current) {

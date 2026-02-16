@@ -117,6 +117,7 @@ const Canvas = () => {
   const canvasRef = useRef<AccountCanvasRef>(null);
   const [structureToolbarPos, setStructureToolbarPos] = useState<{ x: number; y: number } | null>(null);
   const [linkModeSourceId, setLinkModeSourceId] = useState<string | null>(null);
+  const [autoArrangeOnDrop, setAutoArrangeOnDrop] = useState(true);
   
   // Canvas interaction mode
   const {
@@ -656,6 +657,7 @@ const Canvas = () => {
               }
             }}
             onLinkModeCancel={() => setLinkModeSourceId(null)}
+            autoArrangeOnDrop={autoArrangeOnDrop}
           />
         ) : (
           <CompanyDatabaseView
@@ -861,6 +863,19 @@ const Canvas = () => {
               }
               <span className="ml-3 text-xs opacity-60">Press E / B to switch mode</span>
             </p>
+            {isEditMode && (
+              <div className="flex items-center gap-2 mt-1">
+                <Switch
+                  id="auto-arrange"
+                  checked={autoArrangeOnDrop}
+                  onCheckedChange={setAutoArrangeOnDrop}
+                  className="h-4 w-7"
+                />
+                <Label htmlFor="auto-arrange" className="text-xs text-muted-foreground cursor-pointer">
+                  Auto arrange on drop
+                </Label>
+              </div>
+            )}
           </div>
         </div>
       )}

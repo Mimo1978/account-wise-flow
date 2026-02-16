@@ -8,6 +8,8 @@ import { User, Users } from "lucide-react";
 import { computeTreeLayout, computeUnlinkedPositions, CARD_W, CARD_H, GAP_X, GAP_Y, COMPANY_Y, ROOT_Y } from "@/lib/tree-layout";
 import { supabase } from "@/integrations/supabase/client";
 
+import { DropZone } from "@/hooks/use-org-chart-edges";
+
 interface TalentEngagementWithData extends TalentEngagement {
   talent: Talent;
 }
@@ -24,8 +26,7 @@ interface AccountCanvasProps {
   interactionMode?: CanvasInteractionMode;
   selectedNodeId?: string | null;
   onNodeSelect?: (contactId: string | null) => void;
-  onSnapEdgeCreate?: (fromContactId: string, toContactId: string) => void;
-  onUnlinkFromManager?: (contactId: string) => void;
+  onDropZone?: (draggedContactId: string, targetContactId: string | null, zone: DropZone) => void;
   workspaceId?: string;
   // Org chart edges as single source of truth
   edgeParentMap?: Map<string, string | null>;
@@ -63,8 +64,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   interactionMode = "browse",
   selectedNodeId = null,
   onNodeSelect,
-  onSnapEdgeCreate,
-  onUnlinkFromManager,
+  onDropZone,
   workspaceId,
   edgeParentMap = new Map(),
   edgeChildrenMap = new Map(),
@@ -98,22 +98,19 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   // Smart snap system refs
   const guideLinesToRef = useRef<Line[]>([]);
   const snapHighlightRef = useRef<Rect | null>(null);
-  const snapTargetRef = useRef<string | null>(null); // contact id of potential parent
+  const dropZoneIndicatorsRef = useRef<Rect[]>([]);
+  const activeDropZoneRef = useRef<{ targetId: string | null; zone: DropZone } | null>(null);
   const autoPanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const onSnapEdgeCreateRef = useRef(onSnapEdgeCreate);
-  useEffect(() => { onSnapEdgeCreateRef.current = onSnapEdgeCreate; }, [onSnapEdgeCreate]);
-  const onUnlinkFromManagerRef = useRef(onUnlinkFromManager);
-  useEffect(() => { onUnlinkFromManagerRef.current = onUnlinkFromManager; }, [onUnlinkFromManager]);
+  const onDropZoneRef = useRef(onDropZone);
+  useEffect(() => { onDropZoneRef.current = onDropZone; }, [onDropZone]);
   
   // Snap constants
-  const SNAP_RADIUS = 40; // px radius to trigger "reports to" snap
-  const SNAP_HORIZONTAL_THRESHOLD = 30; // px alignment tolerance
-  const SIBLING_SNAP_THRESHOLD = 25; // px to snap siblings equally spaced
-  const AUTO_PAN_EDGE = 60; // px from viewport edge to start auto-pan
+  const AUTO_PAN_EDGE = 60;
   const AUTO_PAN_SPEED = 8;
-  const COMPANY_SNAP_RADIUS = 60; // px radius around company node to unlink (make top-level)
-  
-  // Guide line management
+  const COMPANY_SNAP_RADIUS = 80;
+  const DROP_ZONE_PROXIMITY = 120; // px - only show zones when pointer is within this distance
+
+  // Guide line & drop zone management
   const clearGuideLines = useCallback((canvas: FabricCanvas) => {
     guideLinesToRef.current.forEach(line => {
       try { canvas.remove(line); } catch {}
@@ -123,7 +120,11 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       try { canvas.remove(snapHighlightRef.current); } catch {}
       snapHighlightRef.current = null;
     }
-    snapTargetRef.current = null;
+    dropZoneIndicatorsRef.current.forEach(r => {
+      try { canvas.remove(r); } catch {}
+    });
+    dropZoneIndicatorsRef.current = [];
+    activeDropZoneRef.current = null;
   }, []);
   
   const addGuideLine = useCallback((canvas: FabricCanvas, x1: number, y1: number, x2: number, y2: number) => {
@@ -138,25 +139,118 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     canvas.add(line);
     guideLinesToRef.current.push(line);
   }, []);
-  
-  const showSnapHighlight = useCallback((canvas: FabricCanvas, targetGroup: Group) => {
+
+  /**
+   * Determine which drop zone the pointer is in relative to a target card.
+   * Divides the card rect into: top 25%, bottom 25%, left 25%, right 25%.
+   * The middle 50%×50% is "no action" to prevent accidental snaps.
+   */
+  const detectDropZone = useCallback((
+    pointerX: number,
+    pointerY: number,
+    targetCenterX: number,
+    targetCenterY: number,
+    nodeW: number,
+    nodeH: number,
+  ): DropZone | null => {
+    const left = targetCenterX - nodeW / 2;
+    const top = targetCenterY - nodeH / 2;
+    const relX = pointerX - left;
+    const relY = pointerY - top;
+
+    // Out of bounds
+    if (relX < 0 || relX > nodeW || relY < 0 || relY > nodeH) return null;
+
+    const fracX = relX / nodeW;
+    const fracY = relY / nodeH;
+
+    // Check corners/edges: top/bottom take priority in top/bottom 25% strips
+    if (fracY < 0.25) return "top";
+    if (fracY > 0.75) return "bottom";
+    if (fracX < 0.25) return "left";
+    if (fracX > 0.75) return "right";
+
+    return null; // middle 50% = no action
+  }, []);
+
+  const showDropZoneIndicator = useCallback((canvas: FabricCanvas, targetGroup: Group, zone: DropZone) => {
+    // Clear old indicators
+    dropZoneIndicatorsRef.current.forEach(r => {
+      try { canvas.remove(r); } catch {}
+    });
+    dropZoneIndicatorsRef.current = [];
+
+    const cx = targetGroup.left!;
+    const cy = targetGroup.top!;
+    const hw = CARD_W / 2;
+    const hh = CARD_H / 2;
+
+    const zoneColors: Record<DropZone, string> = {
+      top: "hsl(280 70% 55%)",    // purple - insert as parent
+      bottom: "hsl(221 83% 53%)", // blue - insert as child
+      left: "hsl(142 71% 45%)",   // green - sibling before
+      right: "hsl(38 92% 50%)",   // amber - sibling after
+      company_root: "hsl(221 83% 53%)",
+    };
+
+    const color = zoneColors[zone];
+    let indicator: Rect;
+
+    switch (zone) {
+      case "top":
+        indicator = new Rect({
+          left: cx - hw, top: cy - hh - 6,
+          width: CARD_W, height: 6,
+          fill: color, rx: 3, ry: 3,
+          selectable: false, evented: false, opacity: 0.8,
+        });
+        break;
+      case "bottom":
+        indicator = new Rect({
+          left: cx - hw, top: cy + hh,
+          width: CARD_W, height: 6,
+          fill: color, rx: 3, ry: 3,
+          selectable: false, evented: false, opacity: 0.8,
+        });
+        break;
+      case "left":
+        indicator = new Rect({
+          left: cx - hw - 6, top: cy - hh,
+          width: 6, height: CARD_H,
+          fill: color, rx: 3, ry: 3,
+          selectable: false, evented: false, opacity: 0.8,
+        });
+        break;
+      case "right":
+        indicator = new Rect({
+          left: cx + hw, top: cy - hh,
+          width: 6, height: CARD_H,
+          fill: color, rx: 3, ry: 3,
+          selectable: false, evented: false, opacity: 0.8,
+        });
+        break;
+      default:
+        return;
+    }
+
+    canvas.add(indicator);
+    dropZoneIndicatorsRef.current.push(indicator);
+
+    // Also add a highlight border around target
     if (snapHighlightRef.current) {
       try { canvas.remove(snapHighlightRef.current); } catch {}
     }
-    const bounds = targetGroup.getBoundingRect();
     const highlight = new Rect({
-      left: targetGroup.left! - 95,
-      top: targetGroup.top! - 50,
-      width: 190,
-      height: 100,
+      left: cx - hw - 4,
+      top: cy - hh - 4,
+      width: CARD_W + 8,
+      height: CARD_H + 8,
       fill: "transparent",
-      stroke: "hsl(221 83% 53%)",
-      strokeWidth: 3,
-      rx: 12,
-      ry: 12,
-      selectable: false,
-      evented: false,
-      opacity: 0.6,
+      stroke: color,
+      strokeWidth: 2,
+      strokeDashArray: [6, 3],
+      rx: 10, ry: 10,
+      selectable: false, evented: false, opacity: 0.6,
     });
     canvas.add(highlight);
     snapHighlightRef.current = highlight;
@@ -413,84 +507,82 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         // Rebuild all edges from scratch on every move (ephemeral edges)
         rebuildAllEdges(fabricCanvas, canvasW);
         
-        // ── Smart Snap System ──
+        // ── 4-Zone Drop Detection ──
         clearGuideLines(fabricCanvas);
         
         const dragX = center.x;
         const dragY = center.y;
         
-        // Check all other nodes for snap relationships
-        let bestParent: { id: string; group: Group; dist: number } | null = null;
-        const alignXMatches: number[] = [];
-        const alignYMatches: number[] = [];
-        
-        // Check company node for root snap (unlink / make top-level)
+        // 1. Check company node for root snap
+        let foundDropZone = false;
         if (companyNodeRef.current) {
           const companyCenter = companyNodeRef.current.getCenterPoint();
           const distToCompany = Math.sqrt(
             Math.pow(dragX - companyCenter.x, 2) + Math.pow(dragY - companyCenter.y, 2)
           );
-          if (distToCompany < COMPANY_SNAP_RADIUS + NODE_H / 2 && contact.managerId) {
-            // Show highlight on company node
-            showSnapHighlight(fabricCanvas, companyNodeRef.current);
+          if (distToCompany < COMPANY_SNAP_RADIUS) {
+            // Show company root indicator
+            if (snapHighlightRef.current) {
+              try { fabricCanvas.remove(snapHighlightRef.current); } catch {}
+            }
+            const highlight = new Rect({
+              left: companyCenter.x - 50,
+              top: companyCenter.y - 50,
+              width: 100, height: 100,
+              fill: "transparent",
+              stroke: "hsl(221 83% 53%)",
+              strokeWidth: 3, rx: 50, ry: 50,
+              selectable: false, evented: false, opacity: 0.6,
+            });
+            fabricCanvas.add(highlight);
+            snapHighlightRef.current = highlight;
             addGuideLine(fabricCanvas, companyCenter.x, companyCenter.y + 40, dragX, dragY - NODE_H / 2);
-            snapTargetRef.current = "__company_root__";
+            activeDropZoneRef.current = { targetId: null, zone: "company_root" };
+            foundDropZone = true;
           }
         }
         
-        contactNodesRef.current.forEach((otherData, otherId) => {
-          if (otherId === contact.id) return;
-          const otherCenter = otherData.group.getCenterPoint();
+        // 2. Check all other contact nodes for 4-zone detection
+        if (!foundDropZone) {
+          let bestTarget: { id: string; group: Group; zone: DropZone; dist: number } | null = null;
           
-          // Check vertical alignment (same X axis)
-          if (Math.abs(dragX - otherCenter.x) < SNAP_HORIZONTAL_THRESHOLD) {
-            alignXMatches.push(otherCenter.x);
-          }
+          contactNodesRef.current.forEach((otherData, otherId) => {
+            if (otherId === contact.id) return;
+            const otherCenter = otherData.group.getCenterPoint();
+            const dist = Math.sqrt(
+              Math.pow(dragX - otherCenter.x, 2) + Math.pow(dragY - otherCenter.y, 2)
+            );
+            
+            // Only check zones if pointer is close enough to the card
+            if (dist > DROP_ZONE_PROXIMITY) return;
+            
+            const zone = detectDropZone(dragX, dragY, otherCenter.x, otherCenter.y, NODE_W, NODE_H);
+            if (zone && (!bestTarget || dist < bestTarget.dist)) {
+              bestTarget = { id: otherId, group: otherData.group, zone, dist };
+            }
+          });
           
-          // Check horizontal alignment (same Y axis)
-          if (Math.abs(dragY - otherCenter.y) < SIBLING_SNAP_THRESHOLD) {
-            alignYMatches.push(otherCenter.y);
-          }
-          
-          // Check "reports to" – use 40px radius from bottom anchor of target node
-          const targetBottomX = otherCenter.x;
-          const targetBottomY = otherCenter.y + NODE_H / 2;
-          const dragTopY = dragY - NODE_H / 2;
-          const distFromTargetBottom = Math.sqrt(
-            Math.pow(dragX - targetBottomX, 2) + Math.pow(dragTopY - targetBottomY, 2)
-          );
-          
-          if (distFromTargetBottom < SNAP_RADIUS && dragY > otherCenter.y) {
-            if (!bestParent || distFromTargetBottom < bestParent.dist) {
-              bestParent = { id: otherId, group: otherData.group, dist: distFromTargetBottom };
+          if (bestTarget) {
+            showDropZoneIndicator(fabricCanvas, bestTarget.group, bestTarget.zone);
+            activeDropZoneRef.current = { targetId: bestTarget.id, zone: bestTarget.zone };
+            
+            // Draw guide line based on zone type
+            const tc = bestTarget.group.getCenterPoint();
+            switch (bestTarget.zone) {
+              case "bottom":
+                addGuideLine(fabricCanvas, tc.x, tc.y + NODE_H / 2, dragX, dragY - NODE_H / 2);
+                break;
+              case "top":
+                addGuideLine(fabricCanvas, dragX, dragY + NODE_H / 2, tc.x, tc.y - NODE_H / 2);
+                break;
+              case "left":
+                addGuideLine(fabricCanvas, tc.x - NODE_W / 2 - 10, tc.y, dragX + NODE_W / 2, dragY);
+                break;
+              case "right":
+                addGuideLine(fabricCanvas, tc.x + NODE_W / 2 + 10, tc.y, dragX - NODE_W / 2, dragY);
+                break;
             }
           }
-        });
-        
-        // Draw vertical alignment guides
-        alignXMatches.forEach(ax => {
-          addGuideLine(fabricCanvas, ax, dragY - 200, ax, dragY + 200);
-        });
-        
-        // Draw horizontal alignment guides (sibling row)
-        if (alignYMatches.length > 0) {
-          const snapY = alignYMatches[0];
-          addGuideLine(fabricCanvas, dragX - 200, snapY, dragX + 200, snapY);
-        }
-        
-        // Show parent highlight and parent-child axis (takes priority over company snap)
-        if (bestParent) {
-          // Clear any company snap highlight first
-          if (snapTargetRef.current === "__company_root__" && snapHighlightRef.current) {
-            try { fabricCanvas.remove(snapHighlightRef.current); } catch {}
-            snapHighlightRef.current = null;
-          }
-          const parentCenter = bestParent.group.getCenterPoint();
-          showSnapHighlight(fabricCanvas, bestParent.group);
-          addGuideLine(fabricCanvas, parentCenter.x, parentCenter.y + NODE_H / 2, dragX, dragY - NODE_H / 2);
-          snapTargetRef.current = bestParent.id;
-        } else if (snapTargetRef.current !== "__company_root__") {
-          snapTargetRef.current = null;
         }
         
         // Auto-pan near edges
@@ -502,27 +594,27 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         fabricCanvas.renderAll();
       });
       
-      // On drop: clear guides, create edge if snapped, persist position
+      // On drop: fire the appropriate drop zone action
       node.on('modified', function() {
         stopAutoPan();
+        const dropInfo = activeDropZoneRef.current;
         clearGuideLines(fabricCanvas);
         
         if (interactionModeRef.current !== 'edit') return;
         
-        // If snapped to company root, unlink from manager (make top-level)
-        if (snapTargetRef.current === "__company_root__") {
-          // Animate edges, then fire DB update (no delay on DB side)
+        if (dropInfo) {
           rebuildAllEdges(fabricCanvas, canvasW, true);
-          if (companyNodeRef.current) pulseNode(fabricCanvas, companyNodeRef.current);
-          onUnlinkFromManagerRef.current?.(contact.id);
-          snapTargetRef.current = null;
-        } else if (snapTargetRef.current) {
-          // Snapped to another contact — set as manager
-          const targetData = contactNodesRef.current.get(snapTargetRef.current);
-          rebuildAllEdges(fabricCanvas, canvasW, true);
-          if (targetData) pulseNode(fabricCanvas, targetData.group);
-          onSnapEdgeCreateRef.current?.(contact.id, snapTargetRef.current);
-          snapTargetRef.current = null;
+          
+          // Pulse the target node
+          if (dropInfo.targetId) {
+            const targetData = contactNodesRef.current.get(dropInfo.targetId);
+            if (targetData) pulseNode(fabricCanvas, targetData.group);
+          } else if (companyNodeRef.current) {
+            pulseNode(fabricCanvas, companyNodeRef.current);
+          }
+          
+          // Fire the callback
+          onDropZoneRef.current?.(contact.id, dropInfo.targetId, dropInfo.zone);
         }
         
         fabricCanvas.renderAll();

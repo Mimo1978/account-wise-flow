@@ -41,7 +41,7 @@ import { useCompanyCanvas } from "@/hooks/use-company-canvas";
 import { useCanvasMode } from "@/hooks/use-canvas-mode";
 import { CanvasModeToggle } from "@/components/canvas/CanvasModeToggle";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { useOrgChartEdges } from "@/hooks/use-org-chart-edges";
+import { useOrgChartEdges, DropZone } from "@/hooks/use-org-chart-edges";
 
 const Canvas = () => {
   const navigate = useNavigate();
@@ -80,6 +80,8 @@ const Canvas = () => {
     childrenMap: edgeChildrenMap,
     rootContactId,
     setParent,
+    insertAsSibling,
+    insertAsParent,
     wouldCreateCycle,
   } = useOrgChartEdges({ companyId: account?.id });
 
@@ -267,32 +269,49 @@ const Canvas = () => {
     setSelectedNodeId(contactId);
   }, [setSelectedNodeId]);
 
-  // Handle snap-to-parent edge creation via org_chart_edges
-  const handleSnapEdgeCreate = useCallback(async (childContactId: string, parentContactId: string) => {
+  // Unified drop zone handler for the 4-zone snap system
+  const handleDropZone = useCallback(async (draggedContactId: string, targetContactId: string | null, zone: DropZone) => {
     try {
-      await setParent({ childContactId, parentContactId });
-      toast.success("Reporting relationship created");
+      switch (zone) {
+        case "company_root":
+          // Make dragged node the root
+          await setParent({ childContactId: draggedContactId, parentContactId: null });
+          toast.success("Set as top-level contact");
+          break;
+        case "bottom":
+          // Make dragged node a child of target
+          if (!targetContactId) return;
+          await setParent({ childContactId: draggedContactId, parentContactId: targetContactId });
+          toast.success("Reporting relationship created");
+          break;
+        case "top":
+          // Insert dragged node as parent of target
+          if (!targetContactId) return;
+          await insertAsParent({ draggedContactId, targetContactId });
+          toast.success("Inserted as manager");
+          break;
+        case "left":
+          // Insert as sibling before target
+          if (!targetContactId) return;
+          await insertAsSibling({ draggedContactId, targetContactId, side: "before" });
+          toast.success("Inserted as peer (before)");
+          break;
+        case "right":
+          // Insert as sibling after target
+          if (!targetContactId) return;
+          await insertAsSibling({ draggedContactId, targetContactId, side: "after" });
+          toast.success("Inserted as peer (after)");
+          break;
+      }
     } catch (err: any) {
       if (err?.message === "Cycle detected") {
         toast.error("Cannot create circular reporting relationship");
       } else {
-        console.error('Failed to set parent:', err);
-        toast.error("Failed to create relationship");
+        console.error('Drop zone action failed:', err);
+        toast.error("Failed to update relationship");
       }
     }
-  }, [setParent]);
-
-  // Unlink: make contact a root (or just remove from tree)
-  const handleUnlinkFromManager = useCallback(async (contactId: string) => {
-    try {
-      // Setting parent to null makes it root; root replacement is handled by the hook
-      await setParent({ childContactId: contactId, parentContactId: null });
-      toast.success("Set as top-level contact");
-    } catch (err) {
-      console.error('Failed to unlink:', err);
-      toast.error("Failed to remove relationship");
-    }
-  }, [setParent]);
+  }, [setParent, insertAsSibling, insertAsParent]);
 
   // Build toolbar actions
   const toolbarActions: ToolbarAction[] = useMemo(() => {
@@ -467,8 +486,7 @@ const Canvas = () => {
             interactionMode={canvasMode}
             selectedNodeId={selectedNodeId}
             onNodeSelect={handleNodeSelect}
-            onSnapEdgeCreate={handleSnapEdgeCreate}
-            onUnlinkFromManager={handleUnlinkFromManager}
+            onDropZone={handleDropZone}
             workspaceId={currentWorkspace?.id}
             edgeParentMap={edgeParentMap}
             edgeChildrenMap={edgeChildrenMap}

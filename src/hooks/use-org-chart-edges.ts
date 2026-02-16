@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { inferSeniority, SENIORITY_ORDER } from "@/lib/seniority-inference";
@@ -48,25 +48,31 @@ export function useOrgChartEdges({ companyId }: UseOrgChartEdgesOptions) {
     enabled: !!companyId,
   });
 
-  // Build parent/children maps from edges
-  const parentMap = new Map<string, string | null>();
-  const childrenMap = new Map<string, string[]>();
-  let rootContactId: string | null = null;
+  // Build parent/children maps from edges — memoized to prevent re-render loops
+  const { parentMap, childrenMap, rootContactId } = useMemo(() => {
+    const pMap = new Map<string, string | null>();
+    const cMap = new Map<string, string[]>();
+    let root: string | null = null;
 
-  const sortedEdges = [...edges].sort((a, b) => a.position_index - b.position_index);
+    const sorted = [...edges].sort((a, b) => a.position_index - b.position_index);
 
-  sortedEdges.forEach((edge) => {
-    parentMap.set(edge.child_contact_id, edge.parent_contact_id);
-    if (edge.parent_contact_id) {
-      if (!childrenMap.has(edge.parent_contact_id)) {
-        childrenMap.set(edge.parent_contact_id, []);
+    sorted.forEach((edge) => {
+      pMap.set(edge.child_contact_id, edge.parent_contact_id);
+      if (edge.parent_contact_id) {
+        if (!cMap.has(edge.parent_contact_id)) {
+          cMap.set(edge.parent_contact_id, []);
+        }
+        cMap.get(edge.parent_contact_id)!.push(edge.child_contact_id);
       }
-      childrenMap.get(edge.parent_contact_id)!.push(edge.child_contact_id);
-    }
-    if (edge.parent_contact_id === null) {
-      rootContactId = edge.child_contact_id;
-    }
-  });
+      if (edge.parent_contact_id === null) {
+        root = edge.child_contact_id;
+      }
+    });
+
+    return { parentMap: pMap, childrenMap: cMap, rootContactId: root };
+  }, [edges]);
+
+  const sortedEdges = useMemo(() => [...edges].sort((a, b) => a.position_index - b.position_index), [edges]);
 
   const wouldCreateCycle = useCallback(
     (childId: string, newParentId: string): boolean => {

@@ -10,6 +10,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { DropZone } from "@/hooks/use-org-chart-edges";
 
+// Stable empty maps to avoid re-render loops from default prop values
+const EMPTY_MAP_STRING_NULL = new Map<string, string | null>();
+const EMPTY_MAP_STRING_ARR = new Map<string, string[]>();
+
 interface TalentEngagementWithData extends TalentEngagement {
   talent: Talent;
 }
@@ -66,8 +70,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   onNodeSelect,
   onDropZone,
   workspaceId,
-  edgeParentMap = new Map(),
-  edgeChildrenMap = new Map(),
+  edgeParentMap = EMPTY_MAP_STRING_NULL,
+  edgeChildrenMap = EMPTY_MAP_STRING_ARR,
   rootContactId = null,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -101,6 +105,9 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const previousPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   // Active animation frame ID for cleanup
   const animationFrameRef = useRef<number | null>(null);
+  // Throttle edge rebuilds during drag
+  const lastEdgeRebuildRef = useRef<number>(0);
+  const EDGE_REBUILD_THROTTLE = 100; // ms
   
   // Smart snap system refs
   const guideLinesToRef = useRef<Line[]>([]);
@@ -508,8 +515,12 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           return;
         }
         const center = node.getCenterPoint();
-        // Rebuild all edges from scratch on every move (ephemeral edges)
-        rebuildAllEdges(fabricCanvas, canvasW);
+        // Throttle edge rebuilds during drag to prevent freezing
+        const now = performance.now();
+        if (now - lastEdgeRebuildRef.current > EDGE_REBUILD_THROTTLE) {
+          lastEdgeRebuildRef.current = now;
+          rebuildAllEdges(fabricCanvas, canvasW);
+        }
         
         // ── 4-Zone Drop Detection ──
         clearGuideLines(fabricCanvas);
@@ -951,8 +962,12 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           nodeData.group.setCoords();
         });
 
-        // Rebuild edges each frame during animation (attach to moving nodes)
-        rebuildAllEdges(fabricCanvas, canvasW);
+        // Rebuild edges each frame during animation (throttled)
+        const animNow = performance.now();
+        if (animNow - lastEdgeRebuildRef.current > 50) {
+          lastEdgeRebuildRef.current = animNow;
+          rebuildAllEdges(fabricCanvas, canvasW);
+        }
         fabricCanvas.requestRenderAll();
 
         if (rawT < 1) {

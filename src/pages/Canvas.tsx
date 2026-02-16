@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2, Link2, Unlink, Lock, Eye } from "lucide-react";
+import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
@@ -22,7 +22,6 @@ import { Account, Contact, Talent, TalentEngagement } from "@/lib/types";
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { toast } from "sonner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import {
@@ -41,8 +40,8 @@ import { useOnboarding } from "@/hooks/use-onboarding";
 import { useCompanyCanvas } from "@/hooks/use-company-canvas";
 import { useCanvasMode } from "@/hooks/use-canvas-mode";
 import { CanvasModeToggle } from "@/components/canvas/CanvasModeToggle";
-import { StructureToolbar } from "@/components/canvas/StructureToolbar";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useOrgChartEdges } from "@/hooks/use-org-chart-edges";
 
 const Canvas = () => {
   const navigate = useNavigate();
@@ -57,7 +56,6 @@ const Canvas = () => {
   } = useOnboarding();
   
   const { currentWorkspace } = useWorkspace();
-  // Use the company canvas hook instead of mock data
   const { 
     account: loadedAccount, 
     accounts: allAccounts, 
@@ -67,17 +65,25 @@ const Canvas = () => {
     setAccount: setLoadedAccount,
   } = useCompanyCanvas({ fallbackToMock: true });
   
-  // Local account state for canvas operations
   const [account, setAccount] = useState<Account | null>(null);
   
-  // Sync loaded account to local state
   useEffect(() => {
     if (loadedAccount) {
       setAccount(loadedAccount);
     }
   }, [loadedAccount]);
 
-  // Handle highlight param from navigation (e.g. after org chart import)
+  // Org chart edges hook — single source of truth for hierarchy
+  const {
+    edges: orgChartEdges,
+    parentMap: edgeParentMap,
+    childrenMap: edgeChildrenMap,
+    rootContactId,
+    setParent,
+    wouldCreateCycle,
+  } = useOrgChartEdges({ companyId: account?.id });
+
+  // Handle highlight param from navigation
   useEffect(() => {
     const highlightParam = searchParams.get("highlight");
     if (highlightParam && account) {
@@ -90,12 +96,12 @@ const Canvas = () => {
         }, 500);
         setTimeout(() => setHighlightedContactIds([]), 10000);
         toast.success(`${ids.length} contacts imported and displayed on canvas`);
-        // Remove highlight param from URL
         searchParams.delete("highlight");
         setSearchParams(searchParams, { replace: true });
       }
     }
   }, [searchParams, account]);
+
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -115,20 +121,15 @@ const Canvas = () => {
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [showTalentPanel, setShowTalentPanel] = useState(false);
   const canvasRef = useRef<AccountCanvasRef>(null);
-  const [structureToolbarPos, setStructureToolbarPos] = useState<{ x: number; y: number } | null>(null);
   
-  // Canvas interaction mode
   const {
     mode: canvasMode,
     isEditMode,
     setMode: setCanvasMode,
     selectedNodeId,
     setSelectedNodeId,
-    lockedNodeIds,
-    toggleLockNode,
   } = useCanvasMode();
 
-  // Get engagements for current company with talent data
   const companyEngagements = account ? mockEngagements
     .filter((eng) => eng.companyId === account.id)
     .map((eng) => ({
@@ -138,7 +139,6 @@ const Canvas = () => {
     .filter((eng) => eng.talent) as (TalentEngagement & { talent: Talent })[] : [];
 
   const handleCompanySwitch = (newAccount: Account) => {
-    // If there are unsaved changes, show confirmation dialog
     if (hasUnsavedChanges) {
       setPendingCompany(newAccount);
       setShowCompanySaveDialog(true);
@@ -148,38 +148,27 @@ const Canvas = () => {
   };
 
   const performCompanySwitch = (newAccount: Account) => {
-    // Clear any open contact card
     setSelectedContact(null);
     setIsExpanded(false);
     setHasUnsavedChanges(false);
-    
-    // Reset the canvas search
     canvasRef.current?.clearSearch();
-    
-    // Use the hook's switch function to navigate with URL
     switchCompany(newAccount);
-    
     toast.success(`Switched to ${newAccount.name}`);
   };
   
-  // Back to companies handler
   const handleBackToCompanies = () => {
     navigate('/companies');
   };
 
   const handleCompanySaveAndSwitch = () => {
     toast.success("Changes saved");
-    if (pendingCompany) {
-      performCompanySwitch(pendingCompany);
-    }
+    if (pendingCompany) performCompanySwitch(pendingCompany);
     setPendingCompany(null);
     setShowCompanySaveDialog(false);
   };
 
   const handleCompanyDiscardAndSwitch = () => {
-    if (pendingCompany) {
-      performCompanySwitch(pendingCompany);
-    }
+    if (pendingCompany) performCompanySwitch(pendingCompany);
     setPendingCompany(null);
     setShowCompanySaveDialog(false);
   };
@@ -190,10 +179,7 @@ const Canvas = () => {
   };
 
   const handleContactClick = (contact: Contact) => {
-    // If clicking the same contact, do nothing
     if (selectedContact?.id === contact.id) return;
-
-    // If there are unsaved changes, show confirmation dialog
     if (hasUnsavedChanges) {
       setPendingContact(contact);
       setShowSaveDialog(true);
@@ -204,7 +190,6 @@ const Canvas = () => {
   };
 
   const handleSaveAndSwitch = () => {
-    // In real implementation, save the changes here
     toast.success("Changes saved");
     setSelectedContact(pendingContact);
     setPendingContact(null);
@@ -235,16 +220,12 @@ const Canvas = () => {
   const handleAddContact = (contact: Contact) => {
     setAccount((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        contacts: [...prev.contacts, contact],
-      };
+      return { ...prev, contacts: [...prev.contacts, contact] };
     });
   };
 
   const handleHighlightContacts = useCallback((contactIds: string[]) => {
     setHighlightedContactIds(contactIds);
-    // Also call the canvas method directly for immediate visual feedback
     canvasRef.current?.highlightContacts(contactIds);
   }, []);
 
@@ -258,7 +239,6 @@ const Canvas = () => {
   }, [hasUnsavedChanges]);
 
   const handleGlobalSelectContact = useCallback((contact: Contact, selectedAccount: Account) => {
-    // If the contact is from a different company, switch to that company first
     if (account && selectedAccount.id !== account.id) {
       if (hasUnsavedChanges) {
         toast.info("Please save or discard changes before switching companies");
@@ -266,13 +246,9 @@ const Canvas = () => {
       }
       performCompanySwitch(selectedAccount);
     }
-    
-    // Set the selected contact and switch to canvas view
     setSelectedContact(contact);
     setViewMode("canvas");
     setIsExpanded(false);
-    
-    // Highlight the contact on the canvas
     canvasRef.current?.highlightContacts([contact.id]);
     setHighlightedContactIds([contact.id]);
   }, [account?.id, hasUnsavedChanges]);
@@ -287,81 +263,40 @@ const Canvas = () => {
     setShowTalentPanel(false);
   };
 
-  // Handle node selection in edit mode
   const handleNodeSelect = useCallback((contactId: string | null) => {
     setSelectedNodeId(contactId);
-    if (contactId && canvasRef.current) {
-      const pos = canvasRef.current.getNodeScreenPosition(contactId);
-      setStructureToolbarPos(pos);
-    } else {
-      setStructureToolbarPos(null);
-    }
   }, [setSelectedNodeId]);
 
-  // Handle snap-to-parent edge creation — sets manager_id on the child contact
+  // Handle snap-to-parent edge creation via org_chart_edges
   const handleSnapEdgeCreate = useCallback(async (childContactId: string, parentContactId: string) => {
-    if (!currentWorkspace) return;
     try {
-      // Clear any existing parent first (one manager rule)
-      await supabase
-        .from('contacts')
-        .update({ manager_id: parentContactId } as any)
-        .eq('id', childContactId);
-      
-      // Update local state so canvas re-renders with correct hierarchy
-      setAccount((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          contacts: prev.contacts.map(c =>
-            c.id === childContactId ? { ...c, managerId: parentContactId } : c
-          ),
-        };
-      });
-      
+      await setParent({ childContactId, parentContactId });
       toast.success("Reporting relationship created");
-    } catch (err) {
-      console.error('Failed to set manager:', err);
-      toast.error("Failed to create relationship");
+    } catch (err: any) {
+      if (err?.message === "Cycle detected") {
+        toast.error("Cannot create circular reporting relationship");
+      } else {
+        console.error('Failed to set parent:', err);
+        toast.error("Failed to create relationship");
+      }
     }
-  }, [currentWorkspace]);
+  }, [setParent]);
 
-  // Unlink a contact from its manager
+  // Unlink: make contact a root (or just remove from tree)
   const handleUnlinkFromManager = useCallback(async (contactId: string) => {
     try {
-      await supabase
-        .from('contacts')
-        .update({ manager_id: null } as any)
-        .eq('id', contactId);
-      
-      setAccount((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          contacts: prev.contacts.map(c =>
-            c.id === contactId ? { ...c, managerId: null } : c
-          ),
-        };
-      });
-      
-      toast.success("Manager relationship removed");
+      // Setting parent to null makes it root; root replacement is handled by the hook
+      await setParent({ childContactId: contactId, parentContactId: null });
+      toast.success("Set as top-level contact");
     } catch (err) {
-      console.error('Failed to unlink manager:', err);
+      console.error('Failed to unlink:', err);
       toast.error("Failed to remove relationship");
     }
-  }, []);
+  }, [setParent]);
 
-  // Get selected contact for structure toolbar actions
-  const selectedNodeContact = useMemo(() => {
-    if (!selectedNodeId || !account) return null;
-    return account.contacts.find(c => c.id === selectedNodeId) || null;
-  }, [selectedNodeId, account]);
-
-  // Build toolbar actions with proper priority grouping
+  // Build toolbar actions
   const toolbarActions: ToolbarAction[] = useMemo(() => {
     const actions: ToolbarAction[] = [];
-
-    // Secondary actions (can overflow into "More" menu)
     actions.push({
       id: "org-chart",
       label: "Build Org Chart",
@@ -369,7 +304,6 @@ const Canvas = () => {
       onClick: () => setShowOrgChartBuilder(true),
       priority: "secondary",
     });
-
     actions.push({
       id: "missing-roles",
       label: "Missing Roles",
@@ -378,7 +312,6 @@ const Canvas = () => {
       isActive: isRoleSuggestionsOpen,
       priority: "secondary",
     });
-
     actions.push({
       id: "ai-insights",
       label: "AI Insights",
@@ -387,7 +320,6 @@ const Canvas = () => {
       isActive: isAIInsightsOpen,
       priority: "secondary",
     });
-
     actions.push({
       id: "ai-knowledge",
       label: "AI Knowledge",
@@ -396,8 +328,6 @@ const Canvas = () => {
       isActive: isAIKnowledgeOpen,
       priority: "secondary",
     });
-
-    // Critical actions (always visible)
     actions.push({
       id: "import",
       label: "Import Contacts",
@@ -406,7 +336,6 @@ const Canvas = () => {
       priority: "critical",
       hideLabel: true,
     });
-
     actions.push({
       id: "add-contact",
       label: "Add Contact",
@@ -415,20 +344,12 @@ const Canvas = () => {
       variant: "default",
       priority: "critical",
     });
-
     return actions;
   }, [isRoleSuggestionsOpen, isAIInsightsOpen, isAIKnowledgeOpen]);
 
-  // Left side content for the toolbar
   const toolbarLeftContent = account ? (
     <>
-      {/* Back Button */}
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={handleBackToCompanies}
-        className="gap-2 shrink-0"
-      >
+      <Button variant="ghost" size="sm" onClick={handleBackToCompanies} className="gap-2 shrink-0">
         <ArrowLeft className="w-4 h-4" />
         <span className="hidden sm:inline">Companies</span>
       </Button>
@@ -443,10 +364,7 @@ const Canvas = () => {
         companies={allAccounts}
         onCompanySelect={handleCompanySwitch}
       />
-      <QRCodeButton 
-        accountId={account.id}
-        accountName={account.name}
-      />
+      <QRCodeButton accountId={account.id} accountName={account.name} />
       <div className="h-6 w-px bg-border shrink-0" />
       <GlobalSearch
         onSelectCompany={handleGlobalSelectCompany}
@@ -454,7 +372,6 @@ const Canvas = () => {
       />
       <div className="h-6 w-px bg-border shrink-0" />
       
-      {/* Talent Overlay Toggle - Only show in canvas mode */}
       {viewMode === "canvas" && companyEngagements.length > 0 && (
         <>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50 shrink-0">
@@ -477,7 +394,6 @@ const Canvas = () => {
         </>
       )}
       
-      {/* View Toggle */}
       <ToggleGroup 
         type="single" 
         value={viewMode} 
@@ -493,11 +409,9 @@ const Canvas = () => {
           <span className="hidden lg:inline">Database</span>
         </ToggleGroupItem>
       </ToggleGroup>
-
     </>
   ) : null;
 
-  // Loading state
   if (isLoadingCompany) {
     return (
       <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center gap-4">
@@ -507,7 +421,6 @@ const Canvas = () => {
     );
   }
 
-  // No company state
   if (!account) {
     return (
       <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center gap-4">
@@ -526,30 +439,21 @@ const Canvas = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-65px)]">
-      {/* Sub-header with context controls */}
       <div 
         data-toolbar-ribbon
         className="border-b border-border/50 bg-background/80 backdrop-blur-sm px-4 py-3 flex items-center gap-3"
       >
         <div className="flex-1 min-w-0">
-          <ResponsiveToolbar
-            leftContent={toolbarLeftContent}
-            actions={toolbarActions}
-          />
+          <ResponsiveToolbar leftContent={toolbarLeftContent} actions={toolbarActions} />
         </div>
-        {/* Canvas Mode Toggle - always visible in canvas view */}
         {viewMode === "canvas" && account && (
           <>
             <div className="h-6 w-px bg-border shrink-0" />
-            <CanvasModeToggle
-              mode={canvasMode}
-              onModeChange={setCanvasMode}
-            />
+            <CanvasModeToggle mode={canvasMode} onModeChange={setCanvasMode} />
           </>
         )}
       </div>
 
-      {/* Main Content Area */}
       <main className="flex-1 overflow-hidden relative pointer-events-auto">
         {viewMode === "canvas" ? (
           <AccountCanvas 
@@ -563,10 +467,12 @@ const Canvas = () => {
             interactionMode={canvasMode}
             selectedNodeId={selectedNodeId}
             onNodeSelect={handleNodeSelect}
-            lockedNodeIds={lockedNodeIds}
             onSnapEdgeCreate={handleSnapEdgeCreate}
             onUnlinkFromManager={handleUnlinkFromManager}
             workspaceId={currentWorkspace?.id}
+            edgeParentMap={edgeParentMap}
+            edgeChildrenMap={edgeChildrenMap}
+            rootContactId={rootContactId}
           />
         ) : (
           <CompanyDatabaseView
@@ -580,24 +486,7 @@ const Canvas = () => {
         )}
       </main>
 
-      {/* Structure Toolbar - floating controls in edit mode */}
-      {viewMode === "canvas" && isEditMode && selectedNodeId && structureToolbarPos && (
-        <StructureToolbar
-          position={structureToolbarPos}
-          isLocked={lockedNodeIds.has(selectedNodeId)}
-          onLink={() => { /* Link mode activated via snap – drag node below target */ toast.info("Drag this node below another to create a reporting link"); }}
-          onUnlink={() => { if (selectedNodeId) handleUnlinkFromManager(selectedNodeId); }}
-          onToggleLock={() => toggleLockNode(selectedNodeId)}
-          onViewProfile={() => {
-            const contact = account.contacts.find(c => c.id === selectedNodeId);
-            if (contact) {
-              handleContactClick(contact);
-            }
-          }}
-        />
-      )}
-
-      {/* Floating Contact Panel - Only show in canvas mode */}
+      {/* Contact Panel */}
       {viewMode === "canvas" && selectedContact && (
         <ContactDetailPanel 
           contact={selectedContact} 
@@ -618,20 +507,13 @@ const Canvas = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelSwitch}>
-              Cancel
-            </AlertDialogCancel>
-            <Button variant="outline" onClick={handleDiscardAndSwitch}>
-              Discard & Switch
-            </Button>
-            <AlertDialogAction onClick={handleSaveAndSwitch}>
-              Save & Switch
-            </AlertDialogAction>
+            <AlertDialogCancel onClick={handleCancelSwitch}>Cancel</AlertDialogCancel>
+            <Button variant="outline" onClick={handleDiscardAndSwitch}>Discard & Switch</Button>
+            <AlertDialogAction onClick={handleSaveAndSwitch}>Save & Switch</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Company Switch Save Confirmation Dialog */}
       <AlertDialog open={showCompanySaveDialog} onOpenChange={setShowCompanySaveDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -641,20 +523,13 @@ const Canvas = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCompanyCancelSwitch}>
-              Cancel
-            </AlertDialogCancel>
-            <Button variant="outline" onClick={handleCompanyDiscardAndSwitch}>
-              Discard & Switch
-            </Button>
-            <AlertDialogAction onClick={handleCompanySaveAndSwitch}>
-              Save & Switch
-            </AlertDialogAction>
+            <AlertDialogCancel onClick={handleCompanyCancelSwitch}>Cancel</AlertDialogCancel>
+            <Button variant="outline" onClick={handleCompanyDiscardAndSwitch}>Discard & Switch</Button>
+            <AlertDialogAction onClick={handleCompanySaveAndSwitch}>Save & Switch</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Add Contact Modal */}
       <AddContactModal
         open={showAddContactModal}
         onOpenChange={setShowAddContactModal}
@@ -662,7 +537,6 @@ const Canvas = () => {
         companyName={account.name}
       />
 
-      {/* Smart Import Modal */}
       <SmartImportModal
         open={showAIImportModal}
         onOpenChange={setShowAIImportModal}
@@ -673,7 +547,6 @@ const Canvas = () => {
         }}
       />
 
-      {/* Org Chart Builder Modal */}
       <OrgChartBuilderModal
         open={showOrgChartBuilder}
         onOpenChange={setShowOrgChartBuilder}
@@ -682,13 +555,8 @@ const Canvas = () => {
         onImportComplete={(contactIds, _companyId) => {
           setShowOrgChartBuilder(false);
           setViewMode("canvas");
-          // Highlight newly imported contacts on the canvas
           setHighlightedContactIds(contactIds);
-          // Trigger canvas highlight for immediate visual feedback after re-render
-          setTimeout(() => {
-            canvasRef.current?.highlightContacts(contactIds);
-          }, 500);
-          // Clear highlight after 10 seconds
+          setTimeout(() => canvasRef.current?.highlightContacts(contactIds), 500);
           setTimeout(() => setHighlightedContactIds([]), 10000);
           toast.success(`${contactIds.length} contacts imported and displayed on canvas`);
         }}
@@ -703,7 +571,6 @@ const Canvas = () => {
         />
       )}
 
-      {/* AI Insights Panel */}
       {viewMode === "canvas" && (
         <AIInsightsPanel
           account={account}
@@ -713,7 +580,6 @@ const Canvas = () => {
         />
       )}
 
-      {/* AI Role Suggestions Panel */}
       {viewMode === "canvas" && (
         <AIRoleSuggestionsPanel
           account={account}
@@ -723,14 +589,12 @@ const Canvas = () => {
         />
       )}
 
-      {/* Talent Profile Panel */}
       <TalentProfilePanel
         talent={selectedTalent}
         open={showTalentPanel}
         onClose={handleCloseTalentPanel}
       />
 
-      {/* Bottom Info Bar - Only show in canvas mode */}
       {viewMode === "canvas" && (
         <div className="border-t border-border/50 bg-muted/30 px-6 py-3">
           <div className="container mx-auto flex items-center justify-between text-sm">
@@ -762,14 +626,12 @@ const Canvas = () => {
         </div>
       )}
 
-      {/* Onboarding Modal */}
       <OnboardingModal
         open={showOnboardingModal}
         onComplete={completeOnboarding}
         onSkip={skipOnboarding}
       />
 
-      {/* Guided Tooltips */}
       {showTooltips && (
         <GuidedTooltips
           onComplete={completeTooltips}
@@ -781,3 +643,4 @@ const Canvas = () => {
 };
 
 export default Canvas;
+

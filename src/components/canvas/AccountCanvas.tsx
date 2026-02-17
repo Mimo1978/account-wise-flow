@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback } from "react";
+import { useEffect, useRef, useState, forwardRef, useImperativeHandle, useCallback, useMemo } from "react";
 import { Canvas as FabricCanvas, Circle, Text, Line, Group, FabricObject, Image as FabricImage, Point, Rect } from "fabric";
 import { Account, Contact, Talent, TalentEngagement, EngagementStatus } from "@/lib/types";
 import { CanvasSearch } from "./CanvasSearch";
@@ -85,10 +85,18 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   useEffect(() => { onNodeSelectRef.current = onNodeSelect; }, [onNodeSelect]);
   useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
   const companyNodeRef = useRef<Group | null>(null);
+  const companyMoveHandlerRef = useRef<any>(null);
+  const companyUpHandlerRef = useRef<any>(null);
   const isCanvasDisposedRef = useRef(false);
   const hierarchyLinesRef = useRef<Line[]>([]);
   const prevContactsRef = useRef<string>(""); // serialized contact ids+managers for diff detection
   const isAnimatingLayoutRef = useRef(false);
+  
+  // Drag mode: IDLE | DRAGGING | COMMITTING — prevents concurrent commits
+  const dragModeRef = useRef<"IDLE" | "DRAGGING" | "COMMITTING">("IDLE");
+  
+  // RAF throttling refs
+  const wheelRafRef = useRef<number | null>(null);
   
   // Smart snap system refs
   const guideLinesToRef = useRef<(Line | Rect)[]>([]);
@@ -238,16 +246,22 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       selection: false,
     });
 
-    // Enable zoom and pan
+    // Enable zoom with RAF throttling
     canvas.on('mouse:wheel', (opt) => {
-      const delta = opt.e.deltaY;
-      let zoom = canvas.getZoom();
-      zoom *= 0.999 ** delta;
-      if (zoom > 3) zoom = 3;
-      if (zoom < 0.3) zoom = 0.3;
-      canvas.zoomToPoint(new Point(opt.e.offsetX, opt.e.offsetY), zoom);
       opt.e.preventDefault();
       opt.e.stopPropagation();
+      if (wheelRafRef.current !== null) return; // Skip if RAF already scheduled
+      const delta = opt.e.deltaY;
+      const offsetX = opt.e.offsetX;
+      const offsetY = opt.e.offsetY;
+      wheelRafRef.current = requestAnimationFrame(() => {
+        wheelRafRef.current = null;
+        let zoom = canvas.getZoom();
+        zoom *= 0.999 ** delta;
+        if (zoom > 3) zoom = 3;
+        if (zoom < 0.3) zoom = 0.3;
+        canvas.zoomToPoint(new Point(offsetX, offsetY), zoom);
+      });
     });
 
     // Pan on background drag
@@ -302,6 +316,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
     return () => {
       window.removeEventListener("resize", handleResize);
+      if (wheelRafRef.current !== null) cancelAnimationFrame(wheelRafRef.current);
       isCanvasDisposedRef.current = true;
       canvas.dispose();
     };
@@ -538,7 +553,11 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       cancelCompanyHoverTimer();
     });
 
-    fabricCanvas.on('mouse:move', (opt) => {
+    // Remove previous company-drag listeners to prevent accumulation
+    fabricCanvas.off('mouse:move', companyMoveHandlerRef.current as any);
+    fabricCanvas.off('mouse:up', companyUpHandlerRef.current as any);
+    
+    const companyMoveHandler = (opt: any) => {
       if (!companyDragStartPosRef.current) return;
       const evt = opt.e as MouseEvent;
       if (evt.clientX === undefined) return;
@@ -557,16 +576,22 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       }
       companyLastPosX = evt.clientX;
       companyLastPosY = evt.clientY;
-    });
+    };
 
-    fabricCanvas.on('mouse:up', () => {
+    const companyUpHandler = () => {
       if (companyDragStartPosRef.current) {
         setTimeout(() => {
           isCompanyDraggingRef.current = false;
           companyDragStartPosRef.current = null;
         }, 100);
       }
-    });
+    };
+    
+    companyMoveHandlerRef.current = companyMoveHandler;
+    companyUpHandlerRef.current = companyUpHandler;
+    
+    fabricCanvas.on('mouse:move', companyMoveHandler);
+    fabricCanvas.on('mouse:up', companyUpHandler);
 
     companyNodeRef.current = companyNode;
     fabricCanvas.add(companyNode);
@@ -619,9 +644,9 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           node.setCoords();
           return;
         }
+        dragModeRef.current = "DRAGGING";
         const center = node.getCenterPoint();
-        // Rebuild all edges from scratch on every move (ephemeral edges)
-        rebuildAllEdges(fabricCanvas, canvasW);
+        // Do NOT rebuild edges during drag — only show guides
         
         // ── 4-Zone Snap System ──
         clearGuideLines(fabricCanvas);
@@ -715,10 +740,22 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         stopAutoPan();
         clearGuideLines(fabricCanvas);
         
-        if (interactionModeRef.current !== 'edit') return;
+        if (interactionModeRef.current !== 'edit') {
+          dragModeRef.current = "IDLE";
+          // Snap back to original position if not in edit mode
+          node.set({ left: x, top: y });
+          node.setCoords();
+          fabricCanvas.renderAll();
+          return;
+        }
+        
+        // Prevent concurrent commits
+        if (dragModeRef.current === "COMMITTING") return;
         
         const result = snapResultRef.current;
         if (result) {
+          dragModeRef.current = "COMMITTING";
+          // Rebuild edges once after drop
           rebuildAllEdges(fabricCanvas, canvasW, true);
           if (result.zone === "company_root" && companyNodeRef.current) {
             pulseNode(fabricCanvas, companyNodeRef.current);
@@ -728,6 +765,14 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           }
           onStructuralDropRef.current?.(contact.id, result.targetId, result.zone);
           snapResultRef.current = null;
+          // Reset drag mode after commit completes (via next render cycle)
+          setTimeout(() => { dragModeRef.current = "IDLE"; }, 100);
+        } else {
+          // No snap target — snap back to original position
+          node.set({ left: x, top: y });
+          node.setCoords();
+          rebuildAllEdges(fabricCanvas, canvasW);
+          dragModeRef.current = "IDLE";
         }
         
         fabricCanvas.renderAll();
@@ -774,11 +819,17 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       node.on('mouseout', function() {
         (this as FabricObject).set({ shadow: null });
 
+        // Restore opacity without rebuilding edges (just reset in-place)
         contactNodesRef.current.forEach((otherData) => {
           otherData.group.set({ opacity: 1 });
         });
 
-        rebuildAllEdges(fabricCanvas, canvasW);
+        // Restore default edge styles in-place instead of full rebuild
+        hierarchyLinesRef.current.forEach(l => {
+          const childDepth = 1; // approximate
+          const lightness = Math.min(70 + childDepth * 3, 85);
+          l.set({ stroke: `hsl(214 32% ${lightness}%)`, strokeWidth: 2 });
+        });
         fabricCanvas.renderAll();
       });
 

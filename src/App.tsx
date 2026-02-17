@@ -53,6 +53,8 @@ const App = () => (
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/login" element={<Navigate to="/auth" replace />} />
             <Route path="/signup" element={<Navigate to="/auth" replace />} />
+            <Route path="/auth/sign-in" element={<Navigate to="/auth?tab=signin" replace />} />
+            <Route path="/auth/sign-up" element={<Navigate to="/auth?tab=signup" replace />} />
 
             {/* Public Demo Route - Sandbox with mock data, no auth required */}
             <Route path="/demo" element={<Demo />} />

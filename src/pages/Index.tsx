@@ -50,14 +50,14 @@ const Index = () => {
                 </Link>
               ) : (
                 <>
-                  <Link to="/auth?tab=signup">
-                    <Button variant="default" className="gap-2">
-                      Sign up free <UserPlus className="w-4 h-4" />
+                  <Link to="/auth/sign-in">
+                    <Button variant="outline" className="gap-2">
+                      <LogIn className="w-4 h-4" /> Sign in
                     </Button>
                   </Link>
-                  <Link to="/auth?tab=signin">
-                    <Button variant="outline" className="gap-2">
-                      <LogIn className="w-4 h-4" /> Log in
+                  <Link to="/auth/sign-up">
+                    <Button variant="default" className="gap-2">
+                      Create account <UserPlus className="w-4 h-4" />
                     </Button>
                   </Link>
                 </>
@@ -110,14 +110,14 @@ const Index = () => {
                     </Link>
                   ) : (
                     <div className="flex flex-col gap-3">
-                      <Link to="/auth?tab=signup" onClick={() => setMobileMenuOpen(false)}>
-                        <Button className="w-full gap-2">
-                          Sign up free <UserPlus className="w-4 h-4" />
+                      <Link to="/auth/sign-in" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="outline" className="w-full gap-2">
+                          <LogIn className="w-4 h-4" /> Sign in
                         </Button>
                       </Link>
-                      <Link to="/auth?tab=signin" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="outline" className="w-full gap-2">
-                          <LogIn className="w-4 h-4" /> Log in
+                      <Link to="/auth/sign-up" onClick={() => setMobileMenuOpen(false)}>
+                        <Button className="w-full gap-2">
+                          Create account <UserPlus className="w-4 h-4" />
                         </Button>
                       </Link>
                       <Link
@@ -125,7 +125,7 @@ const Index = () => {
                         onClick={() => setMobileMenuOpen(false)}
                         className="text-sm text-muted-foreground hover:text-foreground text-center py-2 transition-colors"
                       >
-                        View demo
+                        Try demo
                       </Link>
                     </div>
                   )}
@@ -165,14 +165,14 @@ const Index = () => {
             </Link>
           ) : (
             <>
-              <Link to="/auth?tab=signup">
-                <Button size="lg" className="gap-2 text-lg px-8">
-                  Sign up free <UserPlus className="w-5 h-5" />
+              <Link to="/auth/sign-in">
+                <Button size="lg" variant="outline" className="gap-2 text-lg px-8">
+                  <LogIn className="w-5 h-5" /> Sign in
                 </Button>
               </Link>
-              <Link to="/auth?tab=signin">
-                <Button size="lg" variant="outline" className="gap-2 text-lg px-8">
-                  <LogIn className="w-5 h-5" /> Log in
+              <Link to="/auth/sign-up">
+                <Button size="lg" className="gap-2 text-lg px-8">
+                  Create account <UserPlus className="w-5 h-5" />
                 </Button>
               </Link>
             </>
@@ -184,7 +184,7 @@ const Index = () => {
               to="/demo" 
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              View demo →
+              Try demo →
             </Link>
           </div>
         )}
@@ -308,14 +308,14 @@ const Index = () => {
               </Link>
             ) : (
               <>
-                <Link to="/auth?tab=signup">
-                  <Button size="lg" className="gap-2 text-lg px-10">
-                    Sign up free <UserPlus className="w-5 h-5" />
+                <Link to="/auth/sign-in">
+                  <Button size="lg" variant="outline" className="gap-2 text-lg px-10">
+                    <LogIn className="w-5 h-5" /> Sign in
                   </Button>
                 </Link>
-                <Link to="/auth?tab=signin">
-                  <Button size="lg" variant="outline" className="gap-2 text-lg px-10">
-                    <LogIn className="w-5 h-5" /> Log in
+                <Link to="/auth/sign-up">
+                  <Button size="lg" className="gap-2 text-lg px-10">
+                    Create account <UserPlus className="w-5 h-5" />
                   </Button>
                 </Link>
               </>

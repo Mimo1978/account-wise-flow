@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2, Link2, Unlink, Lock, Eye } from "lucide-react";
+import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
@@ -41,7 +41,6 @@ import { useOnboarding } from "@/hooks/use-onboarding";
 import { useCompanyCanvas } from "@/hooks/use-company-canvas";
 import { useCanvasMode } from "@/hooks/use-canvas-mode";
 import { CanvasModeToggle } from "@/components/canvas/CanvasModeToggle";
-import { StructureToolbar } from "@/components/canvas/StructureToolbar";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 const Canvas = () => {
@@ -115,7 +114,6 @@ const Canvas = () => {
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [showTalentPanel, setShowTalentPanel] = useState(false);
   const canvasRef = useRef<AccountCanvasRef>(null);
-  const [structureToolbarPos, setStructureToolbarPos] = useState<{ x: number; y: number } | null>(null);
   
   // Canvas interaction mode
   const {
@@ -124,8 +122,6 @@ const Canvas = () => {
     setMode: setCanvasMode,
     selectedNodeId,
     setSelectedNodeId,
-    lockedNodeIds,
-    toggleLockNode,
   } = useCanvasMode();
 
   // Get engagements for current company with talent data
@@ -290,12 +286,6 @@ const Canvas = () => {
   // Handle node selection in edit mode
   const handleNodeSelect = useCallback((contactId: string | null) => {
     setSelectedNodeId(contactId);
-    if (contactId && canvasRef.current) {
-      const pos = canvasRef.current.getNodeScreenPosition(contactId);
-      setStructureToolbarPos(pos);
-    } else {
-      setStructureToolbarPos(null);
-    }
   }, [setSelectedNodeId]);
 
   // Handle snap-to-parent edge creation — sets manager_id on the child contact
@@ -351,11 +341,6 @@ const Canvas = () => {
     }
   }, []);
 
-  // Get selected contact for structure toolbar actions
-  const selectedNodeContact = useMemo(() => {
-    if (!selectedNodeId || !account) return null;
-    return account.contacts.find(c => c.id === selectedNodeId) || null;
-  }, [selectedNodeId, account]);
 
   // Build toolbar actions with proper priority grouping
   const toolbarActions: ToolbarAction[] = useMemo(() => {
@@ -563,7 +548,7 @@ const Canvas = () => {
             interactionMode={canvasMode}
             selectedNodeId={selectedNodeId}
             onNodeSelect={handleNodeSelect}
-            lockedNodeIds={lockedNodeIds}
+            
             onSnapEdgeCreate={handleSnapEdgeCreate}
             onUnlinkFromManager={handleUnlinkFromManager}
             workspaceId={currentWorkspace?.id}
@@ -580,22 +565,6 @@ const Canvas = () => {
         )}
       </main>
 
-      {/* Structure Toolbar - floating controls in edit mode */}
-      {viewMode === "canvas" && isEditMode && selectedNodeId && structureToolbarPos && (
-        <StructureToolbar
-          position={structureToolbarPos}
-          isLocked={lockedNodeIds.has(selectedNodeId)}
-          onLink={() => { /* Link mode activated via snap – drag node below target */ toast.info("Drag this node below another to create a reporting link"); }}
-          onUnlink={() => { if (selectedNodeId) handleUnlinkFromManager(selectedNodeId); }}
-          onToggleLock={() => toggleLockNode(selectedNodeId)}
-          onViewProfile={() => {
-            const contact = account.contacts.find(c => c.id === selectedNodeId);
-            if (contact) {
-              handleContactClick(contact);
-            }
-          }}
-        />
-      )}
 
       {/* Floating Contact Panel - Only show in canvas mode */}
       {viewMode === "canvas" && selectedContact && (

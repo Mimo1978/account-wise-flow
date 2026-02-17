@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { AccountCanvas, AccountCanvasRef } from "@/components/canvas/AccountCanvas";
+import { AccountCanvas, AccountCanvasRef, DropZone } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { CompanySwitcher } from "@/components/canvas/CompanySwitcher";
 import { QRCodeButton } from "@/components/canvas/QRCodeButton";
@@ -42,6 +42,7 @@ import { useCompanyCanvas } from "@/hooks/use-company-canvas";
 import { useCanvasMode } from "@/hooks/use-canvas-mode";
 import { CanvasModeToggle } from "@/components/canvas/CanvasModeToggle";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useOrgChartTree } from "@/hooks/use-org-chart-tree";
 
 const Canvas = () => {
   const navigate = useNavigate();
@@ -288,58 +289,60 @@ const Canvas = () => {
     setSelectedNodeId(contactId);
   }, [setSelectedNodeId]);
 
-  // Handle snap-to-parent edge creation — sets manager_id on the child contact
-  const handleSnapEdgeCreate = useCallback(async (childContactId: string, parentContactId: string) => {
-    if (!currentWorkspace) return;
-    try {
-      // Clear any existing parent first (one manager rule)
-      await supabase
-        .from('contacts')
-        .update({ manager_id: parentContactId } as any)
-        .eq('id', childContactId);
-      
-      // Update local state so canvas re-renders with correct hierarchy
-      setAccount((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          contacts: prev.contacts.map(c =>
-            c.id === childContactId ? { ...c, managerId: parentContactId } : c
-          ),
-        };
-      });
-      
-      toast.success("Reporting relationship created");
-    } catch (err) {
-      console.error('Failed to set manager:', err);
-      toast.error("Failed to create relationship");
-    }
-  }, [currentWorkspace]);
+  // Org chart tree hook for structural drops
+  const { nodes: orgNodes, setParent, ensureNode } = useOrgChartTree(account?.id);
 
-  // Unlink a contact from its manager
-  const handleUnlinkFromManager = useCallback(async (contactId: string) => {
+  // Handle structural drop from 4-zone system
+  const handleStructuralDrop = useCallback(async (draggedId: string, targetId: string | null, zone: DropZone) => {
+    if (!account) return;
+    
     try {
-      await supabase
-        .from('contacts')
-        .update({ manager_id: null } as any)
-        .eq('id', contactId);
+      switch (zone) {
+        case "company_root":
+          // Dragged becomes root (parent=null). setParent handles root swap.
+          await setParent({ contactId: draggedId, newParentContactId: null, newSiblingOrder: 0 });
+          break;
+          
+        case "bottom":
+          // Dragged becomes child of target
+          if (!targetId) return;
+          await setParent({ contactId: draggedId, newParentContactId: targetId, newSiblingOrder: 0 });
+          break;
+          
+        case "top": {
+          // Dragged becomes parent of target (target becomes child of dragged)
+          if (!targetId) return;
+          // Find target's current parent
+          const targetNode = orgNodes.find(n => n.contactId === targetId);
+          const targetParent = targetNode?.parentContactId ?? null;
+          // Put dragged in target's old position
+          await setParent({ contactId: draggedId, newParentContactId: targetParent, newSiblingOrder: targetNode?.siblingOrder ?? 0 });
+          // Make target a child of dragged
+          await setParent({ contactId: targetId, newParentContactId: draggedId, newSiblingOrder: 0 });
+          break;
+        }
+          
+        case "left":
+        case "right": {
+          // Dragged becomes sibling of target (same parent)
+          if (!targetId) return;
+          const siblingNode = orgNodes.find(n => n.contactId === targetId);
+          const parentId = siblingNode?.parentContactId ?? null;
+          const siblingOrder = (siblingNode?.siblingOrder ?? 0) + (zone === "right" ? 1 : -1);
+          await setParent({ contactId: draggedId, newParentContactId: parentId, newSiblingOrder: siblingOrder });
+          break;
+        }
+      }
       
-      setAccount((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          contacts: prev.contacts.map(c =>
-            c.id === contactId ? { ...c, managerId: null } : c
-          ),
-        };
-      });
-      
-      toast.success("Manager relationship removed");
+      // Update local state to trigger re-render
+      // The useOrgChartTree hook invalidates its query, but we also need to update local contacts
+      // Refresh from the org tree data after mutation
+      toast.success("Hierarchy updated");
     } catch (err) {
-      console.error('Failed to unlink manager:', err);
-      toast.error("Failed to remove relationship");
+      console.error("Failed to update hierarchy:", err);
+      toast.error("Failed to update hierarchy");
     }
-  }, []);
+  }, [account, orgNodes, setParent]);
 
 
   // Build toolbar actions with proper priority grouping
@@ -548,9 +551,7 @@ const Canvas = () => {
             interactionMode={canvasMode}
             selectedNodeId={selectedNodeId}
             onNodeSelect={handleNodeSelect}
-            
-            onSnapEdgeCreate={handleSnapEdgeCreate}
-            onUnlinkFromManager={handleUnlinkFromManager}
+            onStructuralDrop={handleStructuralDrop}
             workspaceId={currentWorkspace?.id}
           />
         ) : (

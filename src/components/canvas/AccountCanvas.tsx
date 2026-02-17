@@ -727,8 +727,12 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     }
 
     // ── Full rebuild (initial render or contact set changed) ──
-    fabricCanvas.clear();
-    fabricCanvas.backgroundColor = "hsl(210 40% 98%)";
+    try {
+      fabricCanvas.clear();
+    } catch {
+      // Canvas context already disposed (HMR / strict mode) — skip rebuild
+      return;
+    }
     contactNodesRef.current.clear();
     hierarchyLinesRef.current = [];
 

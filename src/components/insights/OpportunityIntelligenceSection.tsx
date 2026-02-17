@@ -63,8 +63,8 @@ export const OpportunityIntelligenceSection: React.FC<OpportunityIntelligenceSec
       const opps: Opportunity[] = [];
       
       companies?.forEach(company => {
-        const contacts = company.contacts || [];
-        const departments = [...new Set(contacts.map(c => c.department).filter(Boolean))];
+        const contacts = Array.isArray(company.contacts) ? company.contacts : [];
+        const departments = [...new Set(contacts.map(c => c.department).filter(Boolean))] as string[];
         
         // Find departments with contacts but no senior sponsor
         const deptWithNoSenior = departments.filter(dept => {
@@ -94,7 +94,7 @@ export const OpportunityIntelligenceSection: React.FC<OpportunityIntelligenceSec
         if (contacts.length >= 5 && departments.length >= 2) {
           const uncoveredDepts = ['Finance', 'Operations', 'IT', 'HR', 'Sales', 'Marketing']
             .filter(d => !departments.some(existing => 
-              existing?.toLowerCase().includes(d.toLowerCase())
+              (existing as string)?.toLowerCase().includes(d.toLowerCase())
             ));
 
           if (uncoveredDepts.length > 0) {

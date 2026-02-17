@@ -13,6 +13,7 @@ interface TalentEngagementWithData extends TalentEngagement {
 }
 
 export type CanvasInteractionMode = "browse" | "edit";
+export type DropZone = "top" | "bottom" | "left" | "right" | "company_root";
 
 interface AccountCanvasProps {
   account: Account;
@@ -24,8 +25,7 @@ interface AccountCanvasProps {
   interactionMode?: CanvasInteractionMode;
   selectedNodeId?: string | null;
   onNodeSelect?: (contactId: string | null) => void;
-  onSnapEdgeCreate?: (fromContactId: string, toContactId: string) => void;
-  onUnlinkFromManager?: (contactId: string) => void;
+  onStructuralDrop?: (draggedContactId: string, targetContactId: string | null, zone: DropZone) => void;
   workspaceId?: string;
 }
 export interface AccountCanvasRef {
@@ -58,8 +58,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   interactionMode = "browse",
   selectedNodeId = null,
   onNodeSelect,
-  onSnapEdgeCreate,
-  onUnlinkFromManager,
+  onStructuralDrop,
   workspaceId,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -90,40 +89,45 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const hierarchyLinesRef = useRef<Line[]>([]);
   
   // Smart snap system refs
-  const guideLinesToRef = useRef<Line[]>([]);
-  const snapHighlightRef = useRef<Rect | null>(null);
-  const snapTargetRef = useRef<string | null>(null); // contact id of potential parent
+  const guideLinesToRef = useRef<(Line | Rect)[]>([]);
+  const snapResultRef = useRef<{ targetId: string | null; zone: DropZone } | null>(null);
   const autoPanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const onSnapEdgeCreateRef = useRef(onSnapEdgeCreate);
-  useEffect(() => { onSnapEdgeCreateRef.current = onSnapEdgeCreate; }, [onSnapEdgeCreate]);
-  const onUnlinkFromManagerRef = useRef(onUnlinkFromManager);
-  useEffect(() => { onUnlinkFromManagerRef.current = onUnlinkFromManager; }, [onUnlinkFromManager]);
+  const onStructuralDropRef = useRef(onStructuralDrop);
+  useEffect(() => { onStructuralDropRef.current = onStructuralDrop; }, [onStructuralDrop]);
   
   // Snap constants
-  const SNAP_RADIUS = 40; // px radius to trigger "reports to" snap
-  const SNAP_HORIZONTAL_THRESHOLD = 30; // px alignment tolerance
-  const SIBLING_SNAP_THRESHOLD = 25; // px to snap siblings equally spaced
-  const AUTO_PAN_EDGE = 60; // px from viewport edge to start auto-pan
+  const AUTO_PAN_EDGE = 60;
   const AUTO_PAN_SPEED = 8;
-  const COMPANY_SNAP_RADIUS = 60; // px radius around company node to unlink (make top-level)
+  const COMPANY_SNAP_RADIUS = 70;
+  const ZONE_DETECT_RADIUS = 120; // px distance to start zone detection
   
-  // Guide line management
+  // Guide line / hint management
   const clearGuideLines = useCallback((canvas: FabricCanvas) => {
-    guideLinesToRef.current.forEach(line => {
-      try { canvas.remove(line); } catch {}
+    guideLinesToRef.current.forEach(obj => {
+      try { canvas.remove(obj); } catch {}
     });
     guideLinesToRef.current = [];
-    if (snapHighlightRef.current) {
-      try { canvas.remove(snapHighlightRef.current); } catch {}
-      snapHighlightRef.current = null;
-    }
-    snapTargetRef.current = null;
+    snapResultRef.current = null;
   }, []);
   
-  const addGuideLine = useCallback((canvas: FabricCanvas, x1: number, y1: number, x2: number, y2: number) => {
+  const addGuideRect = useCallback((canvas: FabricCanvas, left: number, top: number, width: number, height: number, color: string, opacity = 0.3) => {
+    const rect = new Rect({
+      left, top, width, height,
+      fill: color,
+      opacity,
+      selectable: false,
+      evented: false,
+      rx: 4, ry: 4,
+    });
+    canvas.add(rect);
+    guideLinesToRef.current.push(rect);
+    return rect;
+  }, []);
+
+  const addGuideLine = useCallback((canvas: FabricCanvas, x1: number, y1: number, x2: number, y2: number, color = "hsl(221 83% 53%)") => {
     const line = new Line([x1, y1, x2, y2], {
-      stroke: "hsl(221 83% 53%)",
-      strokeWidth: 1,
+      stroke: color,
+      strokeWidth: 2,
       strokeDashArray: [6, 4],
       selectable: false,
       evented: false,
@@ -132,28 +136,45 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     canvas.add(line);
     guideLinesToRef.current.push(line);
   }, []);
-  
-  const showSnapHighlight = useCallback((canvas: FabricCanvas, targetGroup: Group) => {
-    if (snapHighlightRef.current) {
-      try { canvas.remove(snapHighlightRef.current); } catch {}
-    }
-    const bounds = targetGroup.getBoundingRect();
-    const highlight = new Rect({
-      left: targetGroup.left! - 95,
-      top: targetGroup.top! - 50,
-      width: 190,
-      height: 100,
-      fill: "transparent",
-      stroke: "hsl(221 83% 53%)",
-      strokeWidth: 3,
-      rx: 12,
-      ry: 12,
-      selectable: false,
-      evented: false,
-      opacity: 0.6,
+
+  // Cycle detection: returns true if `targetId` is a descendant of `draggedId`
+  const isDescendant = useCallback((draggedId: string, targetId: string, contacts: Contact[]): boolean => {
+    const childrenMap = new Map<string, string[]>();
+    contacts.forEach(c => {
+      if (c.managerId) {
+        if (!childrenMap.has(c.managerId)) childrenMap.set(c.managerId, []);
+        childrenMap.get(c.managerId)!.push(c.id);
+      }
     });
-    canvas.add(highlight);
-    snapHighlightRef.current = highlight;
+    const visited = new Set<string>();
+    const stack = [draggedId];
+    while (stack.length > 0) {
+      const cur = stack.pop()!;
+      if (visited.has(cur)) continue;
+      visited.add(cur);
+      const kids = childrenMap.get(cur) || [];
+      for (const kid of kids) {
+        if (kid === targetId) return true;
+        stack.push(kid);
+      }
+    }
+    return false;
+  }, []);
+
+  // 4-zone detection: determine which zone the dragged node is in relative to target
+  const detectZone = useCallback((dragX: number, dragY: number, targetX: number, targetY: number, nodeW: number, nodeH: number): DropZone | null => {
+    const dx = dragX - targetX;
+    const dy = dragY - targetY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > ZONE_DETECT_RADIUS) return null;
+    
+    // Use angle to determine zone
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI); // -180 to 180
+    // Top: -135 to -45, Right: -45 to 45, Bottom: 45 to 135, Left: 135/-135
+    if (angle >= -135 && angle < -45) return "top";
+    if (angle >= -45 && angle < 45) return "right";
+    if (angle >= 45 && angle < 135) return "bottom";
+    return "left";
   }, []);
 
   // Auto-pan when near edges
@@ -425,84 +446,82 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         // Rebuild all edges from scratch on every move (ephemeral edges)
         rebuildAllEdges(fabricCanvas, canvasW);
         
-        // ── Smart Snap System ──
+        // ── 4-Zone Snap System ──
         clearGuideLines(fabricCanvas);
         
         const dragX = center.x;
         const dragY = center.y;
         
-        // Check all other nodes for snap relationships
-        let bestParent: { id: string; group: Group; dist: number } | null = null;
-        const alignXMatches: number[] = [];
-        const alignYMatches: number[] = [];
-        
-        // Check company node for root snap (unlink / make top-level)
+        // Check company node for root snap
+        let companySnap = false;
         if (companyNodeRef.current) {
           const companyCenter = companyNodeRef.current.getCenterPoint();
           const distToCompany = Math.sqrt(
             Math.pow(dragX - companyCenter.x, 2) + Math.pow(dragY - companyCenter.y, 2)
           );
-          if (distToCompany < COMPANY_SNAP_RADIUS + NODE_H / 2 && contact.managerId) {
-            // Show highlight on company node
-            showSnapHighlight(fabricCanvas, companyNodeRef.current);
-            addGuideLine(fabricCanvas, companyCenter.x, companyCenter.y + 40, dragX, dragY - NODE_H / 2);
-            snapTargetRef.current = "__company_root__";
+          if (distToCompany < COMPANY_SNAP_RADIUS) {
+            addGuideRect(fabricCanvas, companyCenter.x - 50, companyCenter.y + 30, 100, 30, "hsl(221 83% 53%)", 0.4);
+            addGuideLine(fabricCanvas, companyCenter.x, companyCenter.y + 40, dragX, dragY - NODE_H / 2, "hsl(221 83% 53%)");
+            snapResultRef.current = { targetId: null, zone: "company_root" };
+            companySnap = true;
           }
         }
         
-        contactNodesRef.current.forEach((otherData, otherId) => {
-          if (otherId === contact.id) return;
-          const otherCenter = otherData.group.getCenterPoint();
+        // Find closest target node with zone detection
+        if (!companySnap) {
+          let bestTarget: { id: string; zone: DropZone; dist: number } | null = null;
           
-          // Check vertical alignment (same X axis)
-          if (Math.abs(dragX - otherCenter.x) < SNAP_HORIZONTAL_THRESHOLD) {
-            alignXMatches.push(otherCenter.x);
-          }
-          
-          // Check horizontal alignment (same Y axis)
-          if (Math.abs(dragY - otherCenter.y) < SIBLING_SNAP_THRESHOLD) {
-            alignYMatches.push(otherCenter.y);
-          }
-          
-          // Check "reports to" – use 40px radius from bottom anchor of target node
-          const targetBottomX = otherCenter.x;
-          const targetBottomY = otherCenter.y + NODE_H / 2;
-          const dragTopY = dragY - NODE_H / 2;
-          const distFromTargetBottom = Math.sqrt(
-            Math.pow(dragX - targetBottomX, 2) + Math.pow(dragTopY - targetBottomY, 2)
-          );
-          
-          if (distFromTargetBottom < SNAP_RADIUS && dragY > otherCenter.y) {
-            if (!bestParent || distFromTargetBottom < bestParent.dist) {
-              bestParent = { id: otherId, group: otherData.group, dist: distFromTargetBottom };
+          contactNodesRef.current.forEach((otherData, otherId) => {
+            if (otherId === contact.id) return;
+            // Cycle detection: skip if target is a descendant of dragged node
+            if (isDescendant(contact.id, otherId, account.contacts)) return;
+            
+            const otherCenter = otherData.group.getCenterPoint();
+            const zone = detectZone(dragX, dragY, otherCenter.x, otherCenter.y, NODE_W, NODE_H);
+            if (!zone) return;
+            
+            const dist = Math.sqrt(Math.pow(dragX - otherCenter.x, 2) + Math.pow(dragY - otherCenter.y, 2));
+            if (!bestTarget || dist < bestTarget.dist) {
+              bestTarget = { id: otherId, zone, dist };
             }
+          });
+          
+          if (bestTarget) {
+            const targetData = contactNodesRef.current.get(bestTarget.id)!;
+            const tc = targetData.group.getCenterPoint();
+            const zoneColors: Record<DropZone, string> = {
+              top: "hsl(270 70% 55%)",
+              bottom: "hsl(142 71% 45%)",
+              left: "hsl(221 83% 53%)",
+              right: "hsl(221 83% 53%)",
+              company_root: "hsl(221 83% 53%)",
+            };
+            const color = zoneColors[bestTarget.zone];
+            const hw = NODE_W / 2;
+            const hh = NODE_H / 2;
+            
+            // Draw zone indicator bar + guide line
+            switch (bestTarget.zone) {
+              case "top":
+                addGuideRect(fabricCanvas, tc.x - hw, tc.y - hh - 20, NODE_W, 16, color, 0.5);
+                addGuideLine(fabricCanvas, dragX, dragY + hh, tc.x, tc.y - hh, color);
+                break;
+              case "bottom":
+                addGuideRect(fabricCanvas, tc.x - hw, tc.y + hh + 4, NODE_W, 16, color, 0.5);
+                addGuideLine(fabricCanvas, tc.x, tc.y + hh, dragX, dragY - hh, color);
+                break;
+              case "left":
+                addGuideRect(fabricCanvas, tc.x - hw - 16, tc.y - hh, 12, NODE_H, color, 0.5);
+                addGuideLine(fabricCanvas, dragX, dragY, tc.x - hw, tc.y, color);
+                break;
+              case "right":
+                addGuideRect(fabricCanvas, tc.x + hw + 4, tc.y - hh, 12, NODE_H, color, 0.5);
+                addGuideLine(fabricCanvas, dragX, dragY, tc.x + hw, tc.y, color);
+                break;
+            }
+            
+            snapResultRef.current = { targetId: bestTarget.id, zone: bestTarget.zone };
           }
-        });
-        
-        // Draw vertical alignment guides
-        alignXMatches.forEach(ax => {
-          addGuideLine(fabricCanvas, ax, dragY - 200, ax, dragY + 200);
-        });
-        
-        // Draw horizontal alignment guides (sibling row)
-        if (alignYMatches.length > 0) {
-          const snapY = alignYMatches[0];
-          addGuideLine(fabricCanvas, dragX - 200, snapY, dragX + 200, snapY);
-        }
-        
-        // Show parent highlight and parent-child axis (takes priority over company snap)
-        if (bestParent) {
-          // Clear any company snap highlight first
-          if (snapTargetRef.current === "__company_root__" && snapHighlightRef.current) {
-            try { fabricCanvas.remove(snapHighlightRef.current); } catch {}
-            snapHighlightRef.current = null;
-          }
-          const parentCenter = bestParent.group.getCenterPoint();
-          showSnapHighlight(fabricCanvas, bestParent.group);
-          addGuideLine(fabricCanvas, parentCenter.x, parentCenter.y + NODE_H / 2, dragX, dragY - NODE_H / 2);
-          snapTargetRef.current = bestParent.id;
-        } else if (snapTargetRef.current !== "__company_root__") {
-          snapTargetRef.current = null;
         }
         
         // Auto-pan near edges
@@ -514,26 +533,24 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         fabricCanvas.renderAll();
       });
       
-      // On drop: clear guides, create edge if snapped, persist position
+      // On drop: clear guides, fire structural drop callback
       node.on('modified', function() {
         stopAutoPan();
         clearGuideLines(fabricCanvas);
         
         if (interactionModeRef.current !== 'edit') return;
         
-        // If snapped to company root, unlink from manager (make top-level)
-        if (snapTargetRef.current === "__company_root__") {
+        const result = snapResultRef.current;
+        if (result) {
           rebuildAllEdges(fabricCanvas, canvasW, true);
-          if (companyNodeRef.current) pulseNode(fabricCanvas, companyNodeRef.current);
-          onUnlinkFromManagerRef.current?.(contact.id);
-          snapTargetRef.current = null;
-        } else if (snapTargetRef.current) {
-          // Snapped to another contact — set as manager
-          const targetData = contactNodesRef.current.get(snapTargetRef.current);
-          rebuildAllEdges(fabricCanvas, canvasW, true);
-          if (targetData) pulseNode(fabricCanvas, targetData.group);
-          onSnapEdgeCreateRef.current?.(contact.id, snapTargetRef.current);
-          snapTargetRef.current = null;
+          if (result.zone === "company_root" && companyNodeRef.current) {
+            pulseNode(fabricCanvas, companyNodeRef.current);
+          } else if (result.targetId) {
+            const targetData = contactNodesRef.current.get(result.targetId);
+            if (targetData) pulseNode(fabricCanvas, targetData.group);
+          }
+          onStructuralDropRef.current?.(contact.id, result.targetId, result.zone);
+          snapResultRef.current = null;
         }
         
         fabricCanvas.renderAll();

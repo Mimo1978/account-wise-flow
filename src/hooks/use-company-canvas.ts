@@ -4,8 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Account, Contact } from "@/lib/types";
+import { useOrgChartTree } from "@/hooks/use-org-chart-tree";
 import { mockAccount, mockAccounts } from "@/lib/mock-data";
 
+// Re-export the tree hook so consumers can use it alongside canvas data
+export { useOrgChartTree } from "@/hooks/use-org-chart-tree";
 interface UseCompanyCanvasOptions {
   fallbackToMock?: boolean;
 }
@@ -53,23 +56,31 @@ export function useCompanyCanvas(options: UseCompanyCanvasOptions = {}): UseComp
         return null;
       }
       
-      // Fetch contacts for this company
-      const { data: contacts, error: contactsError } = await supabase
-        .from('contacts')
-        .select('*')
-        .eq('company_id', companyId);
+      // Fetch contacts and org hierarchy in parallel
+      const [contactsResult, orgResult] = await Promise.all([
+        supabase.from('contacts').select('*').eq('company_id', companyId),
+        supabase.from('org_chart_edges').select('child_contact_id, parent_contact_id, position_index').eq('company_id', companyId),
+      ]);
       
-      if (contactsError) {
-        console.error('Error fetching contacts:', contactsError);
+      if (contactsResult.error) {
+        console.error('Error fetching contacts:', contactsResult.error);
+      }
+
+      // Build parentMap from org_chart_edges
+      const parentMap = new Map<string, string | null>();
+      for (const edge of orgResult.data ?? []) {
+        parentMap.set(edge.child_contact_id, edge.parent_contact_id);
       }
       
+      const contacts = contactsResult.data ?? [];
+
       // Transform to Account format
       const account: Account = {
         id: data.id,
         name: data.name,
         industry: data.industry || 'Other',
         size: data.size || 'Unknown',
-        contacts: (contacts || []).map((c: any): Contact => ({
+        contacts: contacts.map((c: any): Contact => ({
           id: c.id,
           name: c.name,
           title: c.title || '',
@@ -79,7 +90,7 @@ export function useCompanyCanvas(options: UseCompanyCanvasOptions = {}): UseComp
           phone: c.phone || '',
           status: 'new',
           engagementScore: 50,
-          managerId: c.manager_id || null,
+          managerId: parentMap.get(c.id) ?? c.manager_id ?? null,
         })),
         lastUpdated: data.updated_at,
         engagementScore: 50,

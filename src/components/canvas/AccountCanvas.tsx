@@ -111,6 +111,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const COMPANY_SNAP_RADIUS = 70;
   const ZONE_DETECT_RADIUS = 120; // px distance to start zone detection
   
+  // RAF throttle for guide line updates during drag
+  const guideRafRef = useRef<number | null>(null);
+  const pendingGuideUpdateRef = useRef<(() => void) | null>(null);
+  
   // Guide line / hint management
   const clearGuideLines = useCallback((canvas: FabricCanvas) => {
     guideLinesToRef.current.forEach(obj => {
@@ -317,6 +321,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     return () => {
       window.removeEventListener("resize", handleResize);
       if (wheelRafRef.current !== null) cancelAnimationFrame(wheelRafRef.current);
+      if (guideRafRef.current !== null) cancelAnimationFrame(guideRafRef.current);
+      stopAutoPan();
       isCanvasDisposedRef.current = true;
       canvas.dispose();
     };
@@ -325,6 +331,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   // Shared edge drawing function usable both in animated path and full rebuild
   const drawFreshEdgesFromPositions = useCallback((canvas: FabricCanvas, cw: number, nodeW: number, nodeH: number, depthMap: Map<string, number>, animated: boolean) => {
     const animateLineDrawIn = (line: Line, duration: number = 200) => {
+      if (isCanvasDisposedRef.current) return;
       const targetX2 = line.x2!;
       const targetY2 = line.y2!;
       const startX = line.x1!;
@@ -334,6 +341,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const steps = Math.max(1, Math.round(duration / 16));
       let step = 0;
       const tick = () => {
+        if (isCanvasDisposedRef.current) return;
         step++;
         const t = step / steps;
         const eased = 1 - (1 - t) * (1 - t);
@@ -465,6 +473,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
       let step = 0;
       const tick = () => {
+        if (isCanvasDisposedRef.current) { isAnimatingLayoutRef.current = false; return; }
         step++;
         const t = step / ANIM_STEPS;
         // Ease-out quad
@@ -645,137 +654,164 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           return;
         }
         dragModeRef.current = "DRAGGING";
-        const center = node.getCenterPoint();
-        // Do NOT rebuild edges during drag — only show guides
         
-        // ── 4-Zone Snap System ──
-        clearGuideLines(fabricCanvas);
-        
-        const dragX = center.x;
-        const dragY = center.y;
-        
-        // Check company node for root snap
-        let companySnap = false;
-        if (companyNodeRef.current) {
-          const companyCenter = companyNodeRef.current.getCenterPoint();
-          const distToCompany = Math.sqrt(
-            Math.pow(dragX - companyCenter.x, 2) + Math.pow(dragY - companyCenter.y, 2)
-          );
-          if (distToCompany < COMPANY_SNAP_RADIUS) {
-            addGuideRect(fabricCanvas, companyCenter.x - 50, companyCenter.y + 30, 100, 30, "hsl(221 83% 53%)", 0.4);
-            addGuideLine(fabricCanvas, companyCenter.x, companyCenter.y + 40, dragX, dragY - NODE_H / 2, "hsl(221 83% 53%)");
-            snapResultRef.current = { targetId: null, zone: "company_root" };
-            companySnap = true;
-          }
-        }
-        
-        // Find closest target node with zone detection
-        if (!companySnap) {
-          let bestTarget: { id: string; zone: DropZone; dist: number } | null = null;
-          
-          contactNodesRef.current.forEach((otherData, otherId) => {
-            if (otherId === contact.id) return;
-            // Cycle detection: skip if target is a descendant of dragged node
-            if (isDescendant(contact.id, otherId, account.contacts)) return;
-            
-            const otherCenter = otherData.group.getCenterPoint();
-            const zone = detectZone(dragX, dragY, otherCenter.x, otherCenter.y, NODE_W, NODE_H);
-            if (!zone) return;
-            
-            const dist = Math.sqrt(Math.pow(dragX - otherCenter.x, 2) + Math.pow(dragY - otherCenter.y, 2));
-            if (!bestTarget || dist < bestTarget.dist) {
-              bestTarget = { id: otherId, zone, dist };
-            }
-          });
-          
-          if (bestTarget) {
-            const targetData = contactNodesRef.current.get(bestTarget.id)!;
-            const tc = targetData.group.getCenterPoint();
-            const zoneColors: Record<DropZone, string> = {
-              top: "hsl(270 70% 55%)",
-              bottom: "hsl(142 71% 45%)",
-              left: "hsl(221 83% 53%)",
-              right: "hsl(221 83% 53%)",
-              company_root: "hsl(221 83% 53%)",
-            };
-            const color = zoneColors[bestTarget.zone];
-            const hw = NODE_W / 2;
-            const hh = NODE_H / 2;
-            
-            // Draw zone indicator bar + guide line
-            switch (bestTarget.zone) {
-              case "top":
-                addGuideRect(fabricCanvas, tc.x - hw, tc.y - hh - 20, NODE_W, 16, color, 0.5);
-                addGuideLine(fabricCanvas, dragX, dragY + hh, tc.x, tc.y - hh, color);
-                break;
-              case "bottom":
-                addGuideRect(fabricCanvas, tc.x - hw, tc.y + hh + 4, NODE_W, 16, color, 0.5);
-                addGuideLine(fabricCanvas, tc.x, tc.y + hh, dragX, dragY - hh, color);
-                break;
-              case "left":
-                addGuideRect(fabricCanvas, tc.x - hw - 16, tc.y - hh, 12, NODE_H, color, 0.5);
-                addGuideLine(fabricCanvas, dragX, dragY, tc.x - hw, tc.y, color);
-                break;
-              case "right":
-                addGuideRect(fabricCanvas, tc.x + hw + 4, tc.y - hh, 12, NODE_H, color, 0.5);
-                addGuideLine(fabricCanvas, dragX, dragY, tc.x + hw, tc.y, color);
-                break;
-            }
-            
-            snapResultRef.current = { targetId: bestTarget.id, zone: bestTarget.zone };
-          }
-        }
-        
-        // Auto-pan near edges
+        // Auto-pan near edges (lightweight, no canvas object mutation)
         if (opt.e) {
           const evt = opt.e as MouseEvent;
           startAutoPan(fabricCanvas, evt.offsetX, evt.offsetY);
         }
         
-        fabricCanvas.renderAll();
+        // Throttle guide line updates via RAF to prevent render storms
+        const doGuideUpdate = () => {
+          if (isCanvasDisposedRef.current) return;
+          try {
+            const center = node.getCenterPoint();
+            clearGuideLines(fabricCanvas);
+            
+            const dragX = center.x;
+            const dragY = center.y;
+            
+            // Check company node for root snap
+            let companySnap = false;
+            if (companyNodeRef.current) {
+              const companyCenter = companyNodeRef.current.getCenterPoint();
+              const distToCompany = Math.sqrt(
+                Math.pow(dragX - companyCenter.x, 2) + Math.pow(dragY - companyCenter.y, 2)
+              );
+              if (distToCompany < COMPANY_SNAP_RADIUS) {
+                addGuideRect(fabricCanvas, companyCenter.x - 50, companyCenter.y + 30, 100, 30, "hsl(221 83% 53%)", 0.4);
+                addGuideLine(fabricCanvas, companyCenter.x, companyCenter.y + 40, dragX, dragY - NODE_H / 2, "hsl(221 83% 53%)");
+                snapResultRef.current = { targetId: null, zone: "company_root" };
+                companySnap = true;
+              }
+            }
+            
+            // Find closest target node with zone detection
+            if (!companySnap) {
+              let bestTarget: { id: string; zone: DropZone; dist: number } | null = null;
+              
+              contactNodesRef.current.forEach((otherData, otherId) => {
+                if (otherId === contact.id) return;
+                if (isDescendant(contact.id, otherId, account.contacts)) return;
+                
+                const otherCenter = otherData.group.getCenterPoint();
+                const zone = detectZone(dragX, dragY, otherCenter.x, otherCenter.y, NODE_W, NODE_H);
+                if (!zone) return;
+                
+                const dist = Math.sqrt(Math.pow(dragX - otherCenter.x, 2) + Math.pow(dragY - otherCenter.y, 2));
+                if (!bestTarget || dist < bestTarget.dist) {
+                  bestTarget = { id: otherId, zone, dist };
+                }
+              });
+              
+              if (bestTarget) {
+                const targetData = contactNodesRef.current.get(bestTarget.id)!;
+                const tc = targetData.group.getCenterPoint();
+                const zoneColors: Record<DropZone, string> = {
+                  top: "hsl(270 70% 55%)",
+                  bottom: "hsl(142 71% 45%)",
+                  left: "hsl(221 83% 53%)",
+                  right: "hsl(221 83% 53%)",
+                  company_root: "hsl(221 83% 53%)",
+                };
+                const color = zoneColors[bestTarget.zone];
+                const hw = NODE_W / 2;
+                const hh = NODE_H / 2;
+                
+                switch (bestTarget.zone) {
+                  case "top":
+                    addGuideRect(fabricCanvas, tc.x - hw, tc.y - hh - 20, NODE_W, 16, color, 0.5);
+                    addGuideLine(fabricCanvas, dragX, dragY + hh, tc.x, tc.y - hh, color);
+                    break;
+                  case "bottom":
+                    addGuideRect(fabricCanvas, tc.x - hw, tc.y + hh + 4, NODE_W, 16, color, 0.5);
+                    addGuideLine(fabricCanvas, tc.x, tc.y + hh, dragX, dragY - hh, color);
+                    break;
+                  case "left":
+                    addGuideRect(fabricCanvas, tc.x - hw - 16, tc.y - hh, 12, NODE_H, color, 0.5);
+                    addGuideLine(fabricCanvas, dragX, dragY, tc.x - hw, tc.y, color);
+                    break;
+                  case "right":
+                    addGuideRect(fabricCanvas, tc.x + hw + 4, tc.y - hh, 12, NODE_H, color, 0.5);
+                    addGuideLine(fabricCanvas, dragX, dragY, tc.x + hw, tc.y, color);
+                    break;
+                }
+                
+                snapResultRef.current = { targetId: bestTarget.id, zone: bestTarget.zone };
+              }
+            }
+            
+            fabricCanvas.requestRenderAll();
+          } catch (err) {
+            console.error("Guide update error:", err);
+          }
+          guideRafRef.current = null;
+        };
+        
+        // Schedule guide update on next animation frame (skip if one already pending)
+        if (guideRafRef.current === null) {
+          guideRafRef.current = requestAnimationFrame(doGuideUpdate);
+        }
       });
       
       // On drop: clear guides, fire structural drop callback
       node.on('modified', function() {
-        stopAutoPan();
-        clearGuideLines(fabricCanvas);
-        
-        if (interactionModeRef.current !== 'edit') {
-          dragModeRef.current = "IDLE";
-          // Snap back to original position if not in edit mode
-          node.set({ left: x, top: y });
-          node.setCoords();
-          fabricCanvas.renderAll();
-          return;
-        }
-        
-        // Prevent concurrent commits
-        if (dragModeRef.current === "COMMITTING") return;
-        
-        const result = snapResultRef.current;
-        if (result) {
-          dragModeRef.current = "COMMITTING";
-          // Rebuild edges once after drop
-          rebuildAllEdges(fabricCanvas, canvasW, true);
-          if (result.zone === "company_root" && companyNodeRef.current) {
-            pulseNode(fabricCanvas, companyNodeRef.current);
-          } else if (result.targetId) {
-            const targetData = contactNodesRef.current.get(result.targetId);
-            if (targetData) pulseNode(fabricCanvas, targetData.group);
+        try {
+          stopAutoPan();
+          // Cancel any pending guide RAF
+          if (guideRafRef.current !== null) {
+            cancelAnimationFrame(guideRafRef.current);
+            guideRafRef.current = null;
           }
-          onStructuralDropRef.current?.(contact.id, result.targetId, result.zone);
-          snapResultRef.current = null;
-          // Reset drag mode after commit completes (via next render cycle)
-          setTimeout(() => { dragModeRef.current = "IDLE"; }, 100);
-        } else {
-          // No snap target — snap back to original position
-          node.set({ left: x, top: y });
-          node.setCoords();
-          rebuildAllEdges(fabricCanvas, canvasW);
+          clearGuideLines(fabricCanvas);
+          
+          if (interactionModeRef.current !== 'edit') {
+            dragModeRef.current = "IDLE";
+            node.set({ left: x, top: y });
+            node.setCoords();
+            // Simple non-animated edge rebuild
+            hierarchyLinesRef.current.forEach(l => { try { fabricCanvas.remove(l); } catch {} });
+            hierarchyLinesRef.current = [];
+            drawFreshEdges(fabricCanvas, canvasW, false);
+            fabricCanvas.renderAll();
+            return;
+          }
+          
+          // Prevent concurrent commits
+          if (dragModeRef.current === "COMMITTING") return;
+          
+          const result = snapResultRef.current;
+          if (result) {
+            dragModeRef.current = "COMMITTING";
+            // Simple non-animated edge rebuild (no setTimeout race conditions)
+            hierarchyLinesRef.current.forEach(l => { try { fabricCanvas.remove(l); } catch {} });
+            hierarchyLinesRef.current = [];
+            drawFreshEdges(fabricCanvas, canvasW, false);
+            
+            if (result.zone === "company_root" && companyNodeRef.current) {
+              pulseNode(fabricCanvas, companyNodeRef.current);
+            } else if (result.targetId) {
+              const targetData = contactNodesRef.current.get(result.targetId);
+              if (targetData) pulseNode(fabricCanvas, targetData.group);
+            }
+            onStructuralDropRef.current?.(contact.id, result.targetId, result.zone);
+            snapResultRef.current = null;
+            setTimeout(() => { dragModeRef.current = "IDLE"; }, 300);
+          } else {
+            // No snap target — snap back to original position
+            node.set({ left: x, top: y });
+            node.setCoords();
+            hierarchyLinesRef.current.forEach(l => { try { fabricCanvas.remove(l); } catch {} });
+            hierarchyLinesRef.current = [];
+            drawFreshEdges(fabricCanvas, canvasW, false);
+            dragModeRef.current = "IDLE";
+          }
+          
+          fabricCanvas.renderAll();
+        } catch (err) {
+          console.error("Drop handler error:", err);
           dragModeRef.current = "IDLE";
         }
-        
-        fabricCanvas.renderAll();
       });
 
       node.on('mouseover', function() {
@@ -872,6 +908,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     // ── Animation helpers ──
     const animateFadeOut = (canvas: FabricCanvas, line: Line, duration: number = 150): Promise<void> => {
       return new Promise(resolve => {
+        if (isCanvasDisposedRef.current) { resolve(); return; }
         const steps = Math.max(1, Math.round(duration / 16));
         let step = 0;
         const initialOpacity = line.opacity ?? 1;
@@ -880,15 +917,18 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         const endX2 = line.x1!;
         const endY2 = line.y1!;
         const tick = () => {
+          if (isCanvasDisposedRef.current) { resolve(); return; }
           step++;
           const t = step / steps;
-          line.set({
-            opacity: initialOpacity * (1 - t),
-            x2: startX2 + (endX2 - startX2) * t,
-            y2: startY2 + (endY2 - startY2) * t,
-          });
-          line.setCoords();
-          canvas.requestRenderAll();
+          try {
+            line.set({
+              opacity: initialOpacity * (1 - t),
+              x2: startX2 + (endX2 - startX2) * t,
+              y2: startY2 + (endY2 - startY2) * t,
+            });
+            line.setCoords();
+            canvas.requestRenderAll();
+          } catch {}
           if (step < steps) {
             requestAnimationFrame(tick);
           } else {
@@ -901,6 +941,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     };
 
     const animateDrawIn = (canvas: FabricCanvas, line: Line, duration: number = 200) => {
+      if (isCanvasDisposedRef.current) return;
       const targetX2 = line.x2!;
       const targetY2 = line.y2!;
       const startX = line.x1!;
@@ -910,40 +951,45 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const steps = Math.max(1, Math.round(duration / 16));
       let step = 0;
       const tick = () => {
+        if (isCanvasDisposedRef.current) return;
         step++;
         const t = step / steps;
         const eased = 1 - (1 - t) * (1 - t);
-        line.set({
-          x2: startX + (targetX2 - startX) * eased,
-          y2: startY + (targetY2 - startY) * eased,
-          opacity: eased,
-        });
-        line.setCoords();
-        canvas.requestRenderAll();
+        try {
+          line.set({
+            x2: startX + (targetX2 - startX) * eased,
+            y2: startY + (targetY2 - startY) * eased,
+            opacity: eased,
+          });
+          line.setCoords();
+          canvas.requestRenderAll();
+        } catch {}
         if (step < steps) requestAnimationFrame(tick);
         else {
-          line.set({ opacity: 1 });
-          canvas.requestRenderAll();
+          try { line.set({ opacity: 1 }); canvas.requestRenderAll(); } catch {}
         }
       };
       requestAnimationFrame(tick);
     };
 
     const pulseNode = (canvas: FabricCanvas, group: Group) => {
+      if (isCanvasDisposedRef.current) return;
       const steps = 20;
       let step = 0;
       const tick = () => {
+        if (isCanvasDisposedRef.current) return;
         step++;
         const t = step / steps;
         const intensity = t < 0.5 ? t * 2 : (1 - t) * 2;
-        group.set({
-          shadow: { color: 'hsl(221 83% 53%)', blur: 10 + intensity * 20, offsetX: 0, offsetY: 0 },
-        });
-        canvas.requestRenderAll();
+        try {
+          group.set({
+            shadow: { color: 'hsl(221 83% 53%)', blur: 10 + intensity * 20, offsetX: 0, offsetY: 0 },
+          });
+          canvas.requestRenderAll();
+        } catch {}
         if (step < steps) requestAnimationFrame(tick);
         else {
-          group.set({ shadow: null });
-          canvas.requestRenderAll();
+          try { group.set({ shadow: null }); canvas.requestRenderAll(); } catch {}
         }
       };
       requestAnimationFrame(tick);

@@ -299,32 +299,26 @@ const Canvas = () => {
     try {
       switch (zone) {
         case "company_root":
-          // Dragged becomes root (parent=null). setParent handles root swap.
           await setParent({ contactId: draggedId, newParentContactId: null, newSiblingOrder: 0 });
           break;
           
         case "bottom":
-          // Dragged becomes child of target
           if (!targetId) return;
           await setParent({ contactId: draggedId, newParentContactId: targetId, newSiblingOrder: 0 });
           break;
           
         case "top": {
-          // Dragged becomes parent of target (target becomes child of dragged)
           if (!targetId) return;
-          // Find target's current parent
           const targetNode = orgNodes.find(n => n.contactId === targetId);
           const targetParent = targetNode?.parentContactId ?? null;
-          // Put dragged in target's old position
+          // Sequential: first move dragged, then re-parent target
           await setParent({ contactId: draggedId, newParentContactId: targetParent, newSiblingOrder: targetNode?.siblingOrder ?? 0 });
-          // Make target a child of dragged
           await setParent({ contactId: targetId, newParentContactId: draggedId, newSiblingOrder: 0 });
           break;
         }
           
         case "left":
         case "right": {
-          // Dragged becomes sibling of target (same parent)
           if (!targetId) return;
           const siblingNode = orgNodes.find(n => n.contactId === targetId);
           const parentId = siblingNode?.parentContactId ?? null;
@@ -334,9 +328,6 @@ const Canvas = () => {
         }
       }
       
-      // Update local state to trigger re-render
-      // The useOrgChartTree hook invalidates its query, but we also need to update local contacts
-      // Refresh from the org tree data after mutation
       toast.success("Hierarchy updated");
     } catch (err) {
       console.error("Failed to update hierarchy:", err);

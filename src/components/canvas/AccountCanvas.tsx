@@ -120,7 +120,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const AUTO_PAN_EDGE = 60;
   const AUTO_PAN_SPEED = 8;
   const COMPANY_SNAP_RADIUS = 70;
-  const ZONE_DETECT_RADIUS = 120; // px distance to start zone detection
+  const ZONE_DETECT_RADIUS = 180; // px distance to start zone detection (generous for easy snapping)
   
   // RAF throttle for guide line updates during drag
   const guideRafRef = useRef<number | null>(null);
@@ -273,9 +273,12 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     if (!isCarryingRef.current) return;
     stopAutoPan();
     if (guideRafRef.current !== null) { cancelAnimationFrame(guideRafRef.current); guideRafRef.current = null; }
-    clearGuideLines(canvas);
+    
+    // CRITICAL: Capture snap result BEFORE clearGuideLines (which resets it to null)
     const carriedId = carriedContactIdRef.current;
     const result = forceRevert ? null : snapResultRef.current;
+    
+    clearGuideLines(canvas);
 
     // Reset carry state immediately so no further mouse events interfere
     isCarryingRef.current = false;

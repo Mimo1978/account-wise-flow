@@ -5,7 +5,7 @@ import { CanvasSearch } from "./CanvasSearch";
 import { CanvasMinimap } from "./CanvasMinimap";
 import { CompanyInfoPopover } from "./CompanyInfoPopover";
 import { User, Users } from "lucide-react";
-import { buildOrgChartLayout, SENIORITY_LABELS } from "@/lib/seniority-inference";
+import { computeTreeLayout, computeConnectors, TreeNodePosition, ConnectorSegment } from "@/lib/tree-layout";
 import { supabase } from "@/integrations/supabase/client";
 
 interface TalentEngagementWithData extends TalentEngagement {
@@ -294,17 +294,9 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
     const canvasW = fabricCanvas.width!;
 
-    // ── Build hierarchical layout ──
-    const layout = buildOrgChartLayout(account.contacts);
-
     // ── Layout constants ──
     const NODE_W = 180;
     const NODE_H = 90;
-    const VERTICAL_GAP = 60;
-    const HORIZONTAL_GAP = 40;
-    const DEPT_HEADER_H = 30;
-    const EXEC_ROW_Y = 200;
-    const DEPT_START_Y = EXEC_ROW_Y + NODE_H + VERTICAL_GAP + 30;
 
     // ── Company node at top ──
     const companyNode = createCompanyNode(account.name, canvasW / 2, 80);
@@ -399,20 +391,27 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       }
     });
 
-    // Compute depth for each contact
-    const computeDepth = (id: string, visited = new Set<string>()): number => {
-      if (visited.has(id)) return 0; // cycle guard
-      visited.add(id);
-      if (depthMap.has(id)) return depthMap.get(id)!;
-      const parent = parentMap.get(id);
-      const d = parent ? computeDepth(parent, visited) + 1 : 0;
-      depthMap.set(id, d);
-      return d;
-    };
-    account.contacts.forEach(c => computeDepth(c.id));
+    // ── Deterministic tree layout ──
+    const treePositions = computeTreeLayout(
+      account.contacts.map(c => ({ id: c.id, managerId: c.managerId || null })),
+      {
+        nodeWidth: NODE_W,
+        nodeHeight: NODE_H,
+        horizontalGap: 40,
+        verticalGap: 80,
+        rootY: 220,
+        centerX: canvasW / 2,
+      }
+    );
+
+    // Build depth map from computed positions
+    const positionMap = new Map<string, TreeNodePosition>();
+    for (const pos of treePositions) {
+      positionMap.set(pos.contactId, pos);
+      depthMap.set(pos.contactId, pos.depth);
+    }
 
     const wireContactNode = (contact: Contact, node: Group, x: number, y: number, depth: number = 0) => {
-      depthMap.set(contact.id, depth);
       depthMap.set(contact.id, depth);
 
       node.on('moving', function(opt) {
@@ -524,7 +523,6 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         
         // If snapped to company root, unlink from manager (make top-level)
         if (snapTargetRef.current === "__company_root__") {
-          // Animate edges, then fire DB update (no delay on DB side)
           rebuildAllEdges(fabricCanvas, canvasW, true);
           if (companyNodeRef.current) pulseNode(fabricCanvas, companyNodeRef.current);
           onUnlinkFromManagerRef.current?.(contact.id);
@@ -547,7 +545,6 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         });
 
         // ── Hierarchy hover highlighting ──
-        // Build ancestor chain (manager chain upward)
         const ancestors = new Set<string>();
         let current = contact.id;
         while (parentMap.has(current)) {
@@ -555,7 +552,6 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           ancestors.add(current);
         }
 
-        // Build descendant set (direct reports downward)
         const descendants = new Set<string>();
         const collectDescendants = (id: string) => {
           const kids = childrenMap.get(id) || [];
@@ -566,23 +562,15 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         };
         collectDescendants(contact.id);
 
-        const related = new Set([contact.id, ...ancestors, ...descendants]);
-
-        // Apply highlighting to all nodes
         contactNodesRef.current.forEach((otherData, otherId) => {
-          const otherCardBg = otherData.group.getObjects()[0] as Rect;
-          if (otherId === contact.id) return; // skip hovered node itself
-          
+          if (otherId === contact.id) return;
           if (ancestors.has(otherId) || descendants.has(otherId)) {
-            // Bold highlight related nodes
             otherData.group.set({ opacity: 1 });
           } else {
-            // Fade unrelated nodes
             otherData.group.set({ opacity: 0.8 });
           }
         });
 
-        // Bold hierarchy lines for related nodes
         hierarchyLinesRef.current.forEach(l => {
           l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 });
         });
@@ -590,36 +578,26 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       });
 
       node.on('mouseout', function() {
-        // Don't clear selection highlight in edit mode
-        if (interactionModeRef.current === 'edit' && selectedNodeIdRef.current === contact.id) {
-          (this as FabricObject).set({ shadow: null });
-        } else {
-          (this as FabricObject).set({ shadow: null });
-        }
+        (this as FabricObject).set({ shadow: null });
 
-        // Reset all nodes to normal
-        contactNodesRef.current.forEach((otherData, otherId) => {
+        contactNodesRef.current.forEach((otherData) => {
           otherData.group.set({ opacity: 1 });
         });
 
-        // Reset all hierarchy lines to depth-based defaults
         rebuildAllEdges(fabricCanvas, canvasW);
         fabricCanvas.renderAll();
       });
 
       node.on('mousedown', () => {
         if (interactionModeRef.current === 'edit') {
-          // In edit mode: select node, don't open profile
           onNodeSelectRef.current?.(contact.id);
         } else {
-          // In browse mode: open profile (existing behavior)
           onContactClickRef.current(contact);
         }
       });
 
       node.on('mousedblclick', () => {
         if (interactionModeRef.current === 'edit') {
-          // In edit mode, double-click opens profile
           onContactClickRef.current(contact);
         } else {
           const center = node.getCenterPoint();
@@ -652,7 +630,6 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         const steps = Math.max(1, Math.round(duration / 16));
         let step = 0;
         const initialOpacity = line.opacity ?? 1;
-        // Retract: animate x2/y2 toward x1/y1
         const startX2 = line.x2!;
         const startY2 = line.y2!;
         const endX2 = line.x1!;
@@ -690,7 +667,6 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const tick = () => {
         step++;
         const t = step / steps;
-        // Ease-out quad
         const eased = 1 - (1 - t) * (1 - t);
         line.set({
           x2: startX + (targetX2 - startX) * eased,
@@ -709,12 +685,11 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     };
 
     const pulseNode = (canvas: FabricCanvas, group: Group) => {
-      const steps = 20; // ~320ms
+      const steps = 20;
       let step = 0;
       const tick = () => {
         step++;
         const t = step / steps;
-        // Pulse up then down
         const intensity = t < 0.5 ? t * 2 : (1 - t) * 2;
         group.set({
           shadow: { color: 'hsl(221 83% 53%)', blur: 10 + intensity * 20, offsetX: 0, offsetY: 0 },
@@ -729,20 +704,15 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       requestAnimationFrame(tick);
     };
 
-    // ── Ephemeral edge rebuild: clears all hierarchy lines and redraws from manager_id ──
-    // animated=true triggers transition animations (used after relationship changes)
+    // ── Ephemeral edge rebuild using orthogonal connectors ──
     const rebuildAllEdges = (canvas: FabricCanvas, cw: number, animated: boolean = false) => {
-      // 1. Fade out and remove old lines
       const oldLines = [...hierarchyLinesRef.current];
       hierarchyLinesRef.current = [];
 
       if (animated && oldLines.length > 0) {
-        // Animate old lines out, then draw new ones in
         oldLines.forEach(line => animateFadeOut(canvas, line, 150));
-        // Small delay so fade-out is visible before draw-in
         setTimeout(() => drawFreshEdges(canvas, cw, true), 100);
       } else {
-        // Instant: remove old, draw new
         oldLines.forEach(line => { try { canvas.remove(line); } catch {} });
         drawFreshEdges(canvas, cw, false);
       }
@@ -751,91 +721,75 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     const drawFreshEdges = (canvas: FabricCanvas, cw: number, animated: boolean) => {
       contactNodesRef.current.forEach((childData, childId) => {
         const contact = childData.contact;
+        const childCenter = childData.group.getCenterPoint();
+        const depth = depthMap.get(childId) || 1;
+        const lightness = Math.min(70 + depth * 3, 85);
+        const strokeColor = `hsl(214 32% ${lightness}%)`;
+        const baseStrokeWidth = depth === 0 ? 3 : 2;
+
         if (contact.managerId && contactNodesRef.current.has(contact.managerId)) {
           const parentData = contactNodesRef.current.get(contact.managerId)!;
           const parentCenter = parentData.group.getCenterPoint();
-          const childCenter = childData.group.getCenterPoint();
-          const depth = depthMap.get(childId) || 1;
-          const baseStrokeWidth = depth === 0 ? 3 : 2;
-          const lightness = Math.min(91 + depth * 1, 95);
-          const line = new Line([parentCenter.x, parentCenter.y + NODE_H / 2, childCenter.x, childCenter.y - NODE_H / 2], {
-            stroke: `hsl(214 32% ${lightness}%)`,
-            strokeWidth: baseStrokeWidth,
-            selectable: false,
-            evented: false,
+
+          // Orthogonal connector: down from parent, horizontal, down to child
+          const parentBottomY = parentCenter.y + NODE_H / 2;
+          const childTopY = childCenter.y - NODE_H / 2;
+          const midY = parentBottomY + (childTopY - parentBottomY) / 2;
+
+          // Segment 1: parent bottom → midY
+          const seg1 = new Line([parentCenter.x, parentBottomY, parentCenter.x, midY], {
+            stroke: strokeColor, strokeWidth: baseStrokeWidth, selectable: false, evented: false,
           });
-          canvas.add(line);
-          canvas.sendObjectToBack(line);
-          hierarchyLinesRef.current.push(line);
-          if (animated) animateDrawIn(canvas, line, 200);
+          // Segment 2: horizontal at midY
+          const seg2 = new Line([parentCenter.x, midY, childCenter.x, midY], {
+            stroke: strokeColor, strokeWidth: baseStrokeWidth, selectable: false, evented: false,
+          });
+          // Segment 3: midY → child top
+          const seg3 = new Line([childCenter.x, midY, childCenter.x, childTopY], {
+            stroke: strokeColor, strokeWidth: baseStrokeWidth, selectable: false, evented: false,
+          });
+
+          [seg1, seg2, seg3].forEach(seg => {
+            canvas.add(seg);
+            canvas.sendObjectToBack(seg);
+            hierarchyLinesRef.current.push(seg);
+            if (animated) animateDrawIn(canvas, seg, 200);
+          });
         } else if (!contact.managerId) {
-          const childCenter = childData.group.getCenterPoint();
-          const line = new Line([cw / 2, 120, childCenter.x, childCenter.y - NODE_H / 2], {
-            stroke: `hsl(214 32% 91%)`,
-            strokeWidth: 3,
-            selectable: false,
-            evented: false,
+          // Root contact → company icon connector
+          const companyBottomY = 120;
+          const childTopY = childCenter.y - NODE_H / 2;
+          const midY = companyBottomY + (childTopY - companyBottomY) / 2;
+
+          const seg1 = new Line([cw / 2, companyBottomY, cw / 2, midY], {
+            stroke: strokeColor, strokeWidth: 3, selectable: false, evented: false,
           });
-          canvas.add(line);
-          canvas.sendObjectToBack(line);
-          hierarchyLinesRef.current.push(line);
-          if (animated) animateDrawIn(canvas, line, 200);
+          const seg2 = new Line([cw / 2, midY, childCenter.x, midY], {
+            stroke: strokeColor, strokeWidth: 3, selectable: false, evented: false,
+          });
+          const seg3 = new Line([childCenter.x, midY, childCenter.x, childTopY], {
+            stroke: strokeColor, strokeWidth: 3, selectable: false, evented: false,
+          });
+
+          [seg1, seg2, seg3].forEach(seg => {
+            canvas.add(seg);
+            canvas.sendObjectToBack(seg);
+            hierarchyLinesRef.current.push(seg);
+            if (animated) animateDrawIn(canvas, seg, 200);
+          });
         }
       });
     };
 
-    // ── Place executives row (C-suite) ──
-    const execCount = layout.executives.length;
-    if (execCount > 0) {
-      const execTotalW = execCount * NODE_W + (execCount - 1) * HORIZONTAL_GAP;
-      const execStartX = canvasW / 2 - execTotalW / 2 + NODE_W / 2;
-
-      layout.executives.forEach((exec, i) => {
-        const x = execStartX + i * (NODE_W + HORIZONTAL_GAP);
-        const y = EXEC_ROW_Y;
-        const contact = contactMap.get(exec.contactId);
-        if (!contact) return;
-
-        const node = createContactNode(contact, x, y);
-        wireContactNode(contact, node, x, y, depthMap.get(contact.id) || 0);
-      });
+    // ── Place nodes using deterministic tree layout ──
+    for (const pos of treePositions) {
+      const contact = contactMap.get(pos.contactId);
+      if (!contact) continue;
+      const node = createContactNode(contact, pos.x, pos.y);
+      wireContactNode(contact, node, pos.x, pos.y, pos.depth);
     }
 
-    // ── Place department columns ──
-    const deptCount = layout.departments.length;
-    if (deptCount > 0) {
-      const deptTotalW = deptCount * NODE_W + (deptCount - 1) * (HORIZONTAL_GAP * 2);
-      const deptStartX = canvasW / 2 - deptTotalW / 2 + NODE_W / 2;
-
-      layout.departments.forEach((dept, deptIdx) => {
-        const deptX = deptStartX + deptIdx * (NODE_W + HORIZONTAL_GAP * 2);
-
-        // Department label
-        const deptLabel = new Text(dept.name, {
-          fontSize: 11,
-          fontWeight: "bold",
-          fill: "hsl(215 16% 47%)",
-          left: deptX,
-          top: DEPT_START_Y - 10,
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-        });
-        fabricCanvas.add(deptLabel);
-
-        dept.nodes.forEach((orgNode, nodeIdx) => {
-          const y = DEPT_START_Y + DEPT_HEADER_H + nodeIdx * (NODE_H + VERTICAL_GAP);
-          const contact = contactMap.get(orgNode.contactId);
-          if (!contact) return;
-
-          const node = createContactNode(contact, deptX, y);
-          wireContactNode(contact, node, deptX, y, depthMap.get(contact.id) || 0);
-        });
-      });
-    }
-
-    // ── Draw initial edges from manager_id (ephemeral) ──
+    // ── Draw initial edges (ephemeral) ──
     rebuildAllEdges(fabricCanvas, canvasW);
 
     fabricCanvas.renderAll();

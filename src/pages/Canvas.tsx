@@ -358,8 +358,9 @@ const Canvas = () => {
         }
       }
       
-      // Invalidate canvas-company query so the canvas rebuilds with new hierarchy + connectors
+      // Invalidate both queries so the canvas rebuilds with new hierarchy + connectors
       queryClient.invalidateQueries({ queryKey: ['canvas-company'] });
+      queryClient.invalidateQueries({ queryKey: ['org-chart-tree'] });
       
       toast.success("Hierarchy updated");
     } catch (err) {

@@ -309,56 +309,55 @@ const Canvas = () => {
           break;
 
         case "left": {
-          // Center zone → DISPLACE: dragged takes target's position, target becomes child of dragged
+          // Left of target → insert as sibling BEFORE target (lower sibling order)
           if (!targetId) return;
-          const targetNodeCenter = orgNodes.find(n => n.contactId === targetId);
-          const targetParent = targetNodeCenter?.parentContactId ?? null;
-          const targetOrder = targetNodeCenter?.siblingOrder ?? 0;
-          // Step 1: Move dragged into target's exact slot (same parent, same order)
-          await setParent({ contactId: draggedId, newParentContactId: targetParent, newSiblingOrder: targetOrder });
-          // Step 2: Demote target to become first child of dragged
-          await setParent({ contactId: targetId, newParentContactId: draggedId, newSiblingOrder: 0 });
-          // Step 3: Re-parent target's other children to stay under target (already correct, no change needed)
-          break;
-        }
-
-        case "top": {
-          // Sibling before target (insert before target in same parent's children)
-          if (!targetId) return;
-          const targetNodeTop = orgNodes.find(n => n.contactId === targetId);
-          const parentIdTop = targetNodeTop?.parentContactId ?? null;
-          const orderTop = Math.max(0, (targetNodeTop?.siblingOrder ?? 0));
-          await setParent({ contactId: draggedId, newParentContactId: parentIdTop, newSiblingOrder: orderTop });
-          // Shift target and later siblings forward
-          const siblingsToShift = orgNodes.filter(n => n.parentContactId === parentIdTop && n.contactId !== draggedId && n.siblingOrder >= orderTop);
-          for (const sib of siblingsToShift) {
-            await setParent({ contactId: sib.contactId, newParentContactId: parentIdTop, newSiblingOrder: sib.siblingOrder + 1 });
+          const targetNodeLeft = orgNodes.find(n => n.contactId === targetId);
+          const parentIdLeft = targetNodeLeft?.parentContactId ?? null;
+          const orderLeft = Math.max(0, (targetNodeLeft?.siblingOrder ?? 0));
+          // Shift target and later siblings forward to make room
+          const siblingsToShiftLeft = orgNodes.filter(n => n.parentContactId === parentIdLeft && n.contactId !== draggedId && n.siblingOrder >= orderLeft);
+          for (const sib of siblingsToShiftLeft) {
+            await setParent({ contactId: sib.contactId, newParentContactId: parentIdLeft, newSiblingOrder: sib.siblingOrder + 1 });
           }
-          break;
-        }
-
-        case "bottom": {
-          // Sibling after target (insert after target in same parent's children)
-          if (!targetId) return;
-          const targetNodeBot = orgNodes.find(n => n.contactId === targetId);
-          const parentIdBot = targetNodeBot?.parentContactId ?? null;
-          const orderBot = (targetNodeBot?.siblingOrder ?? 0) + 1;
-          await setParent({ contactId: draggedId, newParentContactId: parentIdBot, newSiblingOrder: orderBot });
-          // Shift later siblings forward
-          const siblingsToShiftBot = orgNodes.filter(n => n.parentContactId === parentIdBot && n.contactId !== draggedId && n.siblingOrder >= orderBot);
-          for (const sib of siblingsToShiftBot) {
-            await setParent({ contactId: sib.contactId, newParentContactId: parentIdBot, newSiblingOrder: sib.siblingOrder + 1 });
-          }
+          await setParent({ contactId: draggedId, newParentContactId: parentIdLeft, newSiblingOrder: orderLeft });
           break;
         }
 
         case "right": {
-          // Legacy zone — treat same as "bottom" (sibling after)
+          // Right of target → insert as sibling AFTER target (higher sibling order)
           if (!targetId) return;
-          const siblingNode = orgNodes.find(n => n.contactId === targetId);
-          const parentId = siblingNode?.parentContactId ?? null;
-          const siblingOrder = (siblingNode?.siblingOrder ?? 0) + 1;
-          await setParent({ contactId: draggedId, newParentContactId: parentId, newSiblingOrder: siblingOrder });
+          const targetNodeRight = orgNodes.find(n => n.contactId === targetId);
+          const parentIdRight = targetNodeRight?.parentContactId ?? null;
+          const orderRight = (targetNodeRight?.siblingOrder ?? 0) + 1;
+          // Shift later siblings forward
+          const siblingsToShiftRight = orgNodes.filter(n => n.parentContactId === parentIdRight && n.contactId !== draggedId && n.siblingOrder >= orderRight);
+          for (const sib of siblingsToShiftRight) {
+            await setParent({ contactId: sib.contactId, newParentContactId: parentIdRight, newSiblingOrder: sib.siblingOrder + 1 });
+          }
+          await setParent({ contactId: draggedId, newParentContactId: parentIdRight, newSiblingOrder: orderRight });
+          break;
+        }
+
+        case "bottom": {
+          // Below target → connect as NEW CHILD of target (new branch)
+          if (!targetId) return;
+          const existingChildren = orgNodes.filter(n => n.parentContactId === targetId);
+          const nextOrder = existingChildren.length > 0 ? Math.max(...existingChildren.map(c => c.siblingOrder)) + 1 : 0;
+          await setParent({ contactId: draggedId, newParentContactId: targetId, newSiblingOrder: nextOrder });
+          break;
+        }
+
+        case "top": {
+          // Top — treat same as left (sibling before)
+          if (!targetId) return;
+          const targetNodeTop = orgNodes.find(n => n.contactId === targetId);
+          const parentIdTop = targetNodeTop?.parentContactId ?? null;
+          const orderTop = Math.max(0, (targetNodeTop?.siblingOrder ?? 0));
+          const siblingsToShiftTop = orgNodes.filter(n => n.parentContactId === parentIdTop && n.contactId !== draggedId && n.siblingOrder >= orderTop);
+          for (const sib of siblingsToShiftTop) {
+            await setParent({ contactId: sib.contactId, newParentContactId: parentIdTop, newSiblingOrder: sib.siblingOrder + 1 });
+          }
+          await setParent({ contactId: draggedId, newParentContactId: parentIdTop, newSiblingOrder: orderTop });
           break;
         }
       }

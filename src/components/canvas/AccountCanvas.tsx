@@ -186,23 +186,21 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     return false;
   }, []);
 
-  // 3-zone detection: top 30% = sibling-before, bottom 30% = sibling-after, center 40% = child
+  // 3-zone detection: LEFT of target = left sibling, RIGHT = right sibling, BOTTOM = child branch
   const detectZone = useCallback((dragX: number, dragY: number, targetX: number, targetY: number, nodeW: number, nodeH: number): DropZone | null => {
     const dx = dragX - targetX;
     const dy = dragY - targetY;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > ZONE_DETECT_RADIUS) return null;
 
-    // Relative position within target bounding box
-    const relY = dy + nodeH / 2; // 0 = top edge, nodeH = bottom edge
-    if (relY < 0 || relY > nodeH) {
-      // Outside vertical bounds — use proximity
-      return dy < 0 ? "top" : "bottom";
-    }
-    const pct = relY / nodeH;
-    if (pct < 0.3) return "top";       // sibling before
-    if (pct > 0.7) return "bottom";    // sibling after
-    return "left";                      // center → child (reuse "left" as child zone since it maps to center)
+    // Use angle to determine direction: left, right, or bottom
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI); // -180 to 180
+    // Bottom zone: angle between 30° and 150° (below the target)
+    if (angle > 30 && angle < 150) return "bottom";
+    // Left zone: angle < -90° or > 150° (to the left of the target)
+    if (angle > 150 || angle < -60) return "left";
+    // Right zone: everything else (to the right of the target)
+    return "right";
   }, []);
 
   // Auto-pan when near edges — rate-limited, subtle
@@ -364,21 +362,23 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const td = contactNodesRef.current.get(best.id)!;
       const tc = td.group.getCenterPoint();
       const hw = NODE_W / 2, hh = NODE_H / 2;
-      const siblingColor = "hsl(270 70% 55%)";
-      const displaceColor = "hsl(30 90% 55%)";   // Orange for displacement
+      const siblingColor = "hsl(221 83% 53%)";
+      const childColor = "hsl(142 71% 45%)";   // Green for new child branch
       switch (best.zone) {
-        case "top":
-          // Insertion line above target = "sibling before"
-          addGuideRect(canvas, tc.x - hw, tc.y - hh - 6, NODE_W, 4, siblingColor, 0.7);
+        case "left":
+          // Left sibling — insertion line on the left side
+          addGuideRect(canvas, tc.x - hw - 6, tc.y - hh, 4, NODE_H, siblingColor, 0.7);
+          addGuideLine(canvas, tc.x - hw - 4, tc.y, dragX + hw, dragY, siblingColor);
+          break;
+        case "right":
+          // Right sibling — insertion line on the right side
+          addGuideRect(canvas, tc.x + hw + 2, tc.y - hh, 4, NODE_H, siblingColor, 0.7);
+          addGuideLine(canvas, tc.x + hw + 4, tc.y, dragX - hw, dragY, siblingColor);
           break;
         case "bottom":
-          // Insertion line below target = "sibling after"
-          addGuideRect(canvas, tc.x - hw, tc.y + hh + 2, NODE_W, 4, siblingColor, 0.7);
-          break;
-        case "left": // center zone = DISPLACE (take target's position, target becomes child)
-          addGuideRect(canvas, tc.x - hw + 2, tc.y - hh + 2, NODE_W - 4, NODE_H - 4, displaceColor, 0.25);
-          // Show a downward arrow indicator: target will be pushed down as child
-          addGuideLine(canvas, tc.x, tc.y + hh, tc.x, tc.y + hh + 30, displaceColor);
+          // New child branch — insertion line below + connector line down
+          addGuideRect(canvas, tc.x - hw, tc.y + hh + 2, NODE_W, 4, childColor, 0.7);
+          addGuideLine(canvas, tc.x, tc.y + hh + 4, tc.x, tc.y + hh + 30, childColor);
           break;
       }
       snapResultRef.current = { targetId: best.id, zone: best.zone };

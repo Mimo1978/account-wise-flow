@@ -186,26 +186,27 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     return false;
   }, []);
 
-  // 4-zone detection: determine which zone the dragged node is in relative to target
+  // 3-zone detection: top 30% = sibling-before, bottom 30% = sibling-after, center 40% = child
   const detectZone = useCallback((dragX: number, dragY: number, targetX: number, targetY: number, nodeW: number, nodeH: number): DropZone | null => {
     const dx = dragX - targetX;
     const dy = dragY - targetY;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > ZONE_DETECT_RADIUS) return null;
-    
-    // Use angle to determine zone
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI); // -180 to 180
-    // Top: -135 to -45, Right: -45 to 45, Bottom: 45 to 135, Left: 135/-135
-    if (angle >= -135 && angle < -45) return "top";
-    if (angle >= -45 && angle < 45) return "right";
-    if (angle >= 45 && angle < 135) return "bottom";
-    return "left";
+
+    // Relative position within target bounding box
+    const relY = dy + nodeH / 2; // 0 = top edge, nodeH = bottom edge
+    if (relY < 0 || relY > nodeH) {
+      // Outside vertical bounds — use proximity
+      return dy < 0 ? "top" : "bottom";
+    }
+    const pct = relY / nodeH;
+    if (pct < 0.3) return "top";       // sibling before
+    if (pct > 0.7) return "bottom";    // sibling after
+    return "left";                      // center → child (reuse "left" as child zone since it maps to center)
   }, []);
 
-  // Auto-pan when near edges
+  // Auto-pan when near edges — rate-limited, subtle
   const startAutoPan = useCallback((canvas: FabricCanvas, mouseX: number, mouseY: number) => {
-    if (autoPanIntervalRef.current) clearInterval(autoPanIntervalRef.current);
-    
     const cw = canvas.width!;
     const ch = canvas.height!;
     let dx = 0, dy = 0;
@@ -216,31 +217,22 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     else if (mouseY > ch - AUTO_PAN_EDGE) dy = -AUTO_PAN_SPEED;
     
     if (dx === 0 && dy === 0) {
-      if (autoPanIntervalRef.current) {
-        clearInterval(autoPanIntervalRef.current);
-        autoPanIntervalRef.current = null;
-      }
+      stopAutoPan();
       return;
     }
     
+    // Don't restart if already running with same direction
+    if (autoPanIntervalRef.current) return;
+    
     autoPanIntervalRef.current = setInterval(() => {
-      if (isCanvasDisposedRef.current) { stopAutoPan(); return; }
+      if (isCanvasDisposedRef.current || !isCarryingRef.current) { stopAutoPan(); return; }
       try {
         const vpt = canvas.viewportTransform!;
         vpt[4] += dx;
         vpt[5] += dy;
-        // Keep ghost at cursor during auto-pan
-        if (isCarryingRef.current && ghostNodeRef.current) {
-          const zoom = canvas.getZoom();
-          ghostNodeRef.current.set({
-            left: ghostNodeRef.current.left! - dx / zoom,
-            top: ghostNodeRef.current.top! - dy / zoom,
-          });
-          ghostNodeRef.current.setCoords();
-        }
         canvas.requestRenderAll();
       } catch { stopAutoPan(); }
-    }, 16);
+    }, 32); // 30fps is enough for subtle auto-pan
   }, []);
   
   const stopAutoPan = useCallback(() => {
@@ -277,14 +269,16 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     canvas.requestRenderAll();
   }, []);
 
-  const endCarry = useCallback((canvas: FabricCanvas) => {
+  const endCarry = useCallback((canvas: FabricCanvas, forceRevert: boolean = false) => {
     if (!isCarryingRef.current) return;
     stopAutoPan();
     if (guideRafRef.current !== null) { cancelAnimationFrame(guideRafRef.current); guideRafRef.current = null; }
     clearGuideLines(canvas);
     const carriedId = carriedContactIdRef.current;
-    const result = snapResultRef.current;
+    const result = forceRevert ? null : snapResultRef.current;
+    // Remove ghost
     if (ghostNodeRef.current) { try { canvas.remove(ghostNodeRef.current); } catch {} ghostNodeRef.current = null; }
+    // Restore original node appearance
     if (carriedId) {
       const nodeData = contactNodesRef.current.get(carriedId);
       if (nodeData) {
@@ -293,14 +287,18 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         cardBg.set({ strokeDashArray: undefined as any, stroke: 'hsl(214 32% 91%)', strokeWidth: 1 });
       }
     }
-    hierarchyLinesRef.current.forEach(l => l.set({ opacity: 1 }));
+    // Restore connector opacity
+    hierarchyLinesRef.current.forEach(l => { try { l.set({ opacity: 1 }); } catch {} });
+    // Commit or revert
     if (result && carriedId) {
       dragModeRef.current = "COMMITTING";
       onStructuralDropRef.current?.(carriedId, result.targetId, result.zone);
       setTimeout(() => { dragModeRef.current = "IDLE"; }, 300);
     } else {
+      // REVERT: no valid snap target — card stays in original position (no DB change)
       dragModeRef.current = "IDLE";
     }
+    // Reset all carry state
     isCarryingRef.current = false;
     carriedContactIdRef.current = null;
     carryContactPendingRef.current = null;
@@ -347,13 +345,22 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     if (best) {
       const td = contactNodesRef.current.get(best.id)!;
       const tc = td.group.getCenterPoint();
-      const colors: Record<DropZone, string> = { top: "hsl(270 70% 55%)", bottom: "hsl(142 71% 45%)", left: "hsl(221 83% 53%)", right: "hsl(221 83% 53%)", company_root: "hsl(221 83% 53%)" };
-      const c = colors[best.zone], hw = NODE_W / 2, hh = NODE_H / 2;
+      const hw = NODE_W / 2, hh = NODE_H / 2;
+      const siblingColor = "hsl(270 70% 55%)";
+      const childColor = "hsl(142 71% 45%)";
       switch (best.zone) {
-        case "top": addGuideRect(canvas, tc.x - hw, tc.y - hh - 20, NODE_W, 16, c, 0.5); addGuideLine(canvas, dragX, dragY + hh, tc.x, tc.y - hh, c); break;
-        case "bottom": addGuideRect(canvas, tc.x - hw, tc.y + hh + 4, NODE_W, 16, c, 0.5); addGuideLine(canvas, tc.x, tc.y + hh, dragX, dragY - hh, c); break;
-        case "left": addGuideRect(canvas, tc.x - hw - 16, tc.y - hh, 12, NODE_H, c, 0.5); addGuideLine(canvas, dragX, dragY, tc.x - hw, tc.y, c); break;
-        case "right": addGuideRect(canvas, tc.x + hw + 4, tc.y - hh, 12, NODE_H, c, 0.5); addGuideLine(canvas, dragX, dragY, tc.x + hw, tc.y, c); break;
+        case "top":
+          // Insertion line above target = "sibling before"
+          addGuideRect(canvas, tc.x - hw, tc.y - hh - 6, NODE_W, 4, siblingColor, 0.7);
+          break;
+        case "bottom":
+          // Insertion line below target = "sibling after"
+          addGuideRect(canvas, tc.x - hw, tc.y + hh + 2, NODE_W, 4, siblingColor, 0.7);
+          break;
+        case "left": // center zone = make child
+          addGuideRect(canvas, tc.x - hw + 4, tc.y - hh + 4, NODE_W - 8, NODE_H - 8, childColor, 0.15);
+          addGuideLine(canvas, tc.x, tc.y + hh, dragX, dragY - NODE_H / 2, childColor);
+          break;
       }
       snapResultRef.current = { targetId: best.id, zone: best.zone };
     } else {
@@ -440,22 +447,20 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           const vpt = canvas.viewportTransform!;
           vpt[4] += evt.movementX;
           vpt[5] += evt.movementY;
+          canvas.requestRenderAll();
+          return; // Don't update ghost or snaps while panning
         }
         // Ghost follows cursor (canvas coords)
         const pointer = canvas.getPointer(evt);
         ghostNodeRef.current.set({ left: pointer.x, top: pointer.y });
         ghostNodeRef.current.setCoords();
-        // Auto-pan near edges
-        if (!spacebarPanRef.current) {
-          startAutoPan(canvas, evt.offsetX, evt.offsetY);
-        } else {
-          stopAutoPan();
-        }
+        // Auto-pan near edges (subtle)
+        startAutoPan(canvas, evt.offsetX, evt.offsetY);
         // Throttled snap detection (viewport-filtered)
         if (guideRafRef.current === null) {
           guideRafRef.current = requestAnimationFrame(() => {
             guideRafRef.current = null;
-            computeCarrySnaps(canvas);
+            if (isCarryingRef.current) computeCarrySnaps(canvas);
           });
         }
         canvas.requestRenderAll();
@@ -512,8 +517,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         canvas.setCursor('grab');
       }
       if (e.code === 'Escape' && isCarryingRef.current) {
-        snapResultRef.current = null; // Force revert (no snap)
-        endCarry(canvas);
+        endCarry(canvas, true); // force revert on Escape
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {

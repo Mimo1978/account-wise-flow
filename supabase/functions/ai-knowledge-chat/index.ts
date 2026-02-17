@@ -203,24 +203,19 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } }
     });
 
-    // 3. Validate JWT using getClaims
+    // 3. Validate JWT using getUser
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
     
-    if (claimsError || !claimsData?.claims) {
+    if (userError || !userData?.user) {
+      console.error('JWT validation error:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized - Invalid token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claimsData.claims.sub as string;
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - No user ID in token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const userId = userData.user.id;
 
     // 4. Check user role - all authenticated users can use chat (read-only)
     const { data: roleData } = await supabase.rpc('get_user_role', { _user_id: userId });

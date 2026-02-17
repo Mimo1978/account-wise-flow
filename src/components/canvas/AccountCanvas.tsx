@@ -733,6 +733,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       // Canvas context already disposed (HMR / strict mode) — skip rebuild
       return;
     }
+    fabricCanvas.backgroundColor = "hsl(210 40% 98%)";
     contactNodesRef.current.clear();
     hierarchyLinesRef.current = [];
 

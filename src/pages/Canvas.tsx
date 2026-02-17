@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
@@ -292,7 +293,12 @@ const Canvas = () => {
   // Org chart tree hook for structural drops
   const { nodes: orgNodes, setParent, ensureNode } = useOrgChartTree(account?.id);
 
-  // Handle structural drop from 4-zone system
+  // Handle structural drop from 3-zone system:
+  //   "top"    = sibling before target (same parent)
+  //   "bottom" = sibling after target (same parent)
+  //   "left"   = child of target (center zone)
+  //   "company_root" = new root node
+  const queryClient = useQueryClient();
   const handleStructuralDrop = useCallback(async (draggedId: string, targetId: string | null, zone: DropZone) => {
     if (!account) return;
     
@@ -301,39 +307,66 @@ const Canvas = () => {
         case "company_root":
           await setParent({ contactId: draggedId, newParentContactId: null, newSiblingOrder: 0 });
           break;
-          
-        case "bottom":
+
+        case "left": {
+          // Center zone → make dragged a child of target
           if (!targetId) return;
-          await setParent({ contactId: draggedId, newParentContactId: targetId, newSiblingOrder: 0 });
-          break;
-          
-        case "top": {
-          if (!targetId) return;
-          const targetNode = orgNodes.find(n => n.contactId === targetId);
-          const targetParent = targetNode?.parentContactId ?? null;
-          // Sequential: first move dragged, then re-parent target
-          await setParent({ contactId: draggedId, newParentContactId: targetParent, newSiblingOrder: targetNode?.siblingOrder ?? 0 });
-          await setParent({ contactId: targetId, newParentContactId: draggedId, newSiblingOrder: 0 });
+          // Count existing children to append at end
+          const existingChildren = orgNodes.filter(n => n.parentContactId === targetId);
+          await setParent({ contactId: draggedId, newParentContactId: targetId, newSiblingOrder: existingChildren.length });
           break;
         }
-          
-        case "left":
+
+        case "top": {
+          // Sibling before target (insert before target in same parent's children)
+          if (!targetId) return;
+          const targetNodeTop = orgNodes.find(n => n.contactId === targetId);
+          const parentIdTop = targetNodeTop?.parentContactId ?? null;
+          const orderTop = Math.max(0, (targetNodeTop?.siblingOrder ?? 0));
+          await setParent({ contactId: draggedId, newParentContactId: parentIdTop, newSiblingOrder: orderTop });
+          // Shift target and later siblings forward
+          const siblingsToShift = orgNodes.filter(n => n.parentContactId === parentIdTop && n.contactId !== draggedId && n.siblingOrder >= orderTop);
+          for (const sib of siblingsToShift) {
+            await setParent({ contactId: sib.contactId, newParentContactId: parentIdTop, newSiblingOrder: sib.siblingOrder + 1 });
+          }
+          break;
+        }
+
+        case "bottom": {
+          // Sibling after target (insert after target in same parent's children)
+          if (!targetId) return;
+          const targetNodeBot = orgNodes.find(n => n.contactId === targetId);
+          const parentIdBot = targetNodeBot?.parentContactId ?? null;
+          const orderBot = (targetNodeBot?.siblingOrder ?? 0) + 1;
+          await setParent({ contactId: draggedId, newParentContactId: parentIdBot, newSiblingOrder: orderBot });
+          // Shift later siblings forward
+          const siblingsToShiftBot = orgNodes.filter(n => n.parentContactId === parentIdBot && n.contactId !== draggedId && n.siblingOrder >= orderBot);
+          for (const sib of siblingsToShiftBot) {
+            await setParent({ contactId: sib.contactId, newParentContactId: parentIdBot, newSiblingOrder: sib.siblingOrder + 1 });
+          }
+          break;
+        }
+
         case "right": {
+          // Legacy zone — treat same as "bottom" (sibling after)
           if (!targetId) return;
           const siblingNode = orgNodes.find(n => n.contactId === targetId);
           const parentId = siblingNode?.parentContactId ?? null;
-          const siblingOrder = (siblingNode?.siblingOrder ?? 0) + (zone === "right" ? 1 : -1);
+          const siblingOrder = (siblingNode?.siblingOrder ?? 0) + 1;
           await setParent({ contactId: draggedId, newParentContactId: parentId, newSiblingOrder: siblingOrder });
           break;
         }
       }
+      
+      // Invalidate canvas-company query so the canvas rebuilds with new hierarchy + connectors
+      queryClient.invalidateQueries({ queryKey: ['canvas-company'] });
       
       toast.success("Hierarchy updated");
     } catch (err) {
       console.error("Failed to update hierarchy:", err);
       toast.error("Failed to update hierarchy");
     }
-  }, [account, orgNodes, setParent]);
+  }, [account, orgNodes, setParent, queryClient]);
 
 
   // Build toolbar actions with proper priority grouping

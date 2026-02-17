@@ -269,42 +269,57 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     canvas.requestRenderAll();
   }, []);
 
-  const endCarry = useCallback((canvas: FabricCanvas, forceRevert: boolean = false) => {
+  const endCarry = useCallback(async (canvas: FabricCanvas, forceRevert: boolean = false) => {
     if (!isCarryingRef.current) return;
     stopAutoPan();
     if (guideRafRef.current !== null) { cancelAnimationFrame(guideRafRef.current); guideRafRef.current = null; }
     clearGuideLines(canvas);
     const carriedId = carriedContactIdRef.current;
     const result = forceRevert ? null : snapResultRef.current;
-    // Remove ghost
-    if (ghostNodeRef.current) { try { canvas.remove(ghostNodeRef.current); } catch {} ghostNodeRef.current = null; }
-    // Restore original node appearance
-    if (carriedId) {
-      const nodeData = contactNodesRef.current.get(carriedId);
-      if (nodeData) {
-        nodeData.group.set({ opacity: 1 });
-        const cardBg = nodeData.group.getObjects()[0] as Rect;
-        cardBg.set({ strokeDashArray: undefined as any, stroke: 'hsl(214 32% 91%)', strokeWidth: 1 });
-      }
-    }
-    // Restore connector opacity
-    hierarchyLinesRef.current.forEach(l => { try { l.set({ opacity: 1 }); } catch {} });
-    // Commit or revert
-    if (result && carriedId) {
-      dragModeRef.current = "COMMITTING";
-      onStructuralDropRef.current?.(carriedId, result.targetId, result.zone);
-      setTimeout(() => { dragModeRef.current = "IDLE"; }, 300);
-    } else {
-      // REVERT: no valid snap target — card stays in original position (no DB change)
-      dragModeRef.current = "IDLE";
-    }
-    // Reset all carry state
+
+    // Reset carry state immediately so no further mouse events interfere
     isCarryingRef.current = false;
     carriedContactIdRef.current = null;
     carryContactPendingRef.current = null;
     carryStartPosRef.current = null;
     snapResultRef.current = null;
     spacebarPanRef.current = false;
+
+    if (result && carriedId) {
+      // COMMIT: Keep ghost visible as a "locking" indicator while DB updates + refetch
+      dragModeRef.current = "COMMITTING";
+      // Dim connectors during commit
+      hierarchyLinesRef.current.forEach(l => { try { l.set({ opacity: 0.15 }); } catch {} });
+      try {
+        // Await the structural drop (DB mutation + refetch) — canvas rebuilds on completion
+        await onStructuralDropRef.current?.(carriedId, result.targetId, result.zone);
+      } catch {}
+      // Clean up ghost and restore after refetch triggers full rebuild
+      if (ghostNodeRef.current) { try { canvas.remove(ghostNodeRef.current); } catch {} ghostNodeRef.current = null; }
+      if (carriedId) {
+        const nodeData = contactNodesRef.current.get(carriedId);
+        if (nodeData) {
+          nodeData.group.set({ opacity: 1 });
+          const cardBg = nodeData.group.getObjects()[0] as Rect;
+          cardBg.set({ strokeDashArray: undefined as any, stroke: 'hsl(214 32% 91%)', strokeWidth: 1 });
+        }
+      }
+      hierarchyLinesRef.current.forEach(l => { try { l.set({ opacity: 1 }); } catch {} });
+      dragModeRef.current = "IDLE";
+    } else {
+      // REVERT: no valid snap target — restore everything to original
+      if (ghostNodeRef.current) { try { canvas.remove(ghostNodeRef.current); } catch {} ghostNodeRef.current = null; }
+      if (carriedId) {
+        const nodeData = contactNodesRef.current.get(carriedId);
+        if (nodeData) {
+          nodeData.group.set({ opacity: 1 });
+          const cardBg = nodeData.group.getObjects()[0] as Rect;
+          cardBg.set({ strokeDashArray: undefined as any, stroke: 'hsl(214 32% 91%)', strokeWidth: 1 });
+        }
+      }
+      hierarchyLinesRef.current.forEach(l => { try { l.set({ opacity: 1 }); } catch {} });
+      dragModeRef.current = "IDLE";
+    }
     canvas.requestRenderAll();
   }, [stopAutoPan, clearGuideLines]);
 
@@ -347,7 +362,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const tc = td.group.getCenterPoint();
       const hw = NODE_W / 2, hh = NODE_H / 2;
       const siblingColor = "hsl(270 70% 55%)";
-      const childColor = "hsl(142 71% 45%)";
+      const displaceColor = "hsl(30 90% 55%)";   // Orange for displacement
       switch (best.zone) {
         case "top":
           // Insertion line above target = "sibling before"
@@ -357,9 +372,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           // Insertion line below target = "sibling after"
           addGuideRect(canvas, tc.x - hw, tc.y + hh + 2, NODE_W, 4, siblingColor, 0.7);
           break;
-        case "left": // center zone = make child
-          addGuideRect(canvas, tc.x - hw + 4, tc.y - hh + 4, NODE_W - 8, NODE_H - 8, childColor, 0.15);
-          addGuideLine(canvas, tc.x, tc.y + hh, dragX, dragY - NODE_H / 2, childColor);
+        case "left": // center zone = DISPLACE (take target's position, target becomes child)
+          addGuideRect(canvas, tc.x - hw + 2, tc.y - hh + 2, NODE_W - 4, NODE_H - 4, displaceColor, 0.25);
+          // Show a downward arrow indicator: target will be pushed down as child
+          addGuideLine(canvas, tc.x, tc.y + hh, tc.x, tc.y + hh + 30, displaceColor);
           break;
       }
       snapResultRef.current = { targetId: best.id, zone: best.zone };

@@ -213,10 +213,13 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     }
     
     autoPanIntervalRef.current = setInterval(() => {
-      const vpt = canvas.viewportTransform!;
-      vpt[4] += dx;
-      vpt[5] += dy;
-      canvas.requestRenderAll();
+      if (isCanvasDisposedRef.current) { stopAutoPan(); return; }
+      try {
+        const vpt = canvas.viewportTransform!;
+        vpt[4] += dx;
+        vpt[5] += dy;
+        canvas.requestRenderAll();
+      } catch { stopAutoPan(); }
     }, 16);
   }, []);
   
@@ -647,6 +650,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       depthMap.set(contact.id, depth);
 
       node.on('moving', function(opt) {
+        if (isCanvasDisposedRef.current) return;
         // Only allow movement in edit mode
         if (interactionModeRef.current !== 'edit') {
           node.set({ left: x, top: y });
@@ -815,58 +819,21 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       });
 
       node.on('mouseover', function() {
-        (this as FabricObject).set({ 
-          shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 }
-        });
-
-        // ── Hierarchy hover highlighting ──
-        const ancestors = new Set<string>();
-        let current = contact.id;
-        while (parentMap.has(current)) {
-          current = parentMap.get(current)!;
-          ancestors.add(current);
-        }
-
-        const descendants = new Set<string>();
-        const collectDescendants = (id: string) => {
-          const kids = childrenMap.get(id) || [];
-          kids.forEach(kid => {
-            descendants.add(kid);
-            collectDescendants(kid);
+        if (isCanvasDisposedRef.current) return;
+        try {
+          (this as FabricObject).set({ 
+            shadow: { color: 'hsl(221 83% 53%)', blur: 20, offsetX: 0, offsetY: 0 }
           });
-        };
-        collectDescendants(contact.id);
-
-        contactNodesRef.current.forEach((otherData, otherId) => {
-          if (otherId === contact.id) return;
-          if (ancestors.has(otherId) || descendants.has(otherId)) {
-            otherData.group.set({ opacity: 1 });
-          } else {
-            otherData.group.set({ opacity: 0.8 });
-          }
-        });
-
-        hierarchyLinesRef.current.forEach(l => {
-          l.set({ stroke: 'hsl(221 83% 53%)', strokeWidth: 3 });
-        });
-        fabricCanvas.renderAll();
+          fabricCanvas.requestRenderAll();
+        } catch {}
       });
 
       node.on('mouseout', function() {
-        (this as FabricObject).set({ shadow: null });
-
-        // Restore opacity without rebuilding edges (just reset in-place)
-        contactNodesRef.current.forEach((otherData) => {
-          otherData.group.set({ opacity: 1 });
-        });
-
-        // Restore default edge styles in-place instead of full rebuild
-        hierarchyLinesRef.current.forEach(l => {
-          const childDepth = 1; // approximate
-          const lightness = Math.min(70 + childDepth * 3, 85);
-          l.set({ stroke: `hsl(214 32% ${lightness}%)`, strokeWidth: 2 });
-        });
-        fabricCanvas.renderAll();
+        if (isCanvasDisposedRef.current) return;
+        try {
+          (this as FabricObject).set({ shadow: null });
+          fabricCanvas.requestRenderAll();
+        } catch {}
       });
 
       node.on('mousedown', () => {
@@ -996,17 +963,12 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     };
 
     // ── Ephemeral edge rebuild using orthogonal connectors ──
-    const rebuildAllEdges = (canvas: FabricCanvas, cw: number, animated: boolean = false) => {
+    // Always rebuild edges instantly — animated rebuilds with setTimeout cause race conditions and freezes
+    const rebuildAllEdges = (canvas: FabricCanvas, cw: number, _animated: boolean = false) => {
       const oldLines = [...hierarchyLinesRef.current];
       hierarchyLinesRef.current = [];
-
-      if (animated && oldLines.length > 0) {
-        oldLines.forEach(line => animateFadeOut(canvas, line, 150));
-        setTimeout(() => drawFreshEdges(canvas, cw, true), 100);
-      } else {
-        oldLines.forEach(line => { try { canvas.remove(line); } catch {} });
-        drawFreshEdges(canvas, cw, false);
-      }
+      oldLines.forEach(line => { try { canvas.remove(line); } catch {} });
+      drawFreshEdges(canvas, cw, false);
     };
 
     const drawFreshEdges = (canvas: FabricCanvas, cw: number, animated: boolean) => {

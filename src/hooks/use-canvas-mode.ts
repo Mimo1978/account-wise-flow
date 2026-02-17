@@ -10,8 +10,6 @@ interface UseCanvasModeReturn {
   toggleMode: () => void;
   selectedNodeId: string | null;
   setSelectedNodeId: (id: string | null) => void;
-  lockedNodeIds: Set<string>;
-  toggleLockNode: (id: string) => void;
 }
 
 /**
@@ -28,7 +26,6 @@ export function useCanvasMode(): UseCanvasModeReturn {
   });
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [lockedNodeIds, setLockedNodeIds] = useState<Set<string>>(new Set());
 
   const setMode = useCallback((newMode: CanvasMode) => {
     setModeState(newMode);
@@ -45,18 +42,6 @@ export function useCanvasMode(): UseCanvasModeReturn {
     setMode(mode === "browse" ? "edit" : "browse");
   }, [mode, setMode]);
 
-  const toggleLockNode = useCallback((id: string) => {
-    setLockedNodeIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  }, []);
-
   return {
     mode,
     isEditMode: mode === "edit",
@@ -65,7 +50,5 @@ export function useCanvasMode(): UseCanvasModeReturn {
     toggleMode,
     selectedNodeId,
     setSelectedNodeId,
-    lockedNodeIds,
-    toggleLockNode,
   };
 }

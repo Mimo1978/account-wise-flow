@@ -24,12 +24,10 @@ interface AccountCanvasProps {
   interactionMode?: CanvasInteractionMode;
   selectedNodeId?: string | null;
   onNodeSelect?: (contactId: string | null) => void;
-  lockedNodeIds?: Set<string>;
   onSnapEdgeCreate?: (fromContactId: string, toContactId: string) => void;
   onUnlinkFromManager?: (contactId: string) => void;
   workspaceId?: string;
 }
-
 export interface AccountCanvasRef {
   clearSearch: () => void;
   highlightContacts: (contactIds: string[]) => void;
@@ -60,7 +58,6 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   interactionMode = "browse",
   selectedNodeId = null,
   onNodeSelect,
-  lockedNodeIds = new Set(),
   onSnapEdgeCreate,
   onUnlinkFromManager,
   workspaceId,
@@ -79,13 +76,13 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   // Refs for interaction mode (so canvas event handlers always have current values)
   const interactionModeRef = useRef(interactionMode);
   const selectedNodeIdRef = useRef(selectedNodeId);
-  const lockedNodeIdsRef = useRef(lockedNodeIds);
+  
   const onNodeSelectRef = useRef(onNodeSelect);
   const onContactClickRef = useRef(onContactClick);
   
   useEffect(() => { interactionModeRef.current = interactionMode; }, [interactionMode]);
   useEffect(() => { selectedNodeIdRef.current = selectedNodeId; }, [selectedNodeId]);
-  useEffect(() => { lockedNodeIdsRef.current = lockedNodeIds; }, [lockedNodeIds]);
+  useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
   useEffect(() => { onNodeSelectRef.current = onNodeSelect; }, [onNodeSelect]);
   useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
   const companyNodeRef = useRef<Group | null>(null);
@@ -419,8 +416,8 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       depthMap.set(contact.id, depth);
 
       node.on('moving', function(opt) {
-        // Only allow movement in edit mode and if not locked
-        if (interactionModeRef.current !== 'edit' || lockedNodeIdsRef.current.has(contact.id)) {
+        // Only allow movement in edit mode
+        if (interactionModeRef.current !== 'edit') {
           node.set({ left: x, top: y });
           node.setCoords();
           return;

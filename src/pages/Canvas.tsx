@@ -309,11 +309,16 @@ const Canvas = () => {
           break;
 
         case "left": {
-          // Center zone → make dragged a child of target
+          // Center zone → DISPLACE: dragged takes target's position, target becomes child of dragged
           if (!targetId) return;
-          // Count existing children to append at end
-          const existingChildren = orgNodes.filter(n => n.parentContactId === targetId);
-          await setParent({ contactId: draggedId, newParentContactId: targetId, newSiblingOrder: existingChildren.length });
+          const targetNodeCenter = orgNodes.find(n => n.contactId === targetId);
+          const targetParent = targetNodeCenter?.parentContactId ?? null;
+          const targetOrder = targetNodeCenter?.siblingOrder ?? 0;
+          // Step 1: Move dragged into target's exact slot (same parent, same order)
+          await setParent({ contactId: draggedId, newParentContactId: targetParent, newSiblingOrder: targetOrder });
+          // Step 2: Demote target to become first child of dragged
+          await setParent({ contactId: targetId, newParentContactId: draggedId, newSiblingOrder: 0 });
+          // Step 3: Re-parent target's other children to stay under target (already correct, no change needed)
           break;
         }
 
@@ -358,9 +363,11 @@ const Canvas = () => {
         }
       }
       
-      // Invalidate both queries so the canvas rebuilds with new hierarchy + connectors
-      queryClient.invalidateQueries({ queryKey: ['canvas-company'] });
-      queryClient.invalidateQueries({ queryKey: ['org-chart-tree'] });
+      // Await refetch so the canvas rebuilds immediately with new hierarchy + connectors
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['canvas-company', account.id] }),
+        queryClient.refetchQueries({ queryKey: ['org-chart-tree', account.id] }),
+      ]);
       
       toast.success("Hierarchy updated");
     } catch (err) {

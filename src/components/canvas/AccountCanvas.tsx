@@ -418,7 +418,25 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     canvas.on('mouse:down', (opt) => {
       if (isCarryingRef.current) return; // Don't start pan during carry
       const evt = opt.e as MouseEvent;
-      if (!opt.target) {
+      if (opt.target) {
+        // Check if target is a contact node and we're in edit mode
+        if (interactionModeRef.current === 'edit') {
+          // Find which contact this group belongs to
+          let foundContactId: string | null = null;
+          contactNodesRef.current.forEach((nodeData, cId) => {
+            if (nodeData.group === opt.target || (opt.target && nodeData.group.contains(opt.target as FabricObject))) {
+              foundContactId = cId;
+            }
+          });
+          if (foundContactId) {
+            onNodeSelectRef.current?.(foundContactId);
+            carryStartPosRef.current = { x: evt.clientX, y: evt.clientY };
+            carryContactPendingRef.current = foundContactId;
+            canvas.setCursor('move');
+            return; // Don't start pan
+          }
+        }
+      } else {
         isDragging = true;
         canvas.selection = false;
         lastPosX = evt.clientX;
@@ -888,13 +906,9 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
       node.on('mousedown', (opt) => {
         if (isCarryingRef.current) return;
-        if (interactionModeRef.current === 'edit') {
-          onNodeSelectRef.current?.(contact.id);
-          // Track for potential carry start
-          const evt = opt.e as MouseEvent;
-          carryStartPosRef.current = { x: evt.clientX, y: evt.clientY };
-          carryContactPendingRef.current = contact.id;
-        } else {
+        // In browse mode, open contact detail on click
+        // (In edit mode, carry is handled by canvas-level mouse:down)
+        if (interactionModeRef.current !== 'edit') {
           onContactClickRef.current(contact);
         }
       });

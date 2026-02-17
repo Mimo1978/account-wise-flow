@@ -50,7 +50,7 @@ export function useCompanyImport() {
     try {
       const { data, error } = await supabase
         .from("companies")
-        .select("id, name, industry")
+        .select("id, name, headquarters, industry")
         .eq("team_id", currentWorkspace.id);
 
       if (error) throw error;
@@ -58,7 +58,7 @@ export function useCompanyImport() {
       const companies = (data || []).map((c) => ({
         id: c.id,
         name: c.name,
-        headquarters: undefined, // Not in DB yet
+        headquarters: c.headquarters || undefined,
         industry: c.industry || undefined,
       }));
 
@@ -81,8 +81,8 @@ export function useCompanyImport() {
         const companies = await fetchExistingCompanies();
 
         const reviewItems: CompanyReviewItem[] = parsedRows.map((row) => {
-          const name = row.mapped.name || "";
-          const validation = validateCompanyRecord(row.mapped);
+          const name = (row.mapped.name || "").trim();
+          const validation = validateCompanyRecord({ ...row.mapped, name });
 
           // Find duplicates
           const duplicates = findDuplicates(name, companies, 0.6);
@@ -152,7 +152,11 @@ export function useCompanyImport() {
         if (toCreate.length > 0) {
           const insertData = toCreate.map((item) => ({
             name: item.name,
+            headquarters: item.headquarters || null,
+            switchboard: item.switchboard || null,
             industry: item.industry || null,
+            regions: item.regions && item.regions.length > 0 ? item.regions : null,
+            notes: item.notes || null,
             team_id: currentWorkspace.id,
           }));
 

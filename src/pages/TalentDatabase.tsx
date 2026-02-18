@@ -41,6 +41,7 @@ import { DocsColumnCell, DocsInlineIndicator } from "@/components/talent/DocsCol
 import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { ImportCenterModal } from "@/components/import/ImportCenterModal";
 import { ImportMethod } from "@/components/import/ImportCenterTypes";
+import { AddToOutreachModal } from "@/components/outreach/AddToOutreachModal";
 import { TalentColumnPicker } from "@/components/talent/TalentColumnPicker";
 import { TalentQuickView } from "@/components/talent/TalentQuickView";
 import { ViewPresetsDropdown } from "@/components/talent/ViewPresetsDropdown";
@@ -80,6 +81,7 @@ import {
   ScanLine,
   LayoutList,
   Download,
+  Megaphone,
 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
@@ -159,6 +161,7 @@ export default function TalentDatabase() {
   const [bulkImportMethod, setBulkImportMethod] = useState<ImportMethod>("file");
   const [showCVViewer, setShowCVViewer] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
+  const [showAddToOutreach, setShowAddToOutreach] = useState(false);
   const [quickViewTalentId, setQuickViewTalentId] = useState<string | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [snippetsPanelResult, setSnippetsPanelResult] = useState<BooleanSearchResult | null>(null);
@@ -713,6 +716,21 @@ export default function TalentDatabase() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {/* Bulk action: Add to Outreach — visible only when rows are selected */}
+              {selectedIds.size > 0 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-sm border-primary/40 text-primary hover:bg-primary/5"
+                    onClick={() => setShowAddToOutreach(true)}
+                  >
+                    <Megaphone className="h-3.5 w-3.5" />
+                    Add to Outreach…
+                  </Button>
+                  <Separator orientation="vertical" className="h-6" />
+                </>
+              )}
               {/* View Preference Toggles */}
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1227,6 +1245,16 @@ export default function TalentDatabase() {
         onClose={() => setSnippetsPanelResult(null)}
         result={snippetsPanelResult}
         candidateName={snippetsPanelResult?.candidate.name || ""}
+      />
+
+      {/* Add to Outreach bulk action modal */}
+      <AddToOutreachModal
+        open={showAddToOutreach}
+        onOpenChange={(v) => {
+          setShowAddToOutreach(v);
+          if (!v) setSelectedIds(new Set());
+        }}
+        candidates={filteredTalents.filter((t) => selectedIds.has(t.id))}
       />
     </div>
   );

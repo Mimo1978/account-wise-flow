@@ -64,3 +64,6 @@ verify_jwt = false
 
 [functions.orgchart-web-research]
 verify_jwt = false
+
+[functions.ai-call-agent]
+verify_jwt = false

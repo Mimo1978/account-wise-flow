@@ -156,6 +156,10 @@ export type Database = {
       }
       call_outcomes: {
         Row: {
+          ai_transcript: Json | null
+          availability_date: string | null
+          best_callback_time: string | null
+          call_type: string | null
           called_at: string
           caller_id: string | null
           candidate_id: string | null
@@ -166,13 +170,20 @@ export type Database = {
           follow_up_action: string | null
           follow_up_due: string | null
           id: string
+          interest_level: string | null
           notes: string | null
+          notice_period: string | null
           outcome: Database["public"]["Enums"]["call_outcome_type"]
+          structured_answers: Json | null
           target_id: string
           updated_at: string
           workspace_id: string
         }
         Insert: {
+          ai_transcript?: Json | null
+          availability_date?: string | null
+          best_callback_time?: string | null
+          call_type?: string | null
           called_at?: string
           caller_id?: string | null
           candidate_id?: string | null
@@ -183,13 +194,20 @@ export type Database = {
           follow_up_action?: string | null
           follow_up_due?: string | null
           id?: string
+          interest_level?: string | null
           notes?: string | null
+          notice_period?: string | null
           outcome: Database["public"]["Enums"]["call_outcome_type"]
+          structured_answers?: Json | null
           target_id: string
           updated_at?: string
           workspace_id: string
         }
         Update: {
+          ai_transcript?: Json | null
+          availability_date?: string | null
+          best_callback_time?: string | null
+          call_type?: string | null
           called_at?: string
           caller_id?: string | null
           candidate_id?: string | null
@@ -200,8 +218,11 @@ export type Database = {
           follow_up_action?: string | null
           follow_up_due?: string | null
           id?: string
+          interest_level?: string | null
           notes?: string | null
+          notice_period?: string | null
           outcome?: Database["public"]["Enums"]["call_outcome_type"]
+          structured_answers?: Json | null
           target_id?: string
           updated_at?: string
           workspace_id?: string
@@ -1820,10 +1841,19 @@ export type Database = {
         Row: {
           added_by: string | null
           assigned_to: string | null
+          availability_date: string | null
+          booked_meeting_id: string | null
+          call_attempts: number
+          calling_hours_end: string | null
+          calling_hours_start: string | null
+          calling_timezone: string | null
           campaign_id: string
           candidate_id: string | null
+          consent_status: string | null
           contact_id: string | null
           created_at: string
+          do_not_call: boolean
+          do_not_contact: boolean
           entity_company: string | null
           entity_email: string | null
           entity_name: string
@@ -1831,7 +1861,9 @@ export type Database = {
           entity_title: string | null
           id: string
           last_contacted_at: string | null
+          max_call_attempts: number
           next_action: string | null
+          next_action_at: string | null
           next_action_due: string | null
           notes: string | null
           opt_out_reason: string | null
@@ -1844,10 +1876,19 @@ export type Database = {
         Insert: {
           added_by?: string | null
           assigned_to?: string | null
+          availability_date?: string | null
+          booked_meeting_id?: string | null
+          call_attempts?: number
+          calling_hours_end?: string | null
+          calling_hours_start?: string | null
+          calling_timezone?: string | null
           campaign_id: string
           candidate_id?: string | null
+          consent_status?: string | null
           contact_id?: string | null
           created_at?: string
+          do_not_call?: boolean
+          do_not_contact?: boolean
           entity_company?: string | null
           entity_email?: string | null
           entity_name: string
@@ -1855,7 +1896,9 @@ export type Database = {
           entity_title?: string | null
           id?: string
           last_contacted_at?: string | null
+          max_call_attempts?: number
           next_action?: string | null
+          next_action_at?: string | null
           next_action_due?: string | null
           notes?: string | null
           opt_out_reason?: string | null
@@ -1868,10 +1911,19 @@ export type Database = {
         Update: {
           added_by?: string | null
           assigned_to?: string | null
+          availability_date?: string | null
+          booked_meeting_id?: string | null
+          call_attempts?: number
+          calling_hours_end?: string | null
+          calling_hours_start?: string | null
+          calling_timezone?: string | null
           campaign_id?: string
           candidate_id?: string | null
+          consent_status?: string | null
           contact_id?: string | null
           created_at?: string
+          do_not_call?: boolean
+          do_not_contact?: boolean
           entity_company?: string | null
           entity_email?: string | null
           entity_name?: string
@@ -1879,7 +1931,9 @@ export type Database = {
           entity_title?: string | null
           id?: string
           last_contacted_at?: string | null
+          max_call_attempts?: number
           next_action?: string | null
+          next_action_at?: string | null
           next_action_due?: string | null
           notes?: string | null
           opt_out_reason?: string | null

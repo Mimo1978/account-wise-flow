@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Mail, Phone, MessageSquare, Calendar, BellOff, XCircle, 
-  Bot, Clock, CheckCircle2, AlertCircle 
+  Bot, Clock, CheckCircle2,
 } from "lucide-react";
 import {
   OutreachTarget,
@@ -15,6 +15,7 @@ import {
   useUpdateTargetState,
   useOutreachEvents,
 } from "@/hooks/use-outreach";
+import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { format, parseISO } from "date-fns";
 
 interface Props {
@@ -51,6 +52,7 @@ const STATE_COLORS: Record<OutreachTargetState, string> = {
 export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
   const { mutateAsync: updateState, isPending } = useUpdateTargetState();
   const { data: events = [] } = useOutreachEvents(target?.id);
+  const [aiCallOpen, setAiCallOpen] = useState(false);
 
   if (!target) return null;
 
@@ -144,9 +146,9 @@ export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
                   variant="outline"
                   className="gap-2 justify-start"
                   disabled={isPending}
-                  onClick={() => handleAction("contacted", "call_scheduled")}
+                  onClick={() => setAiCallOpen(true)}
                 >
-                  <Bot className="w-3.5 h-3.5" /> AI Call
+                  <Bot className="w-3.5 h-3.5" /> AI Call Agent
                 </Button>
                 <Button
                   size="sm"
@@ -199,6 +201,12 @@ export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
           </div>
         </ScrollArea>
       </SheetContent>
+
+      <AICallAgentModal
+        target={target}
+        open={aiCallOpen}
+        onOpenChange={setAiCallOpen}
+      />
     </Sheet>
   );
 }

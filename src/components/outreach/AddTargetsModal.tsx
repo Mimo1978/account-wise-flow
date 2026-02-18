@@ -177,6 +177,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
         campaign_id: campaignId,
         candidate_id: r.kind === "candidate" ? r.id : undefined,
         contact_id: r.kind === "contact" ? r.id : undefined,
+        entity_type: r.kind === "candidate" ? ("candidate" as const) : ("contact" as const),
         entity_name: r.name,
         entity_email: r.email,
         entity_phone: r.phone,

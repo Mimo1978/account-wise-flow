@@ -17,21 +17,13 @@ interface UseCanvasModeReturn {
  * Mode is persisted per session via sessionStorage.
  */
 export function useCanvasMode(): UseCanvasModeReturn {
-  const [mode, setModeState] = useState<CanvasMode>(() => {
-    try {
-      return (sessionStorage.getItem("canvas-mode") as CanvasMode) || "browse";
-    } catch {
-      return "browse";
-    }
-  });
+  // Always start in browse mode when canvas is first loaded
+  const [mode, setModeState] = useState<CanvasMode>("browse");
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const setMode = useCallback((newMode: CanvasMode) => {
     setModeState(newMode);
-    try {
-      sessionStorage.setItem("canvas-mode", newMode);
-    } catch {}
     // Clear selection when switching modes
     if (newMode === "browse") {
       setSelectedNodeId(null);

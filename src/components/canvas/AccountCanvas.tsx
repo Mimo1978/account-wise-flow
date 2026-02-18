@@ -925,24 +925,19 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
       node.on('mousedown', (opt) => {
         if (isCarryingRef.current) return;
-        // In browse mode, open contact detail on click
-        // (In edit mode, carry is handled by canvas-level mouse:down)
-        if (interactionModeRef.current !== 'edit') {
+        // In browse mode: single click opens the contact record
+        // In edit mode: carry is handled by canvas-level mouse:down — never open record
+        if (interactionModeRef.current === 'browse') {
           onContactClickRef.current(contact);
         }
       });
 
       node.on('mousedblclick', () => {
         if (isCarryingRef.current) return;
-        if (interactionModeRef.current === 'edit') {
+        // In browse mode: double-click also opens the contact record (same as single click)
+        // In edit mode: do nothing on double-click
+        if (interactionModeRef.current === 'browse') {
           onContactClickRef.current(contact);
-        } else {
-          const center = node.getCenterPoint();
-          fabricCanvas.setZoom(1.5);
-          const vpt = fabricCanvas.viewportTransform!;
-          vpt[4] = canvasW / 2 - center.x * 1.5;
-          vpt[5] = fabricCanvas.height! / 2 - center.y * 1.5;
-          fabricCanvas.renderAll();
         }
       });
 

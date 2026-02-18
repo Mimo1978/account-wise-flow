@@ -154,6 +154,96 @@ export type Database = {
           },
         ]
       }
+      call_outcomes: {
+        Row: {
+          called_at: string
+          caller_id: string | null
+          candidate_id: string | null
+          contact_id: string | null
+          created_at: string
+          duration_seconds: number | null
+          event_id: string | null
+          follow_up_action: string | null
+          follow_up_due: string | null
+          id: string
+          notes: string | null
+          outcome: Database["public"]["Enums"]["call_outcome_type"]
+          target_id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          called_at?: string
+          caller_id?: string | null
+          candidate_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          event_id?: string | null
+          follow_up_action?: string | null
+          follow_up_due?: string | null
+          id?: string
+          notes?: string | null
+          outcome: Database["public"]["Enums"]["call_outcome_type"]
+          target_id: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          called_at?: string
+          caller_id?: string | null
+          candidate_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          duration_seconds?: number | null
+          event_id?: string | null
+          follow_up_action?: string | null
+          follow_up_due?: string | null
+          id?: string
+          notes?: string | null
+          outcome?: Database["public"]["Enums"]["call_outcome_type"]
+          target_id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "call_outcomes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_outcomes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_outcomes_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_outcomes_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_outcomes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       candidate_interviews: {
         Row: {
           candidate_id: string
@@ -1513,6 +1603,323 @@ export type Database = {
           },
         ]
       }
+      outreach_campaigns: {
+        Row: {
+          channel: Database["public"]["Enums"]["outreach_channel"]
+          contacted_count: number
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          job_spec_id: string | null
+          name: string
+          owner_id: string | null
+          response_count: number
+          start_date: string | null
+          status: Database["public"]["Enums"]["outreach_campaign_status"]
+          target_count: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          channel?: Database["public"]["Enums"]["outreach_channel"]
+          contacted_count?: number
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          job_spec_id?: string | null
+          name: string
+          owner_id?: string | null
+          response_count?: number
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["outreach_campaign_status"]
+          target_count?: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["outreach_channel"]
+          contacted_count?: number
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          job_spec_id?: string | null
+          name?: string
+          owner_id?: string | null
+          response_count?: number
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["outreach_campaign_status"]
+          target_count?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_campaigns_job_spec_id_fkey"
+            columns: ["job_spec_id"]
+            isOneToOne: false
+            referencedRelation: "job_specs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_campaigns_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_events: {
+        Row: {
+          body: string | null
+          campaign_id: string | null
+          candidate_id: string | null
+          channel: Database["public"]["Enums"]["outreach_channel"] | null
+          contact_id: string | null
+          created_at: string
+          event_type: Database["public"]["Enums"]["outreach_event_type"]
+          id: string
+          metadata: Json
+          performed_at: string
+          performed_by: string | null
+          subject: string | null
+          target_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          body?: string | null
+          campaign_id?: string | null
+          candidate_id?: string | null
+          channel?: Database["public"]["Enums"]["outreach_channel"] | null
+          contact_id?: string | null
+          created_at?: string
+          event_type: Database["public"]["Enums"]["outreach_event_type"]
+          id?: string
+          metadata?: Json
+          performed_at?: string
+          performed_by?: string | null
+          subject?: string | null
+          target_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          body?: string | null
+          campaign_id?: string | null
+          candidate_id?: string | null
+          channel?: Database["public"]["Enums"]["outreach_channel"] | null
+          contact_id?: string | null
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["outreach_event_type"]
+          id?: string
+          metadata?: Json
+          performed_at?: string
+          performed_by?: string | null
+          subject?: string | null
+          target_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_events_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_events_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_events_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_scripts: {
+        Row: {
+          body: string
+          campaign_id: string | null
+          channel: Database["public"]["Enums"]["outreach_channel"]
+          created_at: string
+          created_by: string | null
+          id: string
+          is_default: boolean
+          name: string
+          subject: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          body: string
+          campaign_id?: string | null
+          channel?: Database["public"]["Enums"]["outreach_channel"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          subject?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          body?: string
+          campaign_id?: string | null
+          channel?: Database["public"]["Enums"]["outreach_channel"]
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          subject?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_scripts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_scripts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_targets: {
+        Row: {
+          added_by: string | null
+          assigned_to: string | null
+          campaign_id: string
+          candidate_id: string | null
+          contact_id: string | null
+          created_at: string
+          entity_company: string | null
+          entity_email: string | null
+          entity_name: string
+          entity_phone: string | null
+          entity_title: string | null
+          id: string
+          last_contacted_at: string | null
+          next_action: string | null
+          next_action_due: string | null
+          notes: string | null
+          opt_out_reason: string | null
+          priority: number
+          snooze_until: string | null
+          state: Database["public"]["Enums"]["outreach_target_state"]
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          added_by?: string | null
+          assigned_to?: string | null
+          campaign_id: string
+          candidate_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          entity_company?: string | null
+          entity_email?: string | null
+          entity_name: string
+          entity_phone?: string | null
+          entity_title?: string | null
+          id?: string
+          last_contacted_at?: string | null
+          next_action?: string | null
+          next_action_due?: string | null
+          notes?: string | null
+          opt_out_reason?: string | null
+          priority?: number
+          snooze_until?: string | null
+          state?: Database["public"]["Enums"]["outreach_target_state"]
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          added_by?: string | null
+          assigned_to?: string | null
+          campaign_id?: string
+          candidate_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          entity_company?: string | null
+          entity_email?: string | null
+          entity_name?: string
+          entity_phone?: string | null
+          entity_title?: string | null
+          id?: string
+          last_contacted_at?: string | null
+          next_action?: string | null
+          next_action_due?: string | null
+          notes?: string | null
+          opt_out_reason?: string | null
+          priority?: number
+          snooze_until?: string | null
+          state?: Database["public"]["Enums"]["outreach_target_state"]
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_targets_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       relationship_coverage: {
         Row: {
           blocker_count: number
@@ -2166,6 +2573,16 @@ export type Database = {
     Enums: {
       access_request_status: "pending" | "approved" | "rejected"
       app_role: "admin" | "manager" | "contributor" | "viewer"
+      call_outcome_type:
+        | "connected"
+        | "voicemail"
+        | "no_answer"
+        | "busy"
+        | "wrong_number"
+        | "interested"
+        | "not_interested"
+        | "callback_requested"
+        | "meeting_booked"
       cv_batch_source: "ui_upload" | "background_import"
       cv_batch_status:
         | "queued"
@@ -2206,6 +2623,34 @@ export type Database = {
         | "placed"
         | "dropped"
         | "rejected"
+      outreach_campaign_status:
+        | "draft"
+        | "active"
+        | "paused"
+        | "completed"
+        | "archived"
+      outreach_channel: "email" | "sms" | "call" | "linkedin" | "other"
+      outreach_event_type:
+        | "email_sent"
+        | "sms_sent"
+        | "call_made"
+        | "call_scheduled"
+        | "call_completed"
+        | "responded"
+        | "booked"
+        | "snoozed"
+        | "opted_out"
+        | "note_added"
+        | "status_changed"
+        | "added_to_campaign"
+      outreach_target_state:
+        | "queued"
+        | "contacted"
+        | "responded"
+        | "booked"
+        | "snoozed"
+        | "opted_out"
+        | "converted"
       parse_status: "pending" | "parsed" | "failed"
       search_mode: "simple" | "boolean"
       workspace_mode: "public_demo" | "demo" | "production"
@@ -2339,6 +2784,17 @@ export const Constants = {
     Enums: {
       access_request_status: ["pending", "approved", "rejected"],
       app_role: ["admin", "manager", "contributor", "viewer"],
+      call_outcome_type: [
+        "connected",
+        "voicemail",
+        "no_answer",
+        "busy",
+        "wrong_number",
+        "interested",
+        "not_interested",
+        "callback_requested",
+        "meeting_booked",
+      ],
       cv_batch_source: ["ui_upload", "background_import"],
       cv_batch_status: [
         "queued",
@@ -2383,6 +2839,37 @@ export const Constants = {
         "placed",
         "dropped",
         "rejected",
+      ],
+      outreach_campaign_status: [
+        "draft",
+        "active",
+        "paused",
+        "completed",
+        "archived",
+      ],
+      outreach_channel: ["email", "sms", "call", "linkedin", "other"],
+      outreach_event_type: [
+        "email_sent",
+        "sms_sent",
+        "call_made",
+        "call_scheduled",
+        "call_completed",
+        "responded",
+        "booked",
+        "snoozed",
+        "opted_out",
+        "note_added",
+        "status_changed",
+        "added_to_campaign",
+      ],
+      outreach_target_state: [
+        "queued",
+        "contacted",
+        "responded",
+        "booked",
+        "snoozed",
+        "opted_out",
+        "converted",
       ],
       parse_status: ["pending", "parsed", "failed"],
       search_mode: ["simple", "boolean"],

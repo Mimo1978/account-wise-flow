@@ -23,18 +23,21 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Plus, Search, Users, Megaphone, Filter } from "lucide-react";
+import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2 } from "lucide-react";
 import {
   useOutreachCampaigns,
   useOutreachTargets,
-  OutreachTarget,
-  OutreachTargetState,
-  OutreachCampaignStatus,
+  type OutreachTarget,
+  type OutreachTargetState,
+  type OutreachCampaignStatus,
 } from "@/hooks/use-outreach";
+import { useOutreachScripts, useDeleteScript } from "@/hooks/use-scripts";
 import { CreateCampaignModal } from "@/components/outreach/CreateCampaignModal";
 import { AddTargetsModal } from "@/components/outreach/AddTargetsModal";
 import { OutreachTargetRow } from "@/components/outreach/OutreachTargetRow";
 import { TargetDetailSheet } from "@/components/outreach/TargetDetailSheet";
+import { ScriptBuilderModal } from "@/components/outreach/ScriptBuilderModal";
+import type { OutreachScript } from "@/lib/script-types";
 import { format, parseISO } from "date-fns";
 
 // ─── Campaign status badge ────────────────────────────────────────────────────
@@ -47,15 +50,23 @@ const CAMPAIGN_STATUS_BADGE: Record<OutreachCampaignStatus, string> = {
   archived: "bg-muted text-muted-foreground",
 };
 
+const CHANNEL_BADGE: Record<string, string> = {
+  email: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300",
+  sms: "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300",
+  call: "bg-orange-50 text-orange-700 dark:bg-orange-950 dark:text-orange-300",
+};
+
 // ─── Outreach Page ────────────────────────────────────────────────────────────
 
 export default function OutreachPage() {
-  const [tab, setTab] = useState<"queue" | "campaigns">("queue");
+  const [tab, setTab] = useState<"queue" | "campaigns" | "scripts">("queue");
   const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
   const [addTargetsOpen, setAddTargetsOpen] = useState(false);
   const [selectedTarget, setSelectedTarget] = useState<OutreachTarget | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [newCampaignId, setNewCampaignId] = useState<string | undefined>();
+  const [scriptBuilderOpen, setScriptBuilderOpen] = useState(false);
+  const [editingScript, setEditingScript] = useState<OutreachScript | undefined>();
 
   // Filters
   const [searchText, setSearchText] = useState("");
@@ -67,6 +78,8 @@ export default function OutreachPage() {
     campaignId: filterCampaign || undefined,
     state: filterState || undefined,
   });
+  const { data: scripts = [], isLoading: scriptsLoading } = useOutreachScripts();
+  const { mutate: deleteScript } = useDeleteScript();
 
   const filteredTargets = targets.filter((t) => {
     if (!searchText.trim()) return true;
@@ -87,6 +100,11 @@ export default function OutreachPage() {
   const handleCampaignCreated = (id: string) => {
     setNewCampaignId(id);
     setTab("campaigns");
+  };
+
+  const openScriptBuilder = (script?: OutreachScript) => {
+    setEditingScript(script);
+    setScriptBuilderOpen(true);
   };
 
   // Stats
@@ -119,6 +137,15 @@ export default function OutreachPage() {
               >
                 <Users className="w-4 h-4" />
                 Add Targets
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => openScriptBuilder()}
+              >
+                <FileText className="w-4 h-4" />
+                New Script
               </Button>
               <Button
                 size="sm"
@@ -159,7 +186,7 @@ export default function OutreachPage() {
 
       {/* Body */}
       <div className="container mx-auto px-6 py-6">
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "queue" | "campaigns")}>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "queue" | "campaigns" | "scripts")}>
           <div className="flex items-center justify-between mb-4">
             <TabsList>
               <TabsTrigger value="queue" className="gap-2">
@@ -172,6 +199,15 @@ export default function OutreachPage() {
                 {campaigns.length > 0 && (
                   <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 h-4">
                     {campaigns.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="scripts" className="gap-2">
+                <FileText className="w-3.5 h-3.5" />
+                Scripts
+                {scripts.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 h-4">
+                    {scripts.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -403,6 +439,92 @@ export default function OutreachPage() {
               </div>
             )}
           </TabsContent>
+
+          {/* ─── Scripts Tab ─── */}
+          <TabsContent value="scripts" className="mt-0">
+            {scriptsLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : scripts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <FileText className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <p className="font-medium text-sm">No scripts yet</p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-xs">
+                  Create email, SMS and call scripts with template variables and guardrails.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-4 gap-2"
+                  onClick={() => openScriptBuilder()}
+                >
+                  <Plus className="w-3.5 h-3.5" /> New Script
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {scripts.map((script) => (
+                  <div
+                    key={script.id}
+                    className="rounded-lg border border-border/50 bg-card px-4 py-3 hover:border-border transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1 flex items-center gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm truncate">{script.name}</span>
+                            <Badge
+                              className={`text-[10px] capitalize ${CHANNEL_BADGE[script.channel] ?? "bg-muted text-muted-foreground"}`}
+                            >
+                              {script.channel}
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground">
+                              v{script.version}
+                            </span>
+                            {script.is_default && (
+                              <Badge variant="outline" className="text-[10px]">Default</Badge>
+                            )}
+                          </div>
+                          {script.subject && (
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                              Subject: {script.subject}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="text-[10px] text-muted-foreground hidden sm:block">
+                          {format(parseISO(script.updated_at), "d MMM yy")}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => openScriptBuilder(script)}
+                          title="Edit script"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          onClick={() => deleteScript(script.id)}
+                          title="Delete script"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -423,6 +545,13 @@ export default function OutreachPage() {
         target={selectedTarget}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+      />
+
+      <ScriptBuilderModal
+        open={scriptBuilderOpen}
+        onOpenChange={setScriptBuilderOpen}
+        campaignId={newCampaignId}
+        script={editingScript}
       />
     </div>
   );

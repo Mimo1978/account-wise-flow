@@ -6,6 +6,8 @@ import { Contact, PhoneNumber } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
@@ -45,6 +47,7 @@ import { DuplicateDetectionPanel } from "@/components/contact/DuplicateDetection
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { ContactRecordPanel } from "@/components/contact/ContactRecordPanel";
 import { CompanyOverviewPanel } from "@/components/company/CompanyOverviewPanel";
+import { AddToOutreachModal } from "@/components/outreach/AddToOutreachModal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +69,7 @@ import {
   ExternalLink,
   ScanLine,
   ArrowLeft,
+  Megaphone,
 } from "lucide-react";
 import {
   departmentOptions,
@@ -74,6 +78,7 @@ import {
 } from "@/lib/dropdown-options";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
 
 // Helper to check data quality
 const isContactReady = (contact: Contact): boolean => {
@@ -123,6 +128,8 @@ export default function ContactsDatabase() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contactRecordOpen, setContactRecordOpen] = useState(false);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showAddToOutreach, setShowAddToOutreach] = useState(false);
   const [companyPanelOpen, setCompanyPanelOpen] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   // Permissions
@@ -417,6 +424,21 @@ export default function ContactsDatabase() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Bulk: Add to Outreach */}
+              {selectedIds.size > 0 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 border-primary/40 text-primary hover:bg-primary/5"
+                    onClick={() => setShowAddToOutreach(true)}
+                  >
+                    <Megaphone className="h-3.5 w-3.5" />
+                    Add to Outreach…
+                  </Button>
+                  <Separator orientation="vertical" className="h-6" />
+                </>
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <span className="inline-flex">
@@ -583,11 +605,28 @@ export default function ContactsDatabase() {
             <Table className="min-w-[1400px]">
               <TableHeader>
                 <TableRow className="bg-muted">
+                  {/* Checkbox col */}
+                  <TableHead
+                    className="w-10 bg-muted"
+                    style={{ position: "sticky", left: 0, zIndex: 31 }}
+                  >
+                    <Checkbox
+                      checked={filteredContacts.length > 0 && selectedIds.size === filteredContacts.length}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedIds(new Set(filteredContacts.map((c) => c.id)));
+                        } else {
+                          setSelectedIds(new Set());
+                        }
+                      }}
+                      aria-label="Select all"
+                    />
+                  </TableHead>
                   <TableHead 
                     className="font-semibold whitespace-nowrap bg-muted"
                     style={{ 
                       position: "sticky", 
-                      left: 0, 
+                      left: 40, 
                       zIndex: 30,
                       minWidth: 100,
                     }}
@@ -598,7 +637,7 @@ export default function ContactsDatabase() {
                     className="font-semibold whitespace-nowrap bg-muted"
                     style={{ 
                       position: "sticky", 
-                      left: 100, 
+                      left: 140, 
                       zIndex: 30,
                       minWidth: 180,
                       boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
@@ -626,19 +665,37 @@ export default function ContactsDatabase() {
                     key={contact.id}
                     className={cn(
                       "cursor-pointer transition-colors group",
-                      selectedRowId === contact.id 
-                        ? "bg-primary/10 hover:bg-primary/15" 
+                      selectedIds.has(contact.id) || selectedRowId === contact.id
+                        ? "bg-primary/10 hover:bg-primary/15"
                         : "hover:bg-muted/50"
                     )}
                     onClick={(e) => handleRowClick(contact, e)}
                     onDoubleClick={(e) => handleRowDoubleClick(contact, e)}
                   >
+                    {/* Checkbox cell */}
+                    <TableCell
+                      data-quality-action
+                      className="bg-card w-10"
+                      style={{ position: "sticky", left: 0, zIndex: 20 }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={selectedIds.has(contact.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            checked ? next.add(contact.id) : next.delete(contact.id);
+                            return next;
+                          });
+                        }}
+                      />
+                    </TableCell>
                     <TableCell 
                       data-quality-action
                       className="bg-card"
                       style={{ 
                         position: "sticky", 
-                        left: 0, 
+                        left: 40, 
                         zIndex: 20,
                         minWidth: 100,
                       }}
@@ -786,7 +843,7 @@ export default function ContactsDatabase() {
                       className="font-medium bg-card"
                       style={{ 
                         position: "sticky", 
-                        left: 100, 
+                        left: 140, 
                         zIndex: 20,
                         minWidth: 180,
                         boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
@@ -938,6 +995,16 @@ export default function ContactsDatabase() {
         open={showDuplicatePanel}
         onOpenChange={setShowDuplicatePanel}
         companyFilterId={companyFilterId}
+      />
+
+      {/* Add to Outreach bulk action modal */}
+      <AddToOutreachModal
+        open={showAddToOutreach}
+        onOpenChange={(v) => {
+          setShowAddToOutreach(v);
+          if (!v) setSelectedIds(new Set());
+        }}
+        contacts={filteredContacts.filter((c) => selectedIds.has(c.id))}
       />
     </div>
   );

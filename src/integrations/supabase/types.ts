@@ -1907,6 +1907,7 @@ export type Database = {
           entity_name: string
           entity_phone: string | null
           entity_title: string | null
+          entity_type: Database["public"]["Enums"]["outreach_entity_type"]
           id: string
           last_contacted_at: string | null
           max_call_attempts: number
@@ -1942,6 +1943,7 @@ export type Database = {
           entity_name: string
           entity_phone?: string | null
           entity_title?: string | null
+          entity_type?: Database["public"]["Enums"]["outreach_entity_type"]
           id?: string
           last_contacted_at?: string | null
           max_call_attempts?: number
@@ -1977,6 +1979,7 @@ export type Database = {
           entity_name?: string
           entity_phone?: string | null
           entity_title?: string | null
+          entity_type?: Database["public"]["Enums"]["outreach_entity_type"]
           id?: string
           last_contacted_at?: string | null
           max_call_attempts?: number
@@ -2732,6 +2735,7 @@ export type Database = {
         | "completed"
         | "archived"
       outreach_channel: "email" | "sms" | "call" | "linkedin" | "other"
+      outreach_entity_type: "candidate" | "contact"
       outreach_event_type:
         | "email_sent"
         | "sms_sent"
@@ -2950,6 +2954,7 @@ export const Constants = {
         "archived",
       ],
       outreach_channel: ["email", "sms", "call", "linkedin", "other"],
+      outreach_entity_type: ["candidate", "contact"],
       outreach_event_type: [
         "email_sent",
         "sms_sent",

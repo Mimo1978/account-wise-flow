@@ -69,9 +69,42 @@ export function OutreachTargetRow({ target, onOpen }: Props) {
           >
             {target.entity_name}
           </button>
-          <span className="text-xs text-muted-foreground line-clamp-1">
-            {[target.entity_title, target.entity_company].filter(Boolean).join(" · ")}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs text-muted-foreground line-clamp-1">
+              {[target.entity_title, target.entity_company].filter(Boolean).join(" · ")}
+            </span>
+            {/* Channel availability icons */}
+            <span className="flex items-center gap-1 shrink-0">
+              {target.entity_email ? (
+                <span title="Email available">
+                  <Mail className="w-3 h-3 text-primary/70" />
+                </span>
+              ) : (
+                <span title="No email">
+                  <Mail className="w-3 h-3 text-muted-foreground/30" />
+                </span>
+              )}
+              {target.entity_phone ? (
+                <span title="Phone available">
+                  <Phone className="w-3 h-3 text-primary/70" />
+                </span>
+              ) : (
+                <span title="No phone">
+                  <Phone className="w-3 h-3 text-muted-foreground/30" />
+                </span>
+              )}
+            </span>
+            {/* Entity type badge */}
+            <span
+              className={`text-[9px] px-1 py-0 rounded border font-medium capitalize leading-4 ${
+                target.entity_type === "contact"
+                  ? "border-blue-200 text-blue-600 dark:border-blue-800 dark:text-blue-400"
+                  : "border-emerald-200 text-emerald-600 dark:border-emerald-800 dark:text-emerald-400"
+              }`}
+            >
+              {target.entity_type ?? "candidate"}
+            </span>
+          </div>
         </div>
       </td>
 

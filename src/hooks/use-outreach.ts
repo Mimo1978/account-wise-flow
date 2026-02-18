@@ -77,12 +77,15 @@ export interface OutreachCampaign {
   opt_out_required?: boolean;
 }
 
+export type OutreachEntityType = "candidate" | "contact";
+
 export interface OutreachTarget {
   id: string;
   workspace_id: string;
   campaign_id: string;
   candidate_id?: string;
   contact_id?: string;
+  entity_type: OutreachEntityType;
   entity_name: string;
   entity_email?: string;
   entity_phone?: string;
@@ -223,6 +226,7 @@ export function useAddTargets() {
         campaign_id: string;
         candidate_id?: string;
         contact_id?: string;
+        entity_type: OutreachEntityType;
         entity_name: string;
         entity_email?: string;
         entity_phone?: string;

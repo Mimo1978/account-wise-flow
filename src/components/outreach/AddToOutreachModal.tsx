@@ -22,14 +22,45 @@ import { Loader2, Megaphone, ExternalLink, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useOutreachCampaigns, useAddTargets, useOutreachTargets } from "@/hooks/use-outreach";
 import type { OutreachChannel } from "@/hooks/use-outreach";
-import type { Talent } from "@/lib/types";
+import type { Talent, Contact } from "@/lib/types";
 
-interface Props {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  /** The selected candidates to add */
-  candidates: Talent[];
+// ─── Normalised entity shape ──────────────────────────────────────────────────
+
+interface NormalisedEntity {
+  id: string;
+  kind: "candidate" | "contact";
+  name: string;
+  email?: string;
+  phone?: string;
+  title?: string;
+  company?: string;
 }
+
+function fromTalent(t: Talent): NormalisedEntity {
+  return {
+    id: t.id,
+    kind: "candidate",
+    name: t.name,
+    email: t.email || undefined,
+    phone: t.phone || undefined,
+    title: t.roleType || undefined,
+    company: undefined,
+  };
+}
+
+function fromContact(c: Contact & { _companyName?: string }): NormalisedEntity {
+  return {
+    id: c.id,
+    kind: "contact",
+    name: c.name,
+    email: c.email || undefined,
+    phone: c.phone || undefined,
+    title: c.title || undefined,
+    company: c._companyName || undefined,
+  };
+}
+
+// ─── Channel options ──────────────────────────────────────────────────────────
 
 const CHANNEL_OPTIONS: { value: OutreachChannel; label: string }[] = [
   { value: "call", label: "📞 Call" },
@@ -39,7 +70,15 @@ const CHANNEL_OPTIONS: { value: OutreachChannel; label: string }[] = [
   { value: "other", label: "Other" },
 ];
 
-export function AddToOutreachModal({ open, onOpenChange, candidates }: Props) {
+// ─── Props ────────────────────────────────────────────────────────────────────
+
+type Props =
+  | { open: boolean; onOpenChange: (v: boolean) => void; candidates: Talent[]; contacts?: never }
+  | { open: boolean; onOpenChange: (v: boolean) => void; contacts: (Contact & { _companyName?: string })[]; candidates?: never };
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function AddToOutreachModal({ open, onOpenChange, candidates, contacts }: Props) {
   const navigate = useNavigate();
   const [campaignId, setCampaignId] = useState<string>("");
   const [channel, setChannel] = useState<OutreachChannel | "">("");
@@ -48,7 +87,14 @@ export function AddToOutreachModal({ open, onOpenChange, candidates }: Props) {
   const { data: campaigns = [], isLoading: loadingCampaigns } = useOutreachCampaigns();
   const { mutateAsync: addTargets, isPending } = useAddTargets();
 
-  // Load existing targets for selected campaign (de-dup)
+  // Normalise whichever entity type was passed
+  const entities = useMemo<NormalisedEntity[]>(() => {
+    if (candidates?.length) return candidates.map(fromTalent);
+    if (contacts?.length) return contacts.map(fromContact);
+    return [];
+  }, [candidates, contacts]);
+
+  // Load existing targets for de-dup
   const { data: existingTargets = [] } = useOutreachTargets({
     campaignId: campaignId || undefined,
   });
@@ -57,18 +103,26 @@ export function AddToOutreachModal({ open, onOpenChange, candidates }: Props) {
     () => new Set(existingTargets.map((t) => t.candidate_id).filter(Boolean) as string[]),
     [existingTargets]
   );
+  const existingContactIds = useMemo(
+    () => new Set(existingTargets.map((t) => t.contact_id).filter(Boolean) as string[]),
+    [existingTargets]
+  );
 
   const activeCampaigns = useMemo(
     () => campaigns.filter((c) => c.status === "active" || c.status === "draft"),
     [campaigns]
   );
 
-  const newCandidates = useMemo(
-    () => candidates.filter((c) => !existingCandidateIds.has(c.id)),
-    [candidates, existingCandidateIds]
+  const newEntities = useMemo(
+    () =>
+      entities.filter((e) => {
+        if (e.kind === "candidate") return !existingCandidateIds.has(e.id);
+        return !existingContactIds.has(e.id);
+      }),
+    [entities, existingCandidateIds, existingContactIds]
   );
 
-  const duplicateCount = candidates.length - newCandidates.length;
+  const duplicateCount = entities.length - newEntities.length;
 
   const handleClose = () => {
     setCampaignId("");
@@ -80,29 +134,28 @@ export function AddToOutreachModal({ open, onOpenChange, candidates }: Props) {
   const handleConfirm = async () => {
     if (!campaignId) return;
 
-    if (newCandidates.length === 0) {
-      toast.info("All selected candidates are already in this campaign.");
+    if (newEntities.length === 0) {
+      toast.info("All selected records are already in this campaign.");
       return;
     }
 
     await addTargets(
-      newCandidates.map((c) => ({
+      newEntities.map((e) => ({
         campaign_id: campaignId,
-        candidate_id: c.id,
-        entity_type: "candidate" as const,
-        entity_name: c.name,
-        entity_email: c.email || undefined,
-        entity_phone: c.phone || undefined,
-        entity_title: c.roleType || undefined,
-        entity_company: undefined,
-        // priority stored separately via update after insert — addTargets payload
-        // Note: priority field is part of the DB default but we pass it here
+        candidate_id: e.kind === "candidate" ? e.id : undefined,
+        contact_id: e.kind === "contact" ? e.id : undefined,
+        entity_type: e.kind === "candidate" ? ("candidate" as const) : ("contact" as const),
+        entity_name: e.name,
+        entity_email: e.email,
+        entity_phone: e.phone,
+        entity_title: e.title,
+        entity_company: e.company,
       }))
     );
 
     const campaign = campaigns.find((c) => c.id === campaignId);
     toast.success(
-      `${newCandidates.length} candidate${newCandidates.length !== 1 ? "s" : ""} added to "${campaign?.name}"`,
+      `${newEntities.length} ${newEntities[0]?.kind === "contact" ? "contact" : "candidate"}${newEntities.length !== 1 ? "s" : ""} added to "${campaign?.name}"`,
       {
         action: {
           label: "Open Campaign",
@@ -115,6 +168,8 @@ export function AddToOutreachModal({ open, onOpenChange, candidates }: Props) {
     handleClose();
   };
 
+  const entityLabel = entities[0]?.kind === "contact" ? "contact" : "candidate";
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
@@ -126,16 +181,16 @@ export function AddToOutreachModal({ open, onOpenChange, candidates }: Props) {
         </DialogHeader>
 
         <div className="space-y-5 py-1">
-          {/* Candidate summary */}
+          {/* Entity summary */}
           <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
             <Users className="w-4 h-4 text-muted-foreground shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium">
-                {candidates.length} candidate{candidates.length !== 1 ? "s" : ""} selected
+                {entities.length} {entityLabel}{entities.length !== 1 ? "s" : ""} selected
               </p>
               {duplicateCount > 0 && campaignId && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {duplicateCount} already in campaign — {newCandidates.length} will be added
+                  {duplicateCount} already in campaign — {newEntities.length} will be added
                 </p>
               )}
             </div>
@@ -239,7 +294,7 @@ export function AddToOutreachModal({ open, onOpenChange, candidates }: Props) {
           <Button
             size="sm"
             onClick={handleConfirm}
-            disabled={!campaignId || isPending || newCandidates.length === 0}
+            disabled={!campaignId || isPending || newEntities.length === 0}
             className="gap-1.5"
           >
             {isPending ? (
@@ -250,7 +305,7 @@ export function AddToOutreachModal({ open, onOpenChange, candidates }: Props) {
             ) : (
               <>
                 <ExternalLink className="w-3.5 h-3.5" />
-                Add {newCandidates.length > 0 ? newCandidates.length : ""} to Campaign
+                Add {newEntities.length > 0 ? newEntities.length : ""} to Campaign
               </>
             )}
           </Button>

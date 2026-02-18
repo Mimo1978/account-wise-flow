@@ -241,6 +241,11 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   }, []);
 
   // ── Carry Mode functions ──
+  // Use refs so canvas event handlers (set up with [] deps) always call the latest version
+  const startCarryRef = useRef<(canvas: FabricCanvas, contactId: string) => void>(() => {});
+  const endCarryRef = useRef<(canvas: FabricCanvas, forceRevert?: boolean) => Promise<void>>(async () => {});
+  const computeCarrySnapsRef = useRef<(canvas: FabricCanvas) => void>(() => {});
+
   const startCarry = useCallback((canvas: FabricCanvas, contactId: string) => {
     const nodeData = contactNodesRef.current.get(contactId);
     if (!nodeData || isCarryingRef.current) return;
@@ -266,6 +271,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     ghostNodeRef.current = ghost;
     canvas.requestRenderAll();
   }, []);
+  useEffect(() => { startCarryRef.current = startCarry; }, [startCarry]);
 
   const endCarry = useCallback(async (canvas: FabricCanvas, forceRevert: boolean = false) => {
     if (!isCarryingRef.current) return;
@@ -323,6 +329,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     }
     canvas.requestRenderAll();
   }, [stopAutoPan, clearGuideLines]);
+  useEffect(() => { endCarryRef.current = endCarry; }, [endCarry]);
 
   const computeCarrySnaps = useCallback((canvas: FabricCanvas) => {
     if (!isCarryingRef.current || !ghostNodeRef.current) return;
@@ -363,20 +370,17 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       const tc = td.group.getCenterPoint();
       const hw = NODE_W / 2, hh = NODE_H / 2;
       const siblingColor = "hsl(221 83% 53%)";
-      const childColor = "hsl(142 71% 45%)";   // Green for new child branch
+      const childColor = "hsl(142 71% 45%)";
       switch (best.zone) {
         case "left":
-          // Left sibling — insertion line on the left side
           addGuideRect(canvas, tc.x - hw - 6, tc.y - hh, 4, NODE_H, siblingColor, 0.7);
           addGuideLine(canvas, tc.x - hw - 4, tc.y, dragX + hw, dragY, siblingColor);
           break;
         case "right":
-          // Right sibling — insertion line on the right side
           addGuideRect(canvas, tc.x + hw + 2, tc.y - hh, 4, NODE_H, siblingColor, 0.7);
           addGuideLine(canvas, tc.x + hw + 4, tc.y, dragX - hw, dragY, siblingColor);
           break;
         case "bottom":
-          // New child branch — insertion line below + connector line down
           addGuideRect(canvas, tc.x - hw, tc.y + hh + 2, NODE_W, 4, childColor, 0.7);
           addGuideLine(canvas, tc.x, tc.y + hh + 4, tc.x, tc.y + hh + 30, childColor);
           break;
@@ -387,6 +391,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     }
     canvas.requestRenderAll();
   }, [clearGuideLines, addGuideRect, addGuideLine, detectZone, isDescendant]);
+  useEffect(() => { computeCarrySnapsRef.current = computeCarrySnaps; }, [computeCarrySnaps]);
 
 
   const companyHoverTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -472,7 +477,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         const dx = Math.abs(evt.clientX - carryStartPosRef.current.x);
         const dy = Math.abs(evt.clientY - carryStartPosRef.current.y);
         if (dx > 5 || dy > 5) {
-          startCarry(canvas, carryContactPendingRef.current);
+          startCarryRef.current(canvas, carryContactPendingRef.current);
           carryContactPendingRef.current = null;
         }
       }
@@ -497,7 +502,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         if (guideRafRef.current === null) {
           guideRafRef.current = requestAnimationFrame(() => {
             guideRafRef.current = null;
-            if (isCarryingRef.current) computeCarrySnaps(canvas);
+            if (isCarryingRef.current) computeCarrySnapsRef.current(canvas);
           });
         }
         canvas.requestRenderAll();
@@ -518,7 +523,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     canvas.on('mouse:up', () => {
       // Carry mode drop
       if (isCarryingRef.current) {
-        endCarry(canvas);
+        endCarryRef.current(canvas);
         return;
       }
       // Cancel pending carry (was a click, not a drag)
@@ -554,7 +559,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         canvas.setCursor('grab');
       }
       if (e.code === 'Escape' && isCarryingRef.current) {
-        endCarry(canvas, true); // force revert on Escape
+        endCarryRef.current(canvas, true); // force revert on Escape
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {

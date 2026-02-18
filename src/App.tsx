@@ -26,6 +26,7 @@ import ImportReview from "./pages/ImportReview";
 import CandidateProfile from "./pages/CandidateProfile";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
 import NotFound from "./pages/NotFound";
+import Outreach from "./pages/Outreach";
 
 const queryClient = new QueryClient();
 
@@ -152,6 +153,16 @@ const App = () => {
                 <ProtectedRoute>
                   <ProductLayout>
                     <CandidateProfile />
+                  </ProductLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/outreach"
+              element={
+                <ProtectedRoute>
+                  <ProductLayout>
+                    <Outreach />
                   </ProductLayout>
                 </ProtectedRoute>
               }

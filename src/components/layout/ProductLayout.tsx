@@ -18,7 +18,8 @@ import {
   BarChart3,
   ArrowRightLeft,
   FlaskConical,
-  Briefcase
+  Briefcase,
+  Megaphone
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -46,6 +47,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
     { path: '/companies', label: 'Companies', icon: Building2 },
     { path: '/contacts', label: 'Contacts', icon: Users },
     { path: '/talent', label: 'Talent', icon: Briefcase },
+    { path: '/outreach', label: 'Outreach', icon: Megaphone },
     { path: '/insights', label: 'Insights', icon: BarChart3 },
   ];
 

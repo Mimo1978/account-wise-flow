@@ -1626,16 +1626,25 @@ export type Database = {
       }
       outreach_campaigns: {
         Row: {
+          calendar_connection_id: string | null
+          call_script_id: string | null
+          calling_hours_end: string | null
+          calling_hours_start: string | null
+          calling_timezone: string | null
           channel: Database["public"]["Enums"]["outreach_channel"]
           contacted_count: number
           created_at: string
           description: string | null
+          email_script_id: string | null
           end_date: string | null
           id: string
           job_spec_id: string | null
+          max_call_attempts: number | null
           name: string
+          opt_out_required: boolean | null
           owner_id: string | null
           response_count: number
+          sms_script_id: string | null
           start_date: string | null
           status: Database["public"]["Enums"]["outreach_campaign_status"]
           target_count: number
@@ -1643,16 +1652,25 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          calendar_connection_id?: string | null
+          call_script_id?: string | null
+          calling_hours_end?: string | null
+          calling_hours_start?: string | null
+          calling_timezone?: string | null
           channel?: Database["public"]["Enums"]["outreach_channel"]
           contacted_count?: number
           created_at?: string
           description?: string | null
+          email_script_id?: string | null
           end_date?: string | null
           id?: string
           job_spec_id?: string | null
+          max_call_attempts?: number | null
           name: string
+          opt_out_required?: boolean | null
           owner_id?: string | null
           response_count?: number
+          sms_script_id?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["outreach_campaign_status"]
           target_count?: number
@@ -1660,16 +1678,25 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          calendar_connection_id?: string | null
+          call_script_id?: string | null
+          calling_hours_end?: string | null
+          calling_hours_start?: string | null
+          calling_timezone?: string | null
           channel?: Database["public"]["Enums"]["outreach_channel"]
           contacted_count?: number
           created_at?: string
           description?: string | null
+          email_script_id?: string | null
           end_date?: string | null
           id?: string
           job_spec_id?: string | null
+          max_call_attempts?: number | null
           name?: string
+          opt_out_required?: boolean | null
           owner_id?: string | null
           response_count?: number
+          sms_script_id?: string | null
           start_date?: string | null
           status?: Database["public"]["Enums"]["outreach_campaign_status"]
           target_count?: number
@@ -1678,10 +1705,31 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "outreach_campaigns_call_script_id_fkey"
+            columns: ["call_script_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_campaigns_email_script_id_fkey"
+            columns: ["email_script_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_scripts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "outreach_campaigns_job_spec_id_fkey"
             columns: ["job_spec_id"]
             isOneToOne: false
             referencedRelation: "job_specs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_campaigns_sms_script_id_fkey"
+            columns: ["sms_script_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_scripts"
             referencedColumns: ["id"]
           },
           {

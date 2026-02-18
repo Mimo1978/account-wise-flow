@@ -64,6 +64,17 @@ export interface OutreachCampaign {
   end_date?: string;
   created_at: string;
   updated_at: string;
+  // Script assignments
+  email_script_id?: string;
+  sms_script_id?: string;
+  call_script_id?: string;
+  // Scheduling & compliance settings
+  calendar_connection_id?: string;
+  calling_hours_start?: string;
+  calling_hours_end?: string;
+  calling_timezone?: string;
+  max_call_attempts?: number;
+  opt_out_required?: boolean;
 }
 
 export interface OutreachTarget {

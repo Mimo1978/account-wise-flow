@@ -126,6 +126,10 @@ const Canvas = () => {
     setSelectedNodeId,
   } = useCanvasMode();
 
+  // Post-edit save dialog
+  const [showEditSaveDialog, setShowEditSaveDialog] = useState(false);
+  const [hasPendingStructuralChanges, setHasPendingStructuralChanges] = useState(false);
+
   // Get engagements for current company with talent data
   const companyEngagements = account ? mockEngagements
     .filter((eng) => eng.companyId === account.id)
@@ -188,6 +192,9 @@ const Canvas = () => {
   };
 
   const handleContactClick = (contact: Contact) => {
+    // In edit mode, clicks are used for carry/drag — never open the record
+    if (canvasMode === "edit") return;
+
     // If clicking the same contact, do nothing
     if (selectedContact?.id === contact.id) return;
 
@@ -368,7 +375,9 @@ const Canvas = () => {
         queryClient.refetchQueries({ queryKey: ['org-chart-tree', account.id] }),
       ]);
       
-      toast.success("Hierarchy updated");
+      // Mark that structural changes have been saved, prompt user to return to browse or continue
+      setHasPendingStructuralChanges(true);
+      setShowEditSaveDialog(true);
     } catch (err) {
       console.error("Failed to update hierarchy:", err);
       toast.error("Failed to update hierarchy");
@@ -655,7 +664,37 @@ const Canvas = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Add Contact Modal */}
+      {/* Edit Structure Save Dialog — shown after each structural change */}
+      <AlertDialog open={showEditSaveDialog} onOpenChange={setShowEditSaveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Structure Saved ✓</AlertDialogTitle>
+            <AlertDialogDescription>
+              The org chart has been updated and saved. Would you like to return to Browse mode to view contact profiles, or continue editing the structure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setShowEditSaveDialog(false);
+              }}
+            >
+              Continue Editing
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowEditSaveDialog(false);
+                setHasPendingStructuralChanges(false);
+                setCanvasMode("browse");
+              }}
+            >
+              Save & Return to Browse
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
       <AddContactModal
         open={showAddContactModal}
         onOpenChange={setShowAddContactModal}
@@ -755,8 +794,8 @@ const Canvas = () => {
             </div>
             <p className="text-muted-foreground">
               {isEditMode 
-                ? "Click to select • Drag to reposition • Double-click to view profile"
-                : "Drag nodes to reposition • Click to see details"
+                ? "Drag a contact onto another to connect it • Left = sibling • Bottom = child branch • Esc to cancel"
+                : "Click a contact to open their record • Switch to Edit Structure to rearrange the org chart"
               }
             </p>
           </div>

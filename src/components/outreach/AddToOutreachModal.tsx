@@ -249,12 +249,15 @@ export function AddToOutreachModal({ open, onOpenChange, candidates, contacts }:
               Channel preference{" "}
               <span className="text-muted-foreground font-normal">(optional)</span>
             </Label>
-            <Select value={channel} onValueChange={(v) => setChannel(v as OutreachChannel | "")}>
+            <Select
+              value={channel === "" ? "__none__" : channel}
+              onValueChange={(v) => setChannel(v === "__none__" ? "" : v as OutreachChannel)}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Use campaign default" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Use campaign default</SelectItem>
+                <SelectItem value="__none__">Use campaign default</SelectItem>
                 {CHANNEL_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
                     {opt.label}

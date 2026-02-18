@@ -23,13 +23,14 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2 } from "lucide-react";
+import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2, ChevronRight } from "lucide-react";
 import {
   useOutreachCampaigns,
   useOutreachTargets,
   type OutreachTarget,
   type OutreachTargetState,
   type OutreachCampaignStatus,
+  type OutreachCampaign,
 } from "@/hooks/use-outreach";
 import { useOutreachScripts, useDeleteScript } from "@/hooks/use-scripts";
 import { CreateCampaignModal } from "@/components/outreach/CreateCampaignModal";
@@ -37,8 +38,10 @@ import { AddTargetsModal } from "@/components/outreach/AddTargetsModal";
 import { OutreachTargetRow } from "@/components/outreach/OutreachTargetRow";
 import { TargetDetailSheet } from "@/components/outreach/TargetDetailSheet";
 import { ScriptBuilderModal } from "@/components/outreach/ScriptBuilderModal";
+import { CampaignDetailView } from "@/components/outreach/CampaignDetailView";
 import type { OutreachScript } from "@/lib/script-types";
 import { format, parseISO } from "date-fns";
+
 
 // ─── Campaign status badge ────────────────────────────────────────────────────
 
@@ -67,6 +70,7 @@ export default function OutreachPage() {
   const [newCampaignId, setNewCampaignId] = useState<string | undefined>();
   const [scriptBuilderOpen, setScriptBuilderOpen] = useState(false);
   const [editingScript, setEditingScript] = useState<OutreachScript | undefined>();
+  const [selectedCampaign, setSelectedCampaign] = useState<OutreachCampaign | null>(null);
 
   // Filters
   const [searchText, setSearchText] = useState("");
@@ -106,6 +110,20 @@ export default function OutreachPage() {
     setEditingScript(script);
     setScriptBuilderOpen(true);
   };
+
+  // If a campaign is selected, render the Campaign Detail Hub
+  if (selectedCampaign) {
+    const liveCampaign = campaigns.find((c) => c.id === selectedCampaign.id) ?? selectedCampaign;
+    return (
+      <CampaignDetailView
+        campaign={liveCampaign}
+        onBack={() => {
+          setSelectedCampaign(null);
+          setTab("campaigns");
+        }}
+      />
+    );
+  }
 
   // Stats
   const totalTargets = targets.length;
@@ -381,12 +399,15 @@ export default function OutreachPage() {
                 {campaigns.map((campaign) => (
                   <div
                     key={campaign.id}
-                    className="rounded-lg border border-border/50 bg-card p-4 hover:border-border transition-colors"
+                    className="rounded-lg border border-border/50 bg-card p-4 hover:border-border transition-colors cursor-pointer group"
+                    onClick={() => setSelectedCampaign(campaign)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-medium text-sm truncate">{campaign.name}</h3>
+                          <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                            {campaign.name}
+                          </h3>
                           <Badge
                             className={`text-[10px] capitalize font-medium ${CAMPAIGN_STATUS_BADGE[campaign.status]}`}
                           >
@@ -402,18 +423,29 @@ export default function OutreachPage() {
                           </p>
                         )}
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0 gap-2"
-                        onClick={() => {
-                          setNewCampaignId(campaign.id);
-                          setAddTargetsOpen(true);
-                        }}
-                      >
-                        <Users className="w-3.5 h-3.5" />
-                        Add Targets
-                      </Button>
+                      <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-1.5 text-xs h-8"
+                          onClick={() => setSelectedCampaign(campaign)}
+                        >
+                          View
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 h-8"
+                          onClick={() => {
+                            setNewCampaignId(campaign.id);
+                            setAddTargetsOpen(true);
+                          }}
+                        >
+                          <Users className="w-3.5 h-3.5" />
+                          Add Targets
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/40">
                       <div className="text-center">

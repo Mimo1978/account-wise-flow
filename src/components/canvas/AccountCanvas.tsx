@@ -83,7 +83,29 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   useEffect(() => { selectedNodeIdRef.current = selectedNodeId; }, [selectedNodeId]);
   useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
   useEffect(() => { onNodeSelectRef.current = onNodeSelect; }, [onNodeSelect]);
-  useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
+
+  // Safety reset: when switching OUT of edit mode, cancel any in-flight carry state
+  useEffect(() => {
+    if (interactionMode !== 'edit') {
+      // Clear pending carry (user may have switched mode mid-drag)
+      carryContactPendingRef.current = null;
+      carryStartPosRef.current = null;
+      // If somehow still carrying, force-reset (ghost will be cleaned up on next render)
+      if (isCarryingRef.current) {
+        isCarryingRef.current = false;
+        carriedContactIdRef.current = null;
+        snapResultRef.current = null;
+        spacebarPanRef.current = false;
+        if (ghostNodeRef.current && fabricCanvas) {
+          try { fabricCanvas.remove(ghostNodeRef.current); } catch {}
+          ghostNodeRef.current = null;
+        }
+        if (dragModeRef.current !== "COMMITTING") {
+          dragModeRef.current = "IDLE";
+        }
+      }
+    }
+  }, [interactionMode, fabricCanvas]);
   const companyNodeRef = useRef<Group | null>(null);
   const companyMoveHandlerRef = useRef<any>(null);
   const companyUpHandlerRef = useRef<any>(null);
@@ -247,8 +269,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const computeCarrySnapsRef = useRef<(canvas: FabricCanvas) => void>(() => {});
 
   const startCarry = useCallback((canvas: FabricCanvas, contactId: string) => {
+    // Guard: never start a new carry if already carrying OR if a commit is in-flight
+    if (isCarryingRef.current || dragModeRef.current !== "IDLE") return;
     const nodeData = contactNodesRef.current.get(contactId);
-    if (!nodeData || isCarryingRef.current) return;
+    if (!nodeData) return;
     isCarryingRef.current = true;
     carriedContactIdRef.current = contactId;
     dragModeRef.current = "DRAGGING";
@@ -284,7 +308,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     
     clearGuideLines(canvas);
 
-    // Reset carry state immediately so no further mouse events interfere
+    // Reset carry state IMMEDIATELY — prevents any race condition on subsequent mouse events
     isCarryingRef.current = false;
     carriedContactIdRef.current = null;
     carryContactPendingRef.current = null;
@@ -292,42 +316,57 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     snapResultRef.current = null;
     spacebarPanRef.current = false;
 
+    // Helper: safely restore node visual state
+    const restoreNodeVisual = (id: string | null) => {
+      if (!id) return;
+      const nodeData = contactNodesRef.current.get(id);
+      if (nodeData) {
+        try {
+          nodeData.group.set({ opacity: 1 });
+          const cardBg = nodeData.group.getObjects()[0] as Rect;
+          cardBg.set({ strokeDashArray: undefined as any, stroke: 'hsl(214 32% 91%)', strokeWidth: 1 });
+        } catch {}
+      }
+    };
+
+    // Helper: safely remove ghost
+    const removeGhost = () => {
+      if (ghostNodeRef.current) {
+        try { canvas.remove(ghostNodeRef.current); } catch {}
+        ghostNodeRef.current = null;
+      }
+    };
+
+    // Helper: restore connector opacity
+    const restoreConnectors = () => {
+      hierarchyLinesRef.current.forEach(l => { try { l.set({ opacity: 1 }); } catch {} });
+    };
+
     if (result && carriedId) {
-      // COMMIT: Keep ghost visible as a "locking" indicator while DB updates + refetch
+      // COMMIT: dim connectors during DB update
       dragModeRef.current = "COMMITTING";
-      // Dim connectors during commit
       hierarchyLinesRef.current.forEach(l => { try { l.set({ opacity: 0.15 }); } catch {} });
       try {
-        // Await the structural drop (DB mutation + refetch) — canvas rebuilds on completion
         await onStructuralDropRef.current?.(carriedId, result.targetId, result.zone);
-      } catch {}
-      // Clean up ghost and restore after refetch triggers full rebuild
-      if (ghostNodeRef.current) { try { canvas.remove(ghostNodeRef.current); } catch {} ghostNodeRef.current = null; }
-      if (carriedId) {
-        const nodeData = contactNodesRef.current.get(carriedId);
-        if (nodeData) {
-          nodeData.group.set({ opacity: 1 });
-          const cardBg = nodeData.group.getObjects()[0] as Rect;
-          cardBg.set({ strokeDashArray: undefined as any, stroke: 'hsl(214 32% 91%)', strokeWidth: 1 });
-        }
+      } catch (err) {
+        console.error("Structural drop failed:", err);
+        // CRITICAL: always restore to IDLE even on error so future drags work
+      } finally {
+        // Always clean up regardless of success/failure
+        removeGhost();
+        restoreNodeVisual(carriedId);
+        restoreConnectors();
+        dragModeRef.current = "IDLE";
+        try { canvas.requestRenderAll(); } catch {}
       }
-      hierarchyLinesRef.current.forEach(l => { try { l.set({ opacity: 1 }); } catch {} });
-      dragModeRef.current = "IDLE";
     } else {
-      // REVERT: no valid snap target — restore everything to original
-      if (ghostNodeRef.current) { try { canvas.remove(ghostNodeRef.current); } catch {} ghostNodeRef.current = null; }
-      if (carriedId) {
-        const nodeData = contactNodesRef.current.get(carriedId);
-        if (nodeData) {
-          nodeData.group.set({ opacity: 1 });
-          const cardBg = nodeData.group.getObjects()[0] as Rect;
-          cardBg.set({ strokeDashArray: undefined as any, stroke: 'hsl(214 32% 91%)', strokeWidth: 1 });
-        }
-      }
-      hierarchyLinesRef.current.forEach(l => { try { l.set({ opacity: 1 }); } catch {} });
+      // REVERT: no valid snap or force-reverted (Escape)
+      removeGhost();
+      restoreNodeVisual(carriedId);
+      restoreConnectors();
       dragModeRef.current = "IDLE";
+      try { canvas.requestRenderAll(); } catch {}
     }
-    canvas.requestRenderAll();
   }, [stopAutoPan, clearGuideLines]);
   useEffect(() => { endCarryRef.current = endCarry; }, [endCarry]);
 
@@ -440,15 +479,17 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     let lastPosY = 0;
 
     canvas.on('mouse:down', (opt) => {
-      if (isCarryingRef.current) return; // Don't start pan during carry
+      // Block any new interaction while a commit is in flight
+      if (isCarryingRef.current || dragModeRef.current === "COMMITTING") return;
       const evt = opt.e as MouseEvent;
       if (opt.target) {
         // Check if target is a contact node and we're in edit mode
         if (interactionModeRef.current === 'edit') {
-          // Find which contact this group belongs to
+          // Find which contact this group belongs to (check group or any child object)
           let foundContactId: string | null = null;
           contactNodesRef.current.forEach((nodeData, cId) => {
-            if (nodeData.group === opt.target || (opt.target && nodeData.group.contains(opt.target as FabricObject))) {
+            if (foundContactId) return; // already found
+            if (nodeData.group === opt.target || nodeData.group.contains(opt.target as FabricObject)) {
               foundContactId = cId;
             }
           });
@@ -461,6 +502,9 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           }
         }
       } else {
+        // Clicked on canvas background — clear any stale pending carry
+        carryContactPendingRef.current = null;
+        carryStartPosRef.current = null;
         isDragging = true;
         canvas.selection = false;
         lastPosX = evt.clientX;
@@ -521,12 +565,15 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     });
 
     canvas.on('mouse:up', () => {
-      // Carry mode drop
+      // Carry mode drop — trigger end carry
       if (isCarryingRef.current) {
         endCarryRef.current(canvas);
         return;
       }
-      // Cancel pending carry (was a click, not a drag)
+      // If a commit is in-flight, don't process anything else
+      if (dragModeRef.current === "COMMITTING") return;
+
+      // Cancel pending carry (was a click, not a full drag)
       carryContactPendingRef.current = null;
       carryStartPosRef.current = null;
 
@@ -568,13 +615,29 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         if (isCarryingRef.current) canvas.setCursor('default');
       }
     };
+
+    // CRITICAL FALLBACK: if the user releases mouse outside the canvas element,
+    // the fabric mouse:up event never fires — leaving carry mode permanently stuck.
+    // This window-level handler ensures carry is always terminated on any mouse release.
+    const handleWindowMouseUp = () => {
+      if (isCarryingRef.current) {
+        endCarryRef.current(canvas);
+      } else if (carryContactPendingRef.current) {
+        // Was a click (didn't reach drag threshold), clear pending state
+        carryContactPendingRef.current = null;
+        carryStartPosRef.current = null;
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('mouseup', handleWindowMouseUp);
 
     return () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
       if (wheelRafRef.current !== null) cancelAnimationFrame(wheelRafRef.current);
       if (guideRafRef.current !== null) cancelAnimationFrame(guideRafRef.current);
       stopAutoPan();
@@ -928,20 +991,17 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
         } catch {}
       });
 
-      node.on('mousedown', (opt) => {
-        if (isCarryingRef.current) return;
-        // In browse mode: single click opens the contact record
-        // In edit mode: carry is handled by canvas-level mouse:down — never open record
-        if (interactionModeRef.current === 'browse') {
+      node.on('mousedown', () => {
+        // Edit mode: canvas-level mouse:down handles carry initiation — node handler must be silent
+        // Browse mode: open contact record only when not carrying and not committing
+        if (interactionModeRef.current === 'browse' && !isCarryingRef.current && dragModeRef.current === "IDLE") {
           onContactClickRef.current(contact);
         }
       });
 
       node.on('mousedblclick', () => {
-        if (isCarryingRef.current) return;
-        // In browse mode: double-click also opens the contact record (same as single click)
-        // In edit mode: do nothing on double-click
-        if (interactionModeRef.current === 'browse') {
+        // Same guard as mousedown
+        if (interactionModeRef.current === 'browse' && !isCarryingRef.current && dragModeRef.current === "IDLE") {
           onContactClickRef.current(contact);
         }
       });

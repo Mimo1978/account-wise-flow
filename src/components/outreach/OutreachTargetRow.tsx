@@ -24,12 +24,15 @@ import {
   OutreachEventType,
   useUpdateTargetState,
 } from "@/hooks/use-outreach";
+import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { format, parseISO } from "date-fns";
+import { useState } from "react";
 
 interface Props {
   target: OutreachTarget;
   onOpen: (t: OutreachTarget) => void;
 }
+
 
 const STATE_BADGE: Record<OutreachTargetState, { label: string; className: string }> = {
   queued: { label: "Queued", className: "bg-muted text-muted-foreground" },
@@ -43,6 +46,7 @@ const STATE_BADGE: Record<OutreachTargetState, { label: string; className: strin
 
 export function OutreachTargetRow({ target, onOpen }: Props) {
   const { mutateAsync, isPending } = useUpdateTargetState();
+  const [aiCallOpen, setAiCallOpen] = useState(false);
 
   const act = async (
     state: OutreachTargetState,
@@ -145,8 +149,8 @@ export function OutreachTargetRow({ target, onOpen }: Props) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => act("contacted", "call_scheduled")}>
-                <Bot className="w-3.5 h-3.5 mr-2" /> AI Call
+              <DropdownMenuItem onClick={() => setAiCallOpen(true)}>
+                <Bot className="w-3.5 h-3.5 mr-2" /> AI Call Agent
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() =>
@@ -177,6 +181,13 @@ export function OutreachTargetRow({ target, onOpen }: Props) {
           </Button>
         </div>
       </td>
+
+      {/* AI Call Agent Modal — rendered inline to avoid portal issues */}
+      <AICallAgentModal
+        target={target}
+        open={aiCallOpen}
+        onOpenChange={setAiCallOpen}
+      />
     </tr>
   );
 }

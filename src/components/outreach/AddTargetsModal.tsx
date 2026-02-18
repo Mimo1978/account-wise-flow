@@ -52,11 +52,15 @@ function isBooleanQuery(q: string): boolean {
   return BOOLEAN_PATTERN.test(q);
 }
 
-/** Build an ilike OR filter for contacts (no search vector available) */
-function buildContactIlikeFilter(terms: string[]): string {
+/**
+ * Build a PostgREST OR filter string for contacts.
+ * Each term is matched across name/title/department/email.
+ * Terms are OR'd together (any term matching = include).
+ */
+function buildContactOrFilter(terms: string[]): string {
   return terms
     .map((t) =>
-      `name.ilike.%${t}%,title.ilike.%${t}%,department.ilike.%${t}%,email.ilike.%${t}%`
+      `name.ilike.%${t}%,title.ilike.%${t}%,department.ilike.%${t}%,email.ilike.%${t}%,phone.ilike.%${t}%`
     )
     .join(",");
 }
@@ -181,31 +185,36 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
     enabled: !!currentWorkspace?.id && open && kind !== "candidates",
     staleTime: 10_000,
     queryFn: async () => {
+      // Join company to get company name for display
       let q = supabase
         .from("contacts")
-        .select("id, name, email, phone, title, company_id, department")
+        .select("id, name, email, phone, title, department, companies(name)")
         .eq("team_id", currentWorkspace!.id)
         .order("name")
         .limit(40);
 
-      if (searchTerm && parsed?.terms?.length) {
-        // Build broad ilike OR across key fields using extracted terms
-        q = q.or(buildContactIlikeFilter(parsed.terms));
-      } else if (searchTerm) {
-        q = q.or(`name.ilike.%${searchTerm}%,title.ilike.%${searchTerm}%,department.ilike.%${searchTerm}%`);
+      const terms = parsed?.terms?.length ? parsed.terms : searchTerm ? [searchTerm] : [];
+
+      if (terms.length > 0) {
+        q = q.or(buildContactOrFilter(terms));
       }
 
       const { data } = await q;
-      return (data ?? []).map((c) => ({
-        id: c.id,
-        kind: "contact" as const,
-        name: c.name,
-        email: c.email ?? undefined,
-        phone: c.phone ?? undefined,
-        title: c.title ?? undefined,
-        company: undefined,
-        department: c.department ?? undefined,
-      })) as ContactRow[];
+      return (data ?? []).map((c) => {
+        const companyName = Array.isArray(c.companies)
+          ? (c.companies[0] as { name: string } | undefined)?.name
+          : (c.companies as { name: string } | null)?.name;
+        return {
+          id: c.id,
+          kind: "contact" as const,
+          name: c.name,
+          email: c.email ?? undefined,
+          phone: c.phone ?? undefined,
+          title: c.title ?? undefined,
+          company: companyName ?? undefined,
+          department: c.department ?? undefined,
+        };
+      }) as ContactRow[];
     },
   });
 
@@ -363,12 +372,23 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
               ) : availableResults.length === 0 ? (
                 <div className="text-center py-10 px-4">
                   <Users className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground font-medium">No results</p>
+                  <p className="text-sm text-muted-foreground font-medium">No results in your workspace</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {searchTerm
-                      ? "Try adjusting your search or boolean query."
-                      : "No records found in your workspace."}{" "}
-                    Use Talent Search below for advanced filters.
+                    Use{" "}
+                    <button
+                      className="underline underline-offset-2 hover:text-foreground transition-colors"
+                      onClick={() => { onOpenChange(false); navigate("/talent"); }}
+                    >
+                      Open Talent Search
+                    </button>
+                    {" "}or{" "}
+                    <button
+                      className="underline underline-offset-2 hover:text-foreground transition-colors"
+                      onClick={() => { onOpenChange(false); navigate("/contacts"); }}
+                    >
+                      Open Contacts Search
+                    </button>
+                    {" "}for advanced filters.
                   </p>
                 </div>
               ) : (
@@ -401,7 +421,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
                           ? [row.title, row.company, (row as CandidateRow).location]
                               .filter(Boolean)
                               .join(" · ")
-                          : [row.title, (row as ContactRow).department].filter(Boolean).join(" · ")}
+                          : [row.title, row.company, (row as ContactRow).department].filter(Boolean).join(" · ")}
                       </p>
                     </div>
                     {/* Channel availability dots */}

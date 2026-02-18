@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserPlus, Users, ExternalLink, Loader2 } from "lucide-react";
+import { Search, UserPlus, Users, ExternalLink, Loader2, Info } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAddTargets, useOutreachTargets } from "@/hooks/use-outreach";
+import { parseBooleanQuery, simpleQueryToTsquery } from "@/lib/boolean-search-parser";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,7 +44,40 @@ interface ContactRow {
 
 type ResultRow = CandidateRow | ContactRow;
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Boolean detection ────────────────────────────────────────────────────────
+
+const BOOLEAN_PATTERN = /\bAND\b|\bOR\b|\bNOT\b|"[^"]+"|-\w+/;
+
+function isBooleanQuery(q: string): boolean {
+  return BOOLEAN_PATTERN.test(q);
+}
+
+/** Build an ilike OR filter for contacts (no search vector available) */
+function buildContactIlikeFilter(terms: string[]): string {
+  return terms
+    .map((t) =>
+      `name.ilike.%${t}%,title.ilike.%${t}%,department.ilike.%${t}%,email.ilike.%${t}%`
+    )
+    .join(",");
+}
+
+/** Normalise "-exclude" prefix-minus into NOT syntax for the parser */
+function normaliseMinus(q: string): string {
+  return q.replace(/(^|\s)-(\w+)/g, "$1NOT $2");
+}
+
+// ─── Debounce hook ────────────────────────────────────────────────────────────
+
+function useDebounce<T>(value: T, ms = 300): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 interface Props {
   open: boolean;
@@ -58,8 +92,13 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
   const [kind, setKind] = useState<EntityKind>("both");
   const [selected, setSelected] = useState<Map<string, ResultRow>>(new Map());
   const { mutateAsync: addTargets, isPending } = useAddTargets();
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load existing targets for this campaign so we can de-dupe
+  // Debounce the raw input so we don't fire on every keystroke
+  const debouncedSearch = useDebounce(search, 280);
+  const searchTerm = debouncedSearch.trim();
+
+  // Load existing targets for de-duplication
   const { data: existingTargets = [] } = useOutreachTargets({
     campaignId: campaignId || undefined,
   });
@@ -73,52 +112,90 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
     [existingTargets]
   );
 
-  const searchTerm = search.trim();
+  // Detect boolean mode
+  const isBoolean = useMemo(() => isBooleanQuery(searchTerm), [searchTerm]);
 
-  // ── Candidates query ──
+  // Parse query once for use in both queries
+  const parsed = useMemo(() => {
+    if (!searchTerm) return null;
+    const normalised = normaliseMinus(searchTerm);
+    if (isBoolean) return parseBooleanQuery(normalised);
+    // Simple mode: prefix-match all words
+    return { tsquery: simpleQueryToTsquery(normalised), terms: normalised.split(/\s+/).filter(Boolean), isValid: true };
+  }, [searchTerm, isBoolean]);
+
+  // ── Candidates query ──────────────────────────────────────────────────────
   const { data: candidates = [], isLoading: loadingCandidates } = useQuery({
-    queryKey: ["add_targets_candidates", currentWorkspace?.id, searchTerm],
+    queryKey: ["add_targets_candidates", currentWorkspace?.id, searchTerm, isBoolean],
     enabled: !!currentWorkspace?.id && open && kind !== "contacts",
+    staleTime: 10_000,
     queryFn: async () => {
-      let q = supabase
-        .from("candidates")
-        .select("id, name, email, phone, current_title, current_company, availability_status, location")
-        .eq("tenant_id", currentWorkspace!.id)
-        .order("name");
-      if (searchTerm) {
-        q = q.or(
-          `name.ilike.%${searchTerm}%,current_title.ilike.%${searchTerm}%,current_company.ilike.%${searchTerm}%,location.ilike.%${searchTerm}%`
-        );
+      if (!searchTerm) {
+        // Default: most recent 40 candidates
+        const { data } = await supabase
+          .from("candidates")
+          .select("id, name, email, phone, current_title, current_company, availability_status, location")
+          .eq("tenant_id", currentWorkspace!.id)
+          .order("updated_at", { ascending: false })
+          .limit(40);
+        return mapCandidates(data ?? []);
       }
-      const { data } = await q.limit(40);
-      return (data ?? []).map((c) => ({
+
+      // Use the search_candidates RPC for full-text / boolean support
+      const tsq = parsed?.tsquery;
+      if (!tsq || !parsed?.isValid) {
+        // Fallback: plain ilike
+        const { data } = await supabase
+          .from("candidates")
+          .select("id, name, email, phone, current_title, current_company, availability_status, location")
+          .eq("tenant_id", currentWorkspace!.id)
+          .or(`name.ilike.%${searchTerm}%,current_title.ilike.%${searchTerm}%,current_company.ilike.%${searchTerm}%`)
+          .limit(40);
+        return mapCandidates(data ?? []);
+      }
+
+      const { data } = await supabase.rpc("search_candidates", {
+        query_text: tsq,
+        workspace_id: currentWorkspace!.id,
+        use_tsquery: true,
+        include_cv: false,
+      });
+      return (data ?? []).map((c: {
+        id: string; name: string; email?: string; current_title?: string; location?: string;
+      }) => ({
         id: c.id,
         kind: "candidate" as const,
         name: c.name,
-        email: c.email ?? undefined,
-        phone: c.phone ?? undefined,
+        email: (c as { email?: string }).email ?? undefined,
+        phone: undefined,
         title: c.current_title ?? undefined,
-        company: c.current_company ?? undefined,
-        availability_status: c.availability_status ?? undefined,
+        company: undefined,
         location: c.location ?? undefined,
       })) as CandidateRow[];
     },
   });
 
-  // ── Contacts query ──
+  // ── Contacts query ────────────────────────────────────────────────────────
   const { data: contacts = [], isLoading: loadingContacts } = useQuery({
     queryKey: ["add_targets_contacts", currentWorkspace?.id, searchTerm],
     enabled: !!currentWorkspace?.id && open && kind !== "candidates",
+    staleTime: 10_000,
     queryFn: async () => {
       let q = supabase
         .from("contacts")
         .select("id, name, email, phone, title, company_id, department")
         .eq("team_id", currentWorkspace!.id)
-        .order("name");
-      if (searchTerm) {
+        .order("name")
+        .limit(40);
+
+      if (searchTerm && parsed?.terms?.length) {
+        // Build broad ilike OR across key fields using extracted terms
+        q = q.or(buildContactIlikeFilter(parsed.terms));
+      } else if (searchTerm) {
         q = q.or(`name.ilike.%${searchTerm}%,title.ilike.%${searchTerm}%,department.ilike.%${searchTerm}%`);
       }
-      const { data } = await q.limit(40);
+
+      const { data } = await q;
       return (data ?? []).map((c) => ({
         id: c.id,
         kind: "contact" as const,
@@ -132,7 +209,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
     },
   });
 
-  // ── Merge and filter ──
+  // ── Merge and de-dupe ─────────────────────────────────────────────────────
   const results = useMemo<ResultRow[]>(() => {
     const rows: ResultRow[] = [];
     if (kind !== "contacts") rows.push(...candidates);
@@ -147,8 +224,11 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
 
   const availableResults = results.filter((r) => !isAlreadyAdded(r));
   const alreadyAddedCount = results.length - availableResults.length;
-  const isLoading = (kind !== "contacts" && loadingCandidates) || (kind !== "candidates" && loadingContacts);
+  const isLoading =
+    (kind !== "contacts" && loadingCandidates) ||
+    (kind !== "candidates" && loadingContacts);
 
+  // ── Selection helpers ─────────────────────────────────────────────────────
   const toggleRow = (row: ResultRow) => {
     setSelected((prev) => {
       const next = new Map(prev);
@@ -170,6 +250,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
     }
   };
 
+  // ── Add selected ──────────────────────────────────────────────────────────
   const handleAdd = async () => {
     const rows = Array.from(selected.values());
     await addTargets(
@@ -187,16 +268,6 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
     );
     setSelected(new Map());
     onOpenChange(false);
-  };
-
-  const openTalentSearch = () => {
-    onOpenChange(false);
-    navigate("/talent");
-  };
-
-  const openContactsSearch = () => {
-    onOpenChange(false);
-    navigate("/contacts");
   };
 
   const handleClose = () => {
@@ -222,21 +293,46 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
-                className="pl-9 h-8 text-sm"
-                placeholder="Search candidates or contacts…"
+                ref={inputRef}
+                className="pl-9 h-8 text-sm pr-9"
+                placeholder='Search… or try: react AND NOT junior, "project manager"'
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 autoFocus
               />
+              {isBoolean && (
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4 font-mono">
+                    BOOL
+                  </Badge>
+                </span>
+              )}
             </div>
-            <Tabs value={kind} onValueChange={(v) => { setKind(v as EntityKind); setSelected(new Map()); }}>
+            <Tabs
+              value={kind}
+              onValueChange={(v) => {
+                setKind(v as EntityKind);
+                setSelected(new Map());
+              }}
+            >
               <TabsList className="h-8">
                 <TabsTrigger value="both" className="text-xs px-2.5 h-6">Both</TabsTrigger>
-                <TabsTrigger value="candidates" className="text-xs px-2.5 h-6">Candidates</TabsTrigger>
+                <TabsTrigger value="candidates" className="text-xs px-2.5 h-6">Talent</TabsTrigger>
                 <TabsTrigger value="contacts" className="text-xs px-2.5 h-6">Contacts</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
+
+          {/* Boolean hint */}
+          {isBoolean && (
+            <div className="flex items-start gap-1.5 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+              <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>
+                Boolean mode active — using <code className="font-mono">AND / OR / NOT</code> and{" "}
+                <code className="font-mono">"phrases"</code>. Prefix <code className="font-mono">-word</code> to exclude.
+              </span>
+            </div>
+          )}
 
           {/* Select-all row */}
           {availableResults.length > 1 && (
@@ -258,7 +354,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
           )}
 
           {/* Results list */}
-          <ScrollArea className="h-64 rounded-md border border-border/50 bg-muted/20">
+          <ScrollArea className="h-60 rounded-md border border-border/50 bg-muted/20">
             <div className="p-1.5 space-y-0.5">
               {isLoading ? (
                 <div className="flex items-center justify-center py-10">
@@ -270,16 +366,16 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
                   <p className="text-sm text-muted-foreground font-medium">No results</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {searchTerm
-                      ? "Try a different search term."
-                      : "No records found in your workspace."}
-                    {" "}Use Talent Search below for advanced filters.
+                      ? "Try adjusting your search or boolean query."
+                      : "No records found in your workspace."}{" "}
+                    Use Talent Search below for advanced filters.
                   </p>
                 </div>
               ) : (
                 availableResults.map((row) => (
                   <label
                     key={`${row.kind}:${row.id}`}
-                    className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/60 cursor-pointer transition-colors group"
+                    className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-muted/60 cursor-pointer transition-colors"
                   >
                     <Checkbox
                       checked={isSelected(row)}
@@ -291,20 +387,41 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
                         <p className="text-sm font-medium truncate">{row.name}</p>
                         <Badge
                           variant="outline"
-                          className="text-[9px] px-1 py-0 h-3.5 shrink-0 capitalize"
+                          className={`text-[9px] px-1 py-0 h-3.5 shrink-0 capitalize ${
+                            row.kind === "candidate"
+                              ? "border-emerald-200 text-emerald-600 dark:border-emerald-800 dark:text-emerald-400"
+                              : "border-blue-200 text-blue-600 dark:border-blue-800 dark:text-blue-400"
+                          }`}
                         >
                           {row.kind === "candidate" ? "talent" : "contact"}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
                         {row.kind === "candidate"
-                          ? [row.title, row.company, row.location].filter(Boolean).join(" · ")
+                          ? [row.title, row.company, (row as CandidateRow).location]
+                              .filter(Boolean)
+                              .join(" · ")
                           : [row.title, (row as ContactRow).department].filter(Boolean).join(" · ")}
                       </p>
                     </div>
+                    {/* Channel availability dots */}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <span
+                        title={row.email ? "Email available" : "No email"}
+                        className={`w-1.5 h-1.5 rounded-full ${row.email ? "bg-primary" : "bg-muted-foreground/25"}`}
+                      />
+                      <span
+                        title={row.phone ? "Phone available" : "No phone"}
+                        className={`w-1.5 h-1.5 rounded-full ${row.phone ? "bg-primary" : "bg-muted-foreground/25"}`}
+                      />
+                    </div>
                     {row.kind === "candidate" && (row as CandidateRow).availability_status && (
                       <Badge
-                        variant={(row as CandidateRow).availability_status === "available" ? "default" : "secondary"}
+                        variant={
+                          (row as CandidateRow).availability_status === "available"
+                            ? "default"
+                            : "secondary"
+                        }
                         className="text-[10px] shrink-0"
                       >
                         {(row as CandidateRow).availability_status}
@@ -320,13 +437,15 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
         {/* ── Import section ── */}
         <Separator />
         <div className="px-5 py-3">
-          <p className="text-xs text-muted-foreground mb-2 font-medium">Advanced search & bulk import</p>
+          <p className="text-xs text-muted-foreground mb-2 font-medium">
+            Advanced search &amp; bulk import
+          </p>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               className="gap-2 text-xs h-8"
-              onClick={openTalentSearch}
+              onClick={() => { onOpenChange(false); navigate("/talent"); }}
             >
               <ExternalLink className="w-3.5 h-3.5" />
               Open Talent Search
@@ -335,7 +454,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
               variant="outline"
               size="sm"
               className="gap-2 text-xs h-8"
-              onClick={openContactsSearch}
+              onClick={() => { onOpenChange(false); navigate("/contacts"); }}
             >
               <ExternalLink className="w-3.5 h-3.5" />
               Open Contacts Search
@@ -374,4 +493,31 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
       </DialogContent>
     </Dialog>
   );
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function mapCandidates(
+  data: Array<{
+    id: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    current_title?: string | null;
+    current_company?: string | null;
+    availability_status?: string | null;
+    location?: string | null;
+  }>
+): CandidateRow[] {
+  return data.map((c) => ({
+    id: c.id,
+    kind: "candidate" as const,
+    name: c.name,
+    email: c.email ?? undefined,
+    phone: c.phone ?? undefined,
+    title: c.current_title ?? undefined,
+    company: c.current_company ?? undefined,
+    availability_status: c.availability_status ?? undefined,
+    location: c.location ?? undefined,
+  }));
 }

@@ -154,6 +154,7 @@ export function AIKnowledgePanel({
   const buildAccountContext = useCallback(() => {
     return {
       accountName: account.name,
+      accountId: account.id,
       industry: account.industry,
       contacts: account.contacts.map(c => ({
         id: c.id,

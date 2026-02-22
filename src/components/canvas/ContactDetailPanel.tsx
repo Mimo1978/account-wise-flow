@@ -242,7 +242,7 @@ export const ContactDetailPanel = ({
 
   if (!contact || !editedContact) return null;
 
-  const statusInfo = statusConfig[editedContact.status];
+  const statusInfo = statusConfig[editedContact.status as keyof typeof statusConfig] || statusConfig.unknown;
 
   const mockNotes: Note[] = editedContact.notes || [
     { id: "1", date: "2025-01-22", author: "Sarah Williams", content: "Key decision maker for infrastructure projects. Mentioned budget approval needed by Q2.", pinned: true, visibility: "team" },

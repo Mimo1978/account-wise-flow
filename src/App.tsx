@@ -41,6 +41,7 @@ import AdminOutreachScripts from "./pages/admin/AdminOutreachScripts";
 import AdminDataQuality from "./pages/admin/AdminDataQuality";
 import AdminOrgChart from "./pages/admin/AdminOrgChart";
 import AdminSupport from "./pages/admin/AdminSupport";
+import AdminBranding from "./pages/admin/AdminBranding";
 
 const queryClient = new QueryClient();
 
@@ -116,6 +117,7 @@ const App = () => {
             <Route path="/admin/outreach/settings" element={<AdminPage section="outreach"><AdminOutreachSettings /></AdminPage>} />
             <Route path="/admin/outreach/scripts" element={<AdminPage section="outreach"><AdminOutreachScripts /></AdminPage>} />
             <Route path="/admin/support" element={<AdminPage section="support"><AdminSupport /></AdminPage>} />
+            <Route path="/admin/workspace/branding" element={<AdminPage section="workspace"><AdminBranding /></AdminPage>} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

@@ -90,7 +90,7 @@ export function useCompanyCanvas(options: UseCompanyCanvasOptions = {}): UseComp
           phone: c.phone || '',
           status: (c.status as Contact['status']) || 'unknown',
           engagementScore: 50,
-          managerId: parentMap.get(c.id) ?? c.manager_id ?? null,
+          managerId: parentMap.get(c.id) ?? null, // manager_id deprecated; derive from org_chart_edges only
         })),
         lastUpdated: data.updated_at,
         engagementScore: 50,

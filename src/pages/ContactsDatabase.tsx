@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace";
@@ -123,6 +123,7 @@ export default function ContactsDatabase() {
   const companyFilterId = searchParams.get("company") || null;
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -357,8 +358,33 @@ export default function ContactsDatabase() {
     return Array.from(nameMap.values()).filter((count) => count > 1).reduce((sum, count) => sum + count - 1, 0);
   }, [allContacts]);
 
-  const handleAddContact = (contact: Contact) => {
-    toast.success(`${contact.name} added to database`);
+  const handleAddContact = async (contact: Contact) => {
+    if (!workspaceId) {
+      toast.error("No workspace selected");
+      return;
+    }
+    try {
+      const { error } = await supabase.from("contacts").insert({
+        name: contact.name,
+        email: contact.email || null,
+        phone: contact.phone || null,
+        email_private: contact.privateEmail || null,
+        department: contact.department || null,
+        title: contact.title || null,
+        seniority: contact.seniority || null,
+        status: contact.status || "new",
+        team_id: workspaceId,
+        owner_id: user?.id || null,
+        company_id: companyFilterId || null,
+      });
+      if (error) throw error;
+      toast.success(`${contact.name} added to database`);
+      // Refresh the contacts list
+      queryClient.invalidateQueries({ queryKey: ["all-contacts"] });
+    } catch (err: any) {
+      console.error("[ContactsDatabase] Insert contact failed:", err);
+      toast.error(`Failed to add contact: ${err.message}`);
+    }
   };
 
   const handleOpenAssign = (contact: Contact, e: React.MouseEvent) => {

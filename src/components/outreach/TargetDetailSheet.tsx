@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Mail, Phone, MessageSquare, Calendar, BellOff, XCircle, 
-  Bot, Clock, CheckCircle2,
+  Bot, Clock, CheckCircle2, RotateCcw,
 } from "lucide-react";
 import {
   OutreachTarget,
@@ -161,6 +161,17 @@ export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
                   })}
                 >
                   <BellOff className="w-3.5 h-3.5" /> Snooze 7d
+                </Button>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 flex-1 justify-start"
+                  disabled={isPending || target.state === "queued"}
+                  onClick={() => handleAction("queued", "status_changed", { reset: true, previous_state: target.state })}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" /> Reset to Queued
                 </Button>
               </div>
               <Button

@@ -17,6 +17,7 @@ import {
   Bot,
   MoreHorizontal,
   ChevronRight,
+  RotateCcw,
 } from "lucide-react";
 import {
   OutreachTarget,
@@ -203,6 +204,11 @@ export function OutreachTargetRow({ target, onOpen }: Props) {
                 }
               >
                 <BellOff className="w-3.5 h-3.5 mr-2" /> Snooze 7 days
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => act("queued", "status_changed", { reset: true, previous_state: target.state })}
+              >
+                <RotateCcw className="w-3.5 h-3.5 mr-2" /> Reset to Queued
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

@@ -15,6 +15,8 @@ export interface OutreachRules {
   calling_hours_end: string;
   calling_timezone: string;
   max_call_attempts_default: number;
+  default_target_priority: number;
+  default_target_state: string;
 }
 
 export interface DataQualityRules {
@@ -68,7 +70,7 @@ export function useWorkspaceSettings() {
           contract_hop_min_stints: 3,
           contract_hop_lookback_months: 24,
           top_tier_companies: {},
-          outreach_rules: {
+            outreach_rules: {
              prevent_state_downgrade: true,
              lock_opted_out: true,
              manager_can_reopen: false,
@@ -79,6 +81,8 @@ export function useWorkspaceSettings() {
              calling_hours_end: '18:00',
              calling_timezone: 'UTC',
              max_call_attempts_default: 3,
+             default_target_priority: 5,
+             default_target_state: 'queued',
            },
            data_quality_rules: {
              require_manager_approval_for_merge: true,

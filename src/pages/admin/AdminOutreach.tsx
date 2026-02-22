@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, Plus, Pencil, Trash2, Star, AlertTriangle } from 'lucide-react';
+import { Loader2, Save, Plus, Pencil, Trash2, Star, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useWorkspaceSettings, type OutreachRules } from '@/hooks/use-workspace-settings';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -51,7 +51,13 @@ const OUTREACH_DEFAULTS: OutreachRules = {
   calling_hours_end: '18:00',
   calling_timezone: 'UTC',
   max_call_attempts_default: 3,
+  default_target_priority: 5,
+  default_target_state: 'queued',
 };
+
+const TARGET_STATES = [
+  'queued', 'contacted', 'responded', 'booked', 'snoozed', 'opted_out', 'converted',
+] as const;
 
 const TIMEZONES = [
   'UTC', 'Europe/London', 'Europe/Berlin', 'Europe/Paris', 'America/New_York',
@@ -77,6 +83,7 @@ export default function AdminOutreach() {
   const { settings, isLoading: settingsLoading, updateSettings, isUpdating } = useWorkspaceSettings();
   const { role, isAdmin, userId } = usePermissions();
 
+  const wid = currentWorkspace?.id;
   const [topTab, setTopTab] = useState('settings');
 
   // ── Settings state ──
@@ -106,8 +113,52 @@ export default function AdminOutreach() {
     setSettingsDirty(false);
   };
 
+  // ── Apply to existing state ──
+  const [applyExistingOpen, setApplyExistingOpen] = useState(false);
+  const [applying, setApplying] = useState(false);
+
+  const handleApplyToExisting = async () => {
+    if (!wid) return;
+    setApplying(true);
+    try {
+      // Update all non-completed campaigns with new defaults
+      const { error: campErr } = await supabase
+        .from('outreach_campaigns')
+        .update({
+          calling_hours_start: rules.calling_hours_start,
+          calling_hours_end: rules.calling_hours_end,
+          calling_timezone: rules.calling_timezone,
+          max_call_attempts: rules.max_call_attempts_default,
+          opt_out_required: rules.opt_out_required,
+        })
+        .eq('workspace_id', wid)
+        .neq('status', 'completed');
+      if (campErr) throw campErr;
+
+      // Update queued targets with new defaults
+      const { error: targErr } = await supabase
+        .from('outreach_targets')
+        .update({
+          priority: rules.default_target_priority,
+          max_call_attempts: rules.max_call_attempts_default,
+          calling_hours_start: rules.calling_hours_start,
+          calling_hours_end: rules.calling_hours_end,
+          calling_timezone: rules.calling_timezone,
+        })
+        .eq('workspace_id', wid)
+        .eq('state', 'queued');
+      if (targErr) throw targErr;
+
+      toast.success('Defaults applied to existing campaigns and queued targets');
+      setApplyExistingOpen(false);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to apply defaults');
+    } finally {
+      setApplying(false);
+    }
+  };
+
   // ── Scripts state ──
-  const wid = currentWorkspace?.id;
   const [scripts, setScripts] = useState<Script[]>([]);
   const [scriptsLoading, setScriptsLoading] = useState(true);
   const [scriptTab, setScriptTab] = useState<Channel>('email');
@@ -327,6 +378,46 @@ export default function AdminOutreach() {
             </CardContent>
           </Card>
 
+          {/* Target Defaults */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Target Defaults</CardTitle>
+              <CardDescription>Default values applied when adding new targets to campaigns.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="default-priority" className="text-xs">Default Priority (1–10)</Label>
+                  <Input
+                    id="default-priority"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={rules.default_target_priority}
+                    onChange={e => handleInputChange('default_target_priority', Math.max(1, Math.min(10, parseInt(e.target.value) || 5)))}
+                    disabled={!isAdminOrManager}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="default-state" className="text-xs">Default State on Add</Label>
+                  <Select
+                    value={rules.default_target_state}
+                    onValueChange={v => handleInputChange('default_target_state', v)}
+                    disabled={!isAdminOrManager}
+                  >
+                    <SelectTrigger id="default-state"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {TARGET_STATES.map(s => <SelectItem key={s} value={s} className="capitalize">{s.replace('_', ' ')}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                ℹ️ These defaults apply to <strong>new</strong> campaigns and targets only. No "closed" / "unreachable" / "disqualified" state exists yet — keep deterministic using current states.
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Toggle rules */}
           <Card>
             <CardHeader>
@@ -354,6 +445,21 @@ export default function AdminOutreach() {
               )}
             </CardContent>
           </Card>
+
+          {/* Apply to existing */}
+          {isAdminOrManager && (
+            <Card className="border-dashed">
+              <CardContent className="pt-6 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Apply to existing records</p>
+                  <p className="text-xs text-muted-foreground">Update all active campaigns and queued targets with current defaults.</p>
+                </div>
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setApplyExistingOpen(true)}>
+                  <RefreshCw className="w-4 h-4" /> Apply to Existing
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ════════ SCRIPTS TAB ════════ */}
@@ -544,6 +650,25 @@ export default function AdminOutreach() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Apply to Existing Confirmation ── */}
+      <Dialog open={applyExistingOpen} onOpenChange={setApplyExistingOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Apply defaults to existing records?</DialogTitle>
+            <DialogDescription>
+              This will update all <strong>active campaigns</strong> (calling hours, max attempts, opt-out) and all <strong>queued targets</strong> (priority, calling window). Already-contacted targets will not be changed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApplyExistingOpen(false)}>Cancel</Button>
+            <Button onClick={handleApplyToExisting} disabled={applying} className="gap-1.5">
+              {applying && <Loader2 className="w-4 h-4 animate-spin" />}
+              Confirm & Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -2601,6 +2601,7 @@ export type Database = {
           contract_hop_lookback_months: number
           contract_hop_min_stints: number
           created_at: string
+          data_quality_rules: Json
           gap_threshold_months: number
           id: string
           outreach_rules: Json
@@ -2613,6 +2614,7 @@ export type Database = {
           contract_hop_lookback_months?: number
           contract_hop_min_stints?: number
           created_at?: string
+          data_quality_rules?: Json
           gap_threshold_months?: number
           id?: string
           outreach_rules?: Json
@@ -2625,6 +2627,7 @@ export type Database = {
           contract_hop_lookback_months?: number
           contract_hop_min_stints?: number
           created_at?: string
+          data_quality_rules?: Json
           gap_threshold_months?: number
           id?: string
           outreach_rules?: Json

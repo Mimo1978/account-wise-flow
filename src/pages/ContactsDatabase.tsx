@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceId } from "@/hooks/use-workspace";
 import { Contact, PhoneNumber } from "@/lib/types";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -119,11 +121,14 @@ export default function ContactsDatabase() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const companyFilterId = searchParams.get("company") || null;
+  const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [ownerFilter, setOwnerFilter] = useState<string>("all");
+  
   const [assignedFilter, setAssignedFilter] = useState<string>("all");
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [contactRecordOpen, setContactRecordOpen] = useState(false);
@@ -136,9 +141,12 @@ export default function ContactsDatabase() {
   const { role, canInsert, canEdit, isLoading: permissionsLoading } = usePermissions();
   const insertTooltip = getPermissionTooltip("insert", role);
   const editTooltip = getPermissionTooltip("edit", role);
-  
-  // Mock current user ID (in real app, get from auth)
-  const currentUserId = "user-1"; // Sarah Williams
+
+  // Debounce search query (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Fetch company name when filtering by company
   const { data: filterCompany } = useQuery({
@@ -164,17 +172,22 @@ export default function ContactsDatabase() {
     }
   }, []);
 
-  // Fetch contacts from the database — scoped to company if param present
+  // Fetch contacts from the database — scoped to workspace + company if param present
   const { data: dbContacts = [], isLoading } = useQuery({
-    queryKey: ['all-contacts', companyFilterId],
+    queryKey: ['all-contacts', companyFilterId, workspaceId],
     queryFn: async () => {
       let query = supabase
         .from('contacts')
-        .select('*, companies(name)')
+        .select('*, companies!contacts_company_id_fkey(name)')
         .order('name');
       
       if (companyFilterId) {
         query = query.eq('company_id', companyFilterId);
+      }
+
+      // Workspace scoping via team_id (RLS also enforces this)
+      if (workspaceId) {
+        query = query.eq('team_id', workspaceId);
       }
 
       const { data: contacts, error } = await query;
@@ -182,17 +195,27 @@ export default function ContactsDatabase() {
         console.error('Error fetching contacts:', error);
         return [];
       }
+
+      // Dev-mode debug log
+      if (import.meta.env.DEV) {
+        console.debug('[ContactsDatabase] query params:', {
+          workspaceId,
+          companyFilterId,
+          resultCount: contacts?.length ?? 0,
+        });
+      }
+
       return (contacts || []).map((c: any) => ({
         id: c.id,
         name: c.name,
         title: c.title || '',
         department: c.department || '',
-        seniority: 'mid' as Contact['seniority'],
+        seniority: (c.seniority as Contact['seniority']) || 'mid',
         email: c.email || '',
         phone: c.phone || '',
         phoneNumbers: c.phone ? [{ value: c.phone, label: 'Work' as const, preferred: true }] : [],
-        privateEmail: '',
-        status: 'new' as Contact['status'],
+        privateEmail: c.email_private || '',
+        status: (c.status as Contact['status']) || 'unknown',
         engagementScore: 50,
         linkedIn: '',
         notes: [] as any,
@@ -200,8 +223,10 @@ export default function ContactsDatabase() {
         lastContact: '',
         _companyName: c.companies?.name || '',
         _companyId: c.company_id || '',
+        _ownerId: c.owner_id || null,
       }));
     },
+    enabled: !!workspaceId,
   });
 
   const allContacts = dbContacts;
@@ -217,19 +242,27 @@ export default function ContactsDatabase() {
     return Array.from(depts).sort();
   }, [allContacts]);
 
-  const owners = useMemo(() => {
-    const ownerSet = new Set(allContacts.map((c) => c.contactOwner).filter(Boolean));
-    return Array.from(ownerSet).sort() as string[];
-  }, [allContacts]);
+  // Owner filter removed — owner_id is a UUID with no profiles table mapping yet
 
   const statuses = ["unknown", "new", "warm", "engaged", "champion", "blocker"];
 
-  // Filter contacts
+  // Filter contacts (client-side for department/status; debounced search)
+  const hasActiveFilters = departmentFilter !== "all" || statusFilter !== "all" || assignedFilter !== "all" || debouncedSearch !== "";
+
   const filteredContacts = useMemo(() => {
+    if (import.meta.env.DEV) {
+      console.debug('[ContactsDatabase] filter state:', {
+        debouncedSearch,
+        departmentFilter,
+        statusFilter,
+        assignedFilter,
+      });
+    }
+
     return allContacts.filter((contact) => {
-      const searchLower = searchQuery.toLowerCase();
+      const searchLower = debouncedSearch.toLowerCase();
       const matchesSearch =
-        !searchQuery ||
+        !debouncedSearch ||
         contact.name.toLowerCase().includes(searchLower) ||
         (contact as any)._companyName?.toLowerCase().includes(searchLower) ||
         contact.department.toLowerCase().includes(searchLower) ||
@@ -241,16 +274,14 @@ export default function ContactsDatabase() {
       const matchesStatus =
         statusFilter === "all" || contact.status === statusFilter;
 
-      const matchesOwner =
-        ownerFilter === "all" || contact.contactOwner === ownerFilter;
-
+      // "Assigned to me" compares owner_id to current auth user
       const matchesAssigned =
         assignedFilter === "all" || 
-        (assignedFilter === "assigned-to-me" && contact.contactOwner === "Sarah Williams");
+        (assignedFilter === "assigned-to-me" && (contact as any)._ownerId === user?.id);
 
-      return matchesSearch && matchesDepartment && matchesStatus && matchesOwner && matchesAssigned;
+      return matchesSearch && matchesDepartment && matchesStatus && matchesAssigned;
     });
-  }, [allContacts, searchQuery, departmentFilter, statusFilter, ownerFilter, assignedFilter]);
+  }, [allContacts, debouncedSearch, departmentFilter, statusFilter, assignedFilter, user?.id]);
 
   // Single click = select row
   const handleRowClick = (contact: Contact, e: React.MouseEvent) => {
@@ -289,7 +320,11 @@ export default function ContactsDatabase() {
   };
 
   const handleViewOrgChart = () => {
-    navigate("/canvas");
+    if (companyFilterId) {
+      navigate(`/canvas?company=${companyFilterId}`);
+    } else {
+      navigate("/canvas");
+    }
   };
 
   // State for assign modal
@@ -570,19 +605,7 @@ export default function ContactsDatabase() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Owner" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Owners</SelectItem>
-              {owners.map((owner) => (
-                <SelectItem key={owner} value={owner}>
-                  {owner}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Owner filter removed — owner_id is a UUID, no display name available yet */}
           <Select value={assignedFilter} onValueChange={setAssignedFilter}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Assigned" />
@@ -915,7 +938,7 @@ export default function ContactsDatabase() {
                       />
                     </TableCell>
                     <TableCell className="text-muted-foreground bg-card" style={{ zIndex: 1 }}>
-                      {contact.contactOwner || "—"}
+                      {(contact as any)._ownerId ? "Assigned" : "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground bg-card" style={{ zIndex: 1 }}>
                       {contact.lastContact || "—"}
@@ -927,9 +950,40 @@ export default function ContactsDatabase() {
                 <TableRow>
                   <TableCell
                     colSpan={12}
-                    className="text-center py-8 text-muted-foreground"
+                    className="text-center py-12 text-muted-foreground"
                   >
-                    No contacts found matching your filters.
+                    {allContacts.length === 0 ? (
+                      <div className="flex flex-col items-center gap-3">
+                        <p className="text-lg font-medium text-foreground">No contacts yet</p>
+                        <p className="text-sm">Add your first contact or import from a file to get started.</p>
+                        <div className="flex gap-2 mt-2">
+                          <Button variant="default" size="sm" onClick={() => setShowAddContactModal(true)} disabled={!canInsert}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Contact
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => { setBulkImportMethod("file"); setShowBulkImportModal(true); }} disabled={!canInsert}>
+                            <Upload className="h-4 w-4 mr-2" />
+                            Import
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <p>No contacts found matching your filters.</p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSearchQuery("");
+                            setDepartmentFilter("all");
+                            setStatusFilter("all");
+                            setAssignedFilter("all");
+                          }}
+                        >
+                          Clear filters
+                        </Button>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               )}

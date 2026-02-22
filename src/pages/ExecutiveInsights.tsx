@@ -425,90 +425,145 @@ function PipelineStat({ icon: Icon, label, value, linkTo }: { icon: React.Elemen
 // §4 — Org Penetration Heatmap
 // ════════════════════════════════════════════════════════════
 
-function OrgPenetrationHeatmap({ companies }: { companies: CompanyRiskProfile[] }) {
-  const BENCHMARK = 5; // expected minimum contacts
+type SortKey = 'name' | 'totalContacts' | 'seniorContacts' | 'departments' | 'lastActivity' | 'riskBand' | 'rsiScore';
+type SortDir = 'asc' | 'desc';
 
-  // Collect all unique departments across portfolio
-  const allDepts = [...new Set(companies.flatMap(c => c.departments))].sort();
-  const displayDepts = allDepts.slice(0, 8); // cap columns for readability
+function OrgPenetrationHeatmap({ companies }: { companies: CompanyRiskProfile[] }) {
+  const [sortKey, setSortKey] = useState<SortKey>('rsiScore');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [showWeakest, setShowWeakest] = useState(false);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+
+  const riskBandOrder: Record<string, number> = { high_risk: 0, medium_risk: 1, healthy: 2 };
+
+  const sorted = companies.slice().sort((a, b) => {
+    let cmp = 0;
+    switch (sortKey) {
+      case 'name': cmp = a.name.localeCompare(b.name); break;
+      case 'totalContacts': cmp = a.totalContacts - b.totalContacts; break;
+      case 'seniorContacts': cmp = a.seniorContacts - b.seniorContacts; break;
+      case 'departments': cmp = a.departments.length - b.departments.length; break;
+      case 'lastActivity': cmp = (a.daysSinceActivity ?? 9999) - (b.daysSinceActivity ?? 9999); break;
+      case 'riskBand': cmp = (riskBandOrder[a.riskBand] ?? 2) - (riskBandOrder[b.riskBand] ?? 2); break;
+      case 'rsiScore': cmp = a.rsiScore - b.rsiScore; break;
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const displayed = showWeakest
+    ? companies.slice().sort((a, b) => a.rsiScore - b.rsiScore).slice(0, 10)
+    : sorted;
 
   if (companies.length === 0) {
     return (
       <section>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Network className="w-5 h-5 text-primary" />
-          Org Penetration
+          Org Penetration Analytics
         </h2>
         <Card>
           <CardContent className="py-10">
-            <EmptyState icon={Building2} message="No companies to map" action={{ label: 'Add a company', to: '/companies' }} />
+            <EmptyState icon={Building2} message="No companies to analyse" action={{ label: 'Add a company', to: '/companies' }} />
           </CardContent>
         </Card>
       </section>
     );
   }
 
+  const SortHeader = ({ label, field, className = '' }: { label: string; field: SortKey; className?: string }) => (
+    <th
+      className={`p-3 font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors ${className}`}
+      onClick={() => toggleSort(field)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {sortKey === field && <span className="text-xs">{sortDir === 'asc' ? '↑' : '↓'}</span>}
+      </span>
+    </th>
+  );
+
+  const riskBadgeStyle: Record<string, string> = {
+    high_risk: 'bg-red-100 text-red-700 border-red-200',
+    medium_risk: 'bg-amber-100 text-amber-700 border-amber-200',
+    healthy: 'bg-green-100 text-green-700 border-green-200',
+  };
+  const riskLabel: Record<string, string> = { high_risk: 'High', medium_risk: 'Medium', healthy: 'Healthy' };
+
   return (
     <section>
-      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <Network className="w-5 h-5 text-primary" />
-        Org Penetration
-      </h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Network className="w-5 h-5 text-primary" />
+          Org Penetration Analytics
+        </h2>
+        <Button
+          variant={showWeakest ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setShowWeakest(w => !w)}
+        >
+          <Eye className="w-4 h-4 mr-1" />
+          {showWeakest ? 'Show all' : 'Top 10 weakest'}
+        </Button>
+      </div>
       <Card>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/50">
-                  <th className="text-left p-3 font-medium text-muted-foreground">Account</th>
-                  <th className="p-3 text-center font-medium text-muted-foreground">Contacts</th>
-                  <th className="p-3 text-center font-medium text-muted-foreground">Senior</th>
-                  <th className="p-3 text-center font-medium text-muted-foreground">Depts</th>
-                  <th className="p-3 text-center font-medium text-muted-foreground">Coverage</th>
+                  <SortHeader label="Account" field="name" className="text-left" />
+                  <SortHeader label="Contacts" field="totalContacts" className="text-center" />
+                  <SortHeader label="Senior" field="seniorContacts" className="text-center" />
+                  <SortHeader label="Depts" field="departments" className="text-center" />
+                  <SortHeader label="Last Activity" field="lastActivity" className="text-center" />
+                  <SortHeader label="Risk" field="riskBand" className="text-center" />
+                  <SortHeader label="RSI" field="rsiScore" className="text-center" />
                   <th className="p-3 w-8" />
                 </tr>
               </thead>
               <tbody>
-                {companies
-                  .slice()
-                  .sort((a, b) => a.coveragePercent - b.coveragePercent)
-                  .slice(0, 12)
-                  .map(c => {
-                    const coverageSeverity = c.coveragePercent >= 80 ? 'high' : c.coveragePercent >= 40 ? 'medium' : 'low';
-                    return (
-                      <tr key={c.id} className="border-b border-border/30 hover:bg-muted/30 transition-colors">
-                        <td className="p-3">
-                          <Link to={`/canvas?company=${c.id}`} className="font-medium hover:text-primary transition-colors">
-                            {c.name}
-                          </Link>
-                        </td>
-                        <td className="p-3 text-center tabular-nums">{c.totalContacts}</td>
-                        <td className="p-3 text-center">
-                          <Badge variant="outline" className={`text-xs ${c.seniorContacts === 0 ? 'border-destructive/30 text-destructive' : ''}`}>
-                            {c.seniorContacts}
-                          </Badge>
-                        </td>
-                        <td className="p-3 text-center tabular-nums">{c.departments.length}</td>
-                        <td className="p-3">
-                          <div className="flex items-center gap-2 justify-center">
-                            <Progress value={c.coveragePercent} className="h-2 w-16" />
-                            <span className={`text-xs font-medium tabular-nums ${
-                              coverageSeverity === 'high' ? 'text-green-600' :
-                              coverageSeverity === 'medium' ? 'text-amber-600' :
-                              'text-destructive'
-                            }`}>{c.coveragePercent}%</span>
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <Link to={`/canvas?company=${c.id}`}>
-                            <Button variant="ghost" size="icon" className="h-7 w-7">
-                              <ChevronRight className="w-4 h-4" />
-                            </Button>
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                {displayed.map(c => (
+                  <tr key={c.id} className="border-b border-border/30 hover:bg-muted/30 transition-colors">
+                    <td className="p-3">
+                      <Link to={`/canvas?company=${c.id}`} className="font-medium hover:text-primary transition-colors">
+                        {c.name}
+                      </Link>
+                    </td>
+                    <td className="p-3 text-center tabular-nums">{c.totalContacts}</td>
+                    <td className="p-3 text-center">
+                      {c.seniorContacts > 0
+                        ? <Badge variant="outline" className="text-xs border-green-200 text-green-700">Yes ({c.seniorContacts})</Badge>
+                        : <Badge variant="outline" className="text-xs border-destructive/30 text-destructive">No</Badge>}
+                    </td>
+                    <td className="p-3 text-center tabular-nums">{c.departments.length}</td>
+                    <td className="p-3 text-center text-xs tabular-nums">
+                      {c.lastActivityDate
+                        ? <span className={c.daysSinceActivity !== null && c.daysSinceActivity > 60 ? 'text-destructive font-medium' : ''}>
+                            {c.daysSinceActivity}d ago
+                          </span>
+                        : <span className="text-muted-foreground">—</span>}
+                    </td>
+                    <td className="p-3 text-center">
+                      <Badge variant="outline" className={`text-xs ${riskBadgeStyle[c.riskBand] || ''}`}>
+                        {riskLabel[c.riskBand] || c.riskBand}
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-center">
+                      <RsiBadge score={c.rsiScore} tier={c.rsiTier} />
+                    </td>
+                    <td className="p-3">
+                      <Link to={`/canvas?company=${c.id}`}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

@@ -13,7 +13,8 @@ type AdminSection =
   | 'outreach'
   | 'signals'
   | 'schema'
-  | 'support';
+  | 'support'
+  | 'workspace';
 
 const SECTION_ACCESS: Record<AdminSection, AppRole[]> = {
   overview: ['admin', 'manager', 'contributor', 'viewer'],
@@ -24,6 +25,7 @@ const SECTION_ACCESS: Record<AdminSection, AppRole[]> = {
   orgchart: ['admin', 'manager', 'contributor'],
   signals: ['admin', 'manager', 'contributor'],
   governance: ['admin', 'manager'],
+  workspace: ['admin', 'manager'],
   access: ['admin'],
 };
 

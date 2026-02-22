@@ -2557,8 +2557,10 @@ export type Database = {
       }
       workspace_branding: {
         Row: {
+          app_name: string | null
           company_name: string | null
           created_at: string
+          email_signature_footer: string | null
           id: string
           logo_path: string | null
           primary_color: string | null
@@ -2567,8 +2569,10 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          app_name?: string | null
           company_name?: string | null
           created_at?: string
+          email_signature_footer?: string | null
           id?: string
           logo_path?: string | null
           primary_color?: string | null
@@ -2577,8 +2581,10 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          app_name?: string | null
           company_name?: string | null
           created_at?: string
+          email_signature_footer?: string | null
           id?: string
           logo_path?: string | null
           primary_color?: string | null

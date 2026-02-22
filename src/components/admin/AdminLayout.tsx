@@ -14,6 +14,7 @@ import {
   Megaphone,
   Radio,
   LifeBuoy,
+  Palette,
 } from 'lucide-react';
 import type { AdminSection } from './AdminRouteGuard';
 
@@ -31,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Workspace & Access', path: '/admin/access', icon: Shield, section: 'access',
     children: [
       { label: 'Access (Roles)', path: '/admin/access', icon: Shield, section: 'access' },
+      { label: 'Branding', path: '/admin/workspace/branding', icon: Palette, section: 'workspace' },
     ],
   },
   {
@@ -70,6 +72,7 @@ const SECTION_ACCESS_ROLES: Record<AdminSection, AppRole[]> = {
   orgchart: ['admin', 'manager', 'contributor'],
   signals: ['admin', 'manager', 'contributor'],
   governance: ['admin', 'manager'],
+  workspace: ['admin', 'manager'],
   access: ['admin'],
 };
 

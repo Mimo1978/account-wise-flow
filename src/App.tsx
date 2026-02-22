@@ -37,6 +37,7 @@ import AdminGovernanceAudit from "./pages/admin/AdminGovernanceAudit";
 import AdminSignals from "./pages/admin/AdminSignals";
 import AdminPlaceholder from "./pages/admin/AdminPlaceholder";
 import AdminOutreachSettings from "./pages/admin/AdminOutreachSettings";
+import AdminOutreachScripts from "./pages/admin/AdminOutreachScripts";
 
 const queryClient = new QueryClient();
 
@@ -110,6 +111,7 @@ const App = () => {
             <Route path="/admin/data-quality" element={<AdminPage section="data-quality"><AdminPlaceholder title="Data Quality" description="Data quality checks and deduplication tools." /></AdminPage>} />
             <Route path="/admin/org-chart" element={<AdminPage section="orgchart"><AdminPlaceholder title="Org Chart" description="Organization chart management." /></AdminPage>} />
             <Route path="/admin/outreach/settings" element={<AdminPage section="outreach"><AdminOutreachSettings /></AdminPage>} />
+            <Route path="/admin/outreach/scripts" element={<AdminPage section="outreach"><AdminOutreachScripts /></AdminPage>} />
             <Route path="/admin/support" element={<AdminPage section="support"><AdminPlaceholder title="Support" description="Help and support resources." /></AdminPage>} />
 
             {/* Catch-all */}

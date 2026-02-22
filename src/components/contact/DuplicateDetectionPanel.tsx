@@ -384,14 +384,18 @@ export function DuplicateDetectionPanel({
       }
 
       const dupIds = duplicates.map((d) => d.id);
+      const companyId = (canonical as any)._companyId || (canonical as any).company_id || companyFilterId;
 
       // 2. Company root safety: update ceo_contact_id if it points to a duplicate
-      await supabase
-        .from("companies")
-        .update({ ceo_contact_id: canonicalId })
-        .in("ceo_contact_id", dupIds);
+      if (companyId) {
+        await supabase
+          .from("companies")
+          .update({ ceo_contact_id: canonicalId })
+          .eq("id", companyId)
+          .in("ceo_contact_id", dupIds);
+      }
 
-      // 3. Re-parent contacts whose manager_id points to a duplicate
+      // 3. Re-parent contacts.manager_id from duplicates to canonical
       for (const dupId of dupIds) {
         await supabase
           .from("contacts")
@@ -401,16 +405,65 @@ export function DuplicateDetectionPanel({
           .neq("id", canonicalId);
       }
 
-      // 4. Re-parent org chart edges of duplicates to canonical
+      // 4. Org chart edge reconciliation (company-scoped)
+      // 4a. Re-parent children: edges where parent = duplicate → parent = canonical
       for (const dupId of dupIds) {
-        await supabase
-          .from("org_chart_edges")
-          .update({ parent_contact_id: canonicalId })
-          .eq("parent_contact_id", dupId);
-        await supabase
-          .from("org_chart_edges")
-          .delete()
-          .eq("child_contact_id", dupId);
+        if (companyId) {
+          await supabase
+            .from("org_chart_edges")
+            .update({ parent_contact_id: canonicalId })
+            .eq("company_id", companyId)
+            .eq("parent_contact_id", dupId);
+        } else {
+          await supabase
+            .from("org_chart_edges")
+            .update({ parent_contact_id: canonicalId })
+            .eq("parent_contact_id", dupId);
+        }
+      }
+
+      // 4b. Handle duplicate-as-child edges: migrate or delete
+      // Check if canonical already has an edge as child in this company
+      const { data: canonicalEdge } = companyId
+        ? await supabase
+            .from("org_chart_edges")
+            .select("id")
+            .eq("company_id", companyId)
+            .eq("child_contact_id", canonicalId)
+            .maybeSingle()
+        : { data: null };
+
+      for (const dupId of dupIds) {
+        const dupEdgeQuery = companyId
+          ? supabase
+              .from("org_chart_edges")
+              .select("id, parent_contact_id, position_index")
+              .eq("company_id", companyId)
+              .eq("child_contact_id", dupId)
+              .maybeSingle()
+          : supabase
+              .from("org_chart_edges")
+              .select("id, parent_contact_id, position_index")
+              .eq("child_contact_id", dupId)
+              .maybeSingle();
+
+        const { data: dupEdge } = await dupEdgeQuery;
+        if (!dupEdge) continue;
+
+        if (!canonicalEdge) {
+          // Canonical has no edge as child → migrate this edge to canonical
+          await supabase
+            .from("org_chart_edges")
+            .update({ child_contact_id: canonicalId })
+            .eq("id", dupEdge.id);
+        } else {
+          // Canonical already has an edge → delete the duplicate's child edge
+          // (children already reparented in step 4a)
+          await supabase
+            .from("org_chart_edges")
+            .delete()
+            .eq("id", dupEdge.id);
+        }
       }
 
       // 5. Soft-delete duplicates

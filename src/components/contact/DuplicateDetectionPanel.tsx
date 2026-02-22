@@ -244,11 +244,8 @@ function buildMergePatch(
     if (o) patch.owner_id = (o as any).owner_id || o.contactOwner;
   }
 
-  // --- manager_id: keep canonical unless null ---
-  if (!canonical.managerId) {
-    const m = duplicates.find(d => d.managerId);
-    if (m) patch.manager_id = m.managerId;
-  }
+  // --- manager_id: DEPRECATED — hierarchy lives in org_chart_edges only ---
+  // Do not write to contacts.manager_id; org_chart_edges reconciliation handles hierarchy.
 
   // --- Build provenance notes block ---
   const conflictLines: string[] = [];
@@ -395,15 +392,8 @@ export function DuplicateDetectionPanel({
           .in("ceo_contact_id", dupIds);
       }
 
-      // 3. Re-parent contacts.manager_id from duplicates to canonical
-      for (const dupId of dupIds) {
-        await supabase
-          .from("contacts")
-          .update({ manager_id: canonicalId })
-          .eq("manager_id", dupId)
-          .is("deleted_at", null)
-          .neq("id", canonicalId);
-      }
+      // 3. contacts.manager_id is DEPRECATED — skip writing to it.
+      // Hierarchy is managed exclusively via org_chart_edges (step 4).
 
       // 4. Org chart edge reconciliation (company-scoped)
       // 4a. Re-parent children: edges where parent = duplicate → parent = canonical

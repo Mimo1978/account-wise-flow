@@ -19,7 +19,8 @@ import {
   ArrowRightLeft,
   FlaskConical,
   Briefcase,
-  Megaphone
+  Megaphone,
+  Settings,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -189,6 +190,12 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                     <Link to="/workspace-settings" className="flex items-center">
                       <Building2 className="w-4 h-4 mr-2" />
                       Workspace Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link to="/admin" className="flex items-center">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Admin Console
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

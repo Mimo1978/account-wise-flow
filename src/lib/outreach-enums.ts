@@ -1,11 +1,39 @@
 /**
  * Deterministic enum mappings for the Outreach module.
  * All values are literal DB enum labels — no guessing.
+ * Single source of truth for labels, ordering, styling, and categories.
  */
 
-import type { OutreachTargetState, OutreachEventType, CallOutcomeType } from "@/hooks/use-outreach";
+import type {
+  OutreachTargetState,
+  OutreachEventType,
+  OutreachChannel,
+  CallOutcomeType,
+} from "@/hooks/use-outreach";
 
-// ─── Category maps ────────────────────────────────────────────────────────────
+// ─── TARGET STATE ─────────────────────────────────────────────────────────────
+
+export const TARGET_STATE_LABEL: Record<OutreachTargetState, string> = {
+  queued: "Queued",
+  contacted: "Contacted",
+  responded: "Responded",
+  booked: "Booked",
+  snoozed: "Snoozed",
+  opted_out: "Opted Out",
+  converted: "Converted",
+  closed: "Closed",
+};
+
+export const TARGET_STATE_BADGE_CLASS: Record<OutreachTargetState, string> = {
+  queued: "bg-muted text-muted-foreground",
+  contacted: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
+  responded: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
+  booked: "bg-primary/10 text-primary",
+  snoozed: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
+  opted_out: "bg-destructive/10 text-destructive",
+  converted: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+  closed: "bg-muted text-muted-foreground",
+};
 
 export const TARGET_STATE_CATEGORY = {
   queued: "QUEUE",
@@ -17,6 +45,48 @@ export const TARGET_STATE_CATEGORY = {
   converted: "COMPLETED",
   closed: "CLOSED",
 } as const;
+
+// ─── State precedence (higher = stickier, never downgrade) ────────────────────
+
+const STATE_PRECEDENCE: Record<OutreachTargetState, number> = {
+  queued: 0,
+  contacted: 1,
+  snoozed: 2,
+  responded: 3,
+  booked: 4,
+  converted: 5,
+  opted_out: 6,
+  closed: 7,
+};
+
+export const TARGET_STATE_ORDER = STATE_PRECEDENCE;
+
+/**
+ * Returns the higher-precedence state. Targets never downgrade.
+ */
+export function resolveState(
+  current: OutreachTargetState,
+  proposed: OutreachTargetState,
+): OutreachTargetState {
+  return STATE_PRECEDENCE[proposed] >= STATE_PRECEDENCE[current] ? proposed : current;
+}
+
+// ─── EVENT TYPE ───────────────────────────────────────────────────────────────
+
+export const EVENT_TYPE_LABEL: Record<OutreachEventType, string> = {
+  email_sent: "Email Sent",
+  sms_sent: "SMS Sent",
+  call_made: "Call Made",
+  call_scheduled: "Call Scheduled",
+  call_completed: "Call Completed",
+  responded: "Responded",
+  booked: "Meeting Booked",
+  snoozed: "Snoozed",
+  opted_out: "Opted Out",
+  note_added: "Note Added",
+  status_changed: "Status Changed",
+  added_to_campaign: "Added to Campaign",
+};
 
 export const EVENT_TYPE_CATEGORY: Record<OutreachEventType, "contact" | "response" | "lifecycle" | "system"> = {
   email_sent: "contact",
@@ -33,6 +103,30 @@ export const EVENT_TYPE_CATEGORY: Record<OutreachEventType, "contact" | "respons
   added_to_campaign: "system",
 };
 
+// ─── CHANNEL ──────────────────────────────────────────────────────────────────
+
+export const CHANNEL_LABEL: Record<OutreachChannel, string> = {
+  email: "Email",
+  sms: "SMS",
+  call: "Call",
+  linkedin: "LinkedIn",
+  other: "Other",
+};
+
+// ─── CALL OUTCOME ─────────────────────────────────────────────────────────────
+
+export const CALL_OUTCOME_LABEL: Record<CallOutcomeType, string> = {
+  connected: "Connected",
+  voicemail: "Voicemail",
+  no_answer: "No Answer",
+  busy: "Busy",
+  wrong_number: "Wrong Number",
+  interested: "Interested",
+  not_interested: "Not Interested",
+  callback_requested: "Callback Requested",
+  meeting_booked: "Meeting Booked",
+};
+
 export const CALL_OUTCOME_CATEGORY: Record<CallOutcomeType, "positive" | "neutral" | "negative"> = {
   connected: "neutral",
   voicemail: "neutral",
@@ -44,30 +138,6 @@ export const CALL_OUTCOME_CATEGORY: Record<CallOutcomeType, "positive" | "neutra
   callback_requested: "positive",
   meeting_booked: "positive",
 };
-
-// ─── State precedence (higher = stickier, never downgrade) ────────────────────
-
-const STATE_PRECEDENCE: Record<OutreachTargetState, number> = {
-  queued: 0,
-  contacted: 1,
-  snoozed: 2,
-  responded: 3,
-  booked: 4,
-  converted: 5,
-  opted_out: 6,
-  closed: 7, // highest — fully terminal
-};
-
-/**
- * Returns the higher-precedence state. Targets never downgrade.
- * `opted_out` always wins. `converted`/`booked` beat lower states.
- */
-export function resolveState(
-  current: OutreachTargetState,
-  proposed: OutreachTargetState,
-): OutreachTargetState {
-  return STATE_PRECEDENCE[proposed] >= STATE_PRECEDENCE[current] ? proposed : current;
-}
 
 // ─── Contact-type events (trigger contacted_count / last_contacted_at) ───────
 
@@ -108,7 +178,7 @@ export function callOutcomeToState(outcome: CallOutcomeType): OutreachTargetStat
     case "not_interested":
       return "opted_out";
     default:
-      return null; // voicemail, no_answer, busy, wrong_number — no state change
+      return null;
   }
 }
 

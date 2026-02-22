@@ -57,8 +57,11 @@ const SENIORITY_RANK: Record<string, number> = {
 };
 
 const STATUS_RANK: Record<string, number> = {
-  "active": 5, "engaged": 4, "warm": 3, "champion": 3,
-  "new": 2, "inactive": 1, "blocker": 1, "unknown": 0,
+  "active": 6, "engaged": 5, "new": 4, "inactive": 3, "blocked": 2, "unknown": 1,
+};
+
+const VERIFICATION_RANK: Record<string, number> = {
+  "verified": 3, "pending": 2, "unverified": 1,
 };
 
 function isValidEmail(v?: string | null): boolean {
@@ -83,7 +86,10 @@ function canonicalScore(c: Contact): number {
   if (c.title) s += 2;
   if (c.department) s += 2;
   if (c.seniority) s += 1;
-  if ((c as any)._companyName || (c as any)._companyId) s += 1;
+  if (c.location) s += 1;
+  if ((c as any).company_id || (c as any)._companyId) s += 1;
+  const vs = (c as any).verification_status || (c as any).verificationStatus;
+  if (vs && vs !== "unverified") s += 1;
   return s;
 }
 
@@ -97,21 +103,26 @@ function statusRank(s?: string | null): number {
   return STATUS_RANK[s.toLowerCase()] ?? 0;
 }
 
+function verificationRank(s?: string | null): number {
+  if (!s) return 0;
+  return VERIFICATION_RANK[s.toLowerCase()] ?? 0;
+}
+
 /** Pick best canonical from a group using scoring + tie-breaks */
 function pickCanonical(contacts: Contact[]): string {
   const sorted = [...contacts].sort((a, b) => {
     const diff = canonicalScore(b) - canonicalScore(a);
     if (diff !== 0) return diff;
     // tie-break: newest updated_at
-    const ua = (a as any).lastUpdated || (a as any).updated_at || "";
-    const ub = (b as any).lastUpdated || (b as any).updated_at || "";
+    const ua = (a as any).updated_at || "";
+    const ub = (b as any).updated_at || "";
     if (ub > ua) return 1;
     if (ua > ub) return -1;
-    // oldest created_at
+    // then newest created_at
     const ca = (a as any).created_at || "";
     const cb = (b as any).created_at || "";
-    if (ca < cb) return -1;
-    if (ca > cb) return 1;
+    if (cb > ca) return 1;
+    if (ca > cb) return -1;
     return 0;
   });
   return sorted[0].id;
@@ -121,11 +132,11 @@ function pickCanonical(contacts: Contact[]): string {
 function buildMergePatch(
   canonical: Contact,
   duplicates: Contact[]
-): { patch: Record<string, any>; metadata: Record<string, any[]> } {
+): { patch: Record<string, any>; metadata: Record<string, any[]>; notesAppend: string } {
   const patch: Record<string, any> = {};
   const metadata: Record<string, any[]> = {};
-
   const allContacts = [canonical, ...duplicates];
+  const timestamp = new Date().toISOString();
 
   // --- Name alternates ---
   const altNames = duplicates.map(d => d.name).filter(n => n && n !== canonical.name);
@@ -133,14 +144,13 @@ function buildMergePatch(
 
   // --- Email: never overwrite valid canonical ---
   if (!isValidEmail(canonical.email)) {
-    // pick corporate-domain-first, then newest updated_at
     const candidates = duplicates
       .filter(d => isValidEmail(d.email))
       .sort((a, b) => {
         const ac = isCorporateEmail(a.email) ? 1 : 0;
         const bc = isCorporateEmail(b.email) ? 1 : 0;
         if (bc !== ac) return bc - ac;
-        return ((b as any).lastUpdated || "") > ((a as any).lastUpdated || "") ? 1 : -1;
+        return ((b as any).updated_at || "") > ((a as any).updated_at || "") ? 1 : -1;
       });
     if (candidates.length) patch.email = candidates[0].email;
   }
@@ -148,13 +158,13 @@ function buildMergePatch(
   if (altEmails.length) metadata.alternate_emails = [...new Set(altEmails)];
 
   // --- Private email ---
-  if (!(canonical as any).privateEmail) {
-    const pe = duplicates.find(d => (d as any).privateEmail);
-    if (pe) patch.email_private = (pe as any).privateEmail;
+  if (!(canonical as any).email_private && !canonical.privateEmail) {
+    const pe = duplicates.find(d => (d as any).email_private || d.privateEmail);
+    if (pe) patch.email_private = (pe as any).email_private || pe.privateEmail;
   }
-  const altPrivate = allContacts.map(c => (c as any).privateEmail).filter(Boolean);
-  const keptPrivate = patch.email_private || (canonical as any).privateEmail;
-  const uniquePrivate = [...new Set(altPrivate.filter(e => e !== keptPrivate))];
+  const altPrivate = allContacts.map(c => (c as any).email_private || c.privateEmail).filter(Boolean);
+  const keptPrivate = patch.email_private || (canonical as any).email_private || canonical.privateEmail;
+  const uniquePrivate = [...new Set(altPrivate.filter((e: string) => e !== keptPrivate))];
   if (uniquePrivate.length) metadata.alternate_private_emails = uniquePrivate;
 
   // --- Phone: never overwrite valid canonical ---
@@ -162,13 +172,12 @@ function buildMergePatch(
     const phoneCandidates = duplicates
       .filter(d => isValidPhone(d.phone))
       .sort((a, b) => {
-        // Prefer Mobile > Work based on phoneNumbers type
         const aType = a.phoneNumbers?.[0]?.label || "";
         const bType = b.phoneNumbers?.[0]?.label || "";
         const pref = (t: string) => t === "Mobile" ? 2 : t === "Work" ? 1 : 0;
         const tp = pref(bType) - pref(aType);
         if (tp !== 0) return tp;
-        return ((b as any).lastUpdated || "") > ((a as any).lastUpdated || "") ? 1 : -1;
+        return ((b as any).updated_at || "") > ((a as any).updated_at || "") ? 1 : -1;
       });
     if (phoneCandidates.length) patch.phone = phoneCandidates[0].phone;
   }
@@ -193,13 +202,13 @@ function buildMergePatch(
   const altDepts = allContacts.map(c => c.department).filter(d => d && d !== (patch.department || canonical.department));
   if (altDepts.length) metadata.alternate_departments = [...new Set(altDepts)];
 
-  // --- Seniority: if empty/Unknown, use highest rank ---
+  // --- Seniority: if empty, use highest rank; never overwrite valid ---
   const canSen = seniorityRank(canonical.seniority);
   if (canSen === 0) {
     let best = { rank: 0, val: "" };
     for (const c of allContacts) {
       const r = seniorityRank(c.seniority);
-      if (r > best.rank) best = { rank: r, val: c.seniority };
+      if (r > best.rank) best = { rank: r, val: c.seniority! };
     }
     if (best.rank > 0) patch.seniority = best.val;
   }
@@ -212,13 +221,56 @@ function buildMergePatch(
   }
   if (bestStatus.val !== canonical.status) patch.status = bestStatus.val;
 
+  // --- Verification status: keep max-ranked ---
+  const canVerif = (canonical as any).verification_status || (canonical as any).verificationStatus || "unverified";
+  let bestVerif = { rank: verificationRank(canVerif), val: canVerif };
+  for (const d of duplicates) {
+    const dv = (d as any).verification_status || (d as any).verificationStatus || "unverified";
+    const r = verificationRank(dv);
+    if (r > bestVerif.rank) bestVerif = { rank: r, val: dv };
+  }
+  if (bestVerif.val !== canVerif) patch.verification_status = bestVerif.val;
+
   // --- Location: fill blank ---
   if (!canonical.location) {
     const l = duplicates.find(d => d.location);
     if (l) patch.location = l.location;
   }
 
-  return { patch, metadata };
+  // --- Owner: keep canonical unless empty ---
+  const canOwner = (canonical as any).owner_id || canonical.contactOwner;
+  if (!canOwner) {
+    const o = duplicates.find(d => (d as any).owner_id || d.contactOwner);
+    if (o) patch.owner_id = (o as any).owner_id || o.contactOwner;
+  }
+
+  // --- manager_id: keep canonical unless null ---
+  if (!canonical.managerId) {
+    const m = duplicates.find(d => d.managerId);
+    if (m) patch.manager_id = m.managerId;
+  }
+
+  // --- Build provenance notes block ---
+  const conflictLines: string[] = [];
+  for (const d of duplicates) {
+    const diffs: string[] = [];
+    if (d.name && d.name !== canonical.name) diffs.push(`name: ${d.name}`);
+    if (d.email && d.email !== (patch.email || canonical.email)) diffs.push(`email: ${d.email}`);
+    if (d.phone && d.phone !== (patch.phone || canonical.phone)) diffs.push(`phone: ${d.phone}`);
+    if (d.title && d.title !== (patch.title || canonical.title)) diffs.push(`title: ${d.title}`);
+    if (d.department && d.department !== (patch.department || canonical.department)) diffs.push(`department: ${d.department}`);
+    if (d.seniority && d.seniority !== (patch.seniority || canonical.seniority)) diffs.push(`seniority: ${d.seniority}`);
+    conflictLines.push(`[MERGED FROM ${d.id} on ${timestamp}]${diffs.length ? " " + diffs.join("; ") : ""}`);
+  }
+
+  // Append duplicate notes
+  const dupNoteBlocks = duplicates
+    .filter(d => d.notes && typeof d.notes === "string" && (d.notes as string).trim())
+    .map(d => `[NOTES FROM ${d.id}]: ${typeof d.notes === "string" ? d.notes : ""}`);
+
+  const notesAppend = [...conflictLines, ...dupNoteBlocks].join("\n");
+
+  return { patch, metadata, notesAppend };
 }
 
 export function DuplicateDetectionPanel({
@@ -299,16 +351,14 @@ export function DuplicateDetectionPanel({
 
     setIsProcessing(true);
     try {
-      const { patch, metadata } = buildMergePatch(canonical, duplicates);
+      const { patch, metadata, notesAppend } = buildMergePatch(canonical, duplicates);
 
       // 1. Update canonical with merged fields
       const updatePayload: Record<string, any> = { ...patch };
-      // Store metadata as JSON in notes (append)
-      if (Object.keys(metadata).length > 0) {
-        const existingNotes = canonical.notes?.[0]?.content || (canonical as any).notes || "";
-        const metaBlock = `\n--- Merge Metadata (${new Date().toISOString()}) ---\n${JSON.stringify(metadata, null, 2)}`;
-        updatePayload.notes = (typeof existingNotes === "string" ? existingNotes : "") + metaBlock;
-      }
+      // Append provenance notes
+      const existingNotes = typeof (canonical as any).notes === "string" ? (canonical as any).notes : "";
+      const allNotes = [existingNotes, notesAppend].filter(Boolean).join("\n");
+      if (allNotes) updatePayload.notes = allNotes;
 
       if (Object.keys(updatePayload).length > 0) {
         const { error } = await supabase
@@ -320,7 +370,18 @@ export function DuplicateDetectionPanel({
 
       const dupIds = duplicates.map((d) => d.id);
 
-      // 2. Re-parent org chart children of duplicates to canonical
+      // 2. Re-parent contacts whose manager_id points to a duplicate
+      for (const dupId of dupIds) {
+        // Prevent cycle: don't set manager_id = canonicalId on the canonical itself
+        await supabase
+          .from("contacts")
+          .update({ manager_id: canonicalId })
+          .eq("manager_id", dupId)
+          .is("deleted_at", null)
+          .neq("id", canonicalId);
+      }
+
+      // 3. Re-parent org chart edges of duplicates to canonical
       for (const dupId of dupIds) {
         await supabase
           .from("org_chart_edges")
@@ -332,14 +393,14 @@ export function DuplicateDetectionPanel({
           .eq("child_contact_id", dupId);
       }
 
-      // 3. Soft-delete duplicates
+      // 4. Soft-delete duplicates
       const { error: retireErr } = await supabase
         .from("contacts")
         .update({ deleted_at: new Date().toISOString() })
         .in("id", dupIds);
       if (retireErr) throw retireErr;
 
-      // 4. Audit with before/after + merged_from_ids
+      // 5. Audit with before/after + merged_from_ids
       await supabase.from("audit_log").insert({
         entity_type: "contact",
         entity_id: canonicalId,
@@ -352,7 +413,7 @@ export function DuplicateDetectionPanel({
           before: { email: canonical.email, phone: canonical.phone, title: canonical.title, department: canonical.department, seniority: canonical.seniority, status: canonical.status },
           after: { ...{ email: canonical.email, phone: canonical.phone, title: canonical.title, department: canonical.department, seniority: canonical.seniority, status: canonical.status }, ...patch },
         },
-        context: { source: "duplicate_resolution", merge_rule: "deterministic_v2" },
+        context: { source: "duplicate_resolution", merge_rule: "deterministic_v3" },
       });
 
       toast.success(`Merged ${dupIds.length} duplicate(s) into ${canonical.name}`);

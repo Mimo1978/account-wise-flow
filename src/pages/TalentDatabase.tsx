@@ -50,6 +50,7 @@ import { SearchResultCard } from "@/components/talent/SearchResultCard";
 import { MatchIndicatorBadge } from "@/components/talent/MatchIndicatorBadge";
 import { MatchSnippetsPanel } from "@/components/talent/MatchSnippetsPanel";
 import { CVViewer } from "@/components/talent/CVViewer";
+import { AddCandidateModal } from "@/components/talent/AddCandidateModal";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { useTableViewPreferences } from "@/components/canvas/TableViewControls";
 import { PinnedEdgeFade, PinnedEdgeFadeRight } from "@/components/ui/pinned-edge-fade";
@@ -167,6 +168,7 @@ export default function TalentDatabase() {
   const [quickViewTalentId, setQuickViewTalentId] = useState<string | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [snippetsPanelResult, setSnippetsPanelResult] = useState<BooleanSearchResult | null>(null);
+  const [showAddCandidate, setShowAddCandidate] = useState(false);
 
   // Boolean search hook
   const booleanSearch = useBooleanSearch({ debounceMs: 500 });
@@ -320,7 +322,7 @@ export default function TalentDatabase() {
   };
 
   const handleAddTalent = () => {
-    console.log("Add talent clicked");
+    setShowAddCandidate(true);
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -1258,6 +1260,16 @@ export default function TalentDatabase() {
         }}
         candidates={filteredTalents.filter((t) => selectedIds.has(t.id))}
         defaultCampaignId={returnToCampaignId}
+      />
+
+      {/* Add Candidate Modal */}
+      <AddCandidateModal
+        open={showAddCandidate}
+        onOpenChange={setShowAddCandidate}
+        onSuccess={() => {
+          invalidateCandidates();
+          refetchCandidates();
+        }}
       />
     </div>
   );

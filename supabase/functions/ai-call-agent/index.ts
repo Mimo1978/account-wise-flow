@@ -184,19 +184,29 @@ serve(async (req) => {
 
     // Auth
     const authHeader = req.headers.get("authorization");
-    const supabaseUser = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const supabaseAuthed = createClient(
-      SUPABASE_URL,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { authorization: authHeader ?? "" } } }
-    );
-    const { data: { user }, error: authError } = await supabaseAuthed.auth.getUser();
-    if (authError || !user) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const supabaseUser = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    const supabaseAuthed = createClient(
+      SUPABASE_URL,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: authError } = await supabaseAuthed.auth.getClaims(token);
+    if (authError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = claimsData.claims.sub;
 
     const body = await req.json() as AICallRequest;
     const { target_id, workspace_id, script_id, recruiter_calendar_slots = [], conversation_history, user_message } = body;

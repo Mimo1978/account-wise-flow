@@ -42,6 +42,16 @@ export interface PipelineSignals {
   highResponseCampaigns: { id: string; name: string; responseRate: number }[];
 }
 
+export interface SalesMomentum {
+  totalTargets: number;
+  responseRate: number; // 0–100
+  bookingRate: number;
+  interestRate: number;
+  avgFollowUpDelayDays: number | null;
+  totalCalls: number;
+  highlightCampaigns: { id: string; name: string; responseRate: number; bookingRate: number; interestRate: number }[];
+}
+
 export interface RevenueIntelligenceData {
   companies: CompanyRiskProfile[];
   atRiskCount: number;
@@ -50,6 +60,7 @@ export interface RevenueIntelligenceData {
   avgRsi: number;
   rsiDistribution: { high: number; medium: number; low: number };
   pipeline: PipelineSignals;
+  salesMomentum: SalesMomentum;
   riskSummary: {
     healthy: number;
     medium_risk: number;
@@ -131,24 +142,25 @@ export function useRevenueIntelligence() {
     },
   });
 
-  // 3. Pipeline signals + per-company outreach response rates
+  // 3. Pipeline signals + per-company outreach response rates + sales momentum
   const pipelineQuery = useQuery({
     queryKey: ['revenue-intel-pipeline'],
     queryFn: async () => {
-      const [targetsRes, campaignsRes, outcomesRes, allTargetsRes] = await Promise.all([
+      const [targetsRes, campaignsRes, outcomesRes, allTargetsRes, allOutcomesRes] = await Promise.all([
         supabase.from('outreach_targets').select('id, state').in('state', ['responded', 'booked']),
         supabase.from('outreach_campaigns').select('id, name, target_count, response_count, contacted_count'),
         supabase.from('call_outcomes').select('id, outcome').in('outcome', ['interested', 'meeting_booked']),
-        // All targets with contact_id for per-company response rate
-        supabase.from('outreach_targets').select('id, state, contact_id'),
+        supabase.from('outreach_targets').select('id, state, contact_id, campaign_id'),
+        supabase.from('call_outcomes').select('id, outcome, called_at, follow_up_due'),
       ]);
 
       const targets = targetsRes.data || [];
       const campaigns = campaignsRes.data || [];
       const outcomes = outcomesRes.data || [];
       const allTargets = allTargetsRes.data || [];
+      const allOutcomes = allOutcomesRes.data || [];
 
-      // Build per-contact response map (contact_id -> responded?)
+      // Per-contact response map
       const contactResponseMap = new Map<string, { total: number; responded: number }>();
       for (const t of allTargets) {
         if (!t.contact_id) continue;
@@ -157,6 +169,51 @@ export function useRevenueIntelligence() {
         if (t.state === 'responded' || t.state === 'booked') entry.responded++;
         contactResponseMap.set(t.contact_id, entry);
       }
+
+      // Sales Momentum global metrics
+      const totalTargets = allTargets.length;
+      const respondedCount = allTargets.filter(t => t.state === 'responded' || t.state === 'booked').length;
+      const bookedCount = allTargets.filter(t => t.state === 'booked').length;
+      const totalCalls = allOutcomes.length;
+      const interestedCalls = allOutcomes.filter(o => o.outcome === 'interested' || o.outcome === 'meeting_booked').length;
+
+      const responseRate = totalTargets > 0 ? Math.round((respondedCount / totalTargets) * 100) : 0;
+      const bookingRate = totalTargets > 0 ? Math.round((bookedCount / totalTargets) * 100) : 0;
+      const interestRate = totalCalls > 0 ? Math.round((interestedCalls / totalCalls) * 100) : 0;
+
+      // Avg follow-up delay
+      let totalDelayMs = 0;
+      let delayCount = 0;
+      for (const o of allOutcomes) {
+        if (o.follow_up_due && o.called_at) {
+          const diff = new Date(o.follow_up_due).getTime() - new Date(o.called_at).getTime();
+          if (diff > 0) { totalDelayMs += diff; delayCount++; }
+        }
+      }
+      const avgFollowUpDelayDays = delayCount > 0 ? Math.round(totalDelayMs / delayCount / (1000 * 60 * 60 * 24) * 10) / 10 : null;
+
+      // Per-campaign metrics for highlights
+      const campaignTargetMap = new Map<string, { total: number; responded: number; booked: number }>();
+      for (const t of allTargets) {
+        const entry = campaignTargetMap.get(t.campaign_id) || { total: 0, responded: 0, booked: 0 };
+        entry.total++;
+        if (t.state === 'responded' || t.state === 'booked') entry.responded++;
+        if (t.state === 'booked') entry.booked++;
+        campaignTargetMap.set(t.campaign_id, entry);
+      }
+
+      const highlightCampaigns = campaigns
+        .map(c => {
+          const ct = campaignTargetMap.get(c.id);
+          const cTotal = ct?.total || 0;
+          const cResp = ct?.responded || 0;
+          const cBooked = ct?.booked || 0;
+          const rr = cTotal > 0 ? Math.round((cResp / cTotal) * 100) : 0;
+          const br = cTotal > 0 ? Math.round((cBooked / cTotal) * 100) : 0;
+          return { id: c.id, name: c.name, responseRate: rr, bookingRate: br, interestRate: 0 };
+        })
+        .filter(c => c.responseRate >= 30 || c.bookingRate >= 20)
+        .sort((a, b) => b.responseRate - a.responseRate);
 
       return {
         respondedTargets: targets.filter(t => t.state === 'responded').length,
@@ -169,6 +226,15 @@ export function useRevenueIntelligence() {
           .filter(c => c.responseRate >= 20)
           .sort((a, b) => b.responseRate - a.responseRate),
         contactResponseMap,
+        salesMomentum: {
+          totalTargets,
+          responseRate,
+          bookingRate,
+          interestRate,
+          avgFollowUpDelayDays,
+          totalCalls,
+          highlightCampaigns,
+        } as SalesMomentum,
       };
     },
   });
@@ -259,6 +325,11 @@ export function useRevenueIntelligence() {
       }
     : { respondedTargets: 0, bookedTargets: 0, interestedOutcomes: 0, meetingBookedOutcomes: 0, highResponseCampaigns: [] };
 
+  const salesMomentum: SalesMomentum = pipelineData?.salesMomentum ?? {
+    totalTargets: 0, responseRate: 0, bookingRate: 0, interestRate: 0,
+    avgFollowUpDelayDays: null, totalCalls: 0, highlightCampaigns: [],
+  };
+
   const data: RevenueIntelligenceData = {
     companies,
     atRiskCount,
@@ -267,6 +338,7 @@ export function useRevenueIntelligence() {
     avgRsi,
     rsiDistribution,
     pipeline: pipelineSignals,
+    salesMomentum,
     riskSummary,
   };
 

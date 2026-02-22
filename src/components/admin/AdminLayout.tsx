@@ -1,9 +1,10 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePermissions, AppRole } from '@/hooks/use-permissions';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { ChevronRight } from 'lucide-react';
 import {
   LayoutDashboard,
   Shield,
@@ -75,6 +76,49 @@ const SECTION_ACCESS_ROLES: Record<AdminSection, AppRole[]> = {
 function canAccess(role: AppRole, section: AdminSection): boolean {
   if (!role) return false;
   return (SECTION_ACCESS_ROLES[section] ?? ['admin']).includes(role);
+}
+
+// ── Breadcrumb labels by path ──
+const BREADCRUMB_LABELS: Record<string, string> = {
+  '/admin': 'Overview',
+  '/admin/overview': 'Overview',
+  '/admin/access': 'Access & Roles',
+  '/admin/roles': 'Access & Roles',
+  '/admin/governance/requests': 'Change Requests',
+  '/admin/change-requests': 'Change Requests',
+  '/admin/governance/audit': 'Audit Log',
+  '/admin/audit': 'Audit Log',
+  '/admin/data-quality': 'Data Quality',
+  '/admin/org-chart': 'Org Chart',
+  '/admin/outreach': 'Outreach',
+  '/admin/outreach/settings': 'Outreach Settings',
+  '/admin/outreach/scripts': 'Outreach Scripts',
+  '/admin/outreach-defaults': 'Outreach Defaults',
+  '/admin/signals': 'Signals',
+  '/admin/schema': 'Schema Inventory',
+  '/admin/support': 'Support & Diagnostics',
+  '/admin/workspace/branding': 'Branding',
+  '/admin/advanced': 'Advanced',
+};
+
+function AdminBreadcrumb() {
+  const location = useLocation();
+  const path = location.pathname;
+  const isOverview = path === '/admin' || path === '/admin/overview';
+
+  if (isOverview) return null;
+
+  const pageLabel = BREADCRUMB_LABELS[path] || path.split('/').pop()?.replace(/-/g, ' ') || '';
+
+  return (
+    <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
+      <Link to="/admin" className="hover:text-foreground transition-colors">
+        Admin Console
+      </Link>
+      <ChevronRight className="w-3 h-3" />
+      <span className="text-foreground font-medium capitalize">{pageLabel}</span>
+    </nav>
+  );
 }
 
 interface AdminLayoutProps {
@@ -164,6 +208,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto px-6 py-6">
+          <AdminBreadcrumb />
           {children}
         </div>
       </main>

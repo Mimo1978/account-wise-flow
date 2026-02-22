@@ -24,6 +24,7 @@ import {
   OutreachEventType,
   useUpdateTargetState,
 } from "@/hooks/use-outreach";
+import { isOutreachBlocked, isCallBlocked } from "@/lib/outreach-enums";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
@@ -47,6 +48,14 @@ const STATE_BADGE: Record<OutreachTargetState, { label: string; className: strin
 export function OutreachTargetRow({ target, onOpen }: Props) {
   const { mutateAsync, isPending } = useUpdateTargetState();
   const [aiCallOpen, setAiCallOpen] = useState(false);
+
+  const complianceFlags = {
+    state: target.state,
+    do_not_contact: !!(target as unknown as Record<string, unknown>).do_not_contact,
+    do_not_call: !!(target as unknown as Record<string, unknown>).do_not_call,
+  };
+  const outreachBlocked = isOutreachBlocked(complianceFlags);
+  const callBlocked = isCallBlocked(complianceFlags);
 
   const act = async (
     state: OutreachTargetState,
@@ -139,7 +148,7 @@ export function OutreachTargetRow({ target, onOpen }: Props) {
             variant="ghost"
             className="h-7 w-7"
             title="Send Email"
-            disabled={isPending}
+            disabled={isPending || outreachBlocked}
             onClick={() => act("contacted", "email_sent")}
           >
             <Mail className="w-3.5 h-3.5" />
@@ -149,7 +158,7 @@ export function OutreachTargetRow({ target, onOpen }: Props) {
             variant="ghost"
             className="h-7 w-7"
             title="Send SMS"
-            disabled={isPending}
+            disabled={isPending || outreachBlocked}
             onClick={() => act("contacted", "sms_sent")}
           >
             <MessageSquare className="w-3.5 h-3.5" />
@@ -159,7 +168,7 @@ export function OutreachTargetRow({ target, onOpen }: Props) {
             variant="ghost"
             className="h-7 w-7"
             title="Log Call"
-            disabled={isPending}
+            disabled={isPending || callBlocked}
             onClick={() => act("contacted", "call_made")}
           >
             <Phone className="w-3.5 h-3.5" />
@@ -169,7 +178,7 @@ export function OutreachTargetRow({ target, onOpen }: Props) {
             variant="ghost"
             className="h-7 w-7"
             title="Book Meeting"
-            disabled={isPending}
+            disabled={isPending || outreachBlocked}
             onClick={() => act("booked", "booked")}
           >
             <Calendar className="w-3.5 h-3.5" />

@@ -297,7 +297,7 @@ function RelationshipStrengthIndex({
         </CardHeader>
         <CardContent>
           {filtered.length === 0 ? (
-            <EmptyState icon={Users} message={bandFilter !== 'all' ? `No ${bandFilter} RSI accounts` : 'No accounts to analyze'} action={{ label: 'Add a company', to: '/companies' }} />
+            <EmptyState icon={Users} message={bandFilter !== 'all' ? `No ${bandFilter}-tier accounts found. Adjust filters or add contacts with senior titles to improve coverage.` : 'No companies with executive coverage yet. Add a senior stakeholder to reduce risk.'} action={{ label: 'Add company', to: '/companies' }} />
           ) : (
             <div className="space-y-2">
               {filtered.slice(0, 12).map(c => (
@@ -373,7 +373,7 @@ function PipelineAcceleration({ pipeline }: { pipeline: ReturnType<typeof useRev
       {!hasSignals ? (
         <Card>
           <CardContent className="py-10">
-            <EmptyState icon={Zap} message="No pipeline signals yet" action={{ label: 'Create a campaign', to: '/outreach' }} />
+            <EmptyState icon={Zap} message="No outreach targets or call outcomes recorded. Create a campaign and add targets to see response and booking signals here." action={{ label: 'Create campaign', to: '/outreach' }} />
           </CardContent>
         </Card>
       ) : (
@@ -448,7 +448,7 @@ function SalesMomentumSection({ momentum }: { momentum: SalesMomentum }) {
       {!hasData ? (
         <Card>
           <CardContent className="py-10">
-            <EmptyState icon={BarChart3} message="No outreach data yet" action={{ label: 'Create a campaign', to: '/outreach' }} />
+            <EmptyState icon={BarChart3} message="Response, booking, and interest rates require outreach activity. Create a campaign and log call outcomes to track sales momentum." action={{ label: 'Create campaign', to: '/outreach' }} />
           </CardContent>
         </Card>
       ) : (
@@ -603,7 +603,7 @@ function OrgPenetrationHeatmap({ companies }: { companies: CompanyRiskProfile[] 
         </h2>
         <Card>
           <CardContent className="py-10">
-            <EmptyState icon={Building2} message="No companies to analyse" action={{ label: 'Add a company', to: '/companies' }} />
+            <EmptyState icon={Building2} message="No companies in your workspace yet. Add a company and its contacts to see penetration analytics, department coverage, and risk scoring." action={{ label: 'Add company', to: '/companies' }} secondaryAction={{ label: 'Import contacts', to: '/contacts' }} />
           </CardContent>
         </Card>
       </section>
@@ -817,19 +817,32 @@ function EmptyState({
   icon: Icon,
   message,
   action,
+  secondaryAction,
 }: {
   icon: React.ElementType;
   message: string;
   action?: { label: string; to: string };
+  secondaryAction?: { label: string; to: string };
 }) {
   return (
-    <div className="text-center text-muted-foreground">
-      <Icon className="w-10 h-10 mx-auto mb-2 opacity-30" />
-      <p className="text-sm">{message}</p>
-      {action && (
-        <Link to={action.to}>
-          <Button variant="link" size="sm" className="mt-1">{action.label}</Button>
-        </Link>
+    <div className="text-center py-2">
+      <div className="w-12 h-12 rounded-xl bg-muted/60 flex items-center justify-center mx-auto mb-3">
+        <Icon className="w-6 h-6 text-muted-foreground" />
+      </div>
+      <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">{message}</p>
+      {(action || secondaryAction) && (
+        <div className="flex items-center justify-center gap-2 mt-3">
+          {action && (
+            <Link to={action.to}>
+              <Button size="sm" variant="default">{action.label}</Button>
+            </Link>
+          )}
+          {secondaryAction && (
+            <Link to={secondaryAction.to}>
+              <Button size="sm" variant="outline">{secondaryAction.label}</Button>
+            </Link>
+          )}
+        </div>
       )}
     </div>
   );

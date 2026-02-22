@@ -27,7 +27,8 @@ export type OutreachTargetState =
   | "booked"
   | "snoozed"
   | "opted_out"
-  | "converted";
+  | "converted"
+  | "closed";
 export type OutreachCampaignStatus =
   | "draft"
   | "active"

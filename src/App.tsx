@@ -36,6 +36,7 @@ import AdminGovernanceRequests from "./pages/admin/AdminGovernanceRequests";
 import AdminGovernanceAudit from "./pages/admin/AdminGovernanceAudit";
 import AdminSignals from "./pages/admin/AdminSignals";
 import AdminPlaceholder from "./pages/admin/AdminPlaceholder";
+import AdminOutreachSettings from "./pages/admin/AdminOutreachSettings";
 
 const queryClient = new QueryClient();
 
@@ -108,7 +109,7 @@ const App = () => {
             <Route path="/admin/schema" element={<AdminPage section="schema"><SchemaInventory /></AdminPage>} />
             <Route path="/admin/data-quality" element={<AdminPage section="data-quality"><AdminPlaceholder title="Data Quality" description="Data quality checks and deduplication tools." /></AdminPage>} />
             <Route path="/admin/org-chart" element={<AdminPage section="orgchart"><AdminPlaceholder title="Org Chart" description="Organization chart management." /></AdminPage>} />
-            <Route path="/admin/outreach/settings" element={<AdminPage section="outreach"><AdminPlaceholder title="Outreach Settings" description="Campaign and outreach configuration." /></AdminPage>} />
+            <Route path="/admin/outreach/settings" element={<AdminPage section="outreach"><AdminOutreachSettings /></AdminPage>} />
             <Route path="/admin/support" element={<AdminPage section="support"><AdminPlaceholder title="Support" description="Help and support resources." /></AdminPage>} />
 
             {/* Catch-all */}

@@ -10,6 +10,11 @@ export interface OutreachRules {
   manager_can_reopen: boolean;
   treat_wrong_number_as_opt_out: boolean;
   auto_snooze_on_max_attempts: boolean;
+  opt_out_required: boolean;
+  calling_hours_start: string;
+  calling_hours_end: string;
+  calling_timezone: string;
+  max_call_attempts_default: number;
 }
 
 export interface DataQualityRules {
@@ -64,11 +69,16 @@ export function useWorkspaceSettings() {
           contract_hop_lookback_months: 24,
           top_tier_companies: {},
           outreach_rules: {
-            prevent_state_downgrade: true,
-            lock_opted_out: true,
-            manager_can_reopen: false,
-            treat_wrong_number_as_opt_out: true,
-            auto_snooze_on_max_attempts: true,
+             prevent_state_downgrade: true,
+             lock_opted_out: true,
+             manager_can_reopen: false,
+             treat_wrong_number_as_opt_out: true,
+             auto_snooze_on_max_attempts: true,
+             opt_out_required: true,
+             calling_hours_start: '09:00',
+             calling_hours_end: '18:00',
+             calling_timezone: 'UTC',
+             max_call_attempts_default: 3,
            },
            data_quality_rules: {
              require_manager_approval_for_merge: true,

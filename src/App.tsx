@@ -36,8 +36,7 @@ import AdminGovernanceRequests from "./pages/admin/AdminGovernanceRequests";
 import AdminGovernanceAudit from "./pages/admin/AdminGovernanceAudit";
 import AdminSignals from "./pages/admin/AdminSignals";
 import AdminPlaceholder from "./pages/admin/AdminPlaceholder";
-import AdminOutreachSettings from "./pages/admin/AdminOutreachSettings";
-import AdminOutreachScripts from "./pages/admin/AdminOutreachScripts";
+import AdminOutreach from "./pages/admin/AdminOutreach";
 import AdminDataQuality from "./pages/admin/AdminDataQuality";
 import AdminOrgChart from "./pages/admin/AdminOrgChart";
 import AdminSupport from "./pages/admin/AdminSupport";
@@ -114,8 +113,9 @@ const App = () => {
             <Route path="/admin/schema" element={<AdminPage section="schema"><SchemaInventory /></AdminPage>} />
             <Route path="/admin/data-quality" element={<AdminPage section="data-quality"><AdminDataQuality /></AdminPage>} />
             <Route path="/admin/org-chart" element={<AdminPage section="orgchart"><AdminOrgChart /></AdminPage>} />
-            <Route path="/admin/outreach/settings" element={<AdminPage section="outreach"><AdminOutreachSettings /></AdminPage>} />
-            <Route path="/admin/outreach/scripts" element={<AdminPage section="outreach"><AdminOutreachScripts /></AdminPage>} />
+            <Route path="/admin/outreach" element={<AdminPage section="outreach"><AdminOutreach /></AdminPage>} />
+            <Route path="/admin/outreach/settings" element={<AdminPage section="outreach"><AdminOutreach /></AdminPage>} />
+            <Route path="/admin/outreach/scripts" element={<AdminPage section="outreach"><AdminOutreach /></AdminPage>} />
             <Route path="/admin/support" element={<AdminPage section="support"><AdminSupport /></AdminPage>} />
             <Route path="/admin/workspace/branding" element={<AdminPage section="workspace"><AdminBranding /></AdminPage>} />
 

@@ -4,6 +4,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
 
+export interface OutreachRules {
+  prevent_state_downgrade: boolean;
+  lock_opted_out: boolean;
+  manager_can_reopen: boolean;
+  treat_wrong_number_as_opt_out: boolean;
+  auto_snooze_on_max_attempts: boolean;
+}
+
 export interface WorkspaceSettings {
   id: string;
   workspace_id: string;
@@ -12,6 +20,7 @@ export interface WorkspaceSettings {
   contract_hop_min_stints: number;
   contract_hop_lookback_months: number;
   top_tier_companies: Record<string, string[]>;
+  outreach_rules: OutreachRules;
   created_at: string;
   updated_at: string;
 }
@@ -47,12 +56,19 @@ export function useWorkspaceSettings() {
           contract_hop_min_stints: 3,
           contract_hop_lookback_months: 24,
           top_tier_companies: {},
+          outreach_rules: {
+            prevent_state_downgrade: true,
+            lock_opted_out: true,
+            manager_can_reopen: false,
+            treat_wrong_number_as_opt_out: true,
+            auto_snooze_on_max_attempts: true,
+          },
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         };
       }
 
-      return data as WorkspaceSettings;
+      return data as unknown as WorkspaceSettings;
     },
     enabled: !!user && !!currentWorkspace,
   });
@@ -83,7 +99,7 @@ export function useWorkspaceSettings() {
       // Otherwise update
       const { data, error } = await supabase
         .from('workspace_settings')
-        .update(updates)
+        .update(updates as any)
         .eq('workspace_id', currentWorkspace.id)
         .select()
         .single();

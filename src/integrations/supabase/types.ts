@@ -2603,6 +2603,7 @@ export type Database = {
           created_at: string
           gap_threshold_months: number
           id: string
+          outreach_rules: Json
           short_tenure_threshold_months: number
           top_tier_companies: Json
           updated_at: string
@@ -2614,6 +2615,7 @@ export type Database = {
           created_at?: string
           gap_threshold_months?: number
           id?: string
+          outreach_rules?: Json
           short_tenure_threshold_months?: number
           top_tier_companies?: Json
           updated_at?: string
@@ -2625,6 +2627,7 @@ export type Database = {
           created_at?: string
           gap_threshold_months?: number
           id?: string
+          outreach_rules?: Json
           short_tenure_threshold_months?: number
           top_tier_companies?: Json
           updated_at?: string

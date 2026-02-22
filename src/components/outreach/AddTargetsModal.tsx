@@ -465,7 +465,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
               variant="outline"
               size="sm"
               className="gap-2 text-xs h-8"
-              onClick={() => { onOpenChange(false); navigate("/talent"); }}
+              onClick={() => { onOpenChange(false); navigate(`/talent?returnTo=outreach&campaignId=${campaignId}`); }}
             >
               <ExternalLink className="w-3.5 h-3.5" />
               Open Talent Search
@@ -474,7 +474,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
               variant="outline"
               size="sm"
               className="gap-2 text-xs h-8"
-              onClick={() => { onOpenChange(false); navigate("/contacts"); }}
+              onClick={() => { onOpenChange(false); navigate(`/contacts?returnTo=outreach&campaignId=${campaignId}`); }}
             >
               <ExternalLink className="w-3.5 h-3.5" />
               Open Contacts Search

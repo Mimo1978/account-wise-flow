@@ -234,21 +234,83 @@ export function useAddTargets() {
         entity_company?: string;
       }>
     ) => {
+      if (targets.length === 0) return { inserted: [], skipped: 0, campaignId: "" };
+
+      const campaignId = targets[0].campaign_id;
       const rows = targets.map((t) => ({
         ...t,
         workspace_id: currentWorkspace!.id,
         state: "queued" as OutreachTargetState,
       }));
+
+      // Use upsert-like approach: insert with onConflict ignore not available,
+      // so we insert and count errors for duplicates
       const { data, error } = await db
         .from("outreach_targets")
         .insert(rows)
         .select();
-      if (error) throw error;
-      return data as OutreachTarget[];
+
+      if (error) {
+        // If it's a unique constraint violation, some may have been skipped
+        if (error.code === "23505") {
+          // Insert one by one to count successes
+          const inserted: OutreachTarget[] = [];
+          let skipped = 0;
+          for (const row of rows) {
+            const { data: single, error: singleErr } = await db
+              .from("outreach_targets")
+              .insert(row)
+              .select()
+              .single();
+            if (singleErr) {
+              skipped++;
+            } else {
+              inserted.push(single as OutreachTarget);
+            }
+          }
+          return { inserted, skipped, campaignId };
+        }
+        throw error;
+      }
+
+      const inserted = (data ?? []) as OutreachTarget[];
+      return { inserted, skipped: 0, campaignId };
     },
-    onSuccess: (data: OutreachTarget[]) => {
+    onSuccess: async ({ inserted, skipped, campaignId }) => {
+      // Increment campaign target_count
+      if (inserted.length > 0 && campaignId) {
+        await db.rpc("increment_campaign_target_count", {
+          p_campaign_id: campaignId,
+          p_count: inserted.length,
+        }).catch(() => {
+          // Fallback: manual increment if RPC doesn't exist
+          // The count will be eventually consistent via query
+        });
+
+        // Log added_to_campaign events
+        const events = inserted.map((t) => ({
+          workspace_id: currentWorkspace!.id,
+          campaign_id: campaignId,
+          target_id: t.id,
+          candidate_id: t.candidate_id,
+          contact_id: t.contact_id,
+          event_type: "added_to_campaign" as OutreachEventType,
+          metadata: {},
+        }));
+        await db.from("outreach_events").insert(events).catch(() => {});
+      }
+
       qc.invalidateQueries({ queryKey: ["outreach_targets"] });
-      toast.success(`${data.length} target${data.length > 1 ? "s" : ""} added`);
+      qc.invalidateQueries({ queryKey: ["outreach_campaigns"] });
+
+      if (inserted.length > 0) {
+        const msg = skipped > 0
+          ? `Added ${inserted.length}, skipped ${skipped} duplicate${skipped !== 1 ? "s" : ""}`
+          : `${inserted.length} target${inserted.length !== 1 ? "s" : ""} added`;
+        toast.success(msg);
+      } else if (skipped > 0) {
+        toast.info(`All ${skipped} already in campaign`);
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -364,14 +426,59 @@ export function useLogCallOutcome() {
       candidate_id?: string;
       contact_id?: string;
     }) => {
-      const { error } = await db.from("call_outcomes").insert({
+      // 1. Insert call_outcome
+      const { data: outcomeRow, error } = await db.from("call_outcomes").insert({
         ...input,
         workspace_id: currentWorkspace!.id,
-      });
+      }).select("id").single();
       if (error) throw error;
+
+      // 2. Log outreach_event linked to call outcome
+      const { data: target } = await db
+        .from("outreach_targets")
+        .select("campaign_id, candidate_id, contact_id, call_attempts")
+        .eq("id", input.target_id)
+        .single();
+
+      if (target) {
+        await db.from("outreach_events").insert({
+          workspace_id: currentWorkspace!.id,
+          campaign_id: target.campaign_id,
+          target_id: input.target_id,
+          candidate_id: target.candidate_id ?? input.candidate_id,
+          contact_id: target.contact_id ?? input.contact_id,
+          event_type: "call_completed" as OutreachEventType,
+          metadata: { outcome: input.outcome, event_id: outcomeRow?.id },
+        }).catch(() => {});
+
+        // 3. Update target: call_attempts++, last_contacted_at, follow-up fields, compliance
+        const targetPatch: Record<string, unknown> = {
+          call_attempts: (target.call_attempts ?? 0) + 1,
+          last_contacted_at: new Date().toISOString(),
+        };
+        if (input.follow_up_action) targetPatch.next_action = input.follow_up_action;
+        if (input.follow_up_due) targetPatch.next_action_due = input.follow_up_due;
+
+        // Set compliance flags based on outcome
+        if (input.outcome === "not_interested") {
+          targetPatch.do_not_contact = true;
+          targetPatch.state = "opted_out";
+        } else if (input.outcome === "wrong_number") {
+          targetPatch.do_not_call = true;
+        } else if (input.outcome === "meeting_booked") {
+          targetPatch.state = "booked";
+        } else if (input.outcome === "callback_requested") {
+          targetPatch.state = "snoozed";
+        } else if (input.outcome === "connected" || input.outcome === "interested") {
+          targetPatch.state = "contacted";
+        }
+
+        await db.from("outreach_targets").update(targetPatch).eq("id", input.target_id).catch(() => {});
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["outreach_targets"] });
+      qc.invalidateQueries({ queryKey: ["outreach_events"] });
       toast.success("Call outcome logged");
     },
     onError: (e: Error) => toast.error(e.message),

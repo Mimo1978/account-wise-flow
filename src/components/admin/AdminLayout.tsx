@@ -42,7 +42,13 @@ const NAV_ITEMS: NavItem[] = [
   },
   { label: 'Data Quality', path: '/admin/data-quality', icon: Database, section: 'data-quality' },
   { label: 'Org Chart', path: '/admin/org-chart', icon: GitBranch, section: 'orgchart' },
-  { label: 'Outreach', path: '/admin/outreach/settings', icon: Megaphone, section: 'outreach' },
+  {
+    label: 'Outreach', path: '/admin/outreach/settings', icon: Megaphone, section: 'outreach',
+    children: [
+      { label: 'Settings', path: '/admin/outreach/settings', icon: Megaphone, section: 'outreach' },
+      { label: 'Scripts', path: '/admin/outreach/scripts', icon: Megaphone, section: 'outreach' },
+    ],
+  },
   { label: 'Signals', path: '/admin/signals', icon: Radio, section: 'signals' },
   { label: 'Schema', path: '/admin/schema', icon: Database, section: 'schema' },
   { label: 'Support', path: '/admin/support', icon: LifeBuoy, section: 'support' },

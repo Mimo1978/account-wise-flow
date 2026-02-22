@@ -4,12 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
   Mail, Phone, MessageSquare, Calendar, BellOff, XCircle, 
-  Bot, Clock, CheckCircle2, RotateCcw,
+  Bot, Clock, CheckCircle2, RotateCcw, ChevronDown, ChevronRight,
 } from "lucide-react";
 import {
   OutreachTarget,
+  OutreachEvent,
   OutreachEventType,
   OutreachTargetState,
   useUpdateTargetState,
@@ -195,17 +197,7 @@ export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
               ) : (
                 <div className="space-y-3">
                   {events.map((ev) => (
-                    <div key={ev.id} className="flex items-start gap-3">
-                      <div className="mt-0.5 w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
-                        <CheckCircle2 className="w-3 h-3 text-muted-foreground" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium">{EVENT_LABELS[ev.event_type] ?? ev.event_type}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(parseISO(ev.performed_at), "d MMM yyyy, HH:mm")}
-                        </p>
-                      </div>
-                    </div>
+                    <ActivityEventItem key={ev.id} event={ev} />
                   ))}
                 </div>
               )}
@@ -220,5 +212,61 @@ export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
         onOpenChange={setAiCallOpen}
       />
     </Sheet>
+  );
+}
+
+const EVENT_ICONS: Partial<Record<string, typeof Mail>> = {
+  email_sent: Mail,
+  sms_sent: MessageSquare,
+  call_made: Phone,
+  call_scheduled: Calendar,
+  call_completed: Phone,
+  booked: Calendar,
+  opted_out: XCircle,
+  snoozed: BellOff,
+};
+
+function ActivityEventItem({ event }: { event: OutreachEvent }) {
+  const [open, setOpen] = useState(false);
+  const hasEmailBody = event.event_type === "email_sent" && (event.subject || event.body);
+  const Icon = EVENT_ICONS[event.event_type] ?? CheckCircle2;
+
+  const content = (
+    <div className="flex items-start gap-3">
+      <div className="mt-0.5 w-6 h-6 rounded-full bg-muted flex items-center justify-center shrink-0">
+        <Icon className="w-3 h-3 text-muted-foreground" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1.5">
+          {hasEmailBody && (
+            open ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
+          )}
+          <p className="text-sm font-medium">{EVENT_LABELS[event.event_type] ?? event.event_type}</p>
+        </div>
+        {event.event_type === "email_sent" && event.subject && (
+          <p className="text-xs text-muted-foreground truncate mt-0.5">{event.subject}</p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          {format(parseISO(event.performed_at), "d MMM yyyy, HH:mm")}
+        </p>
+      </div>
+    </div>
+  );
+
+  if (!hasEmailBody) return content;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <button className="w-full text-left cursor-pointer hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors">
+          {content}
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="ml-9 mt-1.5 p-3 bg-muted/30 rounded-md text-xs text-muted-foreground whitespace-pre-wrap border border-border/50">
+          {event.body || "(no body)"}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

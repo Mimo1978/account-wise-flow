@@ -18,6 +18,8 @@ const DEFAULTS: OutreachRules = {
   calling_hours_end: '18:00',
   calling_timezone: 'UTC',
   max_call_attempts_default: 3,
+  default_target_priority: 5,
+  default_target_state: 'queued',
 };
 
 const RULE_META: { key: keyof OutreachRules; label: string; description: string }[] = [

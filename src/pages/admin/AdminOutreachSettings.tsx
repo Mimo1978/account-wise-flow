@@ -13,6 +13,11 @@ const DEFAULTS: OutreachRules = {
   manager_can_reopen: false,
   treat_wrong_number_as_opt_out: true,
   auto_snooze_on_max_attempts: true,
+  opt_out_required: true,
+  calling_hours_start: '09:00',
+  calling_hours_end: '18:00',
+  calling_timezone: 'UTC',
+  max_call_attempts_default: 3,
 };
 
 const RULE_META: { key: keyof OutreachRules; label: string; description: string }[] = [
@@ -85,7 +90,7 @@ export default function AdminOutreachSettings() {
                 <p className="text-xs text-muted-foreground">{description}</p>
               </div>
               <Switch
-                checked={rules[key]}
+                checked={!!rules[key]}
                 onCheckedChange={() => handleToggle(key)}
                 disabled={!isAdmin}
               />

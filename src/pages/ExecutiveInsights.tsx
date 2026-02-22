@@ -20,10 +20,13 @@ import {
   Rocket,
   Eye,
   TrendingUp,
+  TrendingDown,
   ShieldAlert,
   Target,
   BarChart3,
   Timer,
+  ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-react';
 import { useRevenueIntelligence, type CompanyRiskProfile, type RevenueIntelligenceData, type SalesMomentum } from '@/hooks/use-revenue-intelligence';
 
@@ -37,14 +40,21 @@ const ExecutiveInsights = () => {
   const { companies, atRiskCount, singleThreadedCount, dormantCount, avgRsi, rsiDistribution, pipeline, salesMomentum, riskSummary } = data;
 
   return (
-    <div className="min-h-screen bg-gradient-subtle">
-      <div className="container mx-auto px-6 py-8">
+    <div className="min-h-screen" style={{ background: 'var(--gradient-subtle)' }}>
+      <div className="container mx-auto px-6 py-10">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-1">Revenue Intelligence</h1>
-          <p className="text-muted-foreground">
-            Portfolio health, pipeline signals, and relationship strength — all from live data
-          </p>
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
+              <BarChart3 className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Revenue Intelligence</h1>
+              <p className="text-sm text-muted-foreground">
+                Portfolio health · Pipeline signals · Relationship strength
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -114,11 +124,8 @@ function RevenueRiskSnapshot({
 
   return (
     <section>
-      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <ShieldAlert className="w-5 h-5 text-destructive" />
-        Revenue Risk Snapshot
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <SectionHeader icon={ShieldAlert} iconColor="text-destructive" title="Revenue Risk Snapshot" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
         <RiskKpiCard
           label="High Risk"
           value={riskSummary.high_risk}
@@ -197,30 +204,37 @@ function RiskKpiCard({
   severity: 'danger' | 'warning' | 'safe';
   linkTo: string;
 }) {
-  const styles = {
-    danger: 'border-destructive/30 bg-destructive/5',
-    warning: 'border-amber-300/50 bg-amber-50/30',
-    safe: 'border-green-300/50 bg-green-50/30',
+  const gradients = {
+    danger: 'from-destructive/8 to-destructive/3 border-destructive/20',
+    warning: 'from-warning/8 to-warning/3 border-warning/20',
+    safe: 'from-success/8 to-success/3 border-success/20',
   };
   const iconBg = {
-    danger: 'bg-destructive/10 text-destructive',
-    warning: 'bg-amber-100 text-amber-600',
-    safe: 'bg-green-100 text-green-600',
+    danger: 'bg-destructive/15 text-destructive',
+    warning: 'bg-warning/15 text-warning',
+    safe: 'bg-success/15 text-success',
   };
+  const TrendIcon = value > 0
+    ? (severity === 'safe' ? ArrowUpRight : ArrowDownRight)
+    : null;
+  const trendColor = severity === 'safe' ? 'text-success' : severity === 'danger' ? 'text-destructive' : 'text-warning';
 
   return (
     <Link to={linkTo}>
-      <Card className={`${styles[severity]} hover:shadow-md transition-shadow cursor-pointer`}>
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between mb-3">
-            <div className={`p-2.5 rounded-lg ${iconBg[severity]}`}>
+      <Card className={`bg-gradient-to-br ${gradients[severity]} hover:shadow-lg transition-all duration-200 cursor-pointer group`} style={{ boxShadow: 'var(--shadow-sm)' }}>
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between mb-4">
+            <div className={`p-3 rounded-xl ${iconBg[severity]}`}>
               <Icon className="w-5 h-5" />
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            {TrendIcon && <TrendIcon className={`w-5 h-5 ${trendColor} opacity-60`} />}
           </div>
-          <div className="text-3xl font-bold mb-0.5">{value}</div>
-          <div className="text-sm font-medium">{label}</div>
-          <div className="text-xs text-muted-foreground mt-1">{subtitle}</div>
+          <div className="text-4xl font-bold tracking-tight mb-1">{value}</div>
+          <div className="text-sm font-semibold text-foreground/80">{label}</div>
+          <div className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+            {subtitle}
+            <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
         </CardContent>
       </Card>
     </Link>
@@ -252,19 +266,16 @@ function RelationshipStrengthIndex({
 
   return (
     <section>
-      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <TrendingUp className="w-5 h-5 text-primary" />
-        Relationship Strength Index
-      </h2>
+      <SectionHeader icon={TrendingUp} title="Relationship Strength Index" />
 
       <div className="grid md:grid-cols-3 gap-4 mb-4">
         {/* Average RSI */}
-        <Card>
-          <CardContent className="p-5">
-            <div className="text-sm text-muted-foreground mb-1">Average RSI</div>
-            <div className="text-3xl font-bold">{avgRsi}</div>
-            <Progress value={avgRsi} className="mt-2 h-2" />
-            <div className="text-xs text-muted-foreground mt-2">
+        <Card className="bg-gradient-to-br from-primary/5 to-transparent border-primary/15" style={{ boxShadow: 'var(--shadow-sm)' }}>
+          <CardContent className="p-6">
+            <div className="text-sm text-muted-foreground mb-2">Average RSI</div>
+            <div className="text-4xl font-bold tracking-tight">{avgRsi}<span className="text-lg text-muted-foreground font-normal">/100</span></div>
+            <Progress value={avgRsi} className="mt-3 h-2.5" />
+            <div className="text-xs text-muted-foreground mt-3 leading-relaxed">
               Base 100 · −20 no exec · −15 single dept · −10 no activity 45d · +10 &gt;3 contacts · +10 response &gt;25%
             </div>
           </CardContent>
@@ -275,8 +286,8 @@ function RelationshipStrengthIndex({
           <CardContent className="p-5">
             <div className="text-sm text-muted-foreground mb-3">Distribution (click to filter)</div>
             <div className="flex gap-3">
-              <DistributionBar label="High (70+)" count={distribution.high} pct={highPct} color="bg-green-500" active={bandFilter === 'high'} onClick={() => setBandFilter(f => f === 'high' ? 'all' : 'high')} />
-              <DistributionBar label="Medium (40–69)" count={distribution.medium} pct={medPct} color="bg-amber-400" active={bandFilter === 'medium'} onClick={() => setBandFilter(f => f === 'medium' ? 'all' : 'medium')} />
+              <DistributionBar label="High (70+)" count={distribution.high} pct={highPct} color="bg-success" active={bandFilter === 'high'} onClick={() => setBandFilter(f => f === 'high' ? 'all' : 'high')} />
+              <DistributionBar label="Medium (40–69)" count={distribution.medium} pct={medPct} color="bg-warning" active={bandFilter === 'medium'} onClick={() => setBandFilter(f => f === 'medium' ? 'all' : 'medium')} />
               <DistributionBar label="Low (<40)" count={distribution.low} pct={lowPct} color="bg-destructive" active={bandFilter === 'low'} onClick={() => setBandFilter(f => f === 'low' ? 'all' : 'low')} />
             </div>
           </CardContent>
@@ -365,10 +376,7 @@ function PipelineAcceleration({ pipeline }: { pipeline: ReturnType<typeof useRev
 
   return (
     <section>
-      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <Rocket className="w-5 h-5 text-primary" />
-        Pipeline Acceleration Signals
-      </h2>
+      <SectionHeader icon={Rocket} title="Pipeline Acceleration Signals" />
 
       {!hasSignals ? (
         <Card>
@@ -413,13 +421,19 @@ function PipelineAcceleration({ pipeline }: { pipeline: ReturnType<typeof useRev
 function PipelineStat({ icon: Icon, label, value, linkTo }: { icon: React.ElementType; label: string; value: number; linkTo: string }) {
   return (
     <Link to={linkTo}>
-      <Card className="hover:shadow-md transition-shadow cursor-pointer">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Icon className="w-4 h-4 text-primary" />
-            <span className="text-xs text-muted-foreground">{label}</span>
+      <Card className="hover:shadow-lg transition-all duration-200 cursor-pointer group" style={{ boxShadow: 'var(--shadow-sm)' }}>
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Icon className="w-4 h-4 text-primary" />
+            </div>
+            {value > 0 && <ArrowUpRight className="w-4 h-4 text-success opacity-60" />}
           </div>
-          <div className="text-2xl font-bold">{value}</div>
+          <div className="text-3xl font-bold tracking-tight">{value}</div>
+          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+            {label}
+            <ChevronRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
         </CardContent>
       </Card>
     </Link>
@@ -440,10 +454,7 @@ function SalesMomentumSection({ momentum }: { momentum: SalesMomentum }) {
 
   return (
     <section>
-      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <BarChart3 className="w-5 h-5 text-primary" />
-        Sales Momentum
-      </h2>
+      <SectionHeader icon={BarChart3} title="Sales Momentum" />
 
       {!hasData ? (
         <Card>
@@ -478,16 +489,18 @@ function SalesMomentumSection({ momentum }: { momentum: SalesMomentum }) {
               actual={interestRate}
               icon={Target}
             />
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Timer className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Avg Follow-Up Delay</span>
+            <Card style={{ boxShadow: 'var(--shadow-sm)' }}>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="p-2 rounded-lg bg-muted">
+                    <Timer className="w-4 h-4 text-muted-foreground" />
+                  </div>
                 </div>
-                <div className="text-2xl font-bold">
+                <div className="text-3xl font-bold tracking-tight">
                   {avgFollowUpDelayDays !== null ? `${avgFollowUpDelayDays}d` : '—'}
                 </div>
-                <div className="text-xs text-muted-foreground mt-1">called_at → follow_up_due</div>
+                <div className="text-xs text-muted-foreground mt-1">Avg Follow-Up Delay</div>
+                <div className="text-xs text-muted-foreground mt-0.5">called_at → follow_up_due</div>
               </CardContent>
             </Card>
           </div>
@@ -541,15 +554,22 @@ function MomentumKpi({
 }) {
   const meetsThreshold = actual >= threshold;
   return (
-    <Card className={meetsThreshold ? 'border-green-200/60' : ''}>
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Icon className="w-4 h-4 text-primary" />
-          <span className="text-xs text-muted-foreground">{label}</span>
+    <Card className={`transition-all duration-200 ${meetsThreshold ? 'border-success/30 bg-gradient-to-br from-success/5 to-transparent' : ''}`} style={{ boxShadow: 'var(--shadow-sm)' }}>
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <Icon className="w-4 h-4 text-primary" />
+          </div>
+          {meetsThreshold ? (
+            <ArrowUpRight className="w-4 h-4 text-success" />
+          ) : actual > 0 ? (
+            <ArrowDownRight className="w-4 h-4 text-muted-foreground opacity-40" />
+          ) : null}
         </div>
-        <div className="text-2xl font-bold">{value}</div>
-        <div className="text-xs text-muted-foreground mt-1">{detail}</div>
-        <div className={`text-xs mt-1 ${meetsThreshold ? 'text-green-600' : 'text-muted-foreground'}`}>
+        <div className="text-3xl font-bold tracking-tight">{value}</div>
+        <div className="text-xs text-muted-foreground mt-1">{label}</div>
+        <div className="text-xs text-muted-foreground mt-0.5">{detail}</div>
+        <div className={`text-xs mt-2 font-medium ${meetsThreshold ? 'text-success' : 'text-muted-foreground'}`}>
           Target: ≥{threshold}% {meetsThreshold ? '✓' : ''}
         </div>
       </CardContent>
@@ -597,10 +617,7 @@ function OrgPenetrationHeatmap({ companies }: { companies: CompanyRiskProfile[] 
   if (companies.length === 0) {
     return (
       <section>
-        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Network className="w-5 h-5 text-primary" />
-          Org Penetration Analytics
-        </h2>
+        <SectionHeader icon={Network} title="Org Penetration Analytics" />
         <Card>
           <CardContent className="py-10">
             <EmptyState icon={Building2} message="No companies in your workspace yet. Add a company and its contacts to see penetration analytics, department coverage, and risk scoring." action={{ label: 'Add company', to: '/companies' }} secondaryAction={{ label: 'Import contacts', to: '/contacts' }} />
@@ -631,11 +648,8 @@ function OrgPenetrationHeatmap({ companies }: { companies: CompanyRiskProfile[] 
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Network className="w-5 h-5 text-primary" />
-          Org Penetration Analytics
-        </h2>
+      <div className="flex items-center justify-between mb-5">
+        <SectionHeader icon={Network} title="Org Penetration Analytics" className="mb-0" />
         <Button
           variant={showWeakest ? 'default' : 'outline'}
           size="sm"
@@ -725,7 +739,7 @@ function ActionPanel({
   highMomentumCampaigns: number;
 }) {
   return (
-    <div className="lg:sticky lg:top-8 space-y-4">
+    <div className="lg:sticky lg:top-10 space-y-4">
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
@@ -812,6 +826,17 @@ function ActionLink({
 }
 
 // ── Shared components ──
+
+function SectionHeader({ icon: Icon, title, iconColor, className = '' }: { icon: React.ElementType; title: string; iconColor?: string; className?: string }) {
+  return (
+    <h2 className={`text-lg font-semibold mb-5 flex items-center gap-2.5 ${className}`}>
+      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+        <Icon className={`w-4 h-4 ${iconColor || 'text-primary'}`} />
+      </div>
+      <span className="tracking-tight">{title}</span>
+    </h2>
+  );
+}
 
 function EmptyState({
   icon: Icon,

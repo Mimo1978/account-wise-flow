@@ -155,6 +155,18 @@ export default function AdminOverview() {
         </h2>
         <CardGrid cards={SYSTEM_CARDS} role={role} />
       </section>
+
+      {/* Advanced link */}
+      {role === 'admin' && (
+        <div className="pt-2 border-t border-border">
+          <Link
+            to="/admin/advanced"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Advanced (Experimental) →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

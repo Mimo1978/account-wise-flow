@@ -15,6 +15,7 @@ import {
   Radio,
   LifeBuoy,
   Palette,
+  FlaskConical,
 } from 'lucide-react';
 import type { AdminSection } from './AdminRouteGuard';
 
@@ -48,6 +49,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Signals', path: '/admin/signals', icon: Radio, section: 'signals' },
   { label: 'Schema', path: '/admin/schema', icon: Database, section: 'schema' },
   { label: 'Support', path: '/admin/support', icon: LifeBuoy, section: 'support' },
+  { label: 'Advanced', path: '/admin/advanced', icon: FlaskConical, section: 'overview' },
 ];
 
 const ROLE_LABELS: Record<string, string> = {

@@ -24,7 +24,6 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2, ChevronRight } from "lucide-react";
-import { usePermissions } from "@/hooks/use-permissions";
 import {
   useOutreachCampaigns,
   useOutreachTargets,
@@ -42,6 +41,9 @@ import { ScriptBuilderModal } from "@/components/outreach/ScriptBuilderModal";
 import { CampaignDetailView } from "@/components/outreach/CampaignDetailView";
 import type { OutreachScript } from "@/lib/script-types";
 import { format, parseISO } from "date-fns";
+import { usePermissions } from "@/hooks/use-permissions";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 
 // ─── Campaign status badge ────────────────────────────────────────────────────
@@ -85,7 +87,9 @@ export default function OutreachPage() {
   });
   const { data: scripts = [], isLoading: scriptsLoading } = useOutreachScripts();
   const { mutate: deleteScript } = useDeleteScript();
-  const { canEdit, canInsert, canDelete } = usePermissions();
+  const { canEdit, canInsert, canDelete, role, teamId, userId } = usePermissions();
+  const { currentWorkspace } = useWorkspace();
+  const { user } = useAuth();
   const isReadOnly = !canEdit;
 
   const filteredTargets = targets.filter((t) => {
@@ -135,6 +139,19 @@ export default function OutreachPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* DEV-ONLY diagnostic banner */}
+      {import.meta.env.DEV && (
+        <div className="bg-yellow-100 dark:bg-yellow-900/30 border-b border-yellow-300 dark:border-yellow-700 px-6 py-2 text-xs font-mono text-yellow-900 dark:text-yellow-200 flex flex-wrap gap-x-6 gap-y-1">
+          <span>workspace: {currentWorkspace?.id ?? "none"}</span>
+          <span>user: {user?.id ?? userId ?? "none"}</span>
+          <span>role: {role ?? "loading"}</span>
+          <span>teamId: {teamId ?? "none"}</span>
+          <span>campaigns: {campaignsLoading ? "…" : campaigns.length}</span>
+          <span>targets: {targetsLoading ? "…" : targets.length}</span>
+          <span>scripts: {scriptsLoading ? "…" : scripts.length}</span>
+          <span>source: Supabase (real data)</span>
+        </div>
+      )}
       {/* Header */}
       <div className="border-b border-border/50 bg-background">
         <div className="container mx-auto px-6 py-5">

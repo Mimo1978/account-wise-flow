@@ -27,6 +27,7 @@ import CandidateProfile from "./pages/CandidateProfile";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
 import NotFound from "./pages/NotFound";
 import Outreach from "./pages/Outreach";
+import SchemaInventory from "./pages/SchemaInventory";
 
 const queryClient = new QueryClient();
 
@@ -198,6 +199,18 @@ const App = () => {
                 <ProtectedRoute>
                   <ProductLayout>
                     <WorkspaceSettings />
+                  </ProductLayout>
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Admin-only Schema Inventory */}
+            <Route
+              path="/admin/schema"
+              element={
+                <ProtectedRoute>
+                  <ProductLayout>
+                    <SchemaInventory />
                   </ProductLayout>
                 </ProtectedRoute>
               }

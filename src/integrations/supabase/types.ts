@@ -2681,6 +2681,7 @@ export type Database = {
         Args: { _team_id: string; _user_id: string }
         Returns: boolean
       }
+      execute_schema_inventory: { Args: never; Returns: Json }
       get_current_workspace_id: { Args: { _user_id: string }; Returns: string }
       get_entity_team_id: {
         Args: { _entity_id: string; _entity_type: string }

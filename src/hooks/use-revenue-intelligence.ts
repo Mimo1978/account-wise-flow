@@ -68,23 +68,30 @@ function isSenior(title: string | null): boolean {
   return SENIOR_TITLES.some(s => lower.includes(s));
 }
 
-// ── RSI Calculation ──
+// ── RSI Calculation (deterministic formula) ──
+// Base 100, penalties & bonuses, capped 0–100
 
-function computeRSI(contactCount: number, seniorCount: number, departmentCount: number, daysSinceActivity: number | null): number {
-  const contactScore = Math.min(contactCount / 5, 1) * 25;
-  const seniorScore = Math.min(seniorCount / 3, 1) * 25;
-  const deptScore = Math.min(departmentCount / 4, 1) * 25;
-  let recencyScore = 0;
-  if (daysSinceActivity === null) {
-    recencyScore = 0;
-  } else if (daysSinceActivity <= 7) {
-    recencyScore = 25;
-  } else if (daysSinceActivity <= 30) {
-    recencyScore = 20;
-  } else if (daysSinceActivity <= 60) {
-    recencyScore = 10;
-  }
-  return Math.round(contactScore + seniorScore + deptScore + recencyScore);
+function computeRSI(
+  contactCount: number,
+  seniorCount: number,
+  departmentCount: number,
+  daysSinceActivity: number | null,
+  outreachResponseRate: number | null, // 0-100
+): number {
+  let score = 100;
+
+  // -20 if no executive contact
+  if (seniorCount === 0) score -= 20;
+  // -15 if only 1 department
+  if (departmentCount <= 1) score -= 15;
+  // -10 if no activity in 45+ days
+  if (daysSinceActivity === null || daysSinceActivity >= 45) score -= 10;
+  // +10 if >3 contacts
+  if (contactCount > 3) score += 10;
+  // +10 if outreach response rate >25%
+  if (outreachResponseRate !== null && outreachResponseRate > 25) score += 10;
+
+  return Math.max(0, Math.min(100, score));
 }
 
 function rsiTier(score: number): 'high' | 'medium' | 'low' {
@@ -124,19 +131,32 @@ export function useRevenueIntelligence() {
     },
   });
 
-  // 3. Pipeline signals
+  // 3. Pipeline signals + per-company outreach response rates
   const pipelineQuery = useQuery({
     queryKey: ['revenue-intel-pipeline'],
     queryFn: async () => {
-      const [targetsRes, campaignsRes, outcomesRes] = await Promise.all([
+      const [targetsRes, campaignsRes, outcomesRes, allTargetsRes] = await Promise.all([
         supabase.from('outreach_targets').select('id, state').in('state', ['responded', 'booked']),
         supabase.from('outreach_campaigns').select('id, name, target_count, response_count, contacted_count'),
         supabase.from('call_outcomes').select('id, outcome').in('outcome', ['interested', 'meeting_booked']),
+        // All targets with contact_id for per-company response rate
+        supabase.from('outreach_targets').select('id, state, contact_id'),
       ]);
 
       const targets = targetsRes.data || [];
       const campaigns = campaignsRes.data || [];
       const outcomes = outcomesRes.data || [];
+      const allTargets = allTargetsRes.data || [];
+
+      // Build per-contact response map (contact_id -> responded?)
+      const contactResponseMap = new Map<string, { total: number; responded: number }>();
+      for (const t of allTargets) {
+        if (!t.contact_id) continue;
+        const entry = contactResponseMap.get(t.contact_id) || { total: 0, responded: 0 };
+        entry.total++;
+        if (t.state === 'responded' || t.state === 'booked') entry.responded++;
+        contactResponseMap.set(t.contact_id, entry);
+      }
 
       return {
         respondedTargets: targets.filter(t => t.state === 'responded').length,
@@ -148,7 +168,8 @@ export function useRevenueIntelligence() {
           .map(c => ({ id: c.id, name: c.name, responseRate: Math.round((c.response_count / c.contacted_count) * 100) }))
           .filter(c => c.responseRate >= 20)
           .sort((a, b) => b.responseRate - a.responseRate),
-      } satisfies PipelineSignals;
+        contactResponseMap,
+      };
     },
   });
 
@@ -158,6 +179,7 @@ export function useRevenueIntelligence() {
 
   const now = Date.now();
   const rawCompanies = companiesQuery.data || [];
+  const contactResponseMap = pipelineQuery.data?.contactResponseMap || new Map();
 
   const companies: CompanyRiskProfile[] = rawCompanies.map(company => {
     const contacts = Array.isArray(company.contacts) ? company.contacts : [];
@@ -171,7 +193,19 @@ export function useRevenueIntelligence() {
     const isDormant = daysSinceActivity !== null && daysSinceActivity > 60;
     const isSingleThreaded = seniorContacts.length <= 1 && contacts.length > 0;
 
-    const rsi = computeRSI(contacts.length, seniorContacts.length, departments.length, daysSinceActivity);
+    // Compute per-company outreach response rate from contact-level data
+    let companyTotal = 0;
+    let companyResponded = 0;
+    for (const c of contacts) {
+      const entry = contactResponseMap.get(c.id);
+      if (entry) {
+        companyTotal += entry.total;
+        companyResponded += entry.responded;
+      }
+    }
+    const outreachResponseRate = companyTotal > 0 ? Math.round((companyResponded / companyTotal) * 100) : null;
+
+    const rsi = computeRSI(contacts.length, seniorContacts.length, departments.length, daysSinceActivity, outreachResponseRate);
     const coveragePercent = Math.min(100, Math.round((contacts.length / EXPECTED_MIN_CONTACTS) * 100));
 
     const risk = riskMap.get(company.id);
@@ -214,6 +248,17 @@ export function useRevenueIntelligence() {
     high_risk: companies.filter(c => c.riskBand === 'high_risk').length,
   };
 
+  const pipelineData = pipelineQuery.data;
+  const pipelineSignals: PipelineSignals = pipelineData
+    ? {
+        respondedTargets: pipelineData.respondedTargets,
+        bookedTargets: pipelineData.bookedTargets,
+        interestedOutcomes: pipelineData.interestedOutcomes,
+        meetingBookedOutcomes: pipelineData.meetingBookedOutcomes,
+        highResponseCampaigns: pipelineData.highResponseCampaigns,
+      }
+    : { respondedTargets: 0, bookedTargets: 0, interestedOutcomes: 0, meetingBookedOutcomes: 0, highResponseCampaigns: [] };
+
   const data: RevenueIntelligenceData = {
     companies,
     atRiskCount,
@@ -221,11 +266,7 @@ export function useRevenueIntelligence() {
     dormantCount,
     avgRsi,
     rsiDistribution,
-    pipeline: pipelineQuery.data || {
-      respondedTargets: 0, bookedTargets: 0,
-      interestedOutcomes: 0, meetingBookedOutcomes: 0,
-      highResponseCampaigns: [],
-    },
+    pipeline: pipelineSignals,
     riskSummary,
   };
 

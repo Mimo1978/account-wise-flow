@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -234,10 +235,15 @@ function RelationshipStrengthIndex({
   distribution: { high: number; medium: number; low: number };
   companies: CompanyRiskProfile[];
 }) {
+  const [bandFilter, setBandFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const total = distribution.high + distribution.medium + distribution.low || 1;
   const highPct = Math.round((distribution.high / total) * 100);
   const medPct = Math.round((distribution.medium / total) * 100);
   const lowPct = Math.round((distribution.low / total) * 100);
+
+  const filtered = bandFilter === 'all'
+    ? companies.slice().sort((a, b) => a.rsiScore - b.rsiScore)
+    : companies.filter(c => c.rsiTier === bandFilter).sort((a, b) => a.rsiScore - b.rsiScore);
 
   return (
     <section>
@@ -253,57 +259,63 @@ function RelationshipStrengthIndex({
             <div className="text-sm text-muted-foreground mb-1">Average RSI</div>
             <div className="text-3xl font-bold">{avgRsi}</div>
             <Progress value={avgRsi} className="mt-2 h-2" />
+            <div className="text-xs text-muted-foreground mt-2">
+              Base 100 · −20 no exec · −15 single dept · −10 no activity 45d · +10 &gt;3 contacts · +10 response &gt;25%
+            </div>
           </CardContent>
         </Card>
 
-        {/* Distribution */}
+        {/* Distribution — clickable bars */}
         <Card className="md:col-span-2">
           <CardContent className="p-5">
-            <div className="text-sm text-muted-foreground mb-3">Distribution</div>
+            <div className="text-sm text-muted-foreground mb-3">Distribution (click to filter)</div>
             <div className="flex gap-3">
-              <DistributionBar label="High" count={distribution.high} pct={highPct} color="bg-green-500" />
-              <DistributionBar label="Medium" count={distribution.medium} pct={medPct} color="bg-amber-400" />
-              <DistributionBar label="Low" count={distribution.low} pct={lowPct} color="bg-destructive" />
+              <DistributionBar label="High (70+)" count={distribution.high} pct={highPct} color="bg-green-500" active={bandFilter === 'high'} onClick={() => setBandFilter(f => f === 'high' ? 'all' : 'high')} />
+              <DistributionBar label="Medium (40–69)" count={distribution.medium} pct={medPct} color="bg-amber-400" active={bandFilter === 'medium'} onClick={() => setBandFilter(f => f === 'medium' ? 'all' : 'medium')} />
+              <DistributionBar label="Low (<40)" count={distribution.low} pct={lowPct} color="bg-destructive" active={bandFilter === 'low'} onClick={() => setBandFilter(f => f === 'low' ? 'all' : 'low')} />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Per-account RSI list (top 8) */}
+      {/* Per-account RSI list */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Account RSI Scores</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Account RSI Scores</CardTitle>
+            {bandFilter !== 'all' && (
+              <Badge variant="secondary" className="text-xs cursor-pointer" onClick={() => setBandFilter('all')}>
+                Showing: {bandFilter} · Clear
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          {companies.length === 0 ? (
-            <EmptyState icon={Users} message="No accounts to analyze" action={{ label: 'Add a company', to: '/companies' }} />
+          {filtered.length === 0 ? (
+            <EmptyState icon={Users} message={bandFilter !== 'all' ? `No ${bandFilter} RSI accounts` : 'No accounts to analyze'} action={{ label: 'Add a company', to: '/companies' }} />
           ) : (
             <div className="space-y-2">
-              {companies
-                .slice()
-                .sort((a, b) => a.rsiScore - b.rsiScore) // worst first
-                .slice(0, 8)
-                .map(c => (
-                  <Link
-                    key={c.id}
-                    to={`/canvas?company=${c.id}`}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-muted/30 transition-all"
-                  >
-                    <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
-                      <Building2 className="w-4 h-4 text-primary" />
+              {filtered.slice(0, 12).map(c => (
+                <Link
+                  key={c.id}
+                  to={`/canvas?company=${c.id}`}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-muted/30 transition-all"
+                >
+                  <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
+                    <Building2 className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{c.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {c.totalContacts} contacts · {c.seniorContacts} senior · {c.departments.length} depts
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm truncate">{c.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {c.totalContacts} contacts · {c.seniorContacts} senior · {c.departments.length} depts
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <RsiBadge score={c.rsiScore} tier={c.rsiTier} />
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                  </Link>
-                ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RsiBadge score={c.rsiScore} tier={c.rsiTier} />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
         </CardContent>
@@ -312,9 +324,9 @@ function RelationshipStrengthIndex({
   );
 }
 
-function DistributionBar({ label, count, pct, color }: { label: string; count: number; pct: number; color: string }) {
+function DistributionBar({ label, count, pct, color, active, onClick }: { label: string; count: number; pct: number; color: string; active?: boolean; onClick?: () => void }) {
   return (
-    <div className="flex-1">
+    <div className={`flex-1 cursor-pointer rounded-lg p-2 transition-all ${active ? 'ring-2 ring-primary bg-muted/50' : 'hover:bg-muted/30'}`} onClick={onClick}>
       <div className="flex items-center justify-between text-xs mb-1">
         <span className="text-muted-foreground">{label}</span>
         <span className="font-medium">{count}</span>

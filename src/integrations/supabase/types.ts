@@ -2687,6 +2687,10 @@ export type Database = {
         Args: { _entity_id: string; _entity_type: string }
         Returns: string
       }
+      get_org_parent: {
+        Args: { p_company_id: string; p_contact_id: string }
+        Returns: string
+      }
       get_pending_requests_count: {
         Args: { _user_id: string }
         Returns: number

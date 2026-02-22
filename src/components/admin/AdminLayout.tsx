@@ -17,6 +17,7 @@ import {
   LifeBuoy,
   Palette,
   FlaskConical,
+  Plug,
 } from 'lucide-react';
 import type { AdminSection } from './AdminRouteGuard';
 
@@ -49,6 +50,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Outreach', path: '/admin/outreach', icon: Megaphone, section: 'outreach' },
   { label: 'Signals', path: '/admin/signals', icon: Radio, section: 'signals' },
   { label: 'Schema', path: '/admin/schema', icon: Database, section: 'schema' },
+  { label: 'Integrations', path: '/admin/integrations', icon: Plug, section: 'integrations' },
   { label: 'Support', path: '/admin/support', icon: LifeBuoy, section: 'support' },
   { label: 'Advanced', path: '/admin/advanced', icon: FlaskConical, section: 'overview' },
 ];
@@ -70,6 +72,7 @@ const SECTION_ACCESS_ROLES: Record<AdminSection, AppRole[]> = {
   signals: ['admin', 'manager', 'contributor'],
   governance: ['admin', 'manager'],
   workspace: ['admin', 'manager'],
+  integrations: ['admin', 'manager'],
   access: ['admin'],
 };
 
@@ -98,6 +101,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   '/admin/schema': 'Schema Inventory',
   '/admin/support': 'Support & Diagnostics',
   '/admin/workspace/branding': 'Branding',
+  '/admin/integrations': 'Integrations',
   '/admin/advanced': 'Advanced',
 };
 

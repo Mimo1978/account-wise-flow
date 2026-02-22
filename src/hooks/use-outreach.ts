@@ -2,6 +2,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { toast } from "sonner";
+import {
+  resolveState,
+  isContactEvent,
+  isResponseEvent,
+  isCallEvent,
+  callOutcomeToState,
+  isOutreachBlocked,
+  isCallBlocked,
+  type ComplianceFlags,
+} from "@/lib/outreach-enums";
 
 // Helper: cast supabase to any for new tables not yet in generated types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -337,14 +347,34 @@ export function useUpdateTargetState() {
     }) => {
       const { data: target } = await db
         .from("outreach_targets")
-        .select("campaign_id, candidate_id, contact_id")
+        .select("campaign_id, candidate_id, contact_id, state, do_not_contact, do_not_call, last_contacted_at")
         .eq("id", targetId)
         .single();
 
-      const patch: Record<string, unknown> = {
-        state,
-        last_contacted_at: new Date().toISOString(),
+      if (!target) throw new Error("Target not found");
+
+      // ── Compliance gating ──
+      const flags: ComplianceFlags = {
+        state: target.state as OutreachTargetState,
+        do_not_contact: !!target.do_not_contact,
+        do_not_call: !!target.do_not_call,
       };
+      if (isCallEvent(eventType) && isCallBlocked(flags)) {
+        throw new Error("Calls blocked: target is do_not_call or opted out");
+      }
+      if (isContactEvent(eventType) && isOutreachBlocked(flags)) {
+        throw new Error("Outreach blocked: target opted out or do_not_contact");
+      }
+
+      // ── State precedence: never downgrade ──
+      const resolvedState = resolveState(target.state as OutreachTargetState, state);
+
+      const patch: Record<string, unknown> = { state: resolvedState };
+
+      // Only set last_contacted_at on contact events
+      if (isContactEvent(eventType)) {
+        patch.last_contacted_at = new Date().toISOString();
+      }
       if (snoozeUntil) patch.snooze_until = snoozeUntil;
       if (optOutReason) patch.opt_out_reason = optOutReason;
 
@@ -354,20 +384,53 @@ export function useUpdateTargetState() {
         .eq("id", targetId);
       if (updateError) throw updateError;
 
+      // ── Insert event ──
       const { error: eventError } = await db.from("outreach_events").insert({
         workspace_id: currentWorkspace!.id,
-        campaign_id: target?.campaign_id,
+        campaign_id: target.campaign_id,
         target_id: targetId,
-        candidate_id: target?.candidate_id,
-        contact_id: target?.contact_id,
+        candidate_id: target.candidate_id,
+        contact_id: target.contact_id,
         event_type: eventType,
         metadata,
       });
       if (eventError) throw eventError;
+
+      // ── Deterministic counter updates ──
+      const campaignId = target.campaign_id;
+      if (campaignId) {
+        // First contact → increment contacted_count
+        if (isContactEvent(eventType) && !target.last_contacted_at) {
+          await db.rpc("increment_campaign_target_count", {
+            p_campaign_id: campaignId,
+            p_count: 0, // reuse RPC shape but we need a contacted_count one
+          }).catch(() => {});
+          // Direct increment for contacted_count
+          await db
+            .from("outreach_campaigns")
+            .update({ contacted_count: db.raw?.("contacted_count + 1") })
+            .eq("id", campaignId)
+            .catch(() => {
+              // Fallback: fetch and set
+              db.from("outreach_campaigns").select("contacted_count").eq("id", campaignId).single()
+                .then(({ data: c }: { data: { contacted_count: number } | null }) => {
+                  if (c) db.from("outreach_campaigns").update({ contacted_count: (c.contacted_count ?? 0) + 1 }).eq("id", campaignId);
+                });
+            });
+        }
+        // First response → increment response_count
+        if (isResponseEvent(eventType) && target.state !== "responded" && target.state !== "booked" && target.state !== "converted") {
+          db.from("outreach_campaigns").select("response_count").eq("id", campaignId).single()
+            .then(({ data: c }: { data: { response_count: number } | null }) => {
+              if (c) db.from("outreach_campaigns").update({ response_count: (c.response_count ?? 0) + 1 }).eq("id", campaignId);
+            }).catch(() => {});
+        }
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["outreach_targets"] });
       qc.invalidateQueries({ queryKey: ["outreach_events"] });
+      qc.invalidateQueries({ queryKey: ["outreach_campaigns"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -441,6 +504,16 @@ export function useLogCallOutcome() {
         .single();
 
       if (target) {
+        // Compliance gating for calls
+        const flags: ComplianceFlags = {
+          state: target.state as OutreachTargetState,
+          do_not_contact: !!target.do_not_contact,
+          do_not_call: !!target.do_not_call,
+        };
+        if (isCallBlocked(flags)) {
+          throw new Error("Calls blocked: target is do_not_call or opted out");
+        }
+
         await db.from("outreach_events").insert({
           workspace_id: currentWorkspace!.id,
           campaign_id: target.campaign_id,
@@ -452,6 +525,7 @@ export function useLogCallOutcome() {
         }).catch(() => {});
 
         // 3. Update target: call_attempts++, last_contacted_at, follow-up fields, compliance
+        const currentState = target.state as OutreachTargetState;
         const targetPatch: Record<string, unknown> = {
           call_attempts: (target.call_attempts ?? 0) + 1,
           last_contacted_at: new Date().toISOString(),
@@ -459,21 +533,33 @@ export function useLogCallOutcome() {
         if (input.follow_up_action) targetPatch.next_action = input.follow_up_action;
         if (input.follow_up_due) targetPatch.next_action_due = input.follow_up_due;
 
-        // Set compliance flags based on outcome
+        // Deterministic state from outcome with precedence
+        const proposedState = callOutcomeToState(input.outcome);
+        if (proposedState) {
+          targetPatch.state = resolveState(currentState, proposedState);
+        }
+
+        // Compliance flags
         if (input.outcome === "not_interested") {
           targetPatch.do_not_contact = true;
-          targetPatch.state = "opted_out";
         } else if (input.outcome === "wrong_number") {
           targetPatch.do_not_call = true;
-        } else if (input.outcome === "meeting_booked") {
-          targetPatch.state = "booked";
-        } else if (input.outcome === "callback_requested") {
-          targetPatch.state = "snoozed";
-        } else if (input.outcome === "connected" || input.outcome === "interested") {
-          targetPatch.state = "contacted";
+        }
+
+        // Snooze on callback_requested
+        if (input.outcome === "callback_requested" && input.follow_up_due) {
+          targetPatch.snooze_until = input.follow_up_due;
         }
 
         await db.from("outreach_targets").update(targetPatch).eq("id", input.target_id).catch(() => {});
+
+        // Counter: first contact → increment contacted_count
+        if (!target.last_contacted_at && target.campaign_id) {
+          db.from("outreach_campaigns").select("contacted_count").eq("id", target.campaign_id).single()
+            .then(({ data: c }: { data: { contacted_count: number } | null }) => {
+              if (c) db.from("outreach_campaigns").update({ contacted_count: (c.contacted_count ?? 0) + 1 }).eq("id", target.campaign_id);
+            }).catch(() => {});
+        }
       }
     },
     onSuccess: () => {

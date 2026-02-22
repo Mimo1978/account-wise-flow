@@ -121,6 +121,7 @@ export default function ContactsDatabase() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const companyFilterId = searchParams.get("company") || null;
+  const returnToCampaignId = searchParams.get("campaignId") ?? undefined;
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
@@ -1088,6 +1089,7 @@ export default function ContactsDatabase() {
           if (!v) setSelectedIds(new Set());
         }}
         contacts={filteredContacts.filter((c) => selectedIds.has(c.id))}
+        defaultCampaignId={returnToCampaignId}
       />
     </div>
   );

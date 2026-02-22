@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
 import { useBooleanSearch, BooleanSearchResult } from "@/hooks/use-boolean-search";
@@ -152,6 +152,8 @@ const initialColumns: ColumnConfig[] = [
 
 export default function TalentDatabase() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnToCampaignId = searchParams.get("campaignId") ?? undefined;
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
   const [roleTypeFilter, setRoleTypeFilter] = useState<string>("all");
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
@@ -1255,6 +1257,7 @@ export default function TalentDatabase() {
           if (!v) setSelectedIds(new Set());
         }}
         candidates={filteredTalents.filter((t) => selectedIds.has(t.id))}
+        defaultCampaignId={returnToCampaignId}
       />
     </div>
   );

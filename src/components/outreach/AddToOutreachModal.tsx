@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Dialog,
@@ -73,16 +73,23 @@ const CHANNEL_OPTIONS: { value: OutreachChannel; label: string }[] = [
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 type Props =
-  | { open: boolean; onOpenChange: (v: boolean) => void; candidates: Talent[]; contacts?: never }
-  | { open: boolean; onOpenChange: (v: boolean) => void; contacts: (Contact & { _companyName?: string })[]; candidates?: never };
+  | { open: boolean; onOpenChange: (v: boolean) => void; candidates: Talent[]; contacts?: never; defaultCampaignId?: string }
+  | { open: boolean; onOpenChange: (v: boolean) => void; contacts: (Contact & { _companyName?: string })[]; candidates?: never; defaultCampaignId?: string };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function AddToOutreachModal({ open, onOpenChange, candidates, contacts }: Props) {
+export function AddToOutreachModal({ open, onOpenChange, candidates, contacts, defaultCampaignId }: Props) {
   const navigate = useNavigate();
-  const [campaignId, setCampaignId] = useState<string>("");
+  const [campaignId, setCampaignId] = useState<string>(defaultCampaignId ?? "");
   const [channel, setChannel] = useState<OutreachChannel | "">("");
   const [priority, setPriority] = useState<number>(5);
+
+  // Sync defaultCampaignId when it changes
+  useEffect(() => {
+    if (defaultCampaignId && !campaignId) {
+      setCampaignId(defaultCampaignId);
+    }
+  }, [defaultCampaignId]);
 
   const { data: campaigns = [], isLoading: loadingCampaigns } = useOutreachCampaigns();
   const { mutateAsync: addTargets, isPending } = useAddTargets();
@@ -139,7 +146,7 @@ export function AddToOutreachModal({ open, onOpenChange, candidates, contacts }:
       return;
     }
 
-    await addTargets(
+    const result = await addTargets(
       newEntities.map((e) => ({
         campaign_id: campaignId,
         candidate_id: e.kind === "candidate" ? e.id : undefined,
@@ -153,17 +160,20 @@ export function AddToOutreachModal({ open, onOpenChange, candidates, contacts }:
       }))
     );
 
-    const campaign = campaigns.find((c) => c.id === campaignId);
-    toast.success(
-      `${newEntities.length} ${newEntities[0]?.kind === "contact" ? "contact" : "candidate"}${newEntities.length !== 1 ? "s" : ""} added to "${campaign?.name}"`,
-      {
-        action: {
-          label: "Open Campaign",
-          onClick: () => navigate(`/outreach?campaign=${campaignId}`),
-        },
-        duration: 6000,
-      }
-    );
+    // Show campaign link toast (the mutation already shows the count toast)
+    if (result.inserted.length > 0) {
+      const campaign = campaigns.find((c) => c.id === campaignId);
+      toast.success(
+        `Added to "${campaign?.name}"`,
+        {
+          action: {
+            label: "Open Campaign",
+            onClick: () => navigate(`/outreach?campaign=${campaignId}`),
+          },
+          duration: 6000,
+        }
+      );
+    }
 
     handleClose();
   };

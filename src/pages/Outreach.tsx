@@ -24,6 +24,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2, ChevronRight } from "lucide-react";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   useOutreachCampaigns,
   useOutreachTargets,
@@ -84,6 +85,8 @@ export default function OutreachPage() {
   });
   const { data: scripts = [], isLoading: scriptsLoading } = useOutreachScripts();
   const { mutate: deleteScript } = useDeleteScript();
+  const { canEdit, canInsert, canDelete } = usePermissions();
+  const isReadOnly = !canEdit;
 
   const filteredTargets = targets.filter((t) => {
     if (!searchText.trim()) return true;
@@ -151,7 +154,8 @@ export default function OutreachPage() {
                 size="sm"
                 className="gap-2"
                 onClick={() => setAddTargetsOpen(true)}
-                disabled={campaigns.length === 0}
+                disabled={campaigns.length === 0 || isReadOnly}
+                title={isReadOnly ? "Viewers have read-only access" : undefined}
               >
                 <Users className="w-4 h-4" />
                 Add Targets
@@ -161,6 +165,8 @@ export default function OutreachPage() {
                 size="sm"
                 className="gap-2"
                 onClick={() => openScriptBuilder()}
+                disabled={isReadOnly}
+                title={isReadOnly ? "Viewers have read-only access" : undefined}
               >
                 <FileText className="w-4 h-4" />
                 New Script
@@ -169,6 +175,8 @@ export default function OutreachPage() {
                 size="sm"
                 className="gap-2"
                 onClick={() => setCreateCampaignOpen(true)}
+                disabled={isReadOnly}
+                title={isReadOnly ? "Viewers have read-only access" : undefined}
               >
                 <Plus className="w-4 h-4" />
                 New Campaign

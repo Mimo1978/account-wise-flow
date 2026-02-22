@@ -2728,6 +2728,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_campaign_target_count: {
+        Args: { p_campaign_id: string; p_count: number }
+        Returns: undefined
+      }
       is_demo_team: { Args: { _team_id: string }; Returns: boolean }
       is_demo_user: { Args: { _user_id: string }; Returns: boolean }
       is_public_demo_workspace: {

@@ -7,7 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import {
   LayoutDashboard,
   Shield,
-  Users,
   FileCheck,
   History,
   Database,
@@ -15,7 +14,6 @@ import {
   Megaphone,
   Radio,
   LifeBuoy,
-  ChevronRight,
 } from 'lucide-react';
 import type { AdminSection } from './AdminRouteGuard';
 
@@ -28,9 +26,9 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Overview', path: '/admin', icon: LayoutDashboard, section: 'overview' },
+  { label: 'Overview', path: '/admin/overview', icon: LayoutDashboard, section: 'overview' },
   {
-    label: 'Workspace & Access', path: '/admin/access', icon: Users, section: 'access',
+    label: 'Workspace & Access', path: '/admin/access', icon: Shield, section: 'access',
     children: [
       { label: 'Access (Roles)', path: '/admin/access', icon: Shield, section: 'access' },
     ],
@@ -43,14 +41,14 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   { label: 'Data Quality', path: '/admin/data-quality', icon: Database, section: 'data-quality' },
-  { label: 'Org Chart', path: '/admin/orgchart', icon: GitBranch, section: 'orgchart' },
-  { label: 'Outreach', path: '/admin/outreach', icon: Megaphone, section: 'outreach' },
+  { label: 'Org Chart', path: '/admin/org-chart', icon: GitBranch, section: 'orgchart' },
+  { label: 'Outreach', path: '/admin/outreach/settings', icon: Megaphone, section: 'outreach' },
   { label: 'Signals', path: '/admin/signals', icon: Radio, section: 'signals' },
   { label: 'Schema', path: '/admin/schema', icon: Database, section: 'schema' },
   { label: 'Support', path: '/admin/support', icon: LifeBuoy, section: 'support' },
 ];
 
-const ROLE_LABELS: Record<AppRole & string, string> = {
+const ROLE_LABELS: Record<string, string> = {
   admin: 'Admin',
   manager: 'Manager',
   contributor: 'Contributor',
@@ -64,9 +62,9 @@ const SECTION_ACCESS_ROLES: Record<AdminSection, AppRole[]> = {
   'data-quality': ['admin', 'manager', 'contributor'],
   outreach: ['admin', 'manager', 'contributor'],
   orgchart: ['admin', 'manager', 'contributor'],
-  signals: ['admin', 'manager'],
+  signals: ['admin', 'manager', 'contributor'],
   governance: ['admin', 'manager'],
-  access: ['admin', 'manager'],
+  access: ['admin'],
 };
 
 function canAccess(role: AppRole, section: AdminSection): boolean {
@@ -84,8 +82,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation();
 
   const isActive = (path: string) => {
-    if (path === '/admin') return location.pathname === '/admin';
-    return location.pathname.startsWith(path);
+    // Exact match for overview
+    if (path === '/admin/overview') return location.pathname === '/admin/overview' || location.pathname === '/admin';
+    return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   return (
@@ -109,7 +108,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             if (!canAccess(role, item.section)) return null;
 
             if (item.children) {
-              const isGroupActive = item.children.some((c) => isActive(c.path));
               return (
                 <div key={item.label} className="space-y-0.5">
                   <div className="px-2 pt-3 pb-1">

@@ -39,8 +39,20 @@ import AdminPlaceholder from "./pages/admin/AdminPlaceholder";
 
 const queryClient = new QueryClient();
 
+/** Shared wrapper for all admin routes */
+function AdminPage({ section, children }: { section: React.ComponentProps<typeof AdminRouteGuard>['section']; children: React.ReactNode }) {
+  return (
+    <ProtectedRoute>
+      <ProductLayout>
+        <AdminLayout>
+          <AdminRouteGuard section={section}>{children}</AdminRouteGuard>
+        </AdminLayout>
+      </ProductLayout>
+    </ProtectedRoute>
+  );
+}
+
 const App = () => {
-  // Global safety net for unhandled async errors (prevents white-screen crashes)
   useEffect(() => {
     const handleRejection = (event: PromiseRejectionEvent) => {
       console.error("Unhandled rejection caught:", event.reason);
@@ -60,9 +72,7 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* ========================================
-                PUBLIC ROUTES - NO AUTH REQUIRED
-                ======================================== */}
+            {/* PUBLIC ROUTES */}
             <Route path="/" element={<Index />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/auth" element={<Auth />} />
@@ -74,9 +84,7 @@ const App = () => {
             <Route path="/auth/sign-up" element={<Navigate to="/auth?tab=signup" replace />} />
             <Route path="/demo" element={<Demo />} />
 
-            {/* ========================================
-                PROTECTED ROUTES - AUTH REQUIRED
-                ======================================== */}
+            {/* PROTECTED ROUTES */}
             <Route path="/workspace" element={<ProtectedRoute><WorkspaceSelector /></ProtectedRoute>} />
             <Route path="/demo-workspace" element={<ProtectedRoute><ProductLayout><DemoWorkspace /></ProductLayout></ProtectedRoute>} />
             <Route path="/canvas" element={<ProtectedRoute><ProductLayout><Canvas /></ProductLayout></ProtectedRoute>} />
@@ -90,21 +98,20 @@ const App = () => {
             <Route path="/imports/:batchId/review" element={<ProtectedRoute><ProductLayout><ImportReview /></ProductLayout></ProtectedRoute>} />
             <Route path="/workspace-settings" element={<ProtectedRoute><ProductLayout><WorkspaceSettings /></ProductLayout></ProtectedRoute>} />
 
-            {/* ========================================
-                ADMIN CONSOLE ROUTES
-                ======================================== */}
-            <Route path="/admin" element={<ProtectedRoute><ProductLayout><AdminLayout><AdminRouteGuard section="overview"><AdminOverview /></AdminRouteGuard></AdminLayout></ProductLayout></ProtectedRoute>} />
-            <Route path="/admin/access" element={<ProtectedRoute><ProductLayout><AdminLayout><AdminRouteGuard section="access"><AdminAccess /></AdminRouteGuard></AdminLayout></ProductLayout></ProtectedRoute>} />
-            <Route path="/admin/governance/requests" element={<ProtectedRoute><ProductLayout><AdminLayout><AdminRouteGuard section="governance"><AdminGovernanceRequests /></AdminRouteGuard></AdminLayout></ProductLayout></ProtectedRoute>} />
-            <Route path="/admin/governance/audit" element={<ProtectedRoute><ProductLayout><AdminLayout><AdminRouteGuard section="governance"><AdminGovernanceAudit /></AdminRouteGuard></AdminLayout></ProductLayout></ProtectedRoute>} />
-            <Route path="/admin/signals" element={<ProtectedRoute><ProductLayout><AdminLayout><AdminRouteGuard section="signals"><AdminSignals /></AdminRouteGuard></AdminLayout></ProductLayout></ProtectedRoute>} />
-            <Route path="/admin/schema" element={<ProtectedRoute><ProductLayout><AdminLayout><AdminRouteGuard section="schema"><SchemaInventory /></AdminRouteGuard></AdminLayout></ProductLayout></ProtectedRoute>} />
-            <Route path="/admin/data-quality" element={<ProtectedRoute><ProductLayout><AdminLayout><AdminRouteGuard section="data-quality"><AdminPlaceholder title="Data Quality" description="Data quality checks and deduplication tools." /></AdminRouteGuard></AdminLayout></ProductLayout></ProtectedRoute>} />
-            <Route path="/admin/orgchart" element={<ProtectedRoute><ProductLayout><AdminLayout><AdminRouteGuard section="orgchart"><AdminPlaceholder title="Org Chart" description="Organization chart management." /></AdminRouteGuard></AdminLayout></ProductLayout></ProtectedRoute>} />
-            <Route path="/admin/outreach" element={<ProtectedRoute><ProductLayout><AdminLayout><AdminRouteGuard section="outreach"><AdminPlaceholder title="Outreach Settings" description="Campaign and outreach configuration." /></AdminRouteGuard></AdminLayout></ProductLayout></ProtectedRoute>} />
-            <Route path="/admin/support" element={<ProtectedRoute><ProductLayout><AdminLayout><AdminRouteGuard section="support"><AdminPlaceholder title="Support" description="Help and support resources." /></AdminRouteGuard></AdminLayout></ProductLayout></ProtectedRoute>} />
+            {/* ADMIN CONSOLE ROUTES */}
+            <Route path="/admin" element={<AdminPage section="overview"><AdminOverview /></AdminPage>} />
+            <Route path="/admin/overview" element={<AdminPage section="overview"><AdminOverview /></AdminPage>} />
+            <Route path="/admin/access" element={<AdminPage section="access"><AdminAccess /></AdminPage>} />
+            <Route path="/admin/governance/requests" element={<AdminPage section="governance"><AdminGovernanceRequests /></AdminPage>} />
+            <Route path="/admin/governance/audit" element={<AdminPage section="governance"><AdminGovernanceAudit /></AdminPage>} />
+            <Route path="/admin/signals" element={<AdminPage section="signals"><AdminSignals /></AdminPage>} />
+            <Route path="/admin/schema" element={<AdminPage section="schema"><SchemaInventory /></AdminPage>} />
+            <Route path="/admin/data-quality" element={<AdminPage section="data-quality"><AdminPlaceholder title="Data Quality" description="Data quality checks and deduplication tools." /></AdminPage>} />
+            <Route path="/admin/org-chart" element={<AdminPage section="orgchart"><AdminPlaceholder title="Org Chart" description="Organization chart management." /></AdminPage>} />
+            <Route path="/admin/outreach/settings" element={<AdminPage section="outreach"><AdminPlaceholder title="Outreach Settings" description="Campaign and outreach configuration." /></AdminPage>} />
+            <Route path="/admin/support" element={<AdminPage section="support"><AdminPlaceholder title="Support" description="Help and support resources." /></AdminPage>} />
 
-            {/* Catch-all for 404 */}
+            {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

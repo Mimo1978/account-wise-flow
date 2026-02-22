@@ -1,6 +1,7 @@
-import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { ReactNode, useEffect } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { usePermissions, AppRole } from '@/hooks/use-permissions';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Loader2 } from 'lucide-react';
 
 type AdminSection =
@@ -21,9 +22,9 @@ const SECTION_ACCESS: Record<AdminSection, AppRole[]> = {
   'data-quality': ['admin', 'manager', 'contributor'],
   outreach: ['admin', 'manager', 'contributor'],
   orgchart: ['admin', 'manager', 'contributor'],
-  signals: ['admin', 'manager'],
+  signals: ['admin', 'manager', 'contributor'],
   governance: ['admin', 'manager'],
-  access: ['admin', 'manager'],
+  access: ['admin'],
 };
 
 interface AdminRouteGuardProps {
@@ -32,7 +33,22 @@ interface AdminRouteGuardProps {
 }
 
 export function AdminRouteGuard({ section, children }: AdminRouteGuardProps) {
-  const { role, isLoading } = usePermissions();
+  const { role, isLoading, userId } = usePermissions();
+  const { currentWorkspace } = useWorkspace();
+  const location = useLocation();
+
+  // Dev console logs
+  useEffect(() => {
+    if (!isLoading) {
+      console.log('[Admin] page load success', {
+        path: location.pathname,
+        section,
+        role,
+        userId,
+        workspaceId: currentWorkspace?.id ?? null,
+      });
+    }
+  }, [isLoading, location.pathname, section, role, userId, currentWorkspace?.id]);
 
   if (isLoading) {
     return (
@@ -48,6 +64,7 @@ export function AdminRouteGuard({ section, children }: AdminRouteGuardProps) {
 
   const allowedRoles = SECTION_ACCESS[section] ?? ['admin'];
   if (!allowedRoles.includes(role)) {
+    console.warn('[Admin] access denied', { section, role, userId });
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center space-y-2">

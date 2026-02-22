@@ -26,7 +26,7 @@ const SECTION_ACCESS: Record<AdminSection, AppRole[]> = {
   signals: ['admin', 'manager', 'contributor'],
   governance: ['admin', 'manager'],
   workspace: ['admin', 'manager'],
-  access: ['admin'],
+  access: ['admin', 'manager'],
 };
 
 interface AdminRouteGuardProps {

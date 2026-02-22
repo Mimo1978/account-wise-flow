@@ -271,7 +271,7 @@ export const AddContactModal = ({
           <Button variant="outline" onClick={handleClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>Add to Org Chart</Button>
+          <Button onClick={handleSubmit}>Add Contact</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

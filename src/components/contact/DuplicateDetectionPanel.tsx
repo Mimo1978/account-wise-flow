@@ -351,11 +351,26 @@ export function DuplicateDetectionPanel({
 
     setIsProcessing(true);
     try {
+      // Cross-company guard: block merge if contacts belong to different companies
+      const companyIds = new Set(
+        group.contacts
+          .map(c => (c as any)._companyId || (c as any).company_id)
+          .filter(Boolean)
+      );
+      if (companyIds.size > 1) {
+        if (!canDirectAction) {
+          toast.error("Cannot merge contacts from different companies. Ask a manager to override.");
+          setIsProcessing(false);
+          return;
+        }
+        // Manager/admin override — warn but proceed
+        toast.warning("Merging contacts across different companies (manager override).");
+      }
+
       const { patch, metadata, notesAppend } = buildMergePatch(canonical, duplicates);
 
       // 1. Update canonical with merged fields
       const updatePayload: Record<string, any> = { ...patch };
-      // Append provenance notes
       const existingNotes = typeof (canonical as any).notes === "string" ? (canonical as any).notes : "";
       const allNotes = [existingNotes, notesAppend].filter(Boolean).join("\n");
       if (allNotes) updatePayload.notes = allNotes;
@@ -370,9 +385,14 @@ export function DuplicateDetectionPanel({
 
       const dupIds = duplicates.map((d) => d.id);
 
-      // 2. Re-parent contacts whose manager_id points to a duplicate
+      // 2. Company root safety: update ceo_contact_id if it points to a duplicate
+      await supabase
+        .from("companies")
+        .update({ ceo_contact_id: canonicalId })
+        .in("ceo_contact_id", dupIds);
+
+      // 3. Re-parent contacts whose manager_id points to a duplicate
       for (const dupId of dupIds) {
-        // Prevent cycle: don't set manager_id = canonicalId on the canonical itself
         await supabase
           .from("contacts")
           .update({ manager_id: canonicalId })
@@ -381,7 +401,7 @@ export function DuplicateDetectionPanel({
           .neq("id", canonicalId);
       }
 
-      // 3. Re-parent org chart edges of duplicates to canonical
+      // 4. Re-parent org chart edges of duplicates to canonical
       for (const dupId of dupIds) {
         await supabase
           .from("org_chart_edges")
@@ -393,14 +413,14 @@ export function DuplicateDetectionPanel({
           .eq("child_contact_id", dupId);
       }
 
-      // 4. Soft-delete duplicates
+      // 5. Soft-delete duplicates
       const { error: retireErr } = await supabase
         .from("contacts")
         .update({ deleted_at: new Date().toISOString() })
         .in("id", dupIds);
       if (retireErr) throw retireErr;
 
-      // 5. Audit with before/after + merged_from_ids
+      // 6. Audit
       await supabase.from("audit_log").insert({
         entity_type: "contact",
         entity_id: canonicalId,
@@ -418,6 +438,8 @@ export function DuplicateDetectionPanel({
 
       toast.success(`Merged ${dupIds.length} duplicate(s) into ${canonical.name}`);
       invalidateAfterAction();
+      // Also invalidate company queries for ceo_contact_id update
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
     } catch (err: any) {
       console.error("[DuplicateDetection] Merge failed:", err);
       toast.error("Merge failed: " + (err.message || "Unknown error"));

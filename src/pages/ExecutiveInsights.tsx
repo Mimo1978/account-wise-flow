@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { 
   BarChart3, 
   Users, 
@@ -12,7 +11,6 @@ import {
   Bell,
   RefreshCw,
   Building2,
-  ChevronRight
 } from 'lucide-react';
 import { RelationshipCoverageSection } from '@/components/insights/RelationshipCoverageSection';
 import { AccountHealthSection } from '@/components/insights/AccountHealthSection';
@@ -21,6 +19,8 @@ import { ConversationIntelligenceSection } from '@/components/insights/Conversat
 import { AlertsTriggersSection } from '@/components/insights/AlertsTriggersSection';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useInsightsMetrics } from '@/hooks/use-insights-metrics';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const ExecutiveInsights = () => {
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -39,9 +39,11 @@ const ExecutiveInsights = () => {
     }
   });
 
+  // Real metrics from DB
+  const { data: metrics, isLoading: metricsLoading } = useInsightsMetrics(selectedCompanyId);
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Trigger refresh of all insight sections
     setTimeout(() => setIsRefreshing(false), 1500);
   };
 
@@ -58,7 +60,6 @@ const ExecutiveInsights = () => {
           </div>
           
           <div className="flex items-center gap-3">
-            {/* Company/Portfolio Filter */}
             <select 
               className="h-10 px-3 rounded-md border border-input bg-background text-sm"
               value={selectedCompanyId || 'all'}
@@ -84,41 +85,48 @@ const ExecutiveInsights = () => {
           </div>
         </div>
 
-        {/* Quick Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <QuickStatCard 
-            label="Accounts Monitored" 
-            value={companies?.length || 0} 
-            icon={Building2}
-            trend="neutral"
-          />
-          <QuickStatCard 
-            label="At-Risk Signals" 
-            value={3} 
-            icon={AlertTriangle}
-            trend="negative"
-            trendLabel="+1 this week"
-          />
-          <QuickStatCard 
-            label="Expansion Opportunities" 
-            value={7} 
-            icon={TrendingUp}
-            trend="positive"
-            trendLabel="2 high priority"
-          />
-          <QuickStatCard 
-            label="Avg Coverage" 
-            value="64%" 
-            icon={Users}
-            trend="neutral"
-          />
-          <QuickStatCard 
-            label="Upcoming Renewals" 
-            value={4} 
-            icon={Bell}
-            trend="warning"
-            trendLabel="Next 90 days"
-          />
+        {/* Quick Stats Row — 4 cards, all data-driven */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {metricsLoading ? (
+            <>
+              {[1, 2, 3, 4].map(i => (
+                <Card key={i} className="border-border/50">
+                  <CardContent className="p-4">
+                    <Skeleton className="w-8 h-8 rounded-lg mb-2" />
+                    <Skeleton className="h-7 w-14 mb-1" />
+                    <Skeleton className="h-4 w-24" />
+                  </CardContent>
+                </Card>
+              ))}
+            </>
+          ) : (
+            <>
+              <QuickStatCard 
+                label="Accounts Monitored" 
+                value={metrics?.accountsMonitored ?? 0} 
+                icon={Building2}
+                trend="neutral"
+              />
+              <QuickStatCard 
+                label="At-Risk Signals" 
+                value={metrics?.atRiskSignals ?? 0} 
+                icon={AlertTriangle}
+                trend={metrics?.atRiskSignals ? 'negative' : 'neutral'}
+              />
+              <QuickStatCard 
+                label="Expansion Opportunities" 
+                value={metrics?.expansionOpportunities ?? 0} 
+                icon={TrendingUp}
+                trend={metrics?.expansionOpportunities ? 'positive' : 'neutral'}
+              />
+              <QuickStatCard 
+                label="Avg Coverage" 
+                value={`${metrics?.avgCoverage ?? 0}%`} 
+                icon={Users}
+                trend="neutral"
+              />
+            </>
+          )}
         </div>
 
         {/* Main Content Tabs */}

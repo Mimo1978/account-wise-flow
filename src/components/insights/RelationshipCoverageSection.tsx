@@ -55,8 +55,9 @@ export const RelationshipCoverageSection: React.FC<RelationshipCoverageSectionPr
           seniorTitles.some(title => c.title?.toLowerCase().includes(title.toLowerCase()))
         );
         
-        // Mock org chart coverage percentage (would be calculated from actual org data)
-        const coveragePercent = Math.min(100, Math.round((contacts.length / 10) * 100));
+        // Coverage = contacts mapped / expected minimum (5), capped at 100%
+        const expectedMin = 5;
+        const coveragePercent = Math.min(100, Math.round((contacts.length / expectedMin) * 100));
         
         return {
           id: company.id,

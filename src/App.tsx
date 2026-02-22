@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SearchContextProvider } from "@/contexts/SearchContext";
@@ -11,6 +11,8 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { ProductLayout } from "@/components/layout/ProductLayout";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { AdminRouteGuard } from "@/components/admin/AdminRouteGuard";
+import { usePermissions } from "@/hooks/use-permissions";
+import { toast } from "@/components/ui/sonner";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
@@ -41,18 +43,46 @@ import AdminDataQuality from "./pages/admin/AdminDataQuality";
 import AdminOrgChart from "./pages/admin/AdminOrgChart";
 import AdminSupport from "./pages/admin/AdminSupport";
 import AdminBranding from "./pages/admin/AdminBranding";
+import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
+
+/** Gate that redirects non-admin/manager away from /admin with a toast */
+function AdminGate({ children }: { children: React.ReactNode }) {
+  const { role, isLoading, isAdmin, isManager } = usePermissions();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && !isAdmin && !isManager) {
+      toast.error("Admin access required");
+      navigate("/", { replace: true });
+    }
+  }, [isLoading, isAdmin, isManager, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isAdmin && !isManager) return null;
+
+  return <>{children}</>;
+}
 
 /** Shared wrapper for all admin routes */
 function AdminPage({ section, children }: { section: React.ComponentProps<typeof AdminRouteGuard>['section']; children: React.ReactNode }) {
   return (
     <ProtectedRoute>
-      <ProductLayout>
-        <AdminLayout>
-          <AdminRouteGuard section={section}>{children}</AdminRouteGuard>
-        </AdminLayout>
-      </ProductLayout>
+      <AdminGate>
+        <ProductLayout>
+          <AdminLayout>
+            <AdminRouteGuard section={section}>{children}</AdminRouteGuard>
+          </AdminLayout>
+        </ProductLayout>
+      </AdminGate>
     </ProtectedRoute>
   );
 }

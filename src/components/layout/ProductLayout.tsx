@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDemoIndicator } from '@/hooks/use-workspace-mode';
 import { DemoBanner } from '@/components/layout/DemoBanner';
+import { usePermissions } from '@/hooks/use-permissions';
 import { 
   Sparkles, 
   LayoutDashboard, 
@@ -21,6 +22,7 @@ import {
   Briefcase,
   Megaphone,
   Settings,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -41,7 +43,9 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const { user, signOut } = useAuth();
   const { currentWorkspace, isInDemoWorkspace } = useWorkspace();
   const { showBanner, showBadge, bannerVariant } = useDemoIndicator();
+  const { isAdmin, isManager, isLoading: permLoading } = usePermissions();
   const location = useLocation();
+  const showAdminNav = !permLoading && (isAdmin || isManager);
 
   const navItems = [
     { path: '/canvas', label: 'Canvas', icon: LayoutDashboard },
@@ -109,6 +113,23 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                   </Button>
                 </Link>
               ))}
+
+              {/* Admin Console - only for admin/manager */}
+              {showAdminNav && (
+                <>
+                  <div className="w-px h-6 bg-border mx-2" />
+                  <Link to="/admin">
+                    <Button
+                      variant={location.pathname.startsWith('/admin') ? 'secondary' : 'ghost'}
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <ShieldCheck className="w-4 h-4" />
+                      Admin
+                    </Button>
+                  </Link>
+                </>
+              )}
             </nav>
 
             {/* Right Side Actions */}
@@ -192,12 +213,14 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                       Workspace Settings
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link to="/admin" className="flex items-center">
-                      <Settings className="w-4 h-4 mr-2" />
-                      Admin Console
-                    </Link>
-                  </DropdownMenuItem>
+                  {showAdminNav && (
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link to="/admin" className="flex items-center">
+                        <ShieldCheck className="w-4 h-4 mr-2" />
+                        Admin Console
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
                     <LogOut className="w-4 h-4 mr-2" />

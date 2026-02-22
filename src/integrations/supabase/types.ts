@@ -2752,6 +2752,20 @@ export type Database = {
       }
       join_demo_team: { Args: { _user_id: string }; Returns: string }
       leave_demo_team: { Args: { _user_id: string }; Returns: boolean }
+      log_email_sent_and_touch_target: {
+        Args: {
+          p_body?: string
+          p_campaign_id: string
+          p_candidate_id?: string
+          p_contact_id?: string
+          p_metadata?: Json
+          p_performed_by?: string
+          p_subject?: string
+          p_target_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       reset_demo_data: { Args: { _user_id: string }; Returns: boolean }
       search_candidates: {
         Args: {

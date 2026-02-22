@@ -43,6 +43,7 @@ const STATE_BADGE: Record<OutreachTargetState, { label: string; className: strin
   snoozed: { label: "Snoozed", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300" },
   opted_out: { label: "Opted Out", className: "bg-destructive/10 text-destructive" },
   converted: { label: "Converted", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
+  closed: { label: "Closed", className: "bg-muted text-muted-foreground" },
 };
 
 export function OutreachTargetRow({ target, onOpen }: Props) {

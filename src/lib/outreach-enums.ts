@@ -7,15 +7,16 @@ import type { OutreachTargetState, OutreachEventType, CallOutcomeType } from "@/
 
 // ─── Category maps ────────────────────────────────────────────────────────────
 
-export const TARGET_STATE_CATEGORY: Record<OutreachTargetState, "active" | "terminal" | "paused"> = {
-  queued: "active",
-  contacted: "active",
-  responded: "active",
-  booked: "active",
-  snoozed: "paused",
-  opted_out: "terminal",
-  converted: "terminal",
-};
+export const TARGET_STATE_CATEGORY = {
+  queued: "QUEUE",
+  contacted: "ACTIVE",
+  responded: "WAITING",
+  booked: "COMPLETED",
+  snoozed: "SNOOZED",
+  opted_out: "COMPLIANCE",
+  converted: "COMPLETED",
+  closed: "CLOSED",
+} as const;
 
 export const EVENT_TYPE_CATEGORY: Record<OutreachEventType, "contact" | "response" | "lifecycle" | "system"> = {
   email_sent: "contact",
@@ -53,7 +54,8 @@ const STATE_PRECEDENCE: Record<OutreachTargetState, number> = {
   responded: 3,
   booked: 4,
   converted: 5,
-  opted_out: 6, // highest — terminal & sticky
+  opted_out: 6,
+  closed: 7, // highest — fully terminal
 };
 
 /**

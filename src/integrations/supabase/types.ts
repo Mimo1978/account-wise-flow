@@ -2851,6 +2851,7 @@ export type Database = {
         | "snoozed"
         | "opted_out"
         | "converted"
+        | "closed"
       parse_status: "pending" | "parsed" | "failed"
       search_mode: "simple" | "boolean"
       workspace_mode: "public_demo" | "demo" | "production"
@@ -3071,6 +3072,7 @@ export const Constants = {
         "snoozed",
         "opted_out",
         "converted",
+        "closed",
       ],
       parse_status: ["pending", "parsed", "failed"],
       search_mode: ["simple", "boolean"],

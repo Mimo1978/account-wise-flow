@@ -47,6 +47,7 @@ const STATE_COLORS: Record<OutreachTargetState, string> = {
   snoozed: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
   opted_out: "bg-destructive/10 text-destructive",
   converted: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+  closed: "bg-muted text-muted-foreground",
 };
 
 export function TargetDetailSheet({ target, open, onOpenChange }: Props) {

@@ -1,0 +1,1 @@
+ALTER TYPE outreach_target_state ADD VALUE IF NOT EXISTS 'closed';

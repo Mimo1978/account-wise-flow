@@ -16,19 +16,25 @@ import {
   ChevronDown,
   ChevronRight,
   User,
+  Archive,
+  ShieldAlert,
+  Send,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/hooks/use-permissions";
+import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceId } from "@/hooks/use-workspace";
 
 interface DuplicateGroup {
   key: string;
-  contacts: (Contact & { _companyName?: string })[];
+  contacts: (Contact & { _companyName?: string; _companyId?: string })[];
 }
 
 interface DuplicateDetectionPanelProps {
-  contacts: (Contact & { _companyName?: string })[];
+  contacts: (Contact & { _companyName?: string; _companyId?: string })[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   companyFilterId?: string | null;
@@ -38,6 +44,11 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
 }
 
+/** Score a contact by how many key fields it has filled */
+function completenessScore(c: Contact): number {
+  return [c.title, c.email, c.department, c.phone].filter(Boolean).length;
+}
+
 export function DuplicateDetectionPanel({
   contacts,
   open,
@@ -45,12 +56,17 @@ export function DuplicateDetectionPanel({
   companyFilterId,
 }: DuplicateDetectionPanelProps) {
   const queryClient = useQueryClient();
-  const [selectedForDeletion, setSelectedForDeletion] = useState<Set<string>>(new Set());
+  const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
+  const { isAdmin, isManager } = usePermissions();
+  const canDirectAction = isAdmin || isManager;
+
+  const [selectedCanonical, setSelectedCanonical] = useState<Map<string, string>>(new Map());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const duplicateGroups = useMemo<DuplicateGroup[]>(() => {
-    const nameMap = new Map<string, (Contact & { _companyName?: string })[]>();
+    const nameMap = new Map<string, (Contact & { _companyName?: string; _companyId?: string })[]>();
     for (const contact of contacts) {
       const key = normalizeName(contact.name);
       if (!key) continue;
@@ -73,52 +89,255 @@ export function DuplicateDetectionPanel({
     });
   };
 
-  const toggleSelect = (id: string) => {
-    setSelectedForDeletion((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+  const selectCanonical = (groupKey: string, contactId: string) => {
+    setSelectedCanonical((prev) => {
+      const next = new Map(prev);
+      next.set(groupKey, contactId);
       return next;
     });
   };
 
-  const autoSelectDuplicates = () => {
-    const toSelect = new Set<string>();
+  /** Auto-select the most complete contact as canonical for every group */
+  const autoSelectCanonicals = () => {
+    const map = new Map<string, string>();
     for (const group of duplicateGroups) {
-      // Keep the first contact (most complete), select the rest for deletion
-      const sorted = [...group.contacts].sort((a, b) => {
-        // Prefer the one with more data filled
-        const scoreA = [a.title, a.email, a.department, a.phone].filter(Boolean).length;
-        const scoreB = [b.title, b.email, b.department, b.phone].filter(Boolean).length;
-        return scoreB - scoreA;
-      });
-      for (let i = 1; i < sorted.length; i++) {
-        toSelect.add(sorted[i].id);
-      }
+      const sorted = [...group.contacts].sort((a, b) => completenessScore(b) - completenessScore(a));
+      map.set(group.key, sorted[0].id);
     }
-    setSelectedForDeletion(toSelect);
-    // Expand all groups
+    setSelectedCanonical(map);
     setExpandedGroups(new Set(duplicateGroups.map((g) => g.key)));
   };
 
-  const handleDeleteSelected = async () => {
-    if (selectedForDeletion.size === 0) return;
-    setIsDeleting(true);
+  /**
+   * MERGE: copy missing fields from duplicates into canonical,
+   * re-parent org chart children, soft-delete duplicates, write audit.
+   */
+  const handleMerge = async (group: DuplicateGroup) => {
+    const canonicalId = selectedCanonical.get(group.key);
+    if (!canonicalId) {
+      toast.error("Select a canonical (Keep) contact first");
+      return;
+    }
+    const canonical = group.contacts.find((c) => c.id === canonicalId)!;
+    const duplicates = group.contacts.filter((c) => c.id !== canonicalId);
+
+    setIsProcessing(true);
     try {
-      const ids = Array.from(selectedForDeletion);
+      // 1. Build merged fields (fill blanks from duplicates)
+      const mergeFields: Record<string, any> = {};
+      for (const dup of duplicates) {
+        if (!canonical.email && dup.email) mergeFields.email = dup.email;
+        if (!canonical.phone && dup.phone) mergeFields.phone = dup.phone;
+        if (!canonical.title && dup.title) mergeFields.title = dup.title;
+        if (!canonical.department && dup.department) mergeFields.department = dup.department;
+        if (!(canonical as any).privateEmail && (dup as any).privateEmail) mergeFields.email_private = (dup as any).privateEmail;
+      }
+
+      // 2. Update canonical with merged fields (if any)
+      if (Object.keys(mergeFields).length > 0) {
+        const { error } = await supabase
+          .from("contacts")
+          .update(mergeFields)
+          .eq("id", canonicalId);
+        if (error) throw error;
+      }
+
+      const dupIds = duplicates.map((d) => d.id);
+
+      // 3. Re-parent org chart: move children of duplicates to canonical
+      for (const dupId of dupIds) {
+        await supabase
+          .from("org_chart_edges")
+          .update({ parent_contact_id: canonicalId })
+          .eq("parent_contact_id", dupId);
+        // Move the duplicate's own edge to point to canonical's parent (or remove)
+        await supabase
+          .from("org_chart_edges")
+          .delete()
+          .eq("child_contact_id", dupId);
+      }
+
+      // 4. Soft-delete duplicates
+      const { error: retireErr } = await supabase
+        .from("contacts")
+        .update({ deleted_at: new Date().toISOString() })
+        .in("id", dupIds);
+      if (retireErr) throw retireErr;
+
+      // 5. Write audit log
+      await supabase.from("audit_log").insert({
+        entity_type: "contact",
+        entity_id: canonicalId,
+        action: "merge",
+        changed_by: user?.id || null,
+        diff: { merged_ids: dupIds, merge_fields: mergeFields },
+        context: { source: "duplicate_resolution" },
+      });
+
+      toast.success(`Merged ${dupIds.length} duplicate(s) into ${canonical.name}`);
+      queryClient.invalidateQueries({ queryKey: ["all-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["org-chart-tree"] });
+    } catch (err: any) {
+      console.error("[DuplicateDetection] Merge failed:", err);
+      toast.error("Merge failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /**
+   * RETIRE: soft-delete selected duplicates, re-parent their org chart children.
+   */
+  const handleRetire = async (group: DuplicateGroup) => {
+    const canonicalId = selectedCanonical.get(group.key);
+    if (!canonicalId) {
+      toast.error("Select which contact to keep first");
+      return;
+    }
+    const duplicates = group.contacts.filter((c) => c.id !== canonicalId);
+    const dupIds = duplicates.map((d) => d.id);
+
+    setIsProcessing(true);
+    try {
+      // Re-parent org chart children of retired contacts
+      for (const dupId of dupIds) {
+        // Get the retired contact's parent
+        const { data: edge } = await supabase
+          .from("org_chart_edges")
+          .select("parent_contact_id")
+          .eq("child_contact_id", dupId)
+          .maybeSingle();
+        const newParent = edge?.parent_contact_id || null;
+
+        // Re-parent children to the retired contact's parent
+        await supabase
+          .from("org_chart_edges")
+          .update({ parent_contact_id: newParent })
+          .eq("parent_contact_id", dupId);
+
+        // Remove the retired contact's own edge
+        await supabase
+          .from("org_chart_edges")
+          .delete()
+          .eq("child_contact_id", dupId);
+      }
+
+      // Soft-delete
+      const { error } = await supabase
+        .from("contacts")
+        .update({ deleted_at: new Date().toISOString() })
+        .in("id", dupIds);
+      if (error) throw error;
+
+      // Audit
+      await supabase.from("audit_log").insert({
+        entity_type: "contact",
+        entity_id: canonicalId,
+        action: "retire_duplicates",
+        changed_by: user?.id || null,
+        diff: { retired_ids: dupIds },
+        context: { source: "duplicate_resolution" },
+      });
+
+      toast.success(`Retired ${dupIds.length} duplicate(s)`);
+      queryClient.invalidateQueries({ queryKey: ["all-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["org-chart-tree"] });
+    } catch (err: any) {
+      console.error("[DuplicateDetection] Retire failed:", err);
+      toast.error("Retire failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  /**
+   * HARD DELETE: admin only. Permanently removes duplicates.
+   */
+  const handleHardDelete = async (group: DuplicateGroup) => {
+    const canonicalId = selectedCanonical.get(group.key);
+    if (!canonicalId) {
+      toast.error("Select which contact to keep first");
+      return;
+    }
+    const duplicates = group.contacts.filter((c) => c.id !== canonicalId);
+    const dupIds = duplicates.map((d) => d.id);
+
+    setIsProcessing(true);
+    try {
+      // Remove org chart edges first
+      for (const dupId of dupIds) {
+        await supabase
+          .from("org_chart_edges")
+          .update({ parent_contact_id: canonicalId })
+          .eq("parent_contact_id", dupId);
+        await supabase
+          .from("org_chart_edges")
+          .delete()
+          .eq("child_contact_id", dupId);
+      }
+
+      // Hard delete
       const { error } = await supabase
         .from("contacts")
         .delete()
-        .in("id", ids);
-
+        .in("id", dupIds);
       if (error) throw error;
 
-      toast.success(`Deleted ${ids.length} duplicate contact${ids.length > 1 ? "s" : ""}`);
-      setSelectedForDeletion(new Set());
+      // Audit
+      await supabase.from("audit_log").insert({
+        entity_type: "contact",
+        entity_id: canonicalId,
+        action: "hard_delete_duplicates",
+        changed_by: user?.id || null,
+        diff: { deleted_ids: dupIds },
+        context: { source: "duplicate_resolution" },
+      });
+
+      toast.success(`Permanently deleted ${dupIds.length} duplicate(s)`);
       queryClient.invalidateQueries({ queryKey: ["all-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["org-chart-tree"] });
     } catch (err: any) {
-      toast.error("Failed to delete contacts: " + (err.message || "Unknown error"));
+      console.error("[DuplicateDetection] Hard delete failed:", err);
+      toast.error("Delete failed: " + (err.message || "Unknown error"));
     } finally {
-      setIsDeleting(false);
+      setIsProcessing(false);
+    }
+  };
+
+  /**
+   * REQUEST: for non-admin/manager users. Creates a data_change_request.
+   */
+  const handleRequestChange = async (group: DuplicateGroup, requestType: "merge" | "retire") => {
+    if (!user?.id || !workspaceId) {
+      toast.error("Not authenticated");
+      return;
+    }
+    const canonicalId = selectedCanonical.get(group.key);
+    if (!canonicalId) {
+      toast.error("Select which contact to keep first");
+      return;
+    }
+    const dupIds = group.contacts.filter((c) => c.id !== canonicalId).map((c) => c.id);
+
+    setIsProcessing(true);
+    try {
+      const { error } = await supabase.from("data_change_requests").insert({
+        request_type: requestType,
+        requested_by: user.id,
+        canonical_contact_id: canonicalId,
+        duplicate_contact_ids: dupIds,
+        company_id: companyFilterId || null,
+        workspace_id: workspaceId,
+        reason: `User requested ${requestType} for ${group.contacts[0].name} (${dupIds.length} duplicate(s))`,
+      });
+      if (error) throw error;
+
+      toast.success(`${requestType === "merge" ? "Merge" : "Removal"} request submitted for approval`);
+    } catch (err: any) {
+      console.error("[DuplicateDetection] Request failed:", err);
+      toast.error("Failed to submit request: " + (err.message || "Unknown error"));
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -135,6 +354,12 @@ export function DuplicateDetectionPanel({
               ? "No duplicates found — your contacts are clean!"
               : `Found ${duplicateGroups.length} group${duplicateGroups.length > 1 ? "s" : ""} with ${totalDuplicates} potential duplicate${totalDuplicates > 1 ? "s" : ""}`}
           </p>
+          {!canDirectAction && duplicateGroups.length > 0 && (
+            <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+              <ShieldAlert className="h-3.5 w-3.5" />
+              You can request merge/removal — a manager will approve.
+            </p>
+          )}
         </SheetHeader>
 
         {duplicateGroups.length > 0 && (
@@ -142,19 +367,10 @@ export function DuplicateDetectionPanel({
             <Button
               variant="outline"
               size="sm"
-              onClick={autoSelectDuplicates}
+              onClick={autoSelectCanonicals}
             >
               <Merge className="h-3.5 w-3.5 mr-1.5" />
-              Auto-select duplicates
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleDeleteSelected}
-              disabled={selectedForDeletion.size === 0 || isDeleting}
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
-              Delete {selectedForDeletion.size > 0 ? `(${selectedForDeletion.size})` : ""}
+              Auto-select best records
             </Button>
           </div>
         )}
@@ -172,6 +388,8 @@ export function DuplicateDetectionPanel({
 
           {duplicateGroups.map((group) => {
             const isExpanded = expandedGroups.has(group.key);
+            const canonicalId = selectedCanonical.get(group.key);
+
             return (
               <div
                 key={group.key}
@@ -200,54 +418,114 @@ export function DuplicateDetectionPanel({
                 </button>
 
                 {isExpanded && (
-                  <div className="border-t border-border divide-y divide-border">
-                    {group.contacts.map((contact, idx) => {
-                      const isSelected = selectedForDeletion.has(contact.id);
-                      const isKeep = !isSelected && selectedForDeletion.size > 0 &&
-                        group.contacts.some((c) => c.id !== contact.id && selectedForDeletion.has(c.id));
+                  <>
+                    <div className="border-t border-border divide-y divide-border">
+                      {group.contacts.map((contact) => {
+                        const isCanonical = canonicalId === contact.id;
+                        const isDuplicate = canonicalId && canonicalId !== contact.id;
 
-                      return (
-                        <div
-                          key={contact.id}
-                          className={cn(
-                            "flex items-start gap-3 px-4 py-3 transition-colors",
-                            isSelected && "bg-destructive/5",
-                            isKeep && "bg-green-500/5"
-                          )}
-                        >
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleSelect(contact.id)}
-                            className="mt-0.5"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-foreground truncate">
-                                {contact.name}
-                              </span>
-                              {isKeep && (
-                                <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 border-green-500/30">
-                                  Keep
-                                </Badge>
-                              )}
-                              {isSelected && (
-                                <Badge variant="outline" className="text-xs bg-destructive/10 text-destructive border-destructive/30">
-                                  Delete
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
-                              <p>{contact.title || "No title"} · {contact.department || "No department"}</p>
-                              <p>{contact.email || "No email"} · {contact.phone || "No phone"}</p>
-                              {(contact as any)._companyName && (
-                                <p className="text-primary">{(contact as any)._companyName}</p>
-                              )}
+                        return (
+                          <div
+                            key={contact.id}
+                            className={cn(
+                              "flex items-start gap-3 px-4 py-3 transition-colors cursor-pointer",
+                              isCanonical && "bg-green-500/5",
+                              isDuplicate && "bg-destructive/5"
+                            )}
+                            onClick={() => selectCanonical(group.key, contact.id)}
+                          >
+                            <Checkbox
+                              checked={isCanonical}
+                              onCheckedChange={() => selectCanonical(group.key, contact.id)}
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-foreground truncate">
+                                  {contact.name}
+                                </span>
+                                {isCanonical && (
+                                  <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 border-green-500/30">
+                                    Keep
+                                  </Badge>
+                                )}
+                                {isDuplicate && (
+                                  <Badge variant="outline" className="text-xs bg-destructive/10 text-destructive border-destructive/30">
+                                    Duplicate
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+                                <p>{contact.title || "No title"} · {contact.department || "No department"}</p>
+                                <p>{contact.email || "No email"} · {contact.phone || "No phone"}</p>
+                                {(contact as any)._companyName && (
+                                  <p className="text-primary">{(contact as any)._companyName}</p>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="border-t border-border px-4 py-3 bg-muted/20 flex flex-wrap gap-2">
+                      {canDirectAction ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleMerge(group)}
+                            disabled={!canonicalId || isProcessing}
+                          >
+                            <Merge className="h-3.5 w-3.5 mr-1.5" />
+                            Merge
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRetire(group)}
+                            disabled={!canonicalId || isProcessing}
+                          >
+                            <Archive className="h-3.5 w-3.5 mr-1.5" />
+                            Retire
+                          </Button>
+                          {isAdmin && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleHardDelete(group)}
+                              disabled={!canonicalId || isProcessing}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+                              Delete
+                            </Button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleRequestChange(group, "merge")}
+                            disabled={!canonicalId || isProcessing}
+                          >
+                            <Send className="h-3.5 w-3.5 mr-1.5" />
+                            Request Merge
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRequestChange(group, "retire")}
+                            disabled={!canonicalId || isProcessing}
+                          >
+                            <Send className="h-3.5 w-3.5 mr-1.5" />
+                            Request Removal
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             );

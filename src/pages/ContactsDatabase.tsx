@@ -191,6 +191,9 @@ export default function ContactsDatabase() {
         query = query.eq('team_id', workspaceId);
       }
 
+      // Exclude soft-deleted contacts
+      query = query.is('deleted_at', null);
+
       const { data: contacts, error } = await query;
       if (error) {
         console.error('Error fetching contacts:', error);

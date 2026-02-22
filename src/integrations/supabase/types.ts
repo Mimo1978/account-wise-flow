@@ -824,6 +824,7 @@ export type Database = {
         Row: {
           company_id: string | null
           created_at: string
+          deleted_at: string | null
           department: string | null
           email: string | null
           email_private: string | null
@@ -844,6 +845,7 @@ export type Database = {
         Insert: {
           company_id?: string | null
           created_at?: string
+          deleted_at?: string | null
           department?: string | null
           email?: string | null
           email_private?: string | null
@@ -864,6 +866,7 @@ export type Database = {
         Update: {
           company_id?: string | null
           created_at?: string
+          deleted_at?: string | null
           department?: string | null
           email?: string | null
           email_private?: string | null
@@ -1038,6 +1041,88 @@ export type Database = {
           {
             foreignKeyName: "cv_import_items_tenant_id_fkey"
             columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_change_requests: {
+        Row: {
+          applied_at: string | null
+          canonical_contact_id: string | null
+          company_id: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          duplicate_contact_ids: string[]
+          id: string
+          merge_data: Json | null
+          reason: string | null
+          rejection_reason: string | null
+          request_type: string
+          requested_at: string
+          requested_by: string
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          canonical_contact_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          duplicate_contact_ids?: string[]
+          id?: string
+          merge_data?: Json | null
+          reason?: string | null
+          rejection_reason?: string | null
+          request_type: string
+          requested_at?: string
+          requested_by: string
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          canonical_contact_id?: string | null
+          company_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          duplicate_contact_ids?: string[]
+          id?: string
+          merge_data?: Json | null
+          reason?: string | null
+          rejection_reason?: string | null
+          request_type?: string
+          requested_at?: string
+          requested_by?: string
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_change_requests_canonical_contact_id_fkey"
+            columns: ["canonical_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_change_requests_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "data_change_requests_workspace_id_fkey"
+            columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]

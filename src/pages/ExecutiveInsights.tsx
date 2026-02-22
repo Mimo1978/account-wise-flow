@@ -22,7 +22,7 @@ import {
   ShieldAlert,
   Target,
 } from 'lucide-react';
-import { useRevenueIntelligence, type CompanyRiskProfile } from '@/hooks/use-revenue-intelligence';
+import { useRevenueIntelligence, type CompanyRiskProfile, type RevenueIntelligenceData } from '@/hooks/use-revenue-intelligence';
 
 // ── Page ──
 
@@ -31,7 +31,7 @@ const ExecutiveInsights = () => {
 
   if (isLoading) return <FullPageSkeleton />;
 
-  const { companies, atRiskCount, singleThreadedCount, dormantCount, avgRsi, rsiDistribution, pipeline } = data;
+  const { companies, atRiskCount, singleThreadedCount, dormantCount, avgRsi, rsiDistribution, pipeline, riskSummary } = data;
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -53,6 +53,7 @@ const ExecutiveInsights = () => {
               singleThreadedCount={singleThreadedCount}
               dormantCount={dormantCount}
               companies={companies}
+              riskSummary={riskSummary}
             />
 
             {/* §2 Relationship Strength Index */}
@@ -95,44 +96,82 @@ function RevenueRiskSnapshot({
   singleThreadedCount,
   dormantCount,
   companies,
+  riskSummary,
 }: {
   atRiskCount: number;
   singleThreadedCount: number;
   dormantCount: number;
   companies: CompanyRiskProfile[];
+  riskSummary: RevenueIntelligenceData['riskSummary'];
 }) {
+  const highRiskCompanies = companies.filter(c => c.riskBand === 'high_risk').slice(0, 5);
+
   return (
     <section>
       <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
         <ShieldAlert className="w-5 h-5 text-destructive" />
         Revenue Risk Snapshot
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <RiskKpiCard
-          label="Revenue at Risk"
-          value={atRiskCount}
-          subtitle={`of ${companies.length} accounts`}
+          label="High Risk"
+          value={riskSummary.high_risk}
+          subtitle="Score 51+"
           icon={AlertTriangle}
-          severity={atRiskCount > 0 ? 'danger' : 'safe'}
+          severity={riskSummary.high_risk > 0 ? 'danger' : 'safe'}
           linkTo="/companies"
         />
         <RiskKpiCard
-          label="Single-Threaded"
-          value={singleThreadedCount}
-          subtitle="≤1 senior contact"
+          label="Medium Risk"
+          value={riskSummary.medium_risk}
+          subtitle="Score 21–50"
           icon={UserX}
-          severity={singleThreadedCount > 0 ? 'warning' : 'safe'}
+          severity={riskSummary.medium_risk > 0 ? 'warning' : 'safe'}
           linkTo="/companies"
         />
         <RiskKpiCard
-          label="Dormant Accounts"
-          value={dormantCount}
-          subtitle="> 60 days inactive"
-          icon={Clock}
-          severity={dormantCount > 0 ? 'warning' : 'safe'}
+          label="Healthy"
+          value={riskSummary.healthy}
+          subtitle="Score 0–20"
+          icon={UserCheck}
+          severity="safe"
           linkTo="/companies"
         />
       </div>
+
+      {/* Top high-risk accounts with reasons */}
+      {highRiskCompanies.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Top Risk Accounts</CardTitle>
+            <CardDescription>Deterministic scoring: +40 dormant, +30 single contact, +20 no exec, +10 snoozed/opted-out</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {highRiskCompanies.map(c => (
+                <Link
+                  key={c.id}
+                  to={`/canvas?company=${c.id}`}
+                  className="flex items-center gap-3 p-3 rounded-lg border border-destructive/20 hover:border-destructive/40 hover:bg-destructive/5 transition-all"
+                >
+                  <div className="w-8 h-8 rounded-md bg-destructive/10 flex items-center justify-center">
+                    <Building2 className="w-4 h-4 text-destructive" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">{c.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {c.riskReasons.join(' · ')}
+                    </div>
+                  </div>
+                  <Badge variant="destructive" className="text-xs font-semibold tabular-nums shrink-0">
+                    {c.riskScore}
+                  </Badge>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </section>
   );
 }

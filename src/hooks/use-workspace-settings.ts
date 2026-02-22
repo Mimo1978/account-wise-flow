@@ -12,6 +12,10 @@ export interface OutreachRules {
   auto_snooze_on_max_attempts: boolean;
 }
 
+export interface DataQualityRules {
+  require_manager_approval_for_merge: boolean;
+}
+
 export interface WorkspaceSettings {
   id: string;
   workspace_id: string;
@@ -21,6 +25,7 @@ export interface WorkspaceSettings {
   contract_hop_lookback_months: number;
   top_tier_companies: Record<string, string[]>;
   outreach_rules: OutreachRules;
+  data_quality_rules: DataQualityRules;
   created_at: string;
   updated_at: string;
 }
@@ -62,9 +67,12 @@ export function useWorkspaceSettings() {
             manager_can_reopen: false,
             treat_wrong_number_as_opt_out: true,
             auto_snooze_on_max_attempts: true,
-          },
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
+           },
+           data_quality_rules: {
+             require_manager_approval_for_merge: false,
+           },
+           created_at: new Date().toISOString(),
+           updated_at: new Date().toISOString(),
         };
       }
 

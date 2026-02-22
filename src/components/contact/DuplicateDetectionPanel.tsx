@@ -44,9 +44,181 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
 }
 
-/** Score a contact by how many key fields it has filled */
-function completenessScore(c: Contact): number {
-  return [c.title, c.email, c.department, c.phone].filter(Boolean).length;
+// ---------- Deterministic merge scoring ----------
+
+const SENIORITY_RANK: Record<string, number> = {
+  "executive": 7, "c-level": 7,
+  "director": 6, "vp-director": 6,
+  "head": 5,
+  "manager": 4,
+  "senior": 3, "senior-ic": 3,
+  "mid": 2, "ic": 2,
+  "junior": 1,
+};
+
+const STATUS_RANK: Record<string, number> = {
+  "active": 5, "engaged": 4, "warm": 3, "champion": 3,
+  "new": 2, "inactive": 1, "blocker": 1, "unknown": 0,
+};
+
+function isValidEmail(v?: string | null): boolean {
+  return !!v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function isValidPhone(v?: string | null): boolean {
+  return !!v && v.replace(/\D/g, "").length >= 6;
+}
+
+function isCorporateEmail(v?: string | null): boolean {
+  if (!v) return false;
+  const domain = v.split("@")[1]?.toLowerCase() || "";
+  return !["gmail.com","yahoo.com","hotmail.com","outlook.com","aol.com","icloud.com","mail.com","protonmail.com"].includes(domain);
+}
+
+/** Score a contact for canonical selection per the deterministic rules */
+function canonicalScore(c: Contact): number {
+  let s = 0;
+  if (isValidEmail(c.email)) s += 3;
+  if (isValidPhone(c.phone)) s += 3;
+  if (c.title) s += 2;
+  if (c.department) s += 2;
+  if (c.seniority) s += 1;
+  if ((c as any)._companyName || (c as any)._companyId) s += 1;
+  return s;
+}
+
+function seniorityRank(s?: string | null): number {
+  if (!s) return 0;
+  return SENIORITY_RANK[s.toLowerCase()] ?? 0;
+}
+
+function statusRank(s?: string | null): number {
+  if (!s) return 0;
+  return STATUS_RANK[s.toLowerCase()] ?? 0;
+}
+
+/** Pick best canonical from a group using scoring + tie-breaks */
+function pickCanonical(contacts: Contact[]): string {
+  const sorted = [...contacts].sort((a, b) => {
+    const diff = canonicalScore(b) - canonicalScore(a);
+    if (diff !== 0) return diff;
+    // tie-break: newest updated_at
+    const ua = (a as any).lastUpdated || (a as any).updated_at || "";
+    const ub = (b as any).lastUpdated || (b as any).updated_at || "";
+    if (ub > ua) return 1;
+    if (ua > ub) return -1;
+    // oldest created_at
+    const ca = (a as any).created_at || "";
+    const cb = (b as any).created_at || "";
+    if (ca < cb) return -1;
+    if (ca > cb) return 1;
+    return 0;
+  });
+  return sorted[0].id;
+}
+
+/** Build deterministic merge patch from canonical + duplicates */
+function buildMergePatch(
+  canonical: Contact,
+  duplicates: Contact[]
+): { patch: Record<string, any>; metadata: Record<string, any[]> } {
+  const patch: Record<string, any> = {};
+  const metadata: Record<string, any[]> = {};
+
+  const allContacts = [canonical, ...duplicates];
+
+  // --- Name alternates ---
+  const altNames = duplicates.map(d => d.name).filter(n => n && n !== canonical.name);
+  if (altNames.length) metadata.alternate_names = altNames;
+
+  // --- Email: never overwrite valid canonical ---
+  if (!isValidEmail(canonical.email)) {
+    // pick corporate-domain-first, then newest updated_at
+    const candidates = duplicates
+      .filter(d => isValidEmail(d.email))
+      .sort((a, b) => {
+        const ac = isCorporateEmail(a.email) ? 1 : 0;
+        const bc = isCorporateEmail(b.email) ? 1 : 0;
+        if (bc !== ac) return bc - ac;
+        return ((b as any).lastUpdated || "") > ((a as any).lastUpdated || "") ? 1 : -1;
+      });
+    if (candidates.length) patch.email = candidates[0].email;
+  }
+  const altEmails = allContacts.map(c => c.email).filter(e => e && e !== (patch.email || canonical.email));
+  if (altEmails.length) metadata.alternate_emails = [...new Set(altEmails)];
+
+  // --- Private email ---
+  if (!(canonical as any).privateEmail) {
+    const pe = duplicates.find(d => (d as any).privateEmail);
+    if (pe) patch.email_private = (pe as any).privateEmail;
+  }
+  const altPrivate = allContacts.map(c => (c as any).privateEmail).filter(Boolean);
+  const keptPrivate = patch.email_private || (canonical as any).privateEmail;
+  const uniquePrivate = [...new Set(altPrivate.filter(e => e !== keptPrivate))];
+  if (uniquePrivate.length) metadata.alternate_private_emails = uniquePrivate;
+
+  // --- Phone: never overwrite valid canonical ---
+  if (!isValidPhone(canonical.phone)) {
+    const phoneCandidates = duplicates
+      .filter(d => isValidPhone(d.phone))
+      .sort((a, b) => {
+        // Prefer Mobile > Work based on phoneNumbers type
+        const aType = a.phoneNumbers?.[0]?.label || "";
+        const bType = b.phoneNumbers?.[0]?.label || "";
+        const pref = (t: string) => t === "Mobile" ? 2 : t === "Work" ? 1 : 0;
+        const tp = pref(bType) - pref(aType);
+        if (tp !== 0) return tp;
+        return ((b as any).lastUpdated || "") > ((a as any).lastUpdated || "") ? 1 : -1;
+      });
+    if (phoneCandidates.length) patch.phone = phoneCandidates[0].phone;
+  }
+  const altPhones = allContacts
+    .filter(c => c.phone && c.phone !== (patch.phone || canonical.phone))
+    .map(c => ({ phone: c.phone, type: c.phoneNumbers?.[0]?.label || "Work" }));
+  if (altPhones.length) metadata.alternate_phones = altPhones;
+
+  // --- Title: fill blank only ---
+  if (!canonical.title) {
+    const t = duplicates.find(d => d.title);
+    if (t) patch.title = t.title;
+  }
+  const altTitles = allContacts.map(c => c.title).filter(t => t && t !== (patch.title || canonical.title));
+  if (altTitles.length) metadata.alternate_titles = [...new Set(altTitles)];
+
+  // --- Department: fill blank only ---
+  if (!canonical.department) {
+    const d = duplicates.find(d => d.department);
+    if (d) patch.department = d.department;
+  }
+  const altDepts = allContacts.map(c => c.department).filter(d => d && d !== (patch.department || canonical.department));
+  if (altDepts.length) metadata.alternate_departments = [...new Set(altDepts)];
+
+  // --- Seniority: if empty/Unknown, use highest rank ---
+  const canSen = seniorityRank(canonical.seniority);
+  if (canSen === 0) {
+    let best = { rank: 0, val: "" };
+    for (const c of allContacts) {
+      const r = seniorityRank(c.seniority);
+      if (r > best.rank) best = { rank: r, val: c.seniority };
+    }
+    if (best.rank > 0) patch.seniority = best.val;
+  }
+
+  // --- Status: keep max-ranked ---
+  let bestStatus = { rank: statusRank(canonical.status), val: canonical.status };
+  for (const d of duplicates) {
+    const r = statusRank(d.status);
+    if (r > bestStatus.rank) bestStatus = { rank: r, val: d.status };
+  }
+  if (bestStatus.val !== canonical.status) patch.status = bestStatus.val;
+
+  // --- Location: fill blank ---
+  if (!canonical.location) {
+    const l = duplicates.find(d => d.location);
+    if (l) patch.location = l.location;
+  }
+
+  return { patch, metadata };
 }
 
 export function DuplicateDetectionPanel({
@@ -97,19 +269,23 @@ export function DuplicateDetectionPanel({
     });
   };
 
-  /** Auto-select the most complete contact as canonical for every group */
+  /** Auto-select using deterministic scoring */
   const autoSelectCanonicals = () => {
     const map = new Map<string, string>();
     for (const group of duplicateGroups) {
-      const sorted = [...group.contacts].sort((a, b) => completenessScore(b) - completenessScore(a));
-      map.set(group.key, sorted[0].id);
+      map.set(group.key, pickCanonical(group.contacts));
     }
     setSelectedCanonical(map);
     setExpandedGroups(new Set(duplicateGroups.map((g) => g.key)));
   };
 
+  const invalidateAfterAction = () => {
+    queryClient.invalidateQueries({ queryKey: ["all-contacts"] });
+    queryClient.invalidateQueries({ queryKey: ["org-chart-tree"] });
+  };
+
   /**
-   * MERGE: copy missing fields from duplicates into canonical,
+   * MERGE: deterministic field-level merge with metadata storage,
    * re-parent org chart children, soft-delete duplicates, write audit.
    */
   const handleMerge = async (group: DuplicateGroup) => {
@@ -123,60 +299,64 @@ export function DuplicateDetectionPanel({
 
     setIsProcessing(true);
     try {
-      // 1. Build merged fields (fill blanks from duplicates)
-      const mergeFields: Record<string, any> = {};
-      for (const dup of duplicates) {
-        if (!canonical.email && dup.email) mergeFields.email = dup.email;
-        if (!canonical.phone && dup.phone) mergeFields.phone = dup.phone;
-        if (!canonical.title && dup.title) mergeFields.title = dup.title;
-        if (!canonical.department && dup.department) mergeFields.department = dup.department;
-        if (!(canonical as any).privateEmail && (dup as any).privateEmail) mergeFields.email_private = (dup as any).privateEmail;
+      const { patch, metadata } = buildMergePatch(canonical, duplicates);
+
+      // 1. Update canonical with merged fields
+      const updatePayload: Record<string, any> = { ...patch };
+      // Store metadata as JSON in notes (append)
+      if (Object.keys(metadata).length > 0) {
+        const existingNotes = canonical.notes?.[0]?.content || (canonical as any).notes || "";
+        const metaBlock = `\n--- Merge Metadata (${new Date().toISOString()}) ---\n${JSON.stringify(metadata, null, 2)}`;
+        updatePayload.notes = (typeof existingNotes === "string" ? existingNotes : "") + metaBlock;
       }
 
-      // 2. Update canonical with merged fields (if any)
-      if (Object.keys(mergeFields).length > 0) {
+      if (Object.keys(updatePayload).length > 0) {
         const { error } = await supabase
           .from("contacts")
-          .update(mergeFields)
+          .update(updatePayload)
           .eq("id", canonicalId);
         if (error) throw error;
       }
 
       const dupIds = duplicates.map((d) => d.id);
 
-      // 3. Re-parent org chart: move children of duplicates to canonical
+      // 2. Re-parent org chart children of duplicates to canonical
       for (const dupId of dupIds) {
         await supabase
           .from("org_chart_edges")
           .update({ parent_contact_id: canonicalId })
           .eq("parent_contact_id", dupId);
-        // Move the duplicate's own edge to point to canonical's parent (or remove)
         await supabase
           .from("org_chart_edges")
           .delete()
           .eq("child_contact_id", dupId);
       }
 
-      // 4. Soft-delete duplicates
+      // 3. Soft-delete duplicates
       const { error: retireErr } = await supabase
         .from("contacts")
         .update({ deleted_at: new Date().toISOString() })
         .in("id", dupIds);
       if (retireErr) throw retireErr;
 
-      // 5. Write audit log
+      // 4. Audit with before/after + merged_from_ids
       await supabase.from("audit_log").insert({
         entity_type: "contact",
         entity_id: canonicalId,
         action: "merge",
         changed_by: user?.id || null,
-        diff: { merged_ids: dupIds, merge_fields: mergeFields },
-        context: { source: "duplicate_resolution" },
+        diff: {
+          merged_from_ids: dupIds,
+          fields_applied: patch,
+          metadata_stored: metadata,
+          before: { email: canonical.email, phone: canonical.phone, title: canonical.title, department: canonical.department, seniority: canonical.seniority, status: canonical.status },
+          after: { ...{ email: canonical.email, phone: canonical.phone, title: canonical.title, department: canonical.department, seniority: canonical.seniority, status: canonical.status }, ...patch },
+        },
+        context: { source: "duplicate_resolution", merge_rule: "deterministic_v2" },
       });
 
       toast.success(`Merged ${dupIds.length} duplicate(s) into ${canonical.name}`);
-      queryClient.invalidateQueries({ queryKey: ["all-contacts"] });
-      queryClient.invalidateQueries({ queryKey: ["org-chart-tree"] });
+      invalidateAfterAction();
     } catch (err: any) {
       console.error("[DuplicateDetection] Merge failed:", err);
       toast.error("Merge failed: " + (err.message || "Unknown error"));
@@ -184,7 +364,6 @@ export function DuplicateDetectionPanel({
       setIsProcessing(false);
     }
   };
-
   /**
    * RETIRE: soft-delete selected duplicates, re-parent their org chart children.
    */

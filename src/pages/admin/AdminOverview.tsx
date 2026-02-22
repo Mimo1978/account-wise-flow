@@ -76,7 +76,7 @@ const SYSTEM_CARDS: AdminCard[] = [
     title: 'Roles & Permissions',
     description: 'Manage user roles for this workspace.',
     icon: Shield,
-    path: '/admin/access',
+    path: '/admin/roles',
   },
   {
     title: 'Workspace Settings',

@@ -22,8 +22,10 @@ import {
   TrendingUp,
   ShieldAlert,
   Target,
+  BarChart3,
+  Timer,
 } from 'lucide-react';
-import { useRevenueIntelligence, type CompanyRiskProfile, type RevenueIntelligenceData } from '@/hooks/use-revenue-intelligence';
+import { useRevenueIntelligence, type CompanyRiskProfile, type RevenueIntelligenceData, type SalesMomentum } from '@/hooks/use-revenue-intelligence';
 
 // ── Page ──
 
@@ -32,7 +34,7 @@ const ExecutiveInsights = () => {
 
   if (isLoading) return <FullPageSkeleton />;
 
-  const { companies, atRiskCount, singleThreadedCount, dormantCount, avgRsi, rsiDistribution, pipeline, riskSummary } = data;
+  const { companies, atRiskCount, singleThreadedCount, dormantCount, avgRsi, rsiDistribution, pipeline, salesMomentum, riskSummary } = data;
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -67,7 +69,10 @@ const ExecutiveInsights = () => {
             {/* §3 Pipeline Acceleration Signals */}
             <PipelineAcceleration pipeline={pipeline} />
 
-            {/* §4 Org Penetration Heatmap */}
+            {/* §4 Sales Momentum */}
+            <SalesMomentumSection momentum={salesMomentum} />
+
+            {/* §5 Org Penetration Analytics */}
             <OrgPenetrationHeatmap companies={companies} />
           </div>
 
@@ -422,7 +427,138 @@ function PipelineStat({ icon: Icon, label, value, linkTo }: { icon: React.Elemen
 }
 
 // ════════════════════════════════════════════════════════════
-// §4 — Org Penetration Heatmap
+// §4 — Sales Momentum
+// ════════════════════════════════════════════════════════════
+
+const RESPONSE_THRESHOLD = 30;
+const BOOKING_THRESHOLD = 20;
+const INTEREST_THRESHOLD = 15;
+
+function SalesMomentumSection({ momentum }: { momentum: SalesMomentum }) {
+  const { totalTargets, responseRate, bookingRate, interestRate, avgFollowUpDelayDays, totalCalls, highlightCampaigns } = momentum;
+  const hasData = totalTargets > 0 || totalCalls > 0;
+
+  return (
+    <section>
+      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+        <BarChart3 className="w-5 h-5 text-primary" />
+        Sales Momentum
+      </h2>
+
+      {!hasData ? (
+        <Card>
+          <CardContent className="py-10">
+            <EmptyState icon={BarChart3} message="No outreach data yet" action={{ label: 'Create a campaign', to: '/outreach' }} />
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <MomentumKpi
+              label="Response Rate"
+              value={`${responseRate}%`}
+              detail={`${totalTargets} targets`}
+              threshold={RESPONSE_THRESHOLD}
+              actual={responseRate}
+              icon={Zap}
+            />
+            <MomentumKpi
+              label="Booking Rate"
+              value={`${bookingRate}%`}
+              detail={`${totalTargets} targets`}
+              threshold={BOOKING_THRESHOLD}
+              actual={bookingRate}
+              icon={CalendarCheck}
+            />
+            <MomentumKpi
+              label="Interest Rate"
+              value={`${interestRate}%`}
+              detail={`${totalCalls} calls`}
+              threshold={INTEREST_THRESHOLD}
+              actual={interestRate}
+              icon={Target}
+            />
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Timer className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Avg Follow-Up Delay</span>
+                </div>
+                <div className="text-2xl font-bold">
+                  {avgFollowUpDelayDays !== null ? `${avgFollowUpDelayDays}d` : '—'}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">called_at → follow_up_due</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {highlightCampaigns.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">
+                  Highlight Campaigns (≥{RESPONSE_THRESHOLD}% response or ≥{BOOKING_THRESHOLD}% booking)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {highlightCampaigns.map(c => (
+                    <Link
+                      key={c.id}
+                      to="/outreach"
+                      className="flex items-center justify-between p-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-muted/30 transition-all"
+                    >
+                      <span className="font-medium text-sm truncate">{c.name}</span>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs font-semibold">{c.responseRate}% resp</Badge>
+                        <Badge variant="outline" className="text-xs font-semibold">{c.bookingRate}% book</Badge>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+function MomentumKpi({
+  label,
+  value,
+  detail,
+  threshold,
+  actual,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  threshold: number;
+  actual: number;
+  icon: React.ElementType;
+}) {
+  const meetsThreshold = actual >= threshold;
+  return (
+    <Card className={meetsThreshold ? 'border-green-200/60' : ''}>
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Icon className="w-4 h-4 text-primary" />
+          <span className="text-xs text-muted-foreground">{label}</span>
+        </div>
+        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-xs text-muted-foreground mt-1">{detail}</div>
+        <div className={`text-xs mt-1 ${meetsThreshold ? 'text-green-600' : 'text-muted-foreground'}`}>
+          Target: ≥{threshold}% {meetsThreshold ? '✓' : ''}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// §5 — Org Penetration Analytics
 // ════════════════════════════════════════════════════════════
 
 type SortKey = 'name' | 'totalContacts' | 'seniorContacts' | 'departments' | 'lastActivity' | 'riskBand' | 'rsiScore';

@@ -43,6 +43,7 @@ import AdminDataQuality from "./pages/admin/AdminDataQuality";
 import AdminOrgChart from "./pages/admin/AdminOrgChart";
 import AdminSupport from "./pages/admin/AdminSupport";
 import AdminBranding from "./pages/admin/AdminBranding";
+import AdminAdvanced from "./pages/admin/AdminAdvanced";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -148,6 +149,7 @@ const App = () => {
             <Route path="/admin/outreach/scripts" element={<AdminPage section="outreach"><AdminOutreach /></AdminPage>} />
             <Route path="/admin/support" element={<AdminPage section="support"><AdminSupport /></AdminPage>} />
             <Route path="/admin/workspace/branding" element={<AdminPage section="workspace"><AdminBranding /></AdminPage>} />
+            <Route path="/admin/advanced" element={<AdminPage section="overview"><AdminAdvanced /></AdminPage>} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

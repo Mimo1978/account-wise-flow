@@ -14,6 +14,8 @@ export interface OutreachRules {
 
 export interface DataQualityRules {
   require_manager_approval_for_merge: boolean;
+  auto_suggest_canonical: boolean;
+  block_cross_company_merge_for_non_managers: boolean;
 }
 
 export interface WorkspaceSettings {
@@ -69,7 +71,9 @@ export function useWorkspaceSettings() {
             auto_snooze_on_max_attempts: true,
            },
            data_quality_rules: {
-             require_manager_approval_for_merge: false,
+             require_manager_approval_for_merge: true,
+             auto_suggest_canonical: true,
+             block_cross_company_merge_for_non_managers: true,
            },
            created_at: new Date().toISOString(),
            updated_at: new Date().toISOString(),

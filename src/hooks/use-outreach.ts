@@ -367,8 +367,9 @@ export function useUpdateTargetState() {
         throw new Error("Outreach blocked: target opted out or do_not_contact");
       }
 
-      // ── State precedence: never downgrade ──
-      const resolvedState = resolveState(target.state as OutreachTargetState, state);
+      // ── State precedence: allow explicit resets, otherwise never downgrade ──
+      const isExplicitReset = eventType === "status_changed" && metadata?.reset === true;
+      const resolvedState = isExplicitReset ? state : resolveState(target.state as OutreachTargetState, state);
 
       const patch: Record<string, unknown> = { state: resolvedState };
 

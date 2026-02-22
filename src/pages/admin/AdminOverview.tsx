@@ -1,103 +1,160 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Building2, Megaphone, Target, FileCheck, Loader2, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
+import { usePermissions } from '@/hooks/use-permissions';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  Database,
+  FileCheck,
+  History,
+  Settings,
+  Shield,
+  Megaphone,
+  LifeBuoy,
+  Download,
+  GitBranch,
+  Radio,
+  Palette,
+  BarChart3,
+} from 'lucide-react';
 
-interface Counts {
-  contacts: number | null;
-  companies: number | null;
-  campaigns: number | null;
-  targets: number | null;
-  pendingRequests: number | null;
+interface AdminCard {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  path: string;
+  adminOnly?: boolean;
+}
+
+const QUICK_ACTIONS: AdminCard[] = [
+  {
+    title: 'Change Requests',
+    description: 'Review pending data-change and merge requests.',
+    icon: FileCheck,
+    path: '/admin/governance/requests',
+  },
+  {
+    title: 'Audit Log',
+    description: 'Browse the full audit trail for your workspace.',
+    icon: History,
+    path: '/admin/governance/audit',
+  },
+  {
+    title: 'Data Quality',
+    description: 'Duplicate detection, validation and cleanup tools.',
+    icon: Database,
+    path: '/admin/data-quality',
+  },
+  {
+    title: 'Org Chart',
+    description: 'Validate org-chart integrity and request repairs.',
+    icon: GitBranch,
+    path: '/admin/org-chart',
+  },
+  {
+    title: 'Outreach Controls',
+    description: 'Campaigns, scripts, calling hours and safety defaults.',
+    icon: Megaphone,
+    path: '/admin/outreach',
+  },
+  {
+    title: 'Signals',
+    description: 'Configure signal rules and alert triggers.',
+    icon: Radio,
+    path: '/admin/signals',
+  },
+];
+
+const SYSTEM_CARDS: AdminCard[] = [
+  {
+    title: 'Schema Inventory',
+    description: 'Explore public-schema tables, columns & constraints.',
+    icon: Database,
+    path: '/admin/schema',
+    adminOnly: true,
+  },
+  {
+    title: 'Roles & Permissions',
+    description: 'Manage user roles for this workspace.',
+    icon: Shield,
+    path: '/admin/access',
+  },
+  {
+    title: 'Workspace Settings',
+    description: 'General workspace configuration.',
+    icon: Settings,
+    path: '/workspace-settings',
+  },
+  {
+    title: 'Branding',
+    description: 'Customise logos, colours and export templates.',
+    icon: Palette,
+    path: '/admin/workspace/branding',
+  },
+  {
+    title: 'Diagnostics & Support',
+    description: 'System status, connectivity checks and export tools.',
+    icon: LifeBuoy,
+    path: '/admin/support',
+  },
+];
+
+function CardGrid({ cards, role }: { cards: AdminCard[]; role: string | null }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {cards.map((card) => {
+        if (card.adminOnly && role !== 'admin') return null;
+        const Icon = card.icon;
+        return (
+          <Link key={card.path + card.title} to={card.path} className="group">
+            <Card className="h-full transition-colors hover:border-primary/40">
+              <CardHeader className="flex flex-row items-start gap-3 pb-2">
+                <div className="mt-0.5 rounded-md bg-primary/10 p-2">
+                  <Icon className="h-4 w-4 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <CardTitle className="text-sm font-semibold leading-tight group-hover:text-primary transition-colors">
+                    {card.title}
+                  </CardTitle>
+                  <CardDescription className="text-xs leading-snug">
+                    {card.description}
+                  </CardDescription>
+                </div>
+              </CardHeader>
+            </Card>
+          </Link>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function AdminOverview() {
-  const { currentWorkspace } = useWorkspace();
-  const [counts, setCounts] = useState<Counts>({
-    contacts: null, companies: null, campaigns: null, targets: null, pendingRequests: null,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!currentWorkspace?.id) return;
-    const wid = currentWorkspace.id;
-
-    async function fetchCounts() {
-      setLoading(true);
-      setError(null);
-      try {
-        const [contactsRes, companiesRes, campaignsRes, targetsRes, requestsRes] = await Promise.all([
-          supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('team_id', wid).is('deleted_at', null),
-          supabase.from('companies').select('id', { count: 'exact', head: true }).eq('team_id', wid),
-          supabase.from('outreach_campaigns').select('id', { count: 'exact', head: true }).eq('workspace_id', wid),
-          supabase.from('outreach_targets').select('id', { count: 'exact', head: true }).eq('workspace_id', wid),
-          supabase.from('data_change_requests').select('id', { count: 'exact', head: true }).eq('workspace_id', wid).eq('status', 'pending'),
-        ]);
-
-        const firstError = [contactsRes, companiesRes, campaignsRes, targetsRes, requestsRes].find(r => r.error);
-        if (firstError?.error) {
-          setError(firstError.error.message);
-        }
-
-        setCounts({
-          contacts: contactsRes.count ?? 0,
-          companies: companiesRes.count ?? 0,
-          campaigns: campaignsRes.count ?? 0,
-          targets: targetsRes.count ?? 0,
-          pendingRequests: requestsRes.count ?? 0,
-        });
-      } catch (e: any) {
-        setError(e.message ?? 'Failed to load metrics');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchCounts();
-  }, [currentWorkspace?.id]);
-
-  const cards = [
-    { label: 'Contacts', value: counts.contacts, icon: Users, color: 'text-blue-500' },
-    { label: 'Companies', value: counts.companies, icon: Building2, color: 'text-emerald-500' },
-    { label: 'Campaigns', value: counts.campaigns, icon: Megaphone, color: 'text-violet-500' },
-    { label: 'Targets', value: counts.targets, icon: Target, color: 'text-orange-500' },
-    { label: 'Pending Approvals', value: counts.pendingRequests, icon: FileCheck, color: 'text-amber-500' },
-  ];
+  const { role } = usePermissions();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
-        <p className="text-muted-foreground text-sm">Workspace health at a glance.</p>
+        <h1 className="text-2xl font-bold tracking-tight">Admin Console</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Central hub for workspace governance, data quality and system tools.
+        </p>
       </div>
 
-      {error && (
-        <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
+      {/* Quick Actions */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Quick Actions
+        </h2>
+        <CardGrid cards={QUICK_ACTIONS} role={role} />
+      </section>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {cards.map((c) => (
-          <Card key={c.label}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{c.label}</CardTitle>
-              <c.icon className={cn('w-4 h-4', c.color)} />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-              ) : (
-                <p className="text-2xl font-bold">{c.value?.toLocaleString() ?? '—'}</p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* System */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          System
+        </h2>
+        <CardGrid cards={SYSTEM_CARDS} role={role} />
+      </section>
     </div>
   );
 }

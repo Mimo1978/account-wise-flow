@@ -10,7 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { Loader2, RefreshCw, Download, CalendarIcon } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Loader2, RefreshCw, Download, CalendarIcon, Eye } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -38,6 +40,7 @@ export default function AdminGovernanceAudit() {
   const { currentWorkspace } = useWorkspace();
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<AuditEntry | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [page, setPage] = useState(0);
 
@@ -197,12 +200,13 @@ export default function AdminGovernanceAudit() {
                   <TableHead>Entity</TableHead>
                   <TableHead>Entity ID</TableHead>
                   <TableHead>Performed By</TableHead>
-                  <TableHead>When</TableHead>
+                   <TableHead>When</TableHead>
+                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {entries.map((e) => (
-                  <TableRow key={e.id}>
+                  <TableRow key={e.id} className="cursor-pointer" onClick={() => setSelected(e)}>
                     <TableCell>
                       <Badge className={ACTION_COLORS[e.action] || ''} variant="secondary">{e.action}</Badge>
                     </TableCell>
@@ -211,6 +215,11 @@ export default function AdminGovernanceAudit() {
                     <TableCell className="font-mono text-xs max-w-[120px] truncate">{e.changed_by || '—'}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {format(new Date(e.changed_at), 'dd MMM yyyy HH:mm:ss')}
+                    </TableCell>
+                    <TableCell onClick={(ev) => ev.stopPropagation()}>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" title="View details" onClick={() => setSelected(e)}>
+                        <Eye className="w-4 h-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -240,6 +249,53 @@ export default function AdminGovernanceAudit() {
           </PaginationContent>
         </Pagination>
       )}
+
+      {/* Detail Drawer */}
+      <Sheet open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+        <SheetContent side="right" className="w-full sm:max-w-lg p-0 flex flex-col">
+          <SheetHeader className="px-6 py-5 border-b border-border bg-card shrink-0">
+            <SheetTitle>Audit Entry Detail</SheetTitle>
+          </SheetHeader>
+          {selected && (
+            <ScrollArea className="flex-1 px-6 py-4">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Action</p>
+                  <Badge className={ACTION_COLORS[selected.action] || ''} variant="secondary">{selected.action}</Badge>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Entity Type</p>
+                  <p className="text-sm">{selected.entity_type}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Entity ID</p>
+                  <code className="text-xs bg-muted px-2 py-1 rounded">{selected.entity_id}</code>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Performed By</p>
+                  <code className="text-xs bg-muted px-2 py-1 rounded">{selected.changed_by || '—'}</code>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Timestamp</p>
+                  <p className="text-sm">{format(new Date(selected.changed_at), 'dd MMM yyyy HH:mm:ss')}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Diff (Before → After)</p>
+                  <pre className="text-xs bg-muted rounded p-3 overflow-x-auto whitespace-pre-wrap max-h-64">
+                    {JSON.stringify(selected.diff, null, 2)}
+                  </pre>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Context</p>
+                  <pre className="text-xs bg-muted rounded p-3 overflow-x-auto whitespace-pre-wrap max-h-64">
+                    {JSON.stringify(selected.context, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </ScrollArea>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

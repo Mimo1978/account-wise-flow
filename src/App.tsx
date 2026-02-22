@@ -142,6 +142,7 @@ const App = () => {
             <Route path="/admin/governance/requests" element={<AdminPage section="governance"><AdminGovernanceRequests /></AdminPage>} />
             <Route path="/admin/change-requests" element={<AdminPage section="governance"><AdminGovernanceRequests /></AdminPage>} />
             <Route path="/admin/governance/audit" element={<AdminPage section="governance"><AdminGovernanceAudit /></AdminPage>} />
+            <Route path="/admin/audit" element={<AdminPage section="governance"><AdminGovernanceAudit /></AdminPage>} />
             <Route path="/admin/signals" element={<AdminPage section="signals"><AdminSignals /></AdminPage>} />
             <Route path="/admin/schema" element={<AdminPage section="schema"><SchemaInventory /></AdminPage>} />
             <Route path="/admin/data-quality" element={<AdminPage section="data-quality"><AdminDataQuality /></AdminPage>} />

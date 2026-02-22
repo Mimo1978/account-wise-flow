@@ -58,7 +58,7 @@ export function useCompanyCanvas(options: UseCompanyCanvasOptions = {}): UseComp
       
       // Fetch contacts and org hierarchy in parallel
       const [contactsResult, orgResult] = await Promise.all([
-        supabase.from('contacts').select('*').eq('company_id', companyId),
+        supabase.from('contacts').select('*').eq('company_id', companyId).is('deleted_at', null),
         supabase.from('org_chart_edges').select('child_contact_id, parent_contact_id, position_index').eq('company_id', companyId),
       ]);
       

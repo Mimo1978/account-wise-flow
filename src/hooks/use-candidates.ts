@@ -92,10 +92,12 @@ export function useCandidates() {
   const query = useQuery({
     queryKey: ["candidates", currentWorkspace?.id],
     queryFn: async () => {
-      console.log("[useCandidates] Fetching candidates for workspace:", currentWorkspace?.id);
+      if (!currentWorkspace?.id) return [];
+      console.log("[useCandidates] Fetching candidates for workspace:", currentWorkspace.id);
       const { data, error } = await supabase
         .from("candidates")
         .select("*")
+        .eq("tenant_id", currentWorkspace.id)
         .order("updated_at", { ascending: false });
 
       if (error) {
@@ -103,7 +105,9 @@ export function useCandidates() {
         throw error;
       }
 
-      console.log("[useCandidates] Fetched", data?.length || 0, "candidates");
+      if (import.meta.env.DEV) {
+        console.debug("[useCandidates] query:", { workspaceId: currentWorkspace.id, resultCount: data?.length ?? 0 });
+      }
       return (data || []).map((row: any) => transformCandidate(row as CandidateRow));
     },
     enabled: !!currentWorkspace?.id,

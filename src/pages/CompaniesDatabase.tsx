@@ -126,6 +126,9 @@ export default function CompaniesDatabase() {
         return [];
       }
       
+      if (import.meta.env.DEV) {
+        console.debug('[CompaniesDatabase] query:', { workspaceId: currentWorkspace?.id, resultCount: data?.length ?? 0 });
+      }
       // Transform database records to Account format
       return (data || []).map((company: any) => ({
         id: company.id,
@@ -140,7 +143,7 @@ export default function CompaniesDatabase() {
         lastUpdated: company.updated_at,
         lastInteraction: company.updated_at,
         engagementScore: 50,
-        dataQuality: 'partial' as const,
+        dataQuality: (company.data_quality as DataQuality) || 'partial',
       }));
     },
     enabled: !!currentWorkspace?.id,

@@ -25,7 +25,7 @@ import {
   OutreachEventType,
   useUpdateTargetState,
 } from "@/hooks/use-outreach";
-import { isOutreachBlocked, isCallBlocked } from "@/lib/outreach-enums";
+import { isOutreachBlocked, isCallBlocked, TARGET_STATE_LABEL, TARGET_STATE_BADGE_CLASS } from "@/lib/outreach-enums";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
@@ -34,18 +34,6 @@ interface Props {
   target: OutreachTarget;
   onOpen: (t: OutreachTarget) => void;
 }
-
-
-const STATE_BADGE: Record<OutreachTargetState, { label: string; className: string }> = {
-  queued: { label: "Queued", className: "bg-muted text-muted-foreground" },
-  contacted: { label: "Contacted", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300" },
-  responded: { label: "Responded", className: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300" },
-  booked: { label: "Booked", className: "bg-primary/10 text-primary" },
-  snoozed: { label: "Snoozed", className: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300" },
-  opted_out: { label: "Opted Out", className: "bg-destructive/10 text-destructive" },
-  converted: { label: "Converted", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" },
-  closed: { label: "Closed", className: "bg-muted text-muted-foreground" },
-};
 
 export function OutreachTargetRow({ target, onOpen }: Props) {
   const { mutateAsync, isPending } = useUpdateTargetState();
@@ -67,7 +55,8 @@ export function OutreachTargetRow({ target, onOpen }: Props) {
     await mutateAsync({ targetId: target.id, state, eventType, metadata: meta });
   };
 
-  const badge = STATE_BADGE[target.state] ?? STATE_BADGE.queued;
+  const badgeLabel = TARGET_STATE_LABEL[target.state] ?? target.state;
+  const badgeClass = TARGET_STATE_BADGE_CLASS[target.state] ?? TARGET_STATE_BADGE_CLASS.queued;
 
   return (
     <tr className="border-b last:border-0 hover:bg-muted/30 transition-colors group">
@@ -128,8 +117,8 @@ export function OutreachTargetRow({ target, onOpen }: Props) {
 
       {/* State */}
       <td className="px-4 py-3">
-        <Badge className={`text-xs font-medium capitalize ${badge.className}`}>
-          {badge.label}
+        <Badge className={`text-xs font-medium capitalize ${badgeClass}`}>
+          {badgeLabel}
         </Badge>
       </td>
 

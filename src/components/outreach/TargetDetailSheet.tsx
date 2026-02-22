@@ -19,38 +19,13 @@ import {
 } from "@/hooks/use-outreach";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { format, parseISO } from "date-fns";
+import { EVENT_TYPE_LABEL, TARGET_STATE_LABEL, TARGET_STATE_BADGE_CLASS } from "@/lib/outreach-enums";
 
 interface Props {
   target: OutreachTarget | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }
-
-const EVENT_LABELS: Record<string, string> = {
-  email_sent: "Email Sent",
-  sms_sent: "SMS Sent",
-  call_made: "Call Made",
-  call_scheduled: "Call Scheduled",
-  call_completed: "Call Completed",
-  responded: "Responded",
-  booked: "Meeting Booked",
-  snoozed: "Snoozed",
-  opted_out: "Opted Out",
-  note_added: "Note Added",
-  status_changed: "Status Changed",
-  added_to_campaign: "Added to Campaign",
-};
-
-const STATE_COLORS: Record<OutreachTargetState, string> = {
-  queued: "bg-muted text-muted-foreground",
-  contacted: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300",
-  responded: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
-  booked: "bg-primary/10 text-primary",
-  snoozed: "bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300",
-  opted_out: "bg-destructive/10 text-destructive",
-  converted: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
-  closed: "bg-muted text-muted-foreground",
-};
 
 export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
   const { mutateAsync: updateState, isPending } = useUpdateTargetState();
@@ -78,8 +53,8 @@ export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
                 {[target.entity_title, target.entity_company].filter(Boolean).join(" · ")}
               </p>
             </div>
-            <Badge className={`shrink-0 text-xs font-medium capitalize ${STATE_COLORS[target.state]}`}>
-              {target.state.replace("_", " ")}
+            <Badge className={`shrink-0 text-xs font-medium capitalize ${TARGET_STATE_BADGE_CLASS[target.state]}`}>
+              {TARGET_STATE_LABEL[target.state]}
             </Badge>
           </div>
         </SheetHeader>
@@ -241,7 +216,7 @@ function ActivityEventItem({ event }: { event: OutreachEvent }) {
           {hasEmailBody && (
             open ? <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />
           )}
-          <p className="text-sm font-medium">{EVENT_LABELS[event.event_type] ?? event.event_type}</p>
+          <p className="text-sm font-medium">{EVENT_TYPE_LABEL[event.event_type] ?? event.event_type}</p>
         </div>
         {event.event_type === "email_sent" && event.subject && (
           <p className="text-xs text-muted-foreground truncate mt-0.5">{event.subject}</p>

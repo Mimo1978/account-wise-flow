@@ -33,9 +33,11 @@ import { useState } from "react";
 interface Props {
   target: OutreachTarget;
   onOpen: (t: OutreachTarget) => void;
+  selected?: boolean;
+  onSelectChange?: (id: string, checked: boolean) => void;
 }
 
-export function OutreachTargetRow({ target, onOpen }: Props) {
+export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: Props) {
   const { mutateAsync, isPending } = useUpdateTargetState();
   const [aiCallOpen, setAiCallOpen] = useState(false);
 
@@ -60,6 +62,17 @@ export function OutreachTargetRow({ target, onOpen }: Props) {
 
   return (
     <tr className="border-b last:border-0 hover:bg-muted/30 transition-colors group">
+      {/* Checkbox */}
+      {onSelectChange && (
+        <td className="px-4 py-3 w-10">
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={(e) => onSelectChange(target.id, e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer"
+          />
+        </td>
+      )}
       {/* Name / title */}
       <td className="px-4 py-3">
         <div className="flex flex-col gap-0.5">

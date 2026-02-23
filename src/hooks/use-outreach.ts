@@ -10,6 +10,7 @@ import {
   callOutcomeToState,
   isOutreachBlocked,
   isCallBlocked,
+  TARGET_STATE_LABEL,
   type ComplianceFlags,
 } from "@/lib/outreach-enums";
 
@@ -477,37 +478,56 @@ export function useLogOutreachEvent() {
 
 // ─── Call outcome hooks ───────────────────────────────────────────────────────
 
-export function useBatchResetTargets() {
+export function useBatchUpdateTargetState() {
   const { currentWorkspace } = useWorkspace();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (targetIds: string[]) => {
+    mutationFn: async ({ targetIds, state }: { targetIds: string[]; state: OutreachTargetState }) => {
       if (targetIds.length === 0) return;
 
-      // Update all targets to queued
+      const updateFields: Record<string, unknown> = { state };
+      if (state === "queued") {
+        updateFields.snooze_until = null;
+        updateFields.last_contacted_at = null;
+      }
+
       const { error: updateError } = await db
         .from("outreach_targets")
-        .update({ state: "queued", snooze_until: null, last_contacted_at: null })
+        .update(updateFields)
         .in("id", targetIds);
       if (updateError) throw updateError;
 
-      // Log status_changed events
+      // Log status_changed events (fire-and-forget, don't block on failure)
       const events = targetIds.map((id) => ({
         workspace_id: currentWorkspace!.id,
         target_id: id,
         event_type: "status_changed" as OutreachEventType,
-        metadata: { reset: true, batch: true },
+        metadata: { reset: state === "queued", batch: true, new_state: state },
       }));
-      await db.from("outreach_events").insert(events).catch(() => {});
+      const { error: evtError } = await db.from("outreach_events").insert(events);
+      if (evtError) console.warn("Failed to log batch events:", evtError.message);
     },
-    onSuccess: (_data, targetIds) => {
+    onSuccess: (_data, { targetIds, state }) => {
       qc.invalidateQueries({ queryKey: ["outreach_targets"] });
       qc.invalidateQueries({ queryKey: ["outreach_events"] });
       qc.invalidateQueries({ queryKey: ["outreach_campaigns"] });
-      toast.success(`${targetIds.length} target${targetIds.length !== 1 ? "s" : ""} reset to Queued`);
+      const label = TARGET_STATE_LABEL[state] ?? state;
+      toast.success(`${targetIds.length} target${targetIds.length !== 1 ? "s" : ""} set to ${label}`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
+}
+
+/** @deprecated Use useBatchUpdateTargetState instead */
+export function useBatchResetTargets() {
+  const batch = useBatchUpdateTargetState();
+  return {
+    ...batch,
+    mutate: (targetIds: string[], opts?: Parameters<typeof batch.mutate>[1]) =>
+      batch.mutate({ targetIds, state: "queued" }, opts),
+    mutateAsync: (targetIds: string[], opts?: Parameters<typeof batch.mutateAsync>[1]) =>
+      batch.mutateAsync({ targetIds, state: "queued" }, opts),
+  };
 }
 
 export function useLogCallOutcome() {

@@ -23,7 +23,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2, ChevronRight, RotateCcw } from "lucide-react";
+import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2, ChevronRight, RotateCcw, Mail, Phone, Calendar, XCircle, BellOff, CheckCircle, ArrowRight } from "lucide-react";
 import {
   useOutreachCampaigns,
   useOutreachTargets,
@@ -32,6 +32,7 @@ import {
   type OutreachCampaignStatus,
   type OutreachCampaign,
   useBatchResetTargets,
+  useBatchUpdateTargetState,
 } from "@/hooks/use-outreach";
 import { useOutreachScripts, useDeleteScript } from "@/hooks/use-scripts";
 import { CreateCampaignModal } from "@/components/outreach/CreateCampaignModal";
@@ -89,6 +90,7 @@ export default function OutreachPage() {
   const { data: scripts = [], isLoading: scriptsLoading } = useOutreachScripts();
   const { mutate: deleteScript } = useDeleteScript();
   const { mutate: batchReset, isPending: batchResetting } = useBatchResetTargets();
+  const { mutate: batchUpdate, isPending: batchUpdating } = useBatchUpdateTargetState();
   const { canEdit, canInsert, canDelete, role, teamId, userId } = usePermissions();
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
@@ -126,6 +128,11 @@ export default function OutreachPage() {
     const ids = Array.from(selectedIds);
     batchReset(ids, { onSuccess: () => setSelectedIds(new Set()) });
   };
+  const handleBatchState = (state: OutreachTargetState) => {
+    const ids = Array.from(selectedIds);
+    batchUpdate({ targetIds: ids, state }, { onSuccess: () => setSelectedIds(new Set()) });
+  };
+  const isBatchBusy = batchResetting || batchUpdating;
 
 
   const openTarget = (t: OutreachTarget) => {
@@ -351,6 +358,42 @@ export default function OutreachPage() {
               )}
             </div>
 
+            {/* Batch action bar — above table */}
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-2 mb-3 px-4 py-2.5 rounded-lg border border-primary/20 bg-primary/5 animate-in fade-in slide-in-from-top-2 duration-200">
+                <span className="text-sm font-medium whitespace-nowrap">
+                  {selectedIds.size} selected
+                </span>
+                <div className="h-4 w-px bg-border mx-1" />
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" disabled={isBatchBusy || isReadOnly} onClick={() => handleBatchState("queued")}>
+                    <RotateCcw className="w-3 h-3" /> Queued
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" disabled={isBatchBusy || isReadOnly} onClick={() => handleBatchState("contacted")}>
+                    <Mail className="w-3 h-3" /> Contacted
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" disabled={isBatchBusy || isReadOnly} onClick={() => handleBatchState("responded")}>
+                    <ArrowRight className="w-3 h-3" /> Responded
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" disabled={isBatchBusy || isReadOnly} onClick={() => handleBatchState("booked")}>
+                    <Calendar className="w-3 h-3" /> Booked
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" disabled={isBatchBusy || isReadOnly} onClick={() => handleBatchState("snoozed")}>
+                    <BellOff className="w-3 h-3" /> Snoozed
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" disabled={isBatchBusy || isReadOnly} onClick={() => handleBatchState("converted")}>
+                    <CheckCircle className="w-3 h-3" /> Converted
+                  </Button>
+                  <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs text-destructive hover:text-destructive" disabled={isBatchBusy || isReadOnly} onClick={() => handleBatchState("opted_out")}>
+                    <XCircle className="w-3 h-3" /> Opted Out
+                  </Button>
+                </div>
+                <Button size="sm" variant="ghost" className="h-7 text-xs ml-auto whitespace-nowrap" onClick={() => setSelectedIds(new Set())}>
+                  Clear
+                </Button>
+              </div>
+            )}
+
             {/* Table */}
             <div className="rounded-lg border border-border/50 bg-card">
               {targetsLoading ? (
@@ -422,33 +465,6 @@ export default function OutreachPage() {
                 </Table>
               )}
             </div>
-
-            {/* Batch action bar */}
-            {selectedIds.size > 0 && (
-              <div className="flex items-center gap-3 mt-3 px-4 py-2.5 rounded-lg border border-border bg-muted/50 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                <span className="text-sm font-medium">
-                  {selectedIds.size} selected
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5 h-7 text-xs"
-                  disabled={batchResetting || isReadOnly}
-                  onClick={handleBatchReset}
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  Reset to Queued
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs ml-auto"
-                  onClick={() => setSelectedIds(new Set())}
-                >
-                  Clear selection
-                </Button>
-              </div>
-            )}
 
             {filteredTargets.length > 0 && selectedIds.size === 0 && (
               <p className="text-xs text-muted-foreground mt-2 px-1">

@@ -477,6 +477,39 @@ export function useLogOutreachEvent() {
 
 // ─── Call outcome hooks ───────────────────────────────────────────────────────
 
+export function useBatchResetTargets() {
+  const { currentWorkspace } = useWorkspace();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (targetIds: string[]) => {
+      if (targetIds.length === 0) return;
+
+      // Update all targets to queued
+      const { error: updateError } = await db
+        .from("outreach_targets")
+        .update({ state: "queued", snooze_until: null, last_contacted_at: null })
+        .in("id", targetIds);
+      if (updateError) throw updateError;
+
+      // Log status_changed events
+      const events = targetIds.map((id) => ({
+        workspace_id: currentWorkspace!.id,
+        target_id: id,
+        event_type: "status_changed" as OutreachEventType,
+        metadata: { reset: true, batch: true },
+      }));
+      await db.from("outreach_events").insert(events).catch(() => {});
+    },
+    onSuccess: (_data, targetIds) => {
+      qc.invalidateQueries({ queryKey: ["outreach_targets"] });
+      qc.invalidateQueries({ queryKey: ["outreach_events"] });
+      qc.invalidateQueries({ queryKey: ["outreach_campaigns"] });
+      toast.success(`${targetIds.length} target${targetIds.length !== 1 ? "s" : ""} reset to Queued`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useLogCallOutcome() {
   const { currentWorkspace } = useWorkspace();
   const qc = useQueryClient();

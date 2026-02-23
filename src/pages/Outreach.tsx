@@ -23,7 +23,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2, ChevronRight } from "lucide-react";
+import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2, ChevronRight, RotateCcw } from "lucide-react";
 import {
   useOutreachCampaigns,
   useOutreachTargets,
@@ -31,6 +31,7 @@ import {
   type OutreachTargetState,
   type OutreachCampaignStatus,
   type OutreachCampaign,
+  useBatchResetTargets,
 } from "@/hooks/use-outreach";
 import { useOutreachScripts, useDeleteScript } from "@/hooks/use-scripts";
 import { CreateCampaignModal } from "@/components/outreach/CreateCampaignModal";
@@ -79,7 +80,7 @@ export default function OutreachPage() {
   const [searchText, setSearchText] = useState("");
   const [filterCampaign, setFilterCampaign] = useState("");
   const [filterState, setFilterState] = useState<OutreachTargetState | "">("");
-
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { data: campaigns = [], isLoading: campaignsLoading } = useOutreachCampaigns();
   const { data: targets = [], isLoading: targetsLoading } = useOutreachTargets({
     campaignId: filterCampaign || undefined,
@@ -87,6 +88,7 @@ export default function OutreachPage() {
   });
   const { data: scripts = [], isLoading: scriptsLoading } = useOutreachScripts();
   const { mutate: deleteScript } = useDeleteScript();
+  const { mutate: batchReset, isPending: batchResetting } = useBatchResetTargets();
   const { canEdit, canInsert, canDelete, role, teamId, userId } = usePermissions();
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
@@ -102,6 +104,29 @@ export default function OutreachPage() {
       t.entity_email?.toLowerCase().includes(q)
     );
   });
+
+  // Selection helpers
+  const allSelected = filteredTargets.length > 0 && filteredTargets.every((t) => selectedIds.has(t.id));
+  const someSelected = filteredTargets.some((t) => selectedIds.has(t.id));
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredTargets.map((t) => t.id)));
+    }
+  };
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
+  const handleBatchReset = () => {
+    const ids = Array.from(selectedIds);
+    batchReset(ids, { onSuccess: () => setSelectedIds(new Set()) });
+  };
+
 
   const openTarget = (t: OutreachTarget) => {
     setSelectedTarget(t);
@@ -367,6 +392,15 @@ export default function OutreachPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-10 px-4">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
+                          onChange={toggleAll}
+                          className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer"
+                        />
+                      </TableHead>
                       <TableHead className="text-xs font-medium">Name</TableHead>
                       <TableHead className="text-xs font-medium hidden md:table-cell">Campaign</TableHead>
                       <TableHead className="text-xs font-medium">State</TableHead>
@@ -380,6 +414,8 @@ export default function OutreachPage() {
                         key={target.id}
                         target={target}
                         onOpen={openTarget}
+                        selected={selectedIds.has(target.id)}
+                        onSelectChange={toggleOne}
                       />
                     ))}
                   </TableBody>
@@ -387,7 +423,34 @@ export default function OutreachPage() {
               )}
             </div>
 
-            {filteredTargets.length > 0 && (
+            {/* Batch action bar */}
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3 mt-3 px-4 py-2.5 rounded-lg border border-border bg-muted/50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <span className="text-sm font-medium">
+                  {selectedIds.size} selected
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 h-7 text-xs"
+                  disabled={batchResetting || isReadOnly}
+                  onClick={handleBatchReset}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Reset to Queued
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs ml-auto"
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  Clear selection
+                </Button>
+              </div>
+            )}
+
+            {filteredTargets.length > 0 && selectedIds.size === 0 && (
               <p className="text-xs text-muted-foreground mt-2 px-1">
                 {filteredTargets.length} target{filteredTargets.length !== 1 ? "s" : ""}
               </p>

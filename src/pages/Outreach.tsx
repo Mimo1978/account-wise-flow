@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -25,10 +25,13 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2, ChevronRight, RotateCcw, Mail, Phone, Calendar, XCircle, BellOff, CheckCircle, ArrowRight } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2, ChevronRight, RotateCcw, Mail, Phone, Calendar, XCircle, BellOff, CheckCircle, ArrowRight, Pencil, Check, X } from "lucide-react";
 import {
   useOutreachCampaigns,
   useOutreachTargets,
+  useUpdateCampaign,
   type OutreachTarget,
   type OutreachTargetState,
   type OutreachCampaignStatus,
@@ -89,6 +92,10 @@ export default function OutreachPage() {
   const [filterCampaign, setFilterCampaign] = useState(deepLinkCampaignId);
   const [filterState, setFilterState] = useState<OutreachTargetState | "">("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const editNameRef = useRef<HTMLInputElement>(null);
   const { data: campaigns = [], isLoading: campaignsLoading } = useOutreachCampaigns();
   const { data: targets = [], isLoading: targetsLoading } = useOutreachTargets({
     campaignId: filterCampaign || undefined,
@@ -103,6 +110,26 @@ export default function OutreachPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isReadOnly = !canEdit;
+  const { mutate: updateCampaign } = useUpdateCampaign();
+
+  const startEditCampaign = (c: OutreachCampaign, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCampaignId(c.id);
+    setEditName(c.name);
+    setEditDescription(c.description ?? "");
+    setTimeout(() => editNameRef.current?.focus(), 50);
+  };
+
+  const saveEditCampaign = (id: string) => {
+    if (!editName.trim()) { toast.error("Name cannot be empty"); return; }
+    updateCampaign({ id, name: editName.trim(), description: editDescription.trim() || null } as any);
+    toast.success("Campaign updated");
+    setEditingCampaignId(null);
+  };
+
+  const cancelEditCampaign = () => {
+    setEditingCampaignId(null);
+  };
 
   // Deep-link: if campaignId in URL, auto-open that campaign detail view
   useEffect(() => {
@@ -536,41 +563,83 @@ export default function OutreachPage() {
                 {campaigns.map((campaign) => (
                   <div
                     key={campaign.id}
-                    className="rounded-lg border border-border/50 bg-card p-4 hover:border-border transition-colors cursor-pointer group"
-                    onClick={() => setSelectedCampaign(campaign)}
+                    className={`rounded-lg border bg-card p-4 transition-colors group ${editingCampaignId === campaign.id ? "border-primary/40 ring-1 ring-primary/20" : "border-border/50 hover:border-border cursor-pointer"}`}
+                    onClick={() => editingCampaignId !== campaign.id && setSelectedCampaign(campaign)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                            {campaign.name}
-                          </h3>
-                          <Badge
-                            className={`text-[10px] capitalize font-medium ${CAMPAIGN_STATUS_BADGE[campaign.status]}`}
-                          >
-                            {campaign.status}
-                          </Badge>
-                          <Badge variant="outline" className="text-[10px] capitalize">
-                            {campaign.channel}
-                          </Badge>
-                          {(campaign as any).engagement_id && engagementNameMap.has((campaign as any).engagement_id) && (
-                            <Badge
-                              variant="secondary"
-                              className="text-[10px] gap-1 cursor-pointer hover:bg-secondary/80"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/projects/${(campaign as any).engagement_id}?tab=outreach`);
-                              }}
-                            >
-                              <Briefcase className="w-2.5 h-2.5" />
-                              {engagementNameMap.get((campaign as any).engagement_id)}
-                            </Badge>
-                          )}
-                        </div>
-                        {campaign.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                            {campaign.description}
-                          </p>
+                        {editingCampaignId === campaign.id ? (
+                          <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                ref={editNameRef}
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                className="text-sm font-medium h-8 max-w-xs"
+                                placeholder="Campaign name"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveEditCampaign(campaign.id);
+                                  if (e.key === "Escape") cancelEditCampaign();
+                                }}
+                              />
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-primary" onClick={() => saveEditCampaign(campaign.id)}>
+                                <Check className="w-4 h-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground" onClick={cancelEditCampaign}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <Textarea
+                              value={editDescription}
+                              onChange={(e) => setEditDescription(e.target.value)}
+                              className="text-xs max-w-sm min-h-[50px]"
+                              placeholder="Optional description..."
+                              rows={2}
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                                {campaign.name}
+                              </h3>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-5 w-5 p-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                                onClick={(e) => startEditCampaign(campaign, e)}
+                                title="Edit campaign name & description"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <Badge
+                                className={`text-[10px] capitalize font-medium ${CAMPAIGN_STATUS_BADGE[campaign.status]}`}
+                              >
+                                {campaign.status}
+                              </Badge>
+                              <Badge variant="outline" className="text-[10px] capitalize">
+                                {campaign.channel}
+                              </Badge>
+                              {(campaign as any).engagement_id && engagementNameMap.has((campaign as any).engagement_id) && (
+                                <Badge
+                                  variant="secondary"
+                                  className="text-[10px] gap-1 cursor-pointer hover:bg-secondary/80"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/projects/${(campaign as any).engagement_id}?tab=outreach`);
+                                  }}
+                                >
+                                  <Briefcase className="w-2.5 h-2.5" />
+                                  {engagementNameMap.get((campaign as any).engagement_id)}
+                                </Badge>
+                              )}
+                            </div>
+                            {campaign.description && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                                {campaign.description}
+                              </p>
+                            )}
+                          </>
                         )}
                       </div>
                       <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>

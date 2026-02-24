@@ -1,4 +1,4 @@
-import { ReactNode, useMemo } from 'react';
+import { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { usePermissions, AppRole } from '@/hooks/use-permissions';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -8,16 +8,10 @@ import { ChevronRight } from 'lucide-react';
 import {
   LayoutDashboard,
   Shield,
-  FileCheck,
-  History,
   Database,
-  GitBranch,
   Megaphone,
-  Radio,
-  LifeBuoy,
-  Palette,
-  FlaskConical,
   Plug,
+  Palette,
 } from 'lucide-react';
 import type { AdminSection } from './AdminRouteGuard';
 
@@ -26,33 +20,15 @@ interface NavItem {
   path: string;
   icon: React.ElementType;
   section: AdminSection;
-  children?: NavItem[];
 }
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Overview', path: '/admin/overview', icon: LayoutDashboard, section: 'overview' },
-  {
-    label: 'Workspace & Access', path: '/admin/access', icon: Shield, section: 'access',
-    children: [
-      { label: 'Access (Roles)', path: '/admin/access', icon: Shield, section: 'access' },
-      { label: 'Branding', path: '/admin/workspace/branding', icon: Palette, section: 'workspace' },
-    ],
-  },
-  {
-    label: 'Governance', path: '/admin/governance/requests', icon: FileCheck, section: 'governance',
-    children: [
-      { label: 'Requests', path: '/admin/governance/requests', icon: FileCheck, section: 'governance' },
-      { label: 'Audit Log', path: '/admin/governance/audit', icon: History, section: 'governance' },
-    ],
-  },
+  { label: 'Workspace & Roles', path: '/admin/access', icon: Shield, section: 'access' },
   { label: 'Data Quality', path: '/admin/data-quality', icon: Database, section: 'data-quality' },
-  { label: 'Org Chart', path: '/admin/org-chart', icon: GitBranch, section: 'orgchart' },
-  { label: 'Outreach', path: '/admin/outreach', icon: Megaphone, section: 'outreach' },
-  { label: 'Signals', path: '/admin/signals', icon: Radio, section: 'signals' },
-  { label: 'Schema', path: '/admin/schema', icon: Database, section: 'schema' },
+  { label: 'Outreach Defaults', path: '/admin/outreach', icon: Megaphone, section: 'outreach' },
   { label: 'Integrations', path: '/admin/integrations', icon: Plug, section: 'integrations' },
-  { label: 'Support', path: '/admin/support', icon: LifeBuoy, section: 'support' },
-  { label: 'Advanced', path: '/admin/advanced', icon: FlaskConical, section: 'overview' },
+  { label: 'Schema Inventory', path: '/admin/schema', icon: Database, section: 'schema' },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -81,28 +57,15 @@ function canAccess(role: AppRole, section: AdminSection): boolean {
   return (SECTION_ACCESS_ROLES[section] ?? ['admin']).includes(role);
 }
 
-// ── Breadcrumb labels by path ──
 const BREADCRUMB_LABELS: Record<string, string> = {
   '/admin': 'Overview',
   '/admin/overview': 'Overview',
-  '/admin/access': 'Access & Roles',
-  '/admin/roles': 'Access & Roles',
-  '/admin/governance/requests': 'Change Requests',
-  '/admin/change-requests': 'Change Requests',
-  '/admin/governance/audit': 'Audit Log',
-  '/admin/audit': 'Audit Log',
+  '/admin/access': 'Workspace & Roles',
+  '/admin/roles': 'Workspace & Roles',
   '/admin/data-quality': 'Data Quality',
-  '/admin/org-chart': 'Org Chart',
-  '/admin/outreach': 'Outreach',
-  '/admin/outreach/settings': 'Outreach Settings',
-  '/admin/outreach/scripts': 'Outreach Scripts',
-  '/admin/outreach-defaults': 'Outreach Defaults',
-  '/admin/signals': 'Signals',
+  '/admin/outreach': 'Outreach Defaults',
   '/admin/schema': 'Schema Inventory',
-  '/admin/support': 'Support & Diagnostics',
-  '/admin/workspace/branding': 'Branding',
   '/admin/integrations': 'Integrations',
-  '/admin/advanced': 'Advanced',
 };
 
 function AdminBreadcrumb() {
@@ -135,7 +98,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation();
 
   const isActive = (path: string) => {
-    // Exact match for overview
     if (path === '/admin/overview') return location.pathname === '/admin/overview' || location.pathname === '/admin';
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
@@ -144,7 +106,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     <div className="flex h-[calc(100vh-57px)] overflow-hidden">
       {/* Sidebar */}
       <aside className="w-60 border-r border-border bg-muted/30 flex flex-col shrink-0">
-        {/* Workspace header */}
         <div className="px-4 py-4 border-b border-border">
           <p className="text-xs text-muted-foreground uppercase tracking-wider">Admin Console</p>
           <p className="text-sm font-medium truncate mt-1">{currentWorkspace?.name || 'Workspace'}</p>
@@ -155,41 +116,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           )}
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
           {NAV_ITEMS.map((item) => {
             if (!canAccess(role, item.section)) return null;
-
-            if (item.children) {
-              return (
-                <div key={item.label} className="space-y-0.5">
-                  <div className="px-2 pt-3 pb-1">
-                    <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-                      {item.label}
-                    </span>
-                  </div>
-                  {item.children.map((child) => {
-                    if (!canAccess(role, child.section)) return null;
-                    return (
-                      <Link
-                        key={child.path}
-                        to={child.path}
-                        className={cn(
-                          'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors',
-                          isActive(child.path)
-                            ? 'bg-primary/10 text-primary font-medium'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                        )}
-                      >
-                        <child.icon className="w-4 h-4 shrink-0" />
-                        {child.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              );
-            }
-
             return (
               <Link
                 key={item.path}

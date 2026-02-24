@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
     // 1. Fetch companies + contacts
     let companiesQuery = supabase
       .from("companies")
-      .select("id, name, contacts:contacts(id, title, updated_at)");
+      .select("id, name, contacts:contacts!contacts_company_id_fkey(id, title, updated_at)");
 
     if (filterCompanyId) {
       companiesQuery = companiesQuery.eq("id", filterCompanyId);

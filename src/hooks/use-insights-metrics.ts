@@ -24,7 +24,7 @@ export function useInsightsMetrics(companyId: string | null) {
       // Fetch companies with contacts (just id + title is enough)
       let query = supabase
         .from('companies')
-        .select('id, contacts:contacts(id, title, updated_at)');
+        .select('id, contacts:contacts!contacts_company_id_fkey(id, title, updated_at)');
 
       if (companyId) {
         query = query.eq('id', companyId);

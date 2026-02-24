@@ -547,14 +547,14 @@ export function ImportCompaniesModal({
                 </span>
               </div>
               <Select
-                value={columnMapping[field.id] || ""}
-                onValueChange={(value) => handleMappingChange(field.id, value)}
+                value={columnMapping[field.id] || "__skip__"}
+                onValueChange={(value) => handleMappingChange(field.id, value === "__skip__" ? "" : value)}
               >
                 <SelectTrigger className="flex-1">
                   <SelectValue placeholder="Select column..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">— Skip —</SelectItem>
+                  <SelectItem value="__skip__">— Skip —</SelectItem>
                   {rawHeaders.map((header, idx) => (
                     <SelectItem key={idx} value={String(idx)}>
                       {header}

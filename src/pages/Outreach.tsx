@@ -72,6 +72,7 @@ const CHANNEL_BADGE: Record<string, string> = {
 export default function OutreachPage() {
   const [searchParams] = useSearchParams();
   const deepLinkCampaignId = searchParams.get("campaignId") || "";
+  const fromProjectId = searchParams.get("fromProject") || "";
 
   const [tab, setTab] = useState<"queue" | "campaigns" | "scripts">("queue");
   const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
@@ -103,12 +104,17 @@ export default function OutreachPage() {
   const navigate = useNavigate();
   const isReadOnly = !canEdit;
 
-  // Deep-link: if campaignId in URL, apply filter
+  // Deep-link: if campaignId in URL, auto-open that campaign detail view
   useEffect(() => {
     if (deepLinkCampaignId) {
       setFilterCampaign(deepLinkCampaignId);
+      // Auto-select the campaign to open its detail view
+      const match = campaigns.find((c) => c.id === deepLinkCampaignId);
+      if (match && !selectedCampaign) {
+        setSelectedCampaign(match);
+      }
     }
-  }, [deepLinkCampaignId]);
+  }, [deepLinkCampaignId, campaigns]);
 
   // Engagement names for project badges on campaigns
   const { data: engagements = [] } = useEngagements(currentWorkspace?.id);
@@ -172,12 +178,17 @@ export default function OutreachPage() {
     setScriptBuilderOpen(true);
   };
 
+  // Resolve which project ID to use for "Back to Project" (from URL or campaign's engagement_id)
+  const resolveProjectId = (campaign: OutreachCampaign) =>
+    fromProjectId || campaign.engagement_id || "";
+
   // If a campaign is selected, render the Campaign Detail Hub
   if (selectedCampaign) {
     const liveCampaign = campaigns.find((c) => c.id === selectedCampaign.id) ?? selectedCampaign;
     return (
       <CampaignDetailView
         campaign={liveCampaign}
+        projectId={resolveProjectId(liveCampaign)}
         onBack={() => {
           setSelectedCampaign(null);
           setTab("campaigns");

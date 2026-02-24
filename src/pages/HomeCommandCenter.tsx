@@ -3,7 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useEngagements } from '@/hooks/use-engagements';
+import { useSows, type Sow } from '@/hooks/use-sows';
 import { CreateEngagementModal } from '@/components/home/CreateEngagementModal';
+import { CreateSowModal } from '@/components/home/CreateSowModal';
+import { SowDetailSheet } from '@/components/home/SowDetailSheet';
 import { Link } from 'react-router-dom';
 import {
   RefreshCw,
@@ -14,15 +17,28 @@ import {
   Plus,
   Building2,
   ArrowRight,
-  Megaphone,
-  Users,
   LayoutGrid,
   Clock,
   Receipt,
   Loader2,
+  AlertTriangle,
+  ChevronRight,
 } from 'lucide-react';
-import { useState } from 'react';
-import { format } from 'date-fns';
+import { useState, useMemo } from 'react';
+import { format, differenceInDays, addDays, isAfter, isBefore, isToday, startOfDay } from 'date-fns';
+
+/* ─── Types ─── */
+interface CriticalDateItem {
+  id: string;
+  type: 'renewal' | 'end';
+  date: Date;
+  label: string;
+  companyName: string;
+  sowRef: string | null;
+  sow: Sow;
+  overdue: boolean;
+  daysUntil: number;
+}
 
 /* ─── KPI Card ─── */
 function KPICard({
@@ -61,13 +77,11 @@ function EmptyPanel({
   description,
   icon: Icon,
   ctas,
-  onAction,
 }: {
   title: string;
   description: string;
   icon: React.ElementType;
   ctas: { label: string; to?: string; onClick?: () => void; variant?: 'default' | 'outline' }[];
-  onAction?: () => void;
 }) {
   return (
     <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[220px]">
@@ -107,6 +121,39 @@ function PipelineStage({ label, count }: { label: string; count: number }) {
   );
 }
 
+/* ─── Critical Date Row ─── */
+function CriticalDateRow({ item, onClick }: { item: CriticalDateItem; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors rounded-lg group"
+    >
+      <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${item.overdue ? 'bg-destructive/10' : 'bg-warning/10'}`}>
+        {item.overdue ? (
+          <AlertTriangle className="w-4 h-4 text-destructive" />
+        ) : (
+          <CalendarClock className="w-4 h-4 text-warning" />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-foreground truncate">
+          {item.type === 'renewal' ? 'Renewal' : 'Contract End'} — {item.companyName}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {item.sowRef ? `${item.sowRef} · ` : ''}
+          {item.overdue
+            ? `${Math.abs(item.daysUntil)}d overdue`
+            : item.daysUntil === 0
+            ? 'Today'
+            : `in ${item.daysUntil}d`}
+        </p>
+      </div>
+      <span className="text-xs text-muted-foreground">{format(item.date, 'dd MMM')}</span>
+      <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+    </button>
+  );
+}
+
 const HEALTH_COLORS: Record<string, string> = {
   green: 'bg-success text-success-foreground',
   amber: 'bg-warning text-warning-foreground',
@@ -121,21 +168,94 @@ const STAGE_LABELS: Record<string, string> = {
   closed_lost: 'Closed Lost',
 };
 
+/* ─── Helpers ─── */
+function buildCriticalDates(sows: Sow[], windowDays: number): CriticalDateItem[] {
+  const today = startOfDay(new Date());
+  const cutoff = addDays(today, windowDays);
+  const items: CriticalDateItem[] = [];
+
+  for (const sow of sows) {
+    if (sow.status === 'expired') continue;
+
+    const companyName = sow.companies?.name ?? 'Unknown';
+
+    if (sow.renewal_date) {
+      const d = startOfDay(new Date(sow.renewal_date));
+      const diff = differenceInDays(d, today);
+      if (diff <= windowDays) {
+        items.push({
+          id: `${sow.id}-renewal`,
+          type: 'renewal',
+          date: d,
+          label: `Renewal — ${companyName}`,
+          companyName,
+          sowRef: sow.sow_ref,
+          sow,
+          overdue: isBefore(d, today),
+          daysUntil: diff,
+        });
+      }
+    }
+
+    if (sow.end_date) {
+      const d = startOfDay(new Date(sow.end_date));
+      const diff = differenceInDays(d, today);
+      if (diff <= windowDays) {
+        items.push({
+          id: `${sow.id}-end`,
+          type: 'end',
+          date: d,
+          label: `End — ${companyName}`,
+          companyName,
+          sowRef: sow.sow_ref,
+          sow,
+          overdue: isBefore(d, today),
+          daysUntil: diff,
+        });
+      }
+    }
+  }
+
+  // Sort: overdue first, then by date ascending
+  items.sort((a, b) => {
+    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+    return a.date.getTime() - b.date.getTime();
+  });
+
+  return items;
+}
+
 /* ─── Main Page ─── */
 const HomeCommandCenter = () => {
   const { currentWorkspace, refreshWorkspaces } = useWorkspace();
   const [refreshing, setRefreshing] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [sowOpen, setSowOpen] = useState(false);
+  const [selectedSow, setSelectedSow] = useState<Sow | null>(null);
+  const [sowSheetOpen, setSowSheetOpen] = useState(false);
 
   const { data: engagements = [], isLoading: engLoading } = useEngagements(currentWorkspace?.id);
+  const { data: sows = [], isLoading: sowsLoading } = useSows(currentWorkspace?.id);
 
   const activeCount = engagements.filter((e) => e.stage === 'active').length;
   const pipelineCount = engagements.filter((e) => e.stage === 'pipeline').length;
+
+  // Critical dates: My Work = 30 days, Diary = 7 days
+  const myWorkItems = useMemo(() => buildCriticalDates(sows, 30), [sows]);
+  const diaryItems = useMemo(() => buildCriticalDates(sows, 7), [sows]);
+
+  const renewalCount = myWorkItems.length;
+  const overdueCount = myWorkItems.filter((i) => i.overdue).length;
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await refreshWorkspaces();
     setTimeout(() => setRefreshing(false), 600);
+  };
+
+  const openSowDetail = (sow: Sow) => {
+    setSelectedSow(sow);
+    setSowSheetOpen(true);
   };
 
   return (
@@ -177,16 +297,16 @@ const HomeCommandCenter = () => {
           accentClass="bg-accent"
         />
         <KPICard
-          title="Outstanding Invoices"
-          value="—"
-          subtitle="No invoices"
+          title="Active SOWs"
+          value={sows.filter((s) => s.status === 'signed').length > 0 ? String(sows.filter((s) => s.status === 'signed').length) : '—'}
+          subtitle={sows.length > 0 ? `${sows.length} total contracts` : 'No contracts'}
           icon={FileText}
           accentClass="bg-warning"
         />
         <KPICard
           title="Renewals & Key Dates"
-          value="—"
-          subtitle="Nothing upcoming"
+          value={renewalCount > 0 ? String(renewalCount) : '—'}
+          subtitle={overdueCount > 0 ? `${overdueCount} overdue` : renewalCount > 0 ? `${renewalCount} upcoming` : 'Nothing upcoming'}
           icon={CalendarClock}
           accentClass="bg-success"
         />
@@ -194,37 +314,149 @@ const HomeCommandCenter = () => {
 
       {/* ── My Work + Diary ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* My Work: 30 day window */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">My Work</h2>
-            <Badge variant="secondary" className="text-xs">0 items</Badge>
+            <Badge variant="secondary" className="text-xs">{myWorkItems.length} items</Badge>
           </div>
-          <EmptyPanel
-            title="No tasks assigned"
-            description="Tasks, follow-ups and actions assigned to you will appear here."
-            icon={Clock}
-            ctas={[
-              { label: 'View Outreach', to: '/outreach', variant: 'outline' },
-              { label: 'View Talent', to: '/talent', variant: 'outline' },
-            ]}
-          />
+          {myWorkItems.length === 0 ? (
+            <EmptyPanel
+              title="No tasks or critical dates"
+              description="Upcoming renewals, contract end dates and overdue items will appear here."
+              icon={Clock}
+              ctas={[
+                { label: 'Add SOW', onClick: () => setSowOpen(true) },
+                { label: 'View Outreach', to: '/outreach', variant: 'outline' },
+              ]}
+            />
+          ) : (
+            <Card className="divide-y divide-border/50">
+              {myWorkItems.slice(0, 8).map((item) => (
+                <CriticalDateRow
+                  key={item.id}
+                  item={item}
+                  onClick={() => openSowDetail(item.sow)}
+                />
+              ))}
+              {myWorkItems.length > 8 && (
+                <div className="px-4 py-2 text-center">
+                  <span className="text-xs text-muted-foreground">+{myWorkItems.length - 8} more items</span>
+                </div>
+              )}
+            </Card>
+          )}
         </div>
 
+        {/* Diary: 7 day window */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Diary</h2>
-            <Badge variant="secondary" className="text-xs">Today</Badge>
+            <Badge variant="secondary" className="text-xs">Next 7 days</Badge>
           </div>
-          <EmptyPanel
-            title="No events today"
-            description="Scheduled calls, meetings and deadlines will appear in your diary."
-            icon={CalendarClock}
-            ctas={[
-              { label: 'View Outreach', to: '/outreach', variant: 'outline' },
-            ]}
-          />
+          {diaryItems.length === 0 ? (
+            <EmptyPanel
+              title="No events this week"
+              description="Contract renewals and end dates in the next 7 days will appear in your diary."
+              icon={CalendarClock}
+              ctas={[
+                { label: 'Add SOW', onClick: () => setSowOpen(true) },
+              ]}
+            />
+          ) : (
+            <Card className="divide-y divide-border/50">
+              {diaryItems.slice(0, 6).map((item) => (
+                <CriticalDateRow
+                  key={item.id}
+                  item={item}
+                  onClick={() => openSowDetail(item.sow)}
+                />
+              ))}
+              {diaryItems.length > 6 && (
+                <div className="px-4 py-2 text-center">
+                  <span className="text-xs text-muted-foreground">+{diaryItems.length - 6} more</span>
+                </div>
+              )}
+            </Card>
+          )}
         </div>
       </div>
+
+      {/* ── SOWs & Renewals ── */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">SOWs & Contracts</h2>
+          <Button size="sm" className="gap-1.5" onClick={() => setSowOpen(true)}>
+            <Plus className="w-3.5 h-3.5" />
+            Add SOW
+          </Button>
+        </div>
+
+        {sowsLoading ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </CardContent>
+          </Card>
+        ) : sows.length === 0 ? (
+          <EmptyPanel
+            title="No SOWs or contracts"
+            description="Add statements of work to track renewals, billing and contract health."
+            icon={FileText}
+            ctas={[
+              { label: 'Add SOW', onClick: () => setSowOpen(true) },
+              { label: 'View Companies', to: '/companies', variant: 'outline' },
+            ]}
+          />
+        ) : (
+          <Card>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Ref</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Company</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Billing</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Value</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">End Date</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Renewal</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sows.map((sow) => (
+                    <tr
+                      key={sow.id}
+                      className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+                      onClick={() => openSowDetail(sow)}
+                    >
+                      <td className="px-4 py-3 font-medium text-foreground">{sow.sow_ref || '—'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{sow.companies?.name ?? '—'}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={sow.status === 'signed' ? 'default' : sow.status === 'expired' ? 'destructive' : 'secondary'} className="text-xs capitalize">
+                          {sow.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className="text-xs capitalize">{sow.billing_model.replace('_', ' ')}</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {sow.value > 0 ? `${sow.currency} ${sow.value.toLocaleString()}` : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {sow.end_date ? format(new Date(sow.end_date), 'dd MMM yyyy') : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">
+                        {sow.renewal_date ? format(new Date(sow.renewal_date), 'dd MMM yyyy') : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
+      </section>
 
       {/* ── Active Projects Table ── */}
       <section>
@@ -349,8 +581,10 @@ const HomeCommandCenter = () => {
         />
       </section>
 
-      {/* ── Create Engagement Modal ── */}
+      {/* ── Modals ── */}
       <CreateEngagementModal open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateSowModal open={sowOpen} onOpenChange={setSowOpen} />
+      <SowDetailSheet sow={selectedSow} open={sowSheetOpen} onOpenChange={setSowSheetOpen} />
     </div>
   );
 };

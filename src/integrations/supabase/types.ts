@@ -2377,6 +2377,92 @@ export type Database = {
           },
         ]
       }
+      sows: {
+        Row: {
+          billing_model: string
+          company_id: string
+          created_at: string
+          currency: string
+          document_id: string | null
+          end_date: string | null
+          engagement_id: string | null
+          id: string
+          notes: string | null
+          renewal_date: string | null
+          sow_ref: string | null
+          start_date: string | null
+          status: string
+          updated_at: string
+          value: number
+          workspace_id: string
+        }
+        Insert: {
+          billing_model?: string
+          company_id: string
+          created_at?: string
+          currency?: string
+          document_id?: string | null
+          end_date?: string | null
+          engagement_id?: string | null
+          id?: string
+          notes?: string | null
+          renewal_date?: string | null
+          sow_ref?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          value?: number
+          workspace_id: string
+        }
+        Update: {
+          billing_model?: string
+          company_id?: string
+          created_at?: string
+          currency?: string
+          document_id?: string | null
+          end_date?: string | null
+          engagement_id?: string | null
+          id?: string
+          notes?: string | null
+          renewal_date?: string | null
+          sow_ref?: string | null
+          start_date?: string | null
+          status?: string
+          updated_at?: string
+          value?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sows_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sows_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sows_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sows_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_documents: {
         Row: {
           created_at: string

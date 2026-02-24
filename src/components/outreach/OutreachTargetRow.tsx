@@ -21,6 +21,7 @@ import {
   MoreHorizontal,
   ChevronRight,
   RotateCcw,
+  Bot,
 } from "lucide-react";
 import {
   OutreachTarget,
@@ -32,6 +33,7 @@ import { isOutreachBlocked, isCallBlocked, TARGET_STATE_LABEL, TARGET_STATE_BADG
 import { EmailComposeModal } from "@/components/outreach/EmailComposeModal";
 import { SMSComposeModal } from "@/components/outreach/SMSComposeModal";
 import { LogCallModal } from "@/components/outreach/LogCallModal";
+import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
 
@@ -47,6 +49,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
   const [emailOpen, setEmailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [callLogOpen, setCallLogOpen] = useState(false);
+  const [aiCallOpen, setAiCallOpen] = useState(false);
 
   const complianceFlags = {
     state: target.state,
@@ -195,6 +198,21 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
                 size="icon"
                 variant="ghost"
                 className="h-7 w-7"
+                disabled={isPending || callBlocked || !target.entity_phone}
+                onClick={() => setAiCallOpen(true)}
+              >
+                <Bot className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">AI Call Agent</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
                 disabled={isPending || outreachBlocked}
                 onClick={() => act("booked", "booked")}
               >
@@ -241,6 +259,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
         <EmailComposeModal target={target} open={emailOpen} onOpenChange={setEmailOpen} />
         <SMSComposeModal target={target} open={smsOpen} onOpenChange={setSmsOpen} />
         <LogCallModal target={target} open={callLogOpen} onOpenChange={setCallLogOpen} />
+        <AICallAgentModal target={target} open={aiCallOpen} onOpenChange={setAiCallOpen} />
       </td>
     </tr>
   );

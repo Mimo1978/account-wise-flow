@@ -6,8 +6,8 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { 
-  Mail, Phone, MessageSquare, Calendar, BellOff, XCircle, 
-  Bot, Clock, CheckCircle2, RotateCcw, ChevronDown, ChevronRight,
+  Mail, Phone, MessageSquare, Calendar, XCircle, 
+  Bot, CheckCircle2, RotateCcw, ChevronDown, ChevronRight,
 } from "lucide-react";
 import {
   OutreachTarget,
@@ -81,7 +81,7 @@ export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
 
             {/* Actions */}
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Actions</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Outreach</p>
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   size="sm"
@@ -115,15 +115,6 @@ export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
                   variant="outline"
                   className="gap-2 justify-start"
                   disabled={isPending}
-                  onClick={() => handleAction("booked", "booked")}
-                >
-                  <Calendar className="w-3.5 h-3.5" /> Book Meeting
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-2 justify-start"
-                  disabled={isPending}
                   onClick={() => setAiCallOpen(true)}
                 >
                   <Bot className="w-3.5 h-3.5" /> AI Call Agent
@@ -131,13 +122,11 @@ export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-2 justify-start"
+                  className="gap-2 justify-start col-span-2"
                   disabled={isPending}
-                  onClick={() => handleAction("snoozed", "snoozed", {
-                    snooze_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                  })}
+                  onClick={() => handleAction("booked", "booked")}
                 >
-                  <BellOff className="w-3.5 h-3.5" /> Snooze 7d
+                  <Calendar className="w-3.5 h-3.5" /> Book Meeting
                 </Button>
               </div>
               <div className="flex gap-2 mt-2">
@@ -198,7 +187,7 @@ const EVENT_ICONS: Partial<Record<string, typeof Mail>> = {
   call_completed: Phone,
   booked: Calendar,
   opted_out: XCircle,
-  snoozed: BellOff,
+  snoozed: CheckCircle2,
 };
 
 function ActivityEventItem({ event }: { event: OutreachEvent }) {

@@ -70,7 +70,7 @@ export function CreateSowModal({ open, onOpenChange }: Props) {
       {
         workspace_id: currentWorkspace.id,
         company_id: companyId,
-        engagement_id: engagementId || null,
+        engagement_id: engagementId && engagementId !== '__none__' ? engagementId : null,
         sow_ref: sowRef || null,
         status,
         billing_model: billingModel,
@@ -129,7 +129,7 @@ export function CreateSowModal({ open, onOpenChange }: Props) {
             <Select value={engagementId} onValueChange={setEngagementId}>
               <SelectTrigger><SelectValue placeholder="Link to engagement" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="__none__">None</SelectItem>
                 {engagements.map((e) => (
                   <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
                 ))}

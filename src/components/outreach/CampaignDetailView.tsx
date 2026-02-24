@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -28,6 +30,9 @@ import {
   Settings,
   Plus,
   Edit2,
+  Pencil,
+  Check,
+  X,
   Mail,
   Phone,
   MessageSquare,
@@ -86,6 +91,33 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const [selectedTarget, setSelectedTarget] = useState<OutreachTarget | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [filterState, setFilterState] = useState<OutreachTargetState | "">("");
+  const [isEditingHeader, setIsEditingHeader] = useState(false);
+  const [editName, setEditName] = useState(campaign.name);
+  const [editDescription, setEditDescription] = useState(campaign.description ?? "");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditingHeader && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingHeader]);
+
+  const handleSaveHeader = () => {
+    if (!editName.trim()) {
+      toast.error("Campaign name cannot be empty");
+      return;
+    }
+    updateCampaign({ id: campaign.id, name: editName.trim(), description: editDescription.trim() || null } as any);
+    toast.success("Campaign updated");
+    setIsEditingHeader(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditName(campaign.name);
+    setEditDescription(campaign.description ?? "");
+    setIsEditingHeader(false);
+  };
 
   const { data: targets = [], isLoading: targetsLoading } = useOutreachTargets({
     campaignId: campaign.id,
@@ -183,29 +215,71 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
             )}
           </div>
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl font-bold tracking-tight truncate">{campaign.name}</h1>
-                <Badge
-                  className={`text-[10px] capitalize font-medium ${CAMPAIGN_STATUS_BADGE[campaign.status]}`}
-                >
-                  {campaign.status}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className={`text-[10px] capitalize ${CHANNEL_BADGE[campaign.channel] ?? ""}`}
-                >
-                  {campaign.channel}
-                </Badge>
-              </div>
-              {campaign.description && (
-                <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                  {campaign.description}
-                </p>
+            <div className="min-w-0 flex-1">
+              {isEditingHeader ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      ref={nameInputRef}
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="text-lg font-bold h-9 max-w-sm"
+                      placeholder="Campaign name"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveHeader();
+                        if (e.key === "Escape") handleCancelEdit();
+                      }}
+                    />
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-primary" onClick={handleSaveHeader}>
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground" onClick={handleCancelEdit}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <Textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    className="text-sm max-w-md min-h-[60px]"
+                    placeholder="Optional description..."
+                    rows={2}
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h1 className="text-xl font-bold tracking-tight truncate">{campaign.name}</h1>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                      onClick={() => setIsEditingHeader(true)}
+                      title="Edit campaign name & description"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </Button>
+                    <Badge
+                      className={`text-[10px] capitalize font-medium ${CAMPAIGN_STATUS_BADGE[campaign.status]}`}
+                    >
+                      {campaign.status}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] capitalize ${CHANNEL_BADGE[campaign.channel] ?? ""}`}
+                    >
+                      {campaign.channel}
+                    </Badge>
+                  </div>
+                  {campaign.description && (
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                      {campaign.description}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Created {format(parseISO(campaign.created_at), "d MMM yyyy")}
+                  </p>
+                </>
               )}
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Created {format(parseISO(campaign.created_at), "d MMM yyyy")}
-              </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <Button

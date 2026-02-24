@@ -166,6 +166,7 @@ export type Database = {
           contact_id: string | null
           created_at: string
           duration_seconds: number | null
+          engagement_id: string | null
           event_id: string | null
           follow_up_action: string | null
           follow_up_due: string | null
@@ -190,6 +191,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           duration_seconds?: number | null
+          engagement_id?: string | null
           event_id?: string | null
           follow_up_action?: string | null
           follow_up_due?: string | null
@@ -214,6 +216,7 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           duration_seconds?: number | null
+          engagement_id?: string | null
           event_id?: string | null
           follow_up_action?: string | null
           follow_up_due?: string | null
@@ -240,6 +243,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "call_outcomes_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
             referencedColumns: ["id"]
           },
           {
@@ -1950,6 +1960,7 @@ export type Database = {
           description: string | null
           email_script_id: string | null
           end_date: string | null
+          engagement_id: string | null
           id: string
           job_spec_id: string | null
           max_call_attempts: number | null
@@ -1976,6 +1987,7 @@ export type Database = {
           description?: string | null
           email_script_id?: string | null
           end_date?: string | null
+          engagement_id?: string | null
           id?: string
           job_spec_id?: string | null
           max_call_attempts?: number | null
@@ -2002,6 +2014,7 @@ export type Database = {
           description?: string | null
           email_script_id?: string | null
           end_date?: string | null
+          engagement_id?: string | null
           id?: string
           job_spec_id?: string | null
           max_call_attempts?: number | null
@@ -2029,6 +2042,13 @@ export type Database = {
             columns: ["email_script_id"]
             isOneToOne: false
             referencedRelation: "outreach_scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_campaigns_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
             referencedColumns: ["id"]
           },
           {
@@ -2062,6 +2082,7 @@ export type Database = {
           channel: Database["public"]["Enums"]["outreach_channel"] | null
           contact_id: string | null
           created_at: string
+          engagement_id: string | null
           event_type: Database["public"]["Enums"]["outreach_event_type"]
           id: string
           metadata: Json
@@ -2078,6 +2099,7 @@ export type Database = {
           channel?: Database["public"]["Enums"]["outreach_channel"] | null
           contact_id?: string | null
           created_at?: string
+          engagement_id?: string | null
           event_type: Database["public"]["Enums"]["outreach_event_type"]
           id?: string
           metadata?: Json
@@ -2094,6 +2116,7 @@ export type Database = {
           channel?: Database["public"]["Enums"]["outreach_channel"] | null
           contact_id?: string | null
           created_at?: string
+          engagement_id?: string | null
           event_type?: Database["public"]["Enums"]["outreach_event_type"]
           id?: string
           metadata?: Json
@@ -2126,6 +2149,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "outreach_events_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "outreach_events_target_id_fkey"
             columns: ["target_id"]
             isOneToOne: false
@@ -2148,6 +2178,7 @@ export type Database = {
           channel: Database["public"]["Enums"]["outreach_channel"]
           created_at: string
           created_by: string | null
+          engagement_id: string | null
           id: string
           is_default: boolean
           name: string
@@ -2161,6 +2192,7 @@ export type Database = {
           channel?: Database["public"]["Enums"]["outreach_channel"]
           created_at?: string
           created_by?: string | null
+          engagement_id?: string | null
           id?: string
           is_default?: boolean
           name: string
@@ -2174,6 +2206,7 @@ export type Database = {
           channel?: Database["public"]["Enums"]["outreach_channel"]
           created_at?: string
           created_by?: string | null
+          engagement_id?: string | null
           id?: string
           is_default?: boolean
           name?: string
@@ -2187,6 +2220,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "outreach_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_scripts_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
             referencedColumns: ["id"]
           },
           {
@@ -2215,6 +2255,7 @@ export type Database = {
           created_at: string
           do_not_call: boolean
           do_not_contact: boolean
+          engagement_id: string | null
           entity_company: string | null
           entity_email: string | null
           entity_name: string
@@ -2251,6 +2292,7 @@ export type Database = {
           created_at?: string
           do_not_call?: boolean
           do_not_contact?: boolean
+          engagement_id?: string | null
           entity_company?: string | null
           entity_email?: string | null
           entity_name: string
@@ -2287,6 +2329,7 @@ export type Database = {
           created_at?: string
           do_not_call?: boolean
           do_not_contact?: boolean
+          engagement_id?: string | null
           entity_company?: string | null
           entity_email?: string | null
           entity_name?: string
@@ -2327,6 +2370,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
             referencedColumns: ["id"]
           },
           {

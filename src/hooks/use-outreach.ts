@@ -76,6 +76,7 @@ export interface OutreachCampaign {
   end_date?: string;
   created_at: string;
   updated_at: string;
+  engagement_id?: string;
   // Script assignments
   email_script_id?: string;
   sms_script_id?: string;
@@ -137,20 +138,40 @@ export interface OutreachEvent {
 
 // ─── Campaign hooks ────────────────────────────────────────────────────────────
 
-export function useOutreachCampaigns() {
+export function useOutreachCampaigns(engagementId?: string) {
   const { currentWorkspace } = useWorkspace();
   return useQuery({
-    queryKey: ["outreach_campaigns", currentWorkspace?.id],
+    queryKey: ["outreach_campaigns", currentWorkspace?.id, engagementId],
     enabled: !!currentWorkspace?.id,
     queryFn: async () => {
-      const { data, error } = await db
+      let q = db
         .from("outreach_campaigns")
         .select("*")
         .eq("workspace_id", currentWorkspace!.id)
         .order("created_at", { ascending: false });
+      if (engagementId) q = q.eq("engagement_id", engagementId);
+      const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as OutreachCampaign[];
     },
+  });
+}
+
+export function useLinkCampaignToEngagement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ campaignId, engagementId }: { campaignId: string; engagementId: string }) => {
+      const { error } = await db
+        .from("outreach_campaigns")
+        .update({ engagement_id: engagementId })
+        .eq("id", campaignId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["outreach_campaigns"] });
+      toast.success("Campaign linked to project");
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 

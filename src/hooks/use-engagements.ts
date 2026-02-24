@@ -74,6 +74,24 @@ export function useCreateEngagement() {
   });
 }
 
+export function useEngagement(id: string | undefined, workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: ['engagement', id, workspaceId],
+    queryFn: async () => {
+      if (!id || !workspaceId) return null;
+      const { data, error } = await supabase
+        .from('engagements')
+        .select('*, companies(name)')
+        .eq('id', id)
+        .eq('workspace_id', workspaceId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Engagement | null;
+    },
+    enabled: !!id && !!workspaceId,
+  });
+}
+
 export function useUpdateEngagement() {
   const qc = useQueryClient();
   return useMutation({
@@ -89,6 +107,7 @@ export function useUpdateEngagement() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['engagements'] });
+      qc.invalidateQueries({ queryKey: ['engagement'] });
     },
   });
 }

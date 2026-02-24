@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -100,6 +100,7 @@ export default function OutreachPage() {
   const { canEdit, canInsert, canDelete, role, teamId, userId } = usePermissions();
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isReadOnly = !canEdit;
 
   // Deep-link: if campaignId in URL, apply filter
@@ -542,7 +543,14 @@ export default function OutreachPage() {
                             {campaign.channel}
                           </Badge>
                           {(campaign as any).engagement_id && engagementNameMap.has((campaign as any).engagement_id) && (
-                            <Badge variant="secondary" className="text-[10px] gap-1">
+                            <Badge
+                              variant="secondary"
+                              className="text-[10px] gap-1 cursor-pointer hover:bg-secondary/80"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/projects/${(campaign as any).engagement_id}?tab=outreach`);
+                              }}
+                            >
                               <Briefcase className="w-2.5 h-2.5" />
                               {engagementNameMap.get((campaign as any).engagement_id)}
                             </Badge>

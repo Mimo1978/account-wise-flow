@@ -17,9 +17,7 @@ import {
   MessageSquare,
   Phone,
   Calendar,
-  BellOff,
   XCircle,
-  Bot,
   MoreHorizontal,
   ChevronRight,
   RotateCcw,
@@ -31,7 +29,6 @@ import {
   useUpdateTargetState,
 } from "@/hooks/use-outreach";
 import { isOutreachBlocked, isCallBlocked, TARGET_STATE_LABEL, TARGET_STATE_BADGE_CLASS } from "@/lib/outreach-enums";
-import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { EmailComposeModal } from "@/components/outreach/EmailComposeModal";
 import { SMSComposeModal } from "@/components/outreach/SMSComposeModal";
 import { LogCallModal } from "@/components/outreach/LogCallModal";
@@ -47,7 +44,6 @@ interface Props {
 
 export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: Props) {
   const { mutateAsync, isPending } = useUpdateTargetState();
-  const [aiCallOpen, setAiCallOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [callLogOpen, setCallLogOpen] = useState(false);
@@ -72,7 +68,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
   const badgeClass = TARGET_STATE_BADGE_CLASS[target.state] ?? TARGET_STATE_BADGE_CLASS.queued;
 
   return (
-    <tr className="border-b last:border-0 hover:bg-muted/30 transition-colors group">
+    <tr className="border-b last:border-0 hover:bg-muted/30 transition-colors">
       {/* Checkbox */}
       {onSelectChange && (
         <td className="px-4 py-3 w-10">
@@ -97,28 +93,18 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
             <span className="text-xs text-muted-foreground line-clamp-1">
               {[target.entity_title, target.entity_company].filter(Boolean).join(" · ")}
             </span>
-            {/* Channel availability icons */}
             <span className="flex items-center gap-1 shrink-0">
               {target.entity_email ? (
-                <span title="Email available">
-                  <Mail className="w-3 h-3 text-primary/70" />
-                </span>
+                <span title="Email available"><Mail className="w-3 h-3 text-primary/70" /></span>
               ) : (
-                <span title="No email">
-                  <Mail className="w-3 h-3 text-muted-foreground/30" />
-                </span>
+                <span title="No email"><Mail className="w-3 h-3 text-muted-foreground/30" /></span>
               )}
               {target.entity_phone ? (
-                <span title="Phone available">
-                  <Phone className="w-3 h-3 text-primary/70" />
-                </span>
+                <span title="Phone available"><Phone className="w-3 h-3 text-primary/70" /></span>
               ) : (
-                <span title="No phone">
-                  <Phone className="w-3 h-3 text-muted-foreground/30" />
-                </span>
+                <span title="No phone"><Phone className="w-3 h-3 text-muted-foreground/30" /></span>
               )}
             </span>
-            {/* Entity type badge */}
             <span
               className={`text-[9px] px-1 py-0 rounded border font-medium capitalize leading-4 ${
                 target.entity_type === "contact"
@@ -155,9 +141,9 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
         </span>
       </td>
 
-      {/* Quick actions — now open real modals */}
+      {/* Actions — always visible */}
       <td className="px-4 py-3">
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -200,7 +186,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
                 <Phone className="w-3.5 h-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Log Manual Call</TooltipContent>
+            <TooltipContent side="top" className="text-xs">Log Call</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -218,25 +204,14 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
             <TooltipContent side="top" className="text-xs">Book Meeting</TooltipContent>
           </Tooltip>
 
+          {/* Overflow: Reset + Opt Out */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="icon" variant="ghost" className="h-7 w-7">
                 <MoreHorizontal className="w-3.5 h-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => setAiCallOpen(true)}>
-                <Bot className="w-3.5 h-3.5 mr-2" /> AI Call Agent
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  act("snoozed", "snoozed", {
-                    snooze_until: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                  })
-                }
-              >
-                <BellOff className="w-3.5 h-3.5 mr-2" /> Snooze 7 days
-              </DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuItem
                 onClick={() => act("queued", "status_changed", { reset: true, previous_state: target.state })}
               >
@@ -262,11 +237,10 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
           </Button>
         </div>
 
-        {/* Action modals — rendered per row */}
+        {/* Action modals */}
         <EmailComposeModal target={target} open={emailOpen} onOpenChange={setEmailOpen} />
         <SMSComposeModal target={target} open={smsOpen} onOpenChange={setSmsOpen} />
         <LogCallModal target={target} open={callLogOpen} onOpenChange={setCallLogOpen} />
-        <AICallAgentModal target={target} open={aiCallOpen} onOpenChange={setAiCallOpen} />
       </td>
     </tr>
   );

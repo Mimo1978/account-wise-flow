@@ -41,7 +41,7 @@ const Auth = () => {
   const searchParams = new URLSearchParams(location.search);
   const initialTab = searchParams.get('tab') === 'signup' ? 'signup' : 'signin';
 
-  const from = location.state?.from?.pathname || '/companies';
+  const from = location.state?.from?.pathname || '/home';
 
   useEffect(() => {
     const errorMessage = (location.state as any)?.error as string | undefined;

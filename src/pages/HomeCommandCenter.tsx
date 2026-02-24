@@ -6,6 +6,7 @@ import { useEngagements } from '@/hooks/use-engagements';
 import { useSows, type Sow } from '@/hooks/use-sows';
 import { useInvoices, useUpdateInvoice, type Invoice } from '@/hooks/use-invoices';
 import { useDeals, useUpdateDeal, type Deal, DEAL_STAGES, DEAL_STAGE_LABELS } from '@/hooks/use-deals';
+import { useOutreachMetrics, type OutreachActionItem } from '@/hooks/use-outreach-metrics';
 import { CreateEngagementModal } from '@/components/home/CreateEngagementModal';
 import { CreateSowModal } from '@/components/home/CreateSowModal';
 import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
@@ -29,6 +30,8 @@ import {
   ChevronRight,
   DollarSign,
   Target,
+  Phone,
+  Users,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';
@@ -37,7 +40,7 @@ import { toast } from 'sonner';
 /* ─── Types ─── */
 interface CriticalDateItem {
   id: string;
-  type: 'renewal' | 'end' | 'invoice_due' | 'invoice_overdue' | 'deal_next_step';
+  type: 'renewal' | 'end' | 'invoice_due' | 'invoice_overdue' | 'deal_next_step' | 'outreach_action' | 'call_followup';
   date: Date;
   label: string;
   companyName: string;
@@ -134,14 +137,17 @@ function PipelineStage({ label, count }: { label: string; count: number }) {
 function CriticalDateRow({ item, onClick }: { item: CriticalDateItem; onClick: () => void }) {
   const isInvoice = item.type === 'invoice_due' || item.type === 'invoice_overdue';
   const isDeal = item.type === 'deal_next_step';
+  const isOutreach = item.type === 'outreach_action' || item.type === 'call_followup';
   return (
     <button
       onClick={onClick}
       className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors rounded-lg group"
     >
-      <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${item.overdue ? 'bg-destructive/10' : isDeal ? 'bg-accent/10' : isInvoice ? 'bg-primary/10' : 'bg-warning/10'}`}>
+      <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${item.overdue ? 'bg-destructive/10' : isOutreach ? 'bg-primary/10' : isDeal ? 'bg-accent/10' : isInvoice ? 'bg-primary/10' : 'bg-warning/10'}`}>
         {item.overdue ? (
           <AlertTriangle className="w-4 h-4 text-destructive" />
+        ) : isOutreach ? (
+          <Phone className="w-4 h-4 text-primary" />
         ) : isDeal ? (
           <Target className="w-4 h-4 text-accent-foreground" />
         ) : isInvoice ? (
@@ -333,6 +339,7 @@ const HomeCommandCenter = () => {
   const { data: sows = [], isLoading: sowsLoading } = useSows(currentWorkspace?.id);
   const { data: invoices = [], isLoading: invLoading } = useInvoices(currentWorkspace?.id);
   const { data: deals = [], isLoading: dealsLoading } = useDeals(currentWorkspace?.id);
+  const { data: outreachMetrics } = useOutreachMetrics(currentWorkspace?.id);
   const updateInvoice = useUpdateInvoice();
   const updateDeal = useUpdateDeal();
 
@@ -350,9 +357,45 @@ const HomeCommandCenter = () => {
       .reduce((s, d) => s + Math.round(d.value * d.probability / 100), 0);
   }, [activeDeals]);
 
-  // Critical dates: My Work = 30 days, Diary = 7 days (includes invoices + deals)
-  const myWorkItems = useMemo(() => buildCriticalDates(sows, invoices, deals, 30), [sows, invoices, deals]);
-  const diaryItems = useMemo(() => buildCriticalDates(sows, invoices, deals, 7), [sows, invoices, deals]);
+  // Build outreach action items for My Work
+  const outreachWorkItems: CriticalDateItem[] = useMemo(() => {
+    if (!outreachMetrics) return [];
+    const items: CriticalDateItem[] = [];
+    for (const a of [...outreachMetrics.upcomingActions, ...outreachMetrics.upcomingFollowUps]) {
+      items.push({
+        id: a.id,
+        type: a.source === 'outreach_target' ? 'outreach_action' : 'call_followup',
+        date: a.date,
+        label: `${a.label} — ${a.entityName}`,
+        companyName: a.entityName,
+        sowRef: null,
+        overdue: a.overdue,
+        daysUntil: a.daysUntil,
+      });
+    }
+    return items;
+  }, [outreachMetrics]);
+
+  // Critical dates: My Work = 30 days, Diary = 7 days (includes invoices + deals + outreach)
+  const myWorkItems = useMemo(() => {
+    const base = buildCriticalDates(sows, invoices, deals, 30);
+    const all = [...base, ...outreachWorkItems];
+    all.sort((a, b) => {
+      if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+      return a.date.getTime() - b.date.getTime();
+    });
+    return all;
+  }, [sows, invoices, deals, outreachWorkItems]);
+  const diaryItems = useMemo(() => {
+    const base = buildCriticalDates(sows, invoices, deals, 7);
+    const outreach7 = outreachWorkItems.filter(i => i.daysUntil <= 7);
+    const all = [...base, ...outreach7];
+    all.sort((a, b) => {
+      if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+      return a.date.getTime() - b.date.getTime();
+    });
+    return all;
+  }, [sows, invoices, deals, outreachWorkItems]);
 
   const renewalCount = myWorkItems.length;
   const overdueCount = myWorkItems.filter((i) => i.overdue).length;
@@ -448,6 +491,38 @@ const HomeCommandCenter = () => {
           accentClass="bg-success"
         />
       </div>
+
+      {/* ── Outreach Mini-Metrics ── */}
+      {outreachMetrics && outreachMetrics.totalTargets > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          {[
+            { label: 'Queued', value: outreachMetrics.queued },
+            { label: 'Contacted', value: outreachMetrics.contacted },
+            { label: 'Responded', value: outreachMetrics.responded },
+            { label: 'Booked', value: outreachMetrics.booked },
+            { label: 'Response Rate', value: `${(outreachMetrics.responseRate * 100).toFixed(0)}%` },
+            { label: 'Booking Rate', value: `${(outreachMetrics.bookingRate * 100).toFixed(0)}%` },
+            { label: 'Calls (7d)', value: Object.values(outreachMetrics.callOutcomesLast7).reduce((s, v) => s + v, 0) },
+          ].map((m) => (
+            <Card key={m.label} className="p-3 text-center">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{m.label}</p>
+              <p className="text-lg font-bold text-foreground mt-0.5">{m.value}</p>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* ── Call Outcomes (7d) ── */}
+      {outreachMetrics && Object.keys(outreachMetrics.callOutcomesLast7).length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider self-center mr-2">Call Outcomes (7d)</span>
+          {Object.entries(outreachMetrics.callOutcomesLast7).map(([outcome, count]) => (
+            <Badge key={outcome} variant="secondary" className="text-xs capitalize">
+              {outcome.replace('_', ' ')}: {count}
+            </Badge>
+          ))}
+        </div>
+      )}
 
       {/* ── My Work + Diary ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

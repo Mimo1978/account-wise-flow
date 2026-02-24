@@ -4,8 +4,10 @@ import { Badge } from '@/components/ui/badge';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useEngagements } from '@/hooks/use-engagements';
 import { useSows, type Sow } from '@/hooks/use-sows';
+import { useInvoices, useUpdateInvoice, type Invoice } from '@/hooks/use-invoices';
 import { CreateEngagementModal } from '@/components/home/CreateEngagementModal';
 import { CreateSowModal } from '@/components/home/CreateSowModal';
+import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
 import { SowDetailSheet } from '@/components/home/SowDetailSheet';
 import { Link } from 'react-router-dom';
 import {
@@ -23,19 +25,22 @@ import {
   Loader2,
   AlertTriangle,
   ChevronRight,
+  DollarSign,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
-import { format, differenceInDays, addDays, isAfter, isBefore, isToday, startOfDay } from 'date-fns';
+import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';
+import { toast } from 'sonner';
 
 /* ─── Types ─── */
 interface CriticalDateItem {
   id: string;
-  type: 'renewal' | 'end';
+  type: 'renewal' | 'end' | 'invoice_due' | 'invoice_overdue';
   date: Date;
   label: string;
   companyName: string;
   sowRef: string | null;
-  sow: Sow;
+  sow?: Sow;
+  invoice?: Invoice;
   overdue: boolean;
   daysUntil: number;
 }
@@ -123,22 +128,23 @@ function PipelineStage({ label, count }: { label: string; count: number }) {
 
 /* ─── Critical Date Row ─── */
 function CriticalDateRow({ item, onClick }: { item: CriticalDateItem; onClick: () => void }) {
+  const isInvoice = item.type === 'invoice_due' || item.type === 'invoice_overdue';
   return (
     <button
       onClick={onClick}
       className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors rounded-lg group"
     >
-      <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${item.overdue ? 'bg-destructive/10' : 'bg-warning/10'}`}>
+      <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${item.overdue ? 'bg-destructive/10' : isInvoice ? 'bg-primary/10' : 'bg-warning/10'}`}>
         {item.overdue ? (
           <AlertTriangle className="w-4 h-4 text-destructive" />
+        ) : isInvoice ? (
+          <Receipt className="w-4 h-4 text-primary" />
         ) : (
           <CalendarClock className="w-4 h-4 text-warning" />
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground truncate">
-          {item.type === 'renewal' ? 'Renewal' : 'Contract End'} — {item.companyName}
-        </p>
+        <p className="text-sm font-medium text-foreground truncate">{item.label}</p>
         <p className="text-xs text-muted-foreground">
           {item.sowRef ? `${item.sowRef} · ` : ''}
           {item.overdue
@@ -169,14 +175,12 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 /* ─── Helpers ─── */
-function buildCriticalDates(sows: Sow[], windowDays: number): CriticalDateItem[] {
+function buildCriticalDates(sows: Sow[], invoices: Invoice[], windowDays: number): CriticalDateItem[] {
   const today = startOfDay(new Date());
-  const cutoff = addDays(today, windowDays);
   const items: CriticalDateItem[] = [];
 
   for (const sow of sows) {
     if (sow.status === 'expired') continue;
-
     const companyName = sow.companies?.name ?? 'Unknown';
 
     if (sow.renewal_date) {
@@ -216,7 +220,27 @@ function buildCriticalDates(sows: Sow[], windowDays: number): CriticalDateItem[]
     }
   }
 
-  // Sort: overdue first, then by date ascending
+  // Invoice due dates
+  for (const inv of invoices) {
+    if (!inv.due_date || inv.status === 'paid' || inv.status === 'void') continue;
+    const d = startOfDay(new Date(inv.due_date));
+    const diff = differenceInDays(d, today);
+    const isOverdue = isBefore(d, today) && !inv.paid_date;
+    if (diff <= windowDays) {
+      items.push({
+        id: `inv-${inv.id}`,
+        type: isOverdue ? 'invoice_overdue' : 'invoice_due',
+        date: d,
+        label: `Invoice ${inv.invoice_number || '#' + inv.id.slice(0, 6)} — ${inv.companies?.name ?? 'Unknown'}`,
+        companyName: inv.companies?.name ?? 'Unknown',
+        sowRef: inv.invoice_number,
+        invoice: inv,
+        overdue: isOverdue,
+        daysUntil: diff,
+      });
+    }
+  }
+
   items.sort((a, b) => {
     if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
     return a.date.getTime() - b.date.getTime();
@@ -225,27 +249,74 @@ function buildCriticalDates(sows: Sow[], windowDays: number): CriticalDateItem[]
   return items;
 }
 
+function computeBillingSnapshot(invoices: Invoice[]) {
+  const today = startOfDay(new Date());
+  const next7 = addDays(today, 7);
+
+  let outstandingAmount = 0;
+  let outstandingCount = 0;
+  let overdueAmount = 0;
+  let overdueCount = 0;
+  let due7Amount = 0;
+  let due7Count = 0;
+
+  for (const inv of invoices) {
+    if (inv.status === 'paid' || inv.status === 'void' || inv.status === 'draft') continue;
+
+    outstandingAmount += inv.amount;
+    outstandingCount++;
+
+    if (inv.due_date) {
+      const d = startOfDay(new Date(inv.due_date));
+      const isOverdue = isBefore(d, today) && !inv.paid_date;
+      if (isOverdue || inv.status === 'overdue') {
+        overdueAmount += inv.amount;
+        overdueCount++;
+      }
+      if (!isBefore(d, today) && isBefore(d, next7)) {
+        due7Amount += inv.amount;
+        due7Count++;
+      }
+    }
+  }
+
+  return { outstandingAmount, outstandingCount, overdueAmount, overdueCount, due7Amount, due7Count };
+}
+
+const STATUS_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  draft: 'secondary',
+  sent: 'default',
+  paid: 'outline',
+  overdue: 'destructive',
+  void: 'secondary',
+};
+
 /* ─── Main Page ─── */
 const HomeCommandCenter = () => {
   const { currentWorkspace, refreshWorkspaces } = useWorkspace();
   const [refreshing, setRefreshing] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [sowOpen, setSowOpen] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [selectedSow, setSelectedSow] = useState<Sow | null>(null);
   const [sowSheetOpen, setSowSheetOpen] = useState(false);
 
   const { data: engagements = [], isLoading: engLoading } = useEngagements(currentWorkspace?.id);
   const { data: sows = [], isLoading: sowsLoading } = useSows(currentWorkspace?.id);
+  const { data: invoices = [], isLoading: invLoading } = useInvoices(currentWorkspace?.id);
+  const updateInvoice = useUpdateInvoice();
 
   const activeCount = engagements.filter((e) => e.stage === 'active').length;
   const pipelineCount = engagements.filter((e) => e.stage === 'pipeline').length;
 
-  // Critical dates: My Work = 30 days, Diary = 7 days
-  const myWorkItems = useMemo(() => buildCriticalDates(sows, 30), [sows]);
-  const diaryItems = useMemo(() => buildCriticalDates(sows, 7), [sows]);
+  // Critical dates: My Work = 30 days, Diary = 7 days (includes invoices)
+  const myWorkItems = useMemo(() => buildCriticalDates(sows, invoices, 30), [sows, invoices]);
+  const diaryItems = useMemo(() => buildCriticalDates(sows, invoices, 7), [sows, invoices]);
 
   const renewalCount = myWorkItems.length;
   const overdueCount = myWorkItems.filter((i) => i.overdue).length;
+
+  const billing = useMemo(() => computeBillingSnapshot(invoices), [invoices]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -256,6 +327,31 @@ const HomeCommandCenter = () => {
   const openSowDetail = (sow: Sow) => {
     setSelectedSow(sow);
     setSowSheetOpen(true);
+  };
+
+  const handleItemClick = (item: CriticalDateItem) => {
+    if (item.sow) {
+      openSowDetail(item.sow);
+    }
+    // Invoice items: no detail sheet yet, just a no-op for now
+  };
+
+  const handleMarkOverdue = async (inv: Invoice) => {
+    try {
+      await updateInvoice.mutateAsync({ id: inv.id, status: 'overdue' });
+      toast.success('Invoice marked as overdue');
+    } catch {
+      toast.error('Failed to update invoice');
+    }
+  };
+
+  const handleMarkPaid = async (inv: Invoice) => {
+    try {
+      await updateInvoice.mutateAsync({ id: inv.id, status: 'paid', paid_date: new Date().toISOString().split('T')[0] });
+      toast.success('Invoice marked as paid');
+    } catch {
+      toast.error('Failed to update invoice');
+    }
   };
 
   return (
@@ -297,10 +393,10 @@ const HomeCommandCenter = () => {
           accentClass="bg-accent"
         />
         <KPICard
-          title="Active SOWs"
-          value={sows.filter((s) => s.status === 'signed').length > 0 ? String(sows.filter((s) => s.status === 'signed').length) : '—'}
-          subtitle={sows.length > 0 ? `${sows.length} total contracts` : 'No contracts'}
-          icon={FileText}
+          title="Outstanding Invoices"
+          value={billing.outstandingCount > 0 ? `£${billing.outstandingAmount.toLocaleString()}` : '—'}
+          subtitle={billing.outstandingCount > 0 ? `${billing.outstandingCount} unpaid` : 'No outstanding invoices'}
+          icon={Receipt}
           accentClass="bg-warning"
         />
         <KPICard
@@ -323,11 +419,11 @@ const HomeCommandCenter = () => {
           {myWorkItems.length === 0 ? (
             <EmptyPanel
               title="No tasks or critical dates"
-              description="Upcoming renewals, contract end dates and overdue items will appear here."
+              description="Upcoming renewals, invoice due dates and overdue items will appear here."
               icon={Clock}
               ctas={[
                 { label: 'Add SOW', onClick: () => setSowOpen(true) },
-                { label: 'View Outreach', to: '/outreach', variant: 'outline' },
+                { label: 'Create Invoice', onClick: () => setInvoiceOpen(true), variant: 'outline' },
               ]}
             />
           ) : (
@@ -336,7 +432,7 @@ const HomeCommandCenter = () => {
                 <CriticalDateRow
                   key={item.id}
                   item={item}
-                  onClick={() => openSowDetail(item.sow)}
+                  onClick={() => handleItemClick(item)}
                 />
               ))}
               {myWorkItems.length > 8 && (
@@ -357,7 +453,7 @@ const HomeCommandCenter = () => {
           {diaryItems.length === 0 ? (
             <EmptyPanel
               title="No events this week"
-              description="Contract renewals and end dates in the next 7 days will appear in your diary."
+              description="Contract renewals, invoice due dates and end dates in the next 7 days will appear in your diary."
               icon={CalendarClock}
               ctas={[
                 { label: 'Add SOW', onClick: () => setSowOpen(true) },
@@ -369,7 +465,7 @@ const HomeCommandCenter = () => {
                 <CriticalDateRow
                   key={item.id}
                   item={item}
-                  onClick={() => openSowDetail(item.sow)}
+                  onClick={() => handleItemClick(item)}
                 />
               ))}
               {diaryItems.length > 6 && (
@@ -381,6 +477,117 @@ const HomeCommandCenter = () => {
           )}
         </div>
       </div>
+
+      {/* ── Billing Snapshot ── */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Billing Snapshot</h2>
+          <Button size="sm" className="gap-1.5" onClick={() => setInvoiceOpen(true)}>
+            <Plus className="w-3.5 h-3.5" />
+            Create Invoice
+          </Button>
+        </div>
+
+        {invLoading ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </CardContent>
+          </Card>
+        ) : invoices.length === 0 ? (
+          <EmptyPanel
+            title="No invoices yet"
+            description="Track outstanding invoices, payments and billing milestones here."
+            icon={Receipt}
+            ctas={[
+              { label: 'Create Invoice', onClick: () => setInvoiceOpen(true) },
+              { label: 'View Companies', to: '/companies', variant: 'outline' },
+            ]}
+          />
+        ) : (
+          <div className="space-y-4">
+            {/* Summary cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Outstanding</p>
+                  <p className="text-xl font-bold text-foreground mt-1">£{billing.outstandingAmount.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{billing.outstandingCount} invoice{billing.outstandingCount !== 1 ? 's' : ''}</p>
+                </CardContent>
+              </Card>
+              <Card className={billing.overdueCount > 0 ? 'border-destructive/30' : ''}>
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Overdue</p>
+                  <p className={`text-xl font-bold mt-1 ${billing.overdueCount > 0 ? 'text-destructive' : 'text-foreground'}`}>£{billing.overdueAmount.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{billing.overdueCount} invoice{billing.overdueCount !== 1 ? 's' : ''}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Due Next 7 Days</p>
+                  <p className="text-xl font-bold text-foreground mt-1">£{billing.due7Amount.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">{billing.due7Count} invoice{billing.due7Count !== 1 ? 's' : ''}</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Invoice table */}
+            <Card>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Invoice</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Company</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Amount</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Due Date</th>
+                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoices.map((inv) => {
+                      const today = startOfDay(new Date());
+                      const isComputedOverdue = inv.status === 'sent' && inv.due_date && isBefore(startOfDay(new Date(inv.due_date)), today) && !inv.paid_date;
+                      return (
+                        <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3 font-medium text-foreground">{inv.invoice_number || '#' + inv.id.slice(0, 6)}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{inv.companies?.name ?? '—'}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={STATUS_BADGE_VARIANT[inv.status] ?? 'secondary'} className="text-xs capitalize">
+                              {isComputedOverdue && inv.status !== 'overdue' ? 'overdue' : inv.status}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {inv.currency} {inv.amount.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground text-xs">
+                            {inv.due_date ? format(new Date(inv.due_date), 'dd MMM yyyy') : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-1">
+                              {(isComputedOverdue && inv.status !== 'overdue') && (
+                                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => handleMarkOverdue(inv)}>
+                                  Mark Overdue
+                                </Button>
+                              )}
+                              {inv.status !== 'paid' && inv.status !== 'void' && (
+                                <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => handleMarkPaid(inv)}>
+                                  Mark Paid
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          </div>
+        )}
+      </section>
 
       {/* ── SOWs & Renewals ── */}
       <section>
@@ -566,24 +773,10 @@ const HomeCommandCenter = () => {
         </Card>
       </section>
 
-      {/* ── Billing Snapshot ── */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Billing Snapshot</h2>
-        </div>
-        <EmptyPanel
-          title="No invoices yet"
-          description="Track outstanding invoices, payments and billing milestones here."
-          icon={Receipt}
-          ctas={[
-            { label: 'View Companies', to: '/companies', variant: 'outline' },
-          ]}
-        />
-      </section>
-
       {/* ── Modals ── */}
       <CreateEngagementModal open={createOpen} onOpenChange={setCreateOpen} />
       <CreateSowModal open={sowOpen} onOpenChange={setSowOpen} />
+      <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} />
       <SowDetailSheet sow={selectedSow} open={sowSheetOpen} onOpenChange={setSowSheetOpen} />
     </div>
   );

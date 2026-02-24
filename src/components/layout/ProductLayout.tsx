@@ -12,19 +12,18 @@ import {
   Database, 
   Users, 
   Building2,
-  Brain,
   BookOpen,
   LogOut,
   User,
   BarChart3,
-  ArrowRightLeft,
-  FlaskConical,
   Briefcase,
   Megaphone,
-  Settings,
   ShieldCheck,
   Home,
+  Moon,
+  Sun,
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +44,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const { currentWorkspace, isInDemoWorkspace } = useWorkspace();
   const { showBanner, showBadge, bannerVariant } = useDemoIndicator();
   const { isAdmin, isManager, isLoading: permLoading } = usePermissions();
+  const { theme, setTheme } = useTheme();
   const location = useLocation();
   const showAdminNav = !permLoading && (isAdmin || isManager);
 
@@ -160,70 +160,49 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                   </div>
                   <DropdownMenuSeparator />
                   
-                  {/* Workspace Switcher */}
-                  <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-                    Switch Workspace
-                  </DropdownMenuLabel>
                   <DropdownMenuGroup>
                     <DropdownMenuItem asChild className="cursor-pointer">
-                      <Link to="/demo-workspace" className="flex items-center justify-between">
-                        <span className="flex items-center">
-                          <FlaskConical className="w-4 h-4 mr-2 text-primary" />
-                          Demo Workspace
-                        </span>
-                        {isInDemoWorkspace && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Active</Badge>
-                        )}
+                      <Link to="/profile" className="flex items-center">
+                        <User className="w-4 h-4 mr-2" />
+                        Profile & Settings
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="cursor-pointer">
-                      <Link to="/canvas" className="flex items-center justify-between">
-                        <span className="flex items-center">
-                          <Briefcase className="w-4 h-4 mr-2 text-primary" />
-                          My Workspace
-                        </span>
-                        {!isInDemoWorkspace && currentWorkspace && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Active</Badge>
-                        )}
+                      <Link to="/workspace-settings" className="flex items-center">
+                        <Building2 className="w-4 h-4 mr-2" />
+                        Workspace Settings
                       </Link>
                     </DropdownMenuItem>
-                   </DropdownMenuGroup>
-                   
-                   <DropdownMenuSeparator />
-                   <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
-                     Explore
-                   </DropdownMenuLabel>
-                   <DropdownMenuGroup>
-                     <DropdownMenuItem asChild className="cursor-pointer">
-                       <Link to="/demo" className="flex items-center">
-                         <FlaskConical className="w-4 h-4 mr-2 text-primary" />
-                         View Demo
-                       </Link>
-                     </DropdownMenuItem>
-                   </DropdownMenuGroup>
-                   
-                  
+                    {showAdminNav && (
+                      <DropdownMenuItem asChild className="cursor-pointer">
+                        <Link to="/admin" className="flex items-center">
+                          <ShieldCheck className="w-4 h-4 mr-2" />
+                          Admin Console
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuGroup>
+
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link to="/canvas" className="flex items-center">
-                      <User className="w-4 h-4 mr-2" />
-                      Profile
-                    </Link>
+
+                  {/* Dark Mode Toggle inline */}
+                  <DropdownMenuItem
+                    className="cursor-pointer flex items-center justify-between"
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      setTheme(theme === 'dark' ? 'light' : 'dark');
+                    }}
+                  >
+                    <span className="flex items-center">
+                      {theme === 'dark' ? (
+                        <Sun className="w-4 h-4 mr-2" />
+                      ) : (
+                        <Moon className="w-4 h-4 mr-2" />
+                      )}
+                      {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    </span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link to="/workspace-settings" className="flex items-center">
-                      <Building2 className="w-4 h-4 mr-2" />
-                      Workspace Settings
-                    </Link>
-                  </DropdownMenuItem>
-                  {showAdminNav && (
-                    <DropdownMenuItem asChild className="cursor-pointer">
-                      <Link to="/admin" className="flex items-center">
-                        <ShieldCheck className="w-4 h-4 mr-2" />
-                        Admin Console
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
+
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
                     <LogOut className="w-4 h-4 mr-2" />

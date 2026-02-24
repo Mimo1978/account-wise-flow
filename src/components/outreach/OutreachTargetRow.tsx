@@ -8,6 +8,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Mail,
   MessageSquare,
   Phone,
@@ -27,6 +32,9 @@ import {
 } from "@/hooks/use-outreach";
 import { isOutreachBlocked, isCallBlocked, TARGET_STATE_LABEL, TARGET_STATE_BADGE_CLASS } from "@/lib/outreach-enums";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
+import { EmailComposeModal } from "@/components/outreach/EmailComposeModal";
+import { SMSComposeModal } from "@/components/outreach/SMSComposeModal";
+import { LogCallModal } from "@/components/outreach/LogCallModal";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
 
@@ -40,6 +48,9 @@ interface Props {
 export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: Props) {
   const { mutateAsync, isPending } = useUpdateTargetState();
   const [aiCallOpen, setAiCallOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [smsOpen, setSmsOpen] = useState(false);
+  const [callLogOpen, setCallLogOpen] = useState(false);
 
   const complianceFlags = {
     state: target.state,
@@ -144,49 +155,68 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
         </span>
       </td>
 
-      {/* Quick actions */}
+      {/* Quick actions — now open real modals */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            title="Send Email"
-            disabled={isPending || outreachBlocked}
-            onClick={() => act("contacted", "email_sent")}
-          >
-            <Mail className="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            title="Send SMS"
-            disabled={isPending || outreachBlocked}
-            onClick={() => act("contacted", "sms_sent")}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            title="Log Call"
-            disabled={isPending || callBlocked}
-            onClick={() => act("contacted", "call_made")}
-          >
-            <Phone className="w-3.5 h-3.5" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="h-7 w-7"
-            title="Book Meeting"
-            disabled={isPending || outreachBlocked}
-            onClick={() => act("booked", "booked")}
-          >
-            <Calendar className="w-3.5 h-3.5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                disabled={isPending || outreachBlocked || !target.entity_email}
+                onClick={() => setEmailOpen(true)}
+              >
+                <Mail className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">Send Email</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                disabled={isPending || outreachBlocked || !target.entity_phone}
+                onClick={() => setSmsOpen(true)}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">Send SMS</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                disabled={isPending || callBlocked}
+                onClick={() => setCallLogOpen(true)}
+              >
+                <Phone className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">Log Manual Call</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                disabled={isPending || outreachBlocked}
+                onClick={() => act("booked", "booked")}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">Book Meeting</TooltipContent>
+          </Tooltip>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -231,14 +261,13 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
             <ChevronRight className="w-3.5 h-3.5" />
           </Button>
         </div>
-      </td>
 
-      {/* AI Call Agent Modal — rendered inline to avoid portal issues */}
-      <AICallAgentModal
-        target={target}
-        open={aiCallOpen}
-        onOpenChange={setAiCallOpen}
-      />
+        {/* Action modals — rendered per row */}
+        <EmailComposeModal target={target} open={emailOpen} onOpenChange={setEmailOpen} />
+        <SMSComposeModal target={target} open={smsOpen} onOpenChange={setSmsOpen} />
+        <LogCallModal target={target} open={callLogOpen} onOpenChange={setCallLogOpen} />
+        <AICallAgentModal target={target} open={aiCallOpen} onOpenChange={setAiCallOpen} />
+      </td>
     </tr>
   );
 }

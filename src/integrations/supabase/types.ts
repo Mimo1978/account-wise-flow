@@ -1191,6 +1191,75 @@ export type Database = {
           },
         ]
       }
+      engagements: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          end_date: string | null
+          engagement_type: string
+          forecast_value: number
+          health: string
+          id: string
+          name: string
+          owner_id: string | null
+          stage: string
+          start_date: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          end_date?: string | null
+          engagement_type?: string
+          forecast_value?: number
+          health?: string
+          id?: string
+          name: string
+          owner_id?: string | null
+          stage?: string
+          start_date?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          end_date?: string | null
+          engagement_type?: string
+          forecast_value?: number
+          health?: string
+          id?: string
+          name?: string
+          owner_id?: string | null
+          stage?: string
+          start_date?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "engagements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       executive_insights: {
         Row: {
           company_id: string | null

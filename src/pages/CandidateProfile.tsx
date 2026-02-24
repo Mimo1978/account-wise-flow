@@ -98,6 +98,8 @@ export default function CandidateProfile() {
   const { candidateId } = useParams<{ candidateId: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
+  const returnCampaignId = searchParams.get("campaignId");
   const { candidates, isLoading, refetch } = useCandidates();
   const { canEdit, isAdmin, isManager, userId } = usePermissions();
   const searchContext = useSearchContext();
@@ -175,9 +177,12 @@ export default function CandidateProfile() {
         <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
         <h2 className="text-xl font-semibold mb-2">Candidate Not Found</h2>
         <p className="text-muted-foreground mb-4">The candidate you're looking for doesn't exist or you don't have access.</p>
-        <Button variant="outline" onClick={() => navigate("/talent")}>
+        <Button variant="outline" onClick={() => {
+          if (returnTo === "outreach") navigate(returnCampaignId ? `/outreach?campaignId=${returnCampaignId}` : "/outreach");
+          else navigate("/talent");
+        }}>
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Talent Database
+          {returnTo === "outreach" ? "Back to Outreach" : "Back to Talent Database"}
         </Button>
       </div>
     );
@@ -208,9 +213,12 @@ export default function CandidateProfile() {
       {/* Header */}
       <div className="flex-shrink-0 border-b border-border bg-background p-4 lg:p-6">
         <div className="flex items-center gap-4 mb-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/talent")}>
+          <Button variant="ghost" size="sm" onClick={() => {
+            if (returnTo === "outreach") navigate(returnCampaignId ? `/outreach?campaignId=${returnCampaignId}` : "/outreach");
+            else navigate("/talent");
+          }}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            {returnTo === "outreach" ? "Back to Outreach" : "Back"}
           </Button>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">

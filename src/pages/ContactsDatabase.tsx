@@ -121,6 +121,7 @@ export default function ContactsDatabase() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const companyFilterId = searchParams.get("company") || null;
+  const returnTo = searchParams.get("returnTo");
   const returnToCampaignId = searchParams.get("campaignId") ?? undefined;
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
@@ -469,7 +470,18 @@ export default function ContactsDatabase() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {isCompanyScoped && (
+              {returnTo === "outreach" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => navigate(returnToCampaignId ? `/outreach?campaignId=${returnToCampaignId}` : '/outreach')}
+                  className="shrink-0"
+                  title="Back to Outreach"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
+              {isCompanyScoped && !returnTo && (
                 <Button
                   variant="ghost"
                   size="icon"

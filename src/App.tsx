@@ -35,16 +35,8 @@ import Outreach from "./pages/Outreach";
 import SchemaInventory from "./pages/SchemaInventory";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminAccess from "./pages/admin/AdminAccess";
-import AdminGovernanceRequests from "./pages/admin/AdminGovernanceRequests";
-import AdminGovernanceAudit from "./pages/admin/AdminGovernanceAudit";
-import AdminSignals from "./pages/admin/AdminSignals";
-import AdminPlaceholder from "./pages/admin/AdminPlaceholder";
 import AdminOutreach from "./pages/admin/AdminOutreach";
 import AdminDataQuality from "./pages/admin/AdminDataQuality";
-import AdminOrgChart from "./pages/admin/AdminOrgChart";
-import AdminSupport from "./pages/admin/AdminSupport";
-import AdminBranding from "./pages/admin/AdminBranding";
-import AdminAdvanced from "./pages/admin/AdminAdvanced";
 import AdminIntegrations from "./pages/admin/AdminIntegrations";
 import { Loader2 } from "lucide-react";
 
@@ -142,22 +134,10 @@ const App = () => {
             <Route path="/admin/overview" element={<AdminPage section="overview"><AdminOverview /></AdminPage>} />
             <Route path="/admin/access" element={<AdminPage section="access"><AdminAccess /></AdminPage>} />
             <Route path="/admin/roles" element={<AdminPage section="access"><AdminAccess /></AdminPage>} />
-            <Route path="/admin/governance/requests" element={<AdminPage section="governance"><AdminGovernanceRequests /></AdminPage>} />
-            <Route path="/admin/change-requests" element={<AdminPage section="governance"><AdminGovernanceRequests /></AdminPage>} />
-            <Route path="/admin/governance/audit" element={<AdminPage section="governance"><AdminGovernanceAudit /></AdminPage>} />
-            <Route path="/admin/audit" element={<AdminPage section="governance"><AdminGovernanceAudit /></AdminPage>} />
-            <Route path="/admin/signals" element={<AdminPage section="signals"><AdminSignals /></AdminPage>} />
-            <Route path="/admin/schema" element={<AdminPage section="schema"><SchemaInventory /></AdminPage>} />
             <Route path="/admin/data-quality" element={<AdminPage section="data-quality"><AdminDataQuality /></AdminPage>} />
-            <Route path="/admin/org-chart" element={<AdminPage section="orgchart"><AdminOrgChart /></AdminPage>} />
             <Route path="/admin/outreach" element={<AdminPage section="outreach"><AdminOutreach /></AdminPage>} />
-            <Route path="/admin/outreach/settings" element={<AdminPage section="outreach"><AdminOutreach /></AdminPage>} />
-            <Route path="/admin/outreach/scripts" element={<AdminPage section="outreach"><AdminOutreach /></AdminPage>} />
-            <Route path="/admin/outreach-defaults" element={<AdminPage section="outreach"><AdminOutreach /></AdminPage>} />
-            <Route path="/admin/support" element={<AdminPage section="support"><AdminSupport /></AdminPage>} />
-            <Route path="/admin/workspace/branding" element={<AdminPage section="workspace"><AdminBranding /></AdminPage>} />
+            <Route path="/admin/schema" element={<AdminPage section="schema"><SchemaInventory /></AdminPage>} />
             <Route path="/admin/integrations" element={<AdminPage section="integrations"><AdminIntegrations /></AdminPage>} />
-            <Route path="/admin/advanced" element={<AdminPage section="overview"><AdminAdvanced /></AdminPage>} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

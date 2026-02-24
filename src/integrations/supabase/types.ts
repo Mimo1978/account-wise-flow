@@ -1129,6 +1129,82 @@ export type Database = {
           },
         ]
       }
+      deals: {
+        Row: {
+          company_id: string
+          created_at: string
+          currency: string
+          engagement_id: string | null
+          expected_close_date: string | null
+          id: string
+          name: string
+          next_step: string | null
+          next_step_due: string | null
+          owner_id: string | null
+          probability: number
+          stage: string
+          updated_at: string
+          value: number
+          workspace_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          currency?: string
+          engagement_id?: string | null
+          expected_close_date?: string | null
+          id?: string
+          name: string
+          next_step?: string | null
+          next_step_due?: string | null
+          owner_id?: string | null
+          probability?: number
+          stage?: string
+          updated_at?: string
+          value?: number
+          workspace_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          currency?: string
+          engagement_id?: string | null
+          expected_close_date?: string | null
+          id?: string
+          name?: string
+          next_step?: string | null
+          next_step_due?: string | null
+          owner_id?: string | null
+          probability?: number
+          stage?: string
+          updated_at?: string
+          value?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           created_at: string

@@ -5,9 +5,11 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useEngagements } from '@/hooks/use-engagements';
 import { useSows, type Sow } from '@/hooks/use-sows';
 import { useInvoices, useUpdateInvoice, type Invoice } from '@/hooks/use-invoices';
+import { useDeals, useUpdateDeal, type Deal, DEAL_STAGES, DEAL_STAGE_LABELS } from '@/hooks/use-deals';
 import { CreateEngagementModal } from '@/components/home/CreateEngagementModal';
 import { CreateSowModal } from '@/components/home/CreateSowModal';
 import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
+import { CreateDealModal } from '@/components/home/CreateDealModal';
 import { SowDetailSheet } from '@/components/home/SowDetailSheet';
 import { Link } from 'react-router-dom';
 import {
@@ -26,6 +28,7 @@ import {
   AlertTriangle,
   ChevronRight,
   DollarSign,
+  Target,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';
@@ -34,13 +37,14 @@ import { toast } from 'sonner';
 /* ─── Types ─── */
 interface CriticalDateItem {
   id: string;
-  type: 'renewal' | 'end' | 'invoice_due' | 'invoice_overdue';
+  type: 'renewal' | 'end' | 'invoice_due' | 'invoice_overdue' | 'deal_next_step';
   date: Date;
   label: string;
   companyName: string;
   sowRef: string | null;
   sow?: Sow;
   invoice?: Invoice;
+  deal?: Deal;
   overdue: boolean;
   daysUntil: number;
 }
@@ -129,14 +133,17 @@ function PipelineStage({ label, count }: { label: string; count: number }) {
 /* ─── Critical Date Row ─── */
 function CriticalDateRow({ item, onClick }: { item: CriticalDateItem; onClick: () => void }) {
   const isInvoice = item.type === 'invoice_due' || item.type === 'invoice_overdue';
+  const isDeal = item.type === 'deal_next_step';
   return (
     <button
       onClick={onClick}
       className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors rounded-lg group"
     >
-      <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${item.overdue ? 'bg-destructive/10' : isInvoice ? 'bg-primary/10' : 'bg-warning/10'}`}>
+      <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${item.overdue ? 'bg-destructive/10' : isDeal ? 'bg-accent/10' : isInvoice ? 'bg-primary/10' : 'bg-warning/10'}`}>
         {item.overdue ? (
           <AlertTriangle className="w-4 h-4 text-destructive" />
+        ) : isDeal ? (
+          <Target className="w-4 h-4 text-accent-foreground" />
         ) : isInvoice ? (
           <Receipt className="w-4 h-4 text-primary" />
         ) : (
@@ -175,7 +182,7 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 /* ─── Helpers ─── */
-function buildCriticalDates(sows: Sow[], invoices: Invoice[], windowDays: number): CriticalDateItem[] {
+function buildCriticalDates(sows: Sow[], invoices: Invoice[], deals: Deal[], windowDays: number): CriticalDateItem[] {
   const today = startOfDay(new Date());
   const items: CriticalDateItem[] = [];
 
@@ -241,6 +248,26 @@ function buildCriticalDates(sows: Sow[], invoices: Invoice[], windowDays: number
     }
   }
 
+  // Deal next_step_due items
+  for (const deal of deals) {
+    if (!deal.next_step_due || deal.stage === 'won' || deal.stage === 'lost') continue;
+    const d = startOfDay(new Date(deal.next_step_due));
+    const diff = differenceInDays(d, today);
+    if (diff <= windowDays) {
+      items.push({
+        id: `deal-${deal.id}`,
+        type: 'deal_next_step',
+        date: d,
+        label: `${deal.next_step || 'Next step'} — ${deal.companies?.name ?? deal.name}`,
+        companyName: deal.companies?.name ?? 'Unknown',
+        sowRef: null,
+        deal,
+        overdue: isBefore(d, today),
+        daysUntil: diff,
+      });
+    }
+  }
+
   items.sort((a, b) => {
     if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
     return a.date.getTime() - b.date.getTime();
@@ -298,20 +325,34 @@ const HomeCommandCenter = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [sowOpen, setSowOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [dealOpen, setDealOpen] = useState(false);
   const [selectedSow, setSelectedSow] = useState<Sow | null>(null);
   const [sowSheetOpen, setSowSheetOpen] = useState(false);
 
   const { data: engagements = [], isLoading: engLoading } = useEngagements(currentWorkspace?.id);
   const { data: sows = [], isLoading: sowsLoading } = useSows(currentWorkspace?.id);
   const { data: invoices = [], isLoading: invLoading } = useInvoices(currentWorkspace?.id);
+  const { data: deals = [], isLoading: dealsLoading } = useDeals(currentWorkspace?.id);
   const updateInvoice = useUpdateInvoice();
+  const updateDeal = useUpdateDeal();
 
   const activeCount = engagements.filter((e) => e.stage === 'active').length;
   const pipelineCount = engagements.filter((e) => e.stage === 'pipeline').length;
 
-  // Critical dates: My Work = 30 days, Diary = 7 days (includes invoices)
-  const myWorkItems = useMemo(() => buildCriticalDates(sows, invoices, 30), [sows, invoices]);
-  const diaryItems = useMemo(() => buildCriticalDates(sows, invoices, 7), [sows, invoices]);
+  // Deal pipeline metrics
+  const activeDeals = deals.filter((d) => d.stage !== 'won' && d.stage !== 'lost');
+  const totalPipelineValue = activeDeals.reduce((s, d) => s + d.value, 0);
+  const weightedPipelineValue = activeDeals.reduce((s, d) => s + Math.round(d.value * d.probability / 100), 0);
+  const next30Forecast = useMemo(() => {
+    const cutoff = addDays(startOfDay(new Date()), 30);
+    return activeDeals
+      .filter((d) => d.expected_close_date && !isBefore(cutoff, startOfDay(new Date(d.expected_close_date))))
+      .reduce((s, d) => s + Math.round(d.value * d.probability / 100), 0);
+  }, [activeDeals]);
+
+  // Critical dates: My Work = 30 days, Diary = 7 days (includes invoices + deals)
+  const myWorkItems = useMemo(() => buildCriticalDates(sows, invoices, deals, 30), [sows, invoices, deals]);
+  const diaryItems = useMemo(() => buildCriticalDates(sows, invoices, deals, 7), [sows, invoices, deals]);
 
   const renewalCount = myWorkItems.length;
   const overdueCount = myWorkItems.filter((i) => i.overdue).length;
@@ -386,9 +427,9 @@ const HomeCommandCenter = () => {
           accentClass="bg-primary"
         />
         <KPICard
-          title="Pipeline"
-          value={pipelineCount > 0 ? String(pipelineCount) : '—'}
-          subtitle={pipelineCount > 0 ? `${pipelineCount} in pipeline` : 'No pipeline data'}
+          title="Deal Pipeline"
+          value={activeDeals.length > 0 ? `£${totalPipelineValue.toLocaleString()}` : '—'}
+          subtitle={activeDeals.length > 0 ? `${activeDeals.length} deals · £${weightedPipelineValue.toLocaleString()} weighted` : 'No deals yet'}
           icon={TrendingUp}
           accentClass="bg-accent"
         />
@@ -749,34 +790,84 @@ const HomeCommandCenter = () => {
         )}
       </section>
 
-      {/* ── Pipeline Snapshot ── */}
+      {/* ── Pipeline Snapshot (Deals Kanban) ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Pipeline Snapshot</h2>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/outreach" className="gap-1.5 text-xs text-muted-foreground">
-              View full pipeline
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </Button>
-        </div>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex gap-3 overflow-x-auto">
-              <PipelineStage label="Pipeline" count={engagements.filter((e) => e.stage === 'pipeline').length} />
-              <PipelineStage label="Active" count={activeCount} />
-              <PipelineStage label="On Hold" count={engagements.filter((e) => e.stage === 'on_hold').length} />
-              <PipelineStage label="Closed Won" count={engagements.filter((e) => e.stage === 'closed_won').length} />
-              <PipelineStage label="Closed Lost" count={engagements.filter((e) => e.stage === 'closed_lost').length} />
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-muted-foreground">
+              Total: £{totalPipelineValue.toLocaleString()} · Weighted: £{weightedPipelineValue.toLocaleString()} · 30d forecast: £{next30Forecast.toLocaleString()}
             </div>
-          </CardContent>
-        </Card>
+            <Button size="sm" className="gap-1.5" onClick={() => setDealOpen(true)}>
+              <Plus className="w-3.5 h-3.5" />
+              Create Deal
+            </Button>
+          </div>
+        </div>
+
+        {dealsLoading ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </CardContent>
+          </Card>
+        ) : deals.length === 0 ? (
+          <EmptyPanel
+            title="No deals in pipeline"
+            description="Track consulting and recruitment deals through your sales pipeline."
+            icon={Target}
+            ctas={[
+              { label: 'Create Deal', onClick: () => setDealOpen(true) },
+              { label: 'View Companies', to: '/companies', variant: 'outline' },
+            ]}
+          />
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-2">
+            {DEAL_STAGES.map((stage) => {
+              const stageDeals = deals.filter((d) => d.stage === stage);
+              const stageTotal = stageDeals.reduce((s, d) => s + d.value, 0);
+              return (
+                <div key={stage} className="min-w-[200px] flex-1">
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{DEAL_STAGE_LABELS[stage]}</span>
+                    <Badge variant="secondary" className="text-xs">{stageDeals.length}</Badge>
+                  </div>
+                  {stageTotal > 0 && (
+                    <p className="text-xs text-muted-foreground px-1 mb-2">£{stageTotal.toLocaleString()}</p>
+                  )}
+                  <div className="space-y-2">
+                    {stageDeals.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-border p-4 text-center">
+                        <p className="text-xs text-muted-foreground">No deals</p>
+                      </div>
+                    ) : (
+                      stageDeals.map((deal) => (
+                        <Card key={deal.id} className="p-3 hover:shadow-sm transition-shadow">
+                          <p className="text-sm font-medium text-foreground truncate">{deal.name}</p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.companies?.name ?? '—'}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <span className="text-xs font-medium text-foreground">£{deal.value.toLocaleString()}</span>
+                            <Badge variant="outline" className="text-xs">{deal.probability}%</Badge>
+                          </div>
+                          {deal.expected_close_date && (
+                            <p className="text-xs text-muted-foreground mt-1">Close: {format(new Date(deal.expected_close_date), 'dd MMM')}</p>
+                          )}
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* ── Modals ── */}
       <CreateEngagementModal open={createOpen} onOpenChange={setCreateOpen} />
       <CreateSowModal open={sowOpen} onOpenChange={setSowOpen} />
       <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} />
+      <CreateDealModal open={dealOpen} onOpenChange={setDealOpen} />
       <SowDetailSheet sow={selectedSow} open={sowSheetOpen} onOpenChange={setSowSheetOpen} />
     </div>
   );

@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useAnalyticsCharts, type PipelineByStage, type InvoiceWeek, type OutreachOutcomeData } from '@/hooks/use-analytics-charts';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,6 +37,8 @@ import { useRevenueIntelligence, type CompanyRiskProfile, type RevenueIntelligen
 
 const ExecutiveInsights = () => {
   const { data, isLoading } = useRevenueIntelligence();
+  const { currentWorkspace } = useWorkspace();
+  const { pipelineByStage, invoiceWeeks, outreachOutcomes, isLoading: chartsLoading } = useAnalyticsCharts(currentWorkspace?.id);
 
   if (isLoading) return <FullPageSkeleton />;
 
@@ -78,6 +83,15 @@ const ExecutiveInsights = () => {
 
             {/* §3 Pipeline Acceleration Signals */}
             <PipelineAcceleration pipeline={pipeline} />
+
+            {/* §3b Analytics Charts */}
+            {!chartsLoading && (
+              <>
+                <PipelineByStageChart data={pipelineByStage} />
+                <InvoicesByWeekChart data={invoiceWeeks} />
+                <OutreachOutcomesChart data={outreachOutcomes} />
+              </>
+            )}
 
             {/* §4 Sales Momentum */}
             <SalesMomentumSection momentum={salesMomentum} />
@@ -870,6 +884,145 @@ function EmptyState({
         </div>
       )}
     </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// Analytics Charts
+// ════════════════════════════════════════════════════════════
+
+const STAGE_COLORS: Record<string, string> = {
+  Lead: 'hsl(var(--muted-foreground))',
+  Qualified: 'hsl(var(--primary))',
+  Proposal: 'hsl(220 70% 55%)',
+  Negotiation: 'hsl(40 90% 50%)',
+  Won: 'hsl(142 70% 45%)',
+  Lost: 'hsl(0 70% 50%)',
+};
+
+function PipelineByStageChart({ data }: { data: PipelineByStage[] }) {
+  if (data.length === 0) return null;
+  const formatted = data.map(d => ({
+    ...d,
+    totalK: Math.round(d.totalValue / 1000),
+    weightedK: Math.round(d.weightedValue / 1000),
+  }));
+
+  return (
+    <section>
+      <SectionHeader icon={BarChart3} title="Pipeline Value by Stage" />
+      <Card>
+        <CardContent className="p-5">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={formatted} barGap={4}>
+              <XAxis dataKey="label" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `£${v}k`} />
+              <Tooltip
+                formatter={(value: number, name: string) => [`£${value}k`, name === 'totalK' ? 'Total' : 'Weighted']}
+                contentStyle={{ borderRadius: 8, fontSize: 12 }}
+              />
+              <Legend formatter={(v: string) => v === 'totalK' ? 'Total Value' : 'Weighted Value'} />
+              <Bar dataKey="totalK" radius={[4, 4, 0, 0]} fill="hsl(var(--primary) / 0.3)">
+                {formatted.map((entry) => (
+                  <Cell key={entry.stage} fill={STAGE_COLORS[entry.label] ? `${STAGE_COLORS[entry.label]}40` : 'hsl(var(--primary) / 0.3)'} />
+                ))}
+              </Bar>
+              <Bar dataKey="weightedK" radius={[4, 4, 0, 0]}>
+                {formatted.map((entry) => (
+                  <Cell key={entry.stage} fill={STAGE_COLORS[entry.label] || 'hsl(var(--primary))'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="text-xs text-muted-foreground mt-2 text-center">
+            {data.reduce((s, d) => s + d.count, 0)} deals · £{Math.round(data.reduce((s, d) => s + d.totalValue, 0) / 1000)}k total
+          </div>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function InvoicesByWeekChart({ data }: { data: InvoiceWeek[] }) {
+  const hasData = data.some(w => w.due > 0 || w.overdue > 0);
+  if (!hasData) return null;
+
+  return (
+    <section>
+      <SectionHeader icon={BarChart3} title="Invoices Due / Overdue (8 Weeks)" />
+      <Card>
+        <CardContent className="p-5">
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={data} barGap={2}>
+              <XAxis dataKey="weekLabel" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+              <Legend />
+              <Bar dataKey="due" name="Due" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="overdue" name="Overdue" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </section>
+  );
+}
+
+function OutreachOutcomesChart({ data }: { data: OutreachOutcomeData }) {
+  const hasTargets = data.targetsByState.length > 0;
+  const hasCalls = data.callOutcomesByType.length > 0;
+  if (!hasTargets && !hasCalls) return null;
+
+  const STATE_COLORS = ['hsl(var(--primary))', 'hsl(142 70% 45%)', 'hsl(40 90% 50%)', 'hsl(0 70% 50%)', 'hsl(var(--muted-foreground))'];
+
+  return (
+    <section>
+      <SectionHeader icon={Target} title="Outreach Outcomes (30 Days)" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {hasTargets && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Targets by State</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={data.targetsByState} layout="vertical" barSize={18}>
+                  <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <YAxis type="category" dataKey="state" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
+                  <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                    {data.targetsByState.map((_, i) => (
+                      <Cell key={i} fill={STATE_COLORS[i % STATE_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+        {hasCalls && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Call Outcomes</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={data.callOutcomesByType} layout="vertical" barSize={18}>
+                  <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <YAxis type="category" dataKey="outcome" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={100} />
+                  <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                    {data.callOutcomesByType.map((_, i) => (
+                      <Cell key={i} fill={STATE_COLORS[i % STATE_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </section>
   );
 }
 

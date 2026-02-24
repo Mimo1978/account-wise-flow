@@ -34,6 +34,7 @@ import { EmailComposeModal } from "@/components/outreach/EmailComposeModal";
 import { SMSComposeModal } from "@/components/outreach/SMSComposeModal";
 import { LogCallModal } from "@/components/outreach/LogCallModal";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
+import { MeetingSchedulerModal } from "@/components/outreach/MeetingSchedulerModal";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -55,6 +56,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
   const [smsOpen, setSmsOpen] = useState(false);
   const [callLogOpen, setCallLogOpen] = useState(false);
   const [aiCallOpen, setAiCallOpen] = useState(false);
+  const [meetingOpen, setMeetingOpen] = useState(false);
 
   const complianceFlags = {
     state: target.state,
@@ -248,12 +250,12 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
                 variant="ghost"
                 className="h-7 w-7"
                 disabled={isPending || outreachBlocked}
-                onClick={() => act("booked", "booked")}
+                onClick={() => setMeetingOpen(true)}
               >
                 <Calendar className="w-3.5 h-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Book Meeting</TooltipContent>
+            <TooltipContent side="top" className="text-xs">Schedule Meeting</TooltipContent>
           </Tooltip>
 
           {/* Overflow: Reset + Opt Out */}
@@ -294,6 +296,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
         <SMSComposeModal target={target} open={smsOpen} onOpenChange={setSmsOpen} />
         <LogCallModal target={target} open={callLogOpen} onOpenChange={setCallLogOpen} />
         <AICallAgentModal target={target} open={aiCallOpen} onOpenChange={setAiCallOpen} />
+        <MeetingSchedulerModal target={target} open={meetingOpen} onOpenChange={setMeetingOpen} />
       </td>
     </tr>
   );

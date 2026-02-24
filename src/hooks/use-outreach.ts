@@ -175,6 +175,24 @@ export function useLinkCampaignToEngagement() {
   });
 }
 
+export function useUnlinkCampaignFromEngagement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (campaignId: string) => {
+      const { error } = await db
+        .from("outreach_campaigns")
+        .update({ engagement_id: null })
+        .eq("id", campaignId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["outreach_campaigns"] });
+      toast.success("Campaign unlinked from project");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 export function useCreateCampaign() {
   const { currentWorkspace } = useWorkspace();
   const qc = useQueryClient();

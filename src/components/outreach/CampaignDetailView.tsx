@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,6 +34,7 @@ import {
   CalendarClock,
   Bot,
   Inbox,
+  Briefcase,
 } from "lucide-react";
 import {
   useOutreachTargets,
@@ -56,6 +58,7 @@ import { format, parseISO } from "date-fns";
 interface Props {
   campaign: OutreachCampaign;
   onBack: () => void;
+  projectId?: string;
 }
 
 const CAMPAIGN_STATUS_BADGE: Record<string, string> = {
@@ -74,7 +77,8 @@ const CHANNEL_BADGE: Record<string, string> = {
 
 // ─── Campaign Detail View ─────────────────────────────────────────────────────
 
-export function CampaignDetailView({ campaign, onBack }: Props) {
+export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<"targets" | "scripts" | "settings" | "automation" | "responses">("targets");
   const [addTargetsOpen, setAddTargetsOpen] = useState(false);
   const [scriptBuilderOpen, setScriptBuilderOpen] = useState(false);
@@ -153,16 +157,30 @@ export function CampaignDetailView({ campaign, onBack }: Props) {
       {/* Header */}
       <div className="border-b border-border/50 bg-background">
         <div className="container mx-auto px-6 py-5">
-          <div className="flex items-start gap-3 mb-1">
+          <div className="flex items-center gap-3 mb-1 flex-wrap">
             <Button
               variant="ghost"
               size="sm"
-              className="gap-1.5 text-muted-foreground hover:text-foreground -ml-2 mt-0.5"
+              className="gap-1.5 text-muted-foreground hover:text-foreground -ml-2"
               onClick={onBack}
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               Campaigns
             </Button>
+            {projectId && (
+              <>
+                <span className="text-muted-foreground text-xs">·</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs h-7"
+                  onClick={() => navigate(`/projects/${projectId}?tab=outreach`)}
+                >
+                  <Briefcase className="w-3 h-3" />
+                  Back to Project
+                </Button>
+              </>
+            )}
           </div>
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">

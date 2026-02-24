@@ -378,7 +378,7 @@ function ProjectOutreachTab({ engagementId }: { engagementId: string }) {
               key={campaign.id}
               campaign={campaign}
               engagementId={engagementId}
-              onOpenInOutreach={(id) => navigate(`/outreach?campaignId=${id}`)}
+              onOpenInOutreach={(cId) => navigate(`/outreach?campaignId=${cId}&fromProject=${engagementId}`)}
             />
           ))}
         </div>

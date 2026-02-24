@@ -154,6 +154,62 @@ export type Database = {
           },
         ]
       }
+      calendar_connections: {
+        Row: {
+          access_token_encrypted: string | null
+          auto_schedule_enabled: boolean
+          calendar_id: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          provider: string
+          provider_account_email: string | null
+          refresh_token_encrypted: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          access_token_encrypted?: string | null
+          auto_schedule_enabled?: boolean
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider: string
+          provider_account_email?: string | null
+          refresh_token_encrypted?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          access_token_encrypted?: string | null
+          auto_schedule_enabled?: boolean
+          calendar_id?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          provider?: string
+          provider_account_email?: string | null
+          refresh_token_encrypted?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       call_outcomes: {
         Row: {
           ai_transcript: Json | null
@@ -1947,6 +2003,88 @@ export type Database = {
           },
         ]
       }
+      outreach_automation_settings: {
+        Row: {
+          ai_acknowledge_responses: boolean
+          ai_response_processing_enabled: boolean
+          ai_send_confirmations: boolean
+          auto_classify_responses: boolean
+          auto_log_feedback: boolean
+          auto_schedule_callbacks: boolean
+          auto_schedule_meetings: boolean
+          campaign_id: string
+          created_at: string
+          default_meeting_duration: number | null
+          id: string
+          meeting_buffer_minutes: number | null
+          preferred_calendar_connection_id: string | null
+          require_human_approval: boolean
+          scheduling_window_days: number | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          ai_acknowledge_responses?: boolean
+          ai_response_processing_enabled?: boolean
+          ai_send_confirmations?: boolean
+          auto_classify_responses?: boolean
+          auto_log_feedback?: boolean
+          auto_schedule_callbacks?: boolean
+          auto_schedule_meetings?: boolean
+          campaign_id: string
+          created_at?: string
+          default_meeting_duration?: number | null
+          id?: string
+          meeting_buffer_minutes?: number | null
+          preferred_calendar_connection_id?: string | null
+          require_human_approval?: boolean
+          scheduling_window_days?: number | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          ai_acknowledge_responses?: boolean
+          ai_response_processing_enabled?: boolean
+          ai_send_confirmations?: boolean
+          auto_classify_responses?: boolean
+          auto_log_feedback?: boolean
+          auto_schedule_callbacks?: boolean
+          auto_schedule_meetings?: boolean
+          campaign_id?: string
+          created_at?: string
+          default_meeting_duration?: number | null
+          id?: string
+          meeting_buffer_minutes?: number | null
+          preferred_calendar_connection_id?: string | null
+          require_human_approval?: boolean
+          scheduling_window_days?: number | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_automation_settings_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
+            referencedRelation: "outreach_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_automation_settings_preferred_calendar_connection_fkey"
+            columns: ["preferred_calendar_connection_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_automation_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       outreach_campaigns: {
         Row: {
           calendar_connection_id: string | null
@@ -2164,6 +2302,231 @@ export type Database = {
           },
           {
             foreignKeyName: "outreach_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_inbound_responses: {
+        Row: {
+          actioned_at: string | null
+          actioned_by: string | null
+          ai_confidence: number | null
+          ai_intent: string | null
+          ai_processed_at: string | null
+          ai_raw_analysis: Json | null
+          ai_sentiment: string | null
+          ai_summary: string | null
+          campaign_id: string | null
+          candidate_id: string | null
+          channel: string
+          contact_id: string | null
+          created_at: string
+          follow_up_calendar_event_id: string | null
+          follow_up_scheduled_at: string | null
+          follow_up_status: string | null
+          follow_up_type: string | null
+          id: string
+          raw_content: string
+          received_at: string
+          sender_identifier: string | null
+          status: string
+          target_id: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          actioned_at?: string | null
+          actioned_by?: string | null
+          ai_confidence?: number | null
+          ai_intent?: string | null
+          ai_processed_at?: string | null
+          ai_raw_analysis?: Json | null
+          ai_sentiment?: string | null
+          ai_summary?: string | null
+          campaign_id?: string | null
+          candidate_id?: string | null
+          channel: string
+          contact_id?: string | null
+          created_at?: string
+          follow_up_calendar_event_id?: string | null
+          follow_up_scheduled_at?: string | null
+          follow_up_status?: string | null
+          follow_up_type?: string | null
+          id?: string
+          raw_content: string
+          received_at?: string
+          sender_identifier?: string | null
+          status?: string
+          target_id?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          actioned_at?: string | null
+          actioned_by?: string | null
+          ai_confidence?: number | null
+          ai_intent?: string | null
+          ai_processed_at?: string | null
+          ai_raw_analysis?: Json | null
+          ai_sentiment?: string | null
+          ai_summary?: string | null
+          campaign_id?: string | null
+          candidate_id?: string | null
+          channel?: string
+          contact_id?: string | null
+          created_at?: string
+          follow_up_calendar_event_id?: string | null
+          follow_up_scheduled_at?: string | null
+          follow_up_status?: string | null
+          follow_up_type?: string | null
+          id?: string
+          raw_content?: string
+          received_at?: string
+          sender_identifier?: string | null
+          status?: string
+          target_id?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_inbound_responses_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_inbound_responses_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_inbound_responses_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_inbound_responses_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_inbound_responses_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_scheduled_actions: {
+        Row: {
+          action_type: string
+          approved_at: string | null
+          approved_by: string | null
+          calendar_connection_id: string | null
+          calendar_event_id: string | null
+          campaign_id: string | null
+          created_at: string
+          executed_at: string | null
+          execution_result: Json | null
+          id: string
+          inbound_response_id: string | null
+          meeting_duration_minutes: number | null
+          meeting_notes: string | null
+          meeting_title: string | null
+          requires_approval: boolean
+          scheduled_for: string
+          status: string
+          target_id: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          action_type: string
+          approved_at?: string | null
+          approved_by?: string | null
+          calendar_connection_id?: string | null
+          calendar_event_id?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          executed_at?: string | null
+          execution_result?: Json | null
+          id?: string
+          inbound_response_id?: string | null
+          meeting_duration_minutes?: number | null
+          meeting_notes?: string | null
+          meeting_title?: string | null
+          requires_approval?: boolean
+          scheduled_for: string
+          status?: string
+          target_id?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          action_type?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          calendar_connection_id?: string | null
+          calendar_event_id?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          executed_at?: string | null
+          execution_result?: Json | null
+          id?: string
+          inbound_response_id?: string | null
+          meeting_duration_minutes?: number | null
+          meeting_notes?: string | null
+          meeting_title?: string | null
+          requires_approval?: boolean
+          scheduled_for?: string
+          status?: string
+          target_id?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_scheduled_actions_calendar_connection_id_fkey"
+            columns: ["calendar_connection_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_scheduled_actions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_scheduled_actions_inbound_response_id_fkey"
+            columns: ["inbound_response_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_inbound_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_scheduled_actions_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "outreach_targets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_scheduled_actions_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -2868,6 +3231,10 @@ export type Database = {
           id: string
           is_demo: boolean
           name: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_expires_at: string | null
+          subscription_tier: Database["public"]["Enums"]["subscription_tier"]
           type: Database["public"]["Enums"]["workspace_type"] | null
           updated_at: string
           workspace_mode: Database["public"]["Enums"]["workspace_mode"]
@@ -2877,6 +3244,10 @@ export type Database = {
           id?: string
           is_demo?: boolean
           name: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_expires_at?: string | null
+          subscription_tier?: Database["public"]["Enums"]["subscription_tier"]
           type?: Database["public"]["Enums"]["workspace_type"] | null
           updated_at?: string
           workspace_mode?: Database["public"]["Enums"]["workspace_mode"]
@@ -2886,6 +3257,10 @@ export type Database = {
           id?: string
           is_demo?: boolean
           name?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_expires_at?: string | null
+          subscription_tier?: Database["public"]["Enums"]["subscription_tier"]
           type?: Database["public"]["Enums"]["workspace_type"] | null
           updated_at?: string
           workspace_mode?: Database["public"]["Enums"]["workspace_mode"]
@@ -3110,6 +3485,10 @@ export type Database = {
       }
       is_demo_team: { Args: { _team_id: string }; Returns: boolean }
       is_demo_user: { Args: { _user_id: string }; Returns: boolean }
+      is_premium_workspace: {
+        Args: { _workspace_id: string }
+        Returns: boolean
+      }
       is_public_demo_workspace: {
         Args: { workspace_uuid: string }
         Returns: boolean
@@ -3244,6 +3623,7 @@ export type Database = {
         | "closed"
       parse_status: "pending" | "parsed" | "failed"
       search_mode: "simple" | "boolean"
+      subscription_tier: "free" | "starter" | "professional" | "premium"
       workspace_mode: "public_demo" | "demo" | "production"
       workspace_type: "real" | "demo"
     }
@@ -3466,6 +3846,7 @@ export const Constants = {
       ],
       parse_status: ["pending", "parsed", "failed"],
       search_mode: ["simple", "boolean"],
+      subscription_tier: ["free", "starter", "professional", "premium"],
       workspace_mode: ["public_demo", "demo", "production"],
       workspace_type: ["real", "demo"],
     },

@@ -67,3 +67,6 @@ verify_jwt = false
 
 [functions.ai-call-agent]
 verify_jwt = false
+
+[functions.ai-response-processor]
+verify_jwt = false

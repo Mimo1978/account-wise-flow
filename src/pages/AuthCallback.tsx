@@ -10,7 +10,7 @@ const AuthCallback = () => {
   useEffect(() => {
     const run = async () => {
       const params = new URLSearchParams(window.location.search);
-      const next = params.get("next") || "/canvas";
+      const next = params.get("next") || "/home";
       const hasAuthCode = !!params.get("code");
 
       try {

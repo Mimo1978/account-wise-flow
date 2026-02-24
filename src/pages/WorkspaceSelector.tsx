@@ -146,7 +146,7 @@ const WorkspaceSelector = () => {
       // User has a real workspace, navigate to it
       console.log('[WorkspaceSelector] Entering real workspace:', realWorkspace.id);
       localStorage.setItem('lovable_current_workspace', realWorkspace.id);
-      navigate('/canvas');
+      navigate('/home');
       return;
     }
 
@@ -181,7 +181,7 @@ const WorkspaceSelector = () => {
       
       toast.dismiss(loadingToast);
       toast.success('Workspace created successfully!');
-      navigate('/canvas');
+      navigate('/home');
       
     } catch (error: any) {
       console.error('[WorkspaceSelector] Workspace creation failed:', error);

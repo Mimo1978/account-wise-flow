@@ -18,6 +18,7 @@ import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import ResetPassword from "./pages/ResetPassword";
 import Canvas from "./pages/Canvas";
+import HomeCommandCenter from "./pages/HomeCommandCenter";
 import ContactsDatabase from "./pages/ContactsDatabase";
 import CompaniesDatabase from "./pages/CompaniesDatabase";
 import TalentDatabase from "./pages/TalentDatabase";
@@ -122,6 +123,7 @@ const App = () => {
             <Route path="/demo" element={<Demo />} />
 
             {/* PROTECTED ROUTES */}
+            <Route path="/home" element={<ProtectedRoute><ProductLayout><HomeCommandCenter /></ProductLayout></ProtectedRoute>} />
             <Route path="/workspace" element={<ProtectedRoute><WorkspaceSelector /></ProtectedRoute>} />
             <Route path="/demo-workspace" element={<ProtectedRoute><ProductLayout><DemoWorkspace /></ProductLayout></ProtectedRoute>} />
             <Route path="/canvas" element={<ProtectedRoute><ProductLayout><Canvas /></ProductLayout></ProtectedRoute>} />

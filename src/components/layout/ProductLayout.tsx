@@ -23,6 +23,7 @@ import {
   Megaphone,
   Settings,
   ShieldCheck,
+  Home,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -48,6 +49,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const showAdminNav = !permLoading && (isAdmin || isManager);
 
   const navItems = [
+    { path: '/home', label: 'Home', icon: Home },
     { path: '/canvas', label: 'Canvas', icon: LayoutDashboard },
     { path: '/companies', label: 'Companies', icon: Building2 },
     { path: '/contacts', label: 'Contacts', icon: Users },
@@ -69,7 +71,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
         <div className="container mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <Link to="/canvas" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <Link to="/home" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>

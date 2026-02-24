@@ -33,6 +33,8 @@ import WorkspaceSettings from "./pages/WorkspaceSettings";
 import NotFound from "./pages/NotFound";
 import Outreach from "./pages/Outreach";
 import SchemaInventory from "./pages/SchemaInventory";
+import ProjectsList from "./pages/ProjectsList";
+import ProjectDetail from "./pages/ProjectDetail";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminAccess from "./pages/admin/AdminAccess";
 import AdminOutreach from "./pages/admin/AdminOutreach";
@@ -126,6 +128,8 @@ const App = () => {
             <Route path="/talent/:candidateId" element={<ProtectedRoute><ProductLayout><CandidateProfile /></ProductLayout></ProtectedRoute>} />
             <Route path="/outreach" element={<ProtectedRoute><ProductLayout><Outreach /></ProductLayout></ProtectedRoute>} />
             <Route path="/insights" element={<ProtectedRoute><ProductLayout><ExecutiveInsights /></ProductLayout></ProtectedRoute>} />
+            <Route path="/projects" element={<ProtectedRoute><ProductLayout><ProjectsList /></ProductLayout></ProtectedRoute>} />
+            <Route path="/projects/:id" element={<ProtectedRoute><ProductLayout><ProjectDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/imports/:batchId/review" element={<ProtectedRoute><ProductLayout><ImportReview /></ProductLayout></ProtectedRoute>} />
             <Route path="/workspace-settings" element={<ProtectedRoute><ProductLayout><WorkspaceSettings /></ProductLayout></ProtectedRoute>} />
 

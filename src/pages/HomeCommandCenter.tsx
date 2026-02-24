@@ -12,7 +12,7 @@ import { CreateSowModal } from '@/components/home/CreateSowModal';
 import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
 import { CreateDealModal } from '@/components/home/CreateDealModal';
 import { SowDetailSheet } from '@/components/home/SowDetailSheet';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   RefreshCw,
   Briefcase,
@@ -326,6 +326,7 @@ const STATUS_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructiv
 
 /* ─── Main Page ─── */
 const HomeCommandCenter = () => {
+  const navigate = useNavigate();
   const { currentWorkspace, refreshWorkspaces } = useWorkspace();
   const [refreshing, setRefreshing] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -415,9 +416,16 @@ const HomeCommandCenter = () => {
 
   const handleItemClick = (item: CriticalDateItem) => {
     if (item.sow) {
+      if (item.sow.engagement_id) {
+        navigate(`/projects/${item.sow.engagement_id}`);
+        return;
+      }
       openSowDetail(item.sow);
+      return;
     }
-    // Invoice items: no detail sheet yet, just a no-op for now
+    if (item.invoice?.engagement_id) {
+      navigate(`/projects/${item.invoice.engagement_id}`);
+    }
   };
 
   const handleMarkOverdue = async (inv: Invoice) => {
@@ -838,7 +846,7 @@ const HomeCommandCenter = () => {
                 </thead>
                 <tbody>
                   {engagements.map((eng) => (
-                    <tr key={eng.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                    <tr key={eng.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/projects/${eng.id}`)}>
                       <td className="px-4 py-3 font-medium text-foreground">{eng.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{eng.companies?.name ?? '—'}</td>
                       <td className="px-4 py-3">

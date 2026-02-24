@@ -50,10 +50,11 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
 
   const navItems = [
     { path: '/home', label: 'Home', icon: Home },
+    { path: '/projects', label: 'Projects', icon: Briefcase },
     { path: '/canvas', label: 'Canvas', icon: LayoutDashboard },
     { path: '/companies', label: 'Companies', icon: Building2 },
     { path: '/contacts', label: 'Contacts', icon: Users },
-    { path: '/talent', label: 'Talent', icon: Briefcase },
+    { path: '/talent', label: 'Talent', icon: Database },
     { path: '/outreach', label: 'Outreach', icon: Megaphone },
     { path: '/insights', label: 'Insights', icon: BarChart3 },
   ];
@@ -62,7 +63,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
     { path: '/canvas', label: 'Knowledge', icon: BookOpen, hash: '#knowledge' },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -46,7 +48,8 @@ import { format, parseISO } from "date-fns";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAuth } from "@/contexts/AuthContext";
-
+import { useEngagements } from "@/hooks/use-engagements";
+import { Briefcase } from "lucide-react";
 
 // ─── Campaign status badge ────────────────────────────────────────────────────
 
@@ -67,6 +70,9 @@ const CHANNEL_BADGE: Record<string, string> = {
 // ─── Outreach Page ────────────────────────────────────────────────────────────
 
 export default function OutreachPage() {
+  const [searchParams] = useSearchParams();
+  const deepLinkCampaignId = searchParams.get("campaignId") || "";
+
   const [tab, setTab] = useState<"queue" | "campaigns" | "scripts">("queue");
   const [createCampaignOpen, setCreateCampaignOpen] = useState(false);
   const [addTargetsOpen, setAddTargetsOpen] = useState(false);
@@ -79,7 +85,7 @@ export default function OutreachPage() {
 
   // Filters
   const [searchText, setSearchText] = useState("");
-  const [filterCampaign, setFilterCampaign] = useState("");
+  const [filterCampaign, setFilterCampaign] = useState(deepLinkCampaignId);
   const [filterState, setFilterState] = useState<OutreachTargetState | "">("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const { data: campaigns = [], isLoading: campaignsLoading } = useOutreachCampaigns();
@@ -95,6 +101,21 @@ export default function OutreachPage() {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const isReadOnly = !canEdit;
+
+  // Deep-link: if campaignId in URL, apply filter
+  useEffect(() => {
+    if (deepLinkCampaignId) {
+      setFilterCampaign(deepLinkCampaignId);
+    }
+  }, [deepLinkCampaignId]);
+
+  // Engagement names for project badges on campaigns
+  const { data: engagements = [] } = useEngagements(currentWorkspace?.id);
+  const engagementNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    engagements.forEach((e) => map.set(e.id, e.name));
+    return map;
+  }, [engagements]);
 
   const filteredTargets = targets.filter((t) => {
     if (!searchText.trim()) return true;
@@ -520,6 +541,12 @@ export default function OutreachPage() {
                           <Badge variant="outline" className="text-[10px] capitalize">
                             {campaign.channel}
                           </Badge>
+                          {(campaign as any).engagement_id && engagementNameMap.has((campaign as any).engagement_id) && (
+                            <Badge variant="secondary" className="text-[10px] gap-1">
+                              <Briefcase className="w-2.5 h-2.5" />
+                              {engagementNameMap.get((campaign as any).engagement_id)}
+                            </Badge>
+                          )}
                         </div>
                         {campaign.description && (
                           <p className="text-xs text-muted-foreground mt-1 line-clamp-1">

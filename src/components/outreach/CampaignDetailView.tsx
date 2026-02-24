@@ -31,6 +31,8 @@ import {
   Phone,
   MessageSquare,
   CalendarClock,
+  Bot,
+  Inbox,
 } from "lucide-react";
 import {
   useOutreachTargets,
@@ -45,6 +47,8 @@ import { OutreachTargetRow } from "./OutreachTargetRow";
 import { AddTargetsModal } from "./AddTargetsModal";
 import { ScriptBuilderModal } from "./ScriptBuilderModal";
 import { TargetDetailSheet } from "./TargetDetailSheet";
+import { AutomationSettingsPanel } from "./AutomationSettingsPanel";
+import { InboundResponsesPanel } from "./InboundResponsesPanel";
 import { format, parseISO } from "date-fns";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -71,7 +75,7 @@ const CHANNEL_BADGE: Record<string, string> = {
 // ─── Campaign Detail View ─────────────────────────────────────────────────────
 
 export function CampaignDetailView({ campaign, onBack }: Props) {
-  const [tab, setTab] = useState<"targets" | "scripts" | "settings">("targets");
+  const [tab, setTab] = useState<"targets" | "scripts" | "settings" | "automation" | "responses">("targets");
   const [addTargetsOpen, setAddTargetsOpen] = useState(false);
   const [scriptBuilderOpen, setScriptBuilderOpen] = useState(false);
   const [editingScript, setEditingScript] = useState<OutreachScript | undefined>();
@@ -234,7 +238,7 @@ export function CampaignDetailView({ campaign, onBack }: Props) {
 
       {/* Body */}
       <div className="container mx-auto px-6 py-6">
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "targets" | "scripts" | "settings")}>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList className="mb-4">
             <TabsTrigger value="targets" className="gap-2">
               <Users className="w-3.5 h-3.5" />
@@ -245,9 +249,17 @@ export function CampaignDetailView({ campaign, onBack }: Props) {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="responses" className="gap-2">
+              <Inbox className="w-3.5 h-3.5" />
+              Responses
+            </TabsTrigger>
             <TabsTrigger value="scripts" className="gap-2">
               <FileText className="w-3.5 h-3.5" />
               Scripts
+            </TabsTrigger>
+            <TabsTrigger value="automation" className="gap-2">
+              <Bot className="w-3.5 h-3.5" />
+              Automation
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-2">
               <Settings className="w-3.5 h-3.5" />
@@ -342,6 +354,11 @@ export function CampaignDetailView({ campaign, onBack }: Props) {
                 {targets.length} target{targets.length !== 1 ? "s" : ""}
               </p>
             )}
+          </TabsContent>
+
+          {/* ── Responses Tab ── */}
+          <TabsContent value="responses" className="mt-0">
+            <InboundResponsesPanel campaignId={campaign.id} />
           </TabsContent>
 
           {/* ── Scripts Tab ── */}
@@ -509,6 +526,13 @@ export function CampaignDetailView({ campaign, onBack }: Props) {
                   ))}
                 </div>
               )}
+            </div>
+          </TabsContent>
+
+          {/* ── Automation Tab ── */}
+          <TabsContent value="automation" className="mt-0">
+            <div className="max-w-xl">
+              <AutomationSettingsPanel campaignId={campaign.id} />
             </div>
           </TabsContent>
 

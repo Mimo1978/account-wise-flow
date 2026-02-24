@@ -36,7 +36,7 @@ import { LogCallModal } from "@/components/outreach/LogCallModal";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Check, X } from "lucide-react";
 
 interface Props {
@@ -48,6 +48,8 @@ interface Props {
 
 export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: Props) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const currentCampaignId = searchParams.get("campaignId") || "";
   const { mutateAsync, isPending } = useUpdateTargetState();
   const [emailOpen, setEmailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
@@ -92,10 +94,11 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
           <button
             className="text-sm font-medium text-left hover:text-primary hover:underline transition-colors line-clamp-1"
             onClick={() => {
+              const campaignParam = currentCampaignId ? `&campaignId=${currentCampaignId}` : "";
               const profilePath = target.entity_type === "contact" && target.contact_id
-                ? `/contacts?contact=${target.contact_id}&returnTo=outreach`
+                ? `/contacts?contact=${target.contact_id}&returnTo=outreach${campaignParam}`
                 : target.candidate_id
-                  ? `/talent/${target.candidate_id}?returnTo=outreach`
+                  ? `/talent/${target.candidate_id}?returnTo=outreach${campaignParam}`
                   : null;
               if (profilePath) navigate(profilePath);
               else onOpen(target);

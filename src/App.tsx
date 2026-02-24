@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SearchContextProvider } from "@/contexts/SearchContext";
@@ -30,6 +31,7 @@ import Pricing from "./pages/Pricing";
 import ImportReview from "./pages/ImportReview";
 import CandidateProfile from "./pages/CandidateProfile";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
+import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 import Outreach from "./pages/Outreach";
 import SchemaInventory from "./pages/SchemaInventory";
@@ -96,6 +98,7 @@ const App = () => {
 
   return (
   <QueryClientProvider client={queryClient}>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
     <AuthProvider>
       <WorkspaceProvider>
       <SearchContextProvider>
@@ -132,6 +135,7 @@ const App = () => {
             <Route path="/projects/:id" element={<ProtectedRoute><ProductLayout><ProjectDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/imports/:batchId/review" element={<ProtectedRoute><ProductLayout><ImportReview /></ProductLayout></ProtectedRoute>} />
             <Route path="/workspace-settings" element={<ProtectedRoute><ProductLayout><WorkspaceSettings /></ProductLayout></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><ProductLayout><UserProfile /></ProductLayout></ProtectedRoute>} />
 
             {/* ADMIN CONSOLE ROUTES */}
             <Route path="/admin" element={<AdminPage section="overview"><AdminOverview /></AdminPage>} />
@@ -151,6 +155,7 @@ const App = () => {
       </SearchContextProvider>
       </WorkspaceProvider>
     </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
   );
 };

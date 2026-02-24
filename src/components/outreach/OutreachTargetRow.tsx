@@ -36,6 +36,8 @@ import { LogCallModal } from "@/components/outreach/LogCallModal";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Check, X } from "lucide-react";
 
 interface Props {
   target: OutreachTarget;
@@ -45,6 +47,7 @@ interface Props {
 }
 
 export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: Props) {
+  const navigate = useNavigate();
   const { mutateAsync, isPending } = useUpdateTargetState();
   const [emailOpen, setEmailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
@@ -87,8 +90,16 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
       <td className="px-4 py-3">
         <div className="flex flex-col gap-0.5">
           <button
-            className="text-sm font-medium text-left hover:text-primary transition-colors line-clamp-1"
-            onClick={() => onOpen(target)}
+            className="text-sm font-medium text-left hover:text-primary hover:underline transition-colors line-clamp-1"
+            onClick={() => {
+              const profilePath = target.entity_type === "contact" && target.contact_id
+                ? `/contacts?contact=${target.contact_id}&returnTo=outreach`
+                : target.candidate_id
+                  ? `/talent/${target.candidate_id}?returnTo=outreach`
+                  : null;
+              if (profilePath) navigate(profilePath);
+              else onOpen(target);
+            }}
           >
             {target.entity_name}
           </button>
@@ -96,17 +107,37 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
             <span className="text-xs text-muted-foreground line-clamp-1">
               {[target.entity_title, target.entity_company].filter(Boolean).join(" · ")}
             </span>
-            <span className="flex items-center gap-1 shrink-0">
-              {target.entity_email ? (
-                <span title="Email available"><Mail className="w-3 h-3 text-primary/70" /></span>
-              ) : (
-                <span title="No email"><Mail className="w-3 h-3 text-muted-foreground/30" /></span>
-              )}
-              {target.entity_phone ? (
-                <span title="Phone available"><Phone className="w-3 h-3 text-primary/70" /></span>
-              ) : (
-                <span title="No phone"><Phone className="w-3 h-3 text-muted-foreground/30" /></span>
-              )}
+            <span className="flex items-center gap-0.5 shrink-0">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-0.5 text-[10px]">
+                    <Mail className="w-3 h-3 text-muted-foreground/50" />
+                    {target.entity_email ? (
+                      <Check className="w-2.5 h-2.5 text-emerald-500" />
+                    ) : (
+                      <X className="w-2.5 h-2.5 text-muted-foreground/30" />
+                    )}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  {target.entity_email ? `Email: ${target.entity_email}` : "No email on file"}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex items-center gap-0.5 text-[10px]">
+                    <Phone className="w-3 h-3 text-muted-foreground/50" />
+                    {target.entity_phone ? (
+                      <Check className="w-2.5 h-2.5 text-emerald-500" />
+                    ) : (
+                      <X className="w-2.5 h-2.5 text-muted-foreground/30" />
+                    )}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="text-xs">
+                  {target.entity_phone ? `Phone: ${target.entity_phone}` : "No phone on file"}
+                </TooltipContent>
+              </Tooltip>
             </span>
             <span
               className={`text-[9px] px-1 py-0 rounded border font-medium capitalize leading-4 ${

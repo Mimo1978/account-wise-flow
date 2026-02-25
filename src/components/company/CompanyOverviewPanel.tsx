@@ -38,6 +38,7 @@ import { CompanyRelationshipIntel } from "./CompanyRelationshipIntel";
 import { CompanyContactsList } from "./CompanyContactsList";
 import { CompanyEngagementContext } from "./CompanyEngagementContext";
 import { CompanyLocationsSection } from "./CompanyLocationsSection";
+import { CompanyBillingProfilePanel } from "./CompanyBillingProfilePanel";
 import { OrgChartBuilderModal } from "@/components/orgchart/OrgChartBuilderModal";
 import { WebResearchWizard } from "@/components/orgchart/WebResearchWizard";
 import { useToast } from "@/hooks/use-toast";
@@ -68,6 +69,7 @@ export function CompanyOverviewPanel({
     intelligence: true,
     contacts: false,
     engagement: false,
+    billing: false,
     documents: false,
   });
   const [showOrgChartBuilder, setShowOrgChartBuilder] = useState(false);
@@ -285,7 +287,35 @@ export function CompanyOverviewPanel({
 
             <Separator />
 
-            {/* F. Documents & Knowledge */}
+            {/* F. Billing Profile */}
+            <Collapsible
+              open={expandedSections.billing}
+              onOpenChange={() => toggleSection("billing")}
+            >
+              <CollapsibleTrigger className="flex items-center justify-between w-full py-2 group">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  Billing Profile
+                </div>
+                <div className="flex items-center gap-2">
+                  {expandedSections.billing ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-4">
+                <CompanyBillingProfilePanel
+                  workspaceId=""
+                  companyId={company.id}
+                />
+              </CollapsibleContent>
+            </Collapsible>
+
+            <Separator />
+
+            {/* G. Documents & Knowledge */}
             <Collapsible
               open={expandedSections.documents}
               onOpenChange={() => toggleSection("documents")}

@@ -393,7 +393,7 @@ export function ProjectBillingTab({ engagementId, companyId, workspaceId }: Proj
         companyId={companyId}
         existingPlan={editingPlan as any}
       />
-      <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} />
+      <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} prefillCompanyId={companyId} prefillEngagementId={engagementId} />
     </div>
   );
 }

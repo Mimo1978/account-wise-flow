@@ -73,3 +73,9 @@ verify_jwt = false
 
 [functions.billing-run]
 verify_jwt = false
+
+[functions.billing-run-due-plans]
+verify_jwt = false
+
+[functions.invoice-generate-pdf]
+verify_jwt = false

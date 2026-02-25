@@ -925,6 +925,82 @@ export type Database = {
           },
         ]
       }
+      company_billing_profiles: {
+        Row: {
+          billing_address_line1: string | null
+          billing_address_line2: string | null
+          billing_city: string | null
+          billing_contact_id: string | null
+          billing_country: string | null
+          billing_email: string | null
+          billing_postcode: string | null
+          company_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          po_number: string | null
+          updated_at: string
+          vat_number: string | null
+          workspace_id: string
+        }
+        Insert: {
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_contact_id?: string | null
+          billing_country?: string | null
+          billing_email?: string | null
+          billing_postcode?: string | null
+          company_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          po_number?: string | null
+          updated_at?: string
+          vat_number?: string | null
+          workspace_id: string
+        }
+        Update: {
+          billing_address_line1?: string | null
+          billing_address_line2?: string | null
+          billing_city?: string | null
+          billing_contact_id?: string | null
+          billing_country?: string | null
+          billing_email?: string | null
+          billing_postcode?: string | null
+          company_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          po_number?: string | null
+          updated_at?: string
+          vat_number?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_billing_profiles_billing_contact_id_fkey"
+            columns: ["billing_contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_billing_profiles_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_billing_profiles_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_team_members: {
         Row: {
           company_id: string
@@ -1773,43 +1849,244 @@ export type Database = {
           },
         ]
       }
+      invoice_line_items: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string
+          line_total: number
+          quantity: number
+          sort_order: number
+          unit_price: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          id?: string
+          invoice_id: string
+          line_total?: number
+          quantity?: number
+          sort_order?: number
+          unit_price?: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string
+          line_total?: number
+          quantity?: number
+          sort_order?: number
+          unit_price?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_line_items_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_plans: {
+        Row: {
+          amount_mode: string
+          auto_send: boolean
+          company_id: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          deal_id: string | null
+          description: string | null
+          draft_auto_create: boolean
+          end_date: string | null
+          engagement_id: string | null
+          estimated_days: number | null
+          fixed_amount: number | null
+          frequency: string
+          id: string
+          interval_count: number
+          invoice_day_of_month: number | null
+          invoice_day_of_week: number | null
+          name: string
+          next_run_date: string | null
+          plan_type: string
+          rate_per_day: number | null
+          sow_id: string | null
+          start_date: string
+          status: string
+          updated_at: string
+          vat_rate: number | null
+          workspace_id: string
+        }
+        Insert: {
+          amount_mode?: string
+          auto_send?: boolean
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deal_id?: string | null
+          description?: string | null
+          draft_auto_create?: boolean
+          end_date?: string | null
+          engagement_id?: string | null
+          estimated_days?: number | null
+          fixed_amount?: number | null
+          frequency?: string
+          id?: string
+          interval_count?: number
+          invoice_day_of_month?: number | null
+          invoice_day_of_week?: number | null
+          name: string
+          next_run_date?: string | null
+          plan_type?: string
+          rate_per_day?: number | null
+          sow_id?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id: string
+        }
+        Update: {
+          amount_mode?: string
+          auto_send?: boolean
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deal_id?: string | null
+          description?: string | null
+          draft_auto_create?: boolean
+          end_date?: string | null
+          engagement_id?: string | null
+          estimated_days?: number | null
+          fixed_amount?: number | null
+          frequency?: string
+          id?: string
+          interval_count?: number
+          invoice_day_of_month?: number | null
+          invoice_day_of_week?: number | null
+          name?: string
+          next_run_date?: string | null
+          plan_type?: string
+          rate_per_day?: number | null
+          sow_id?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_plans_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_plans_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_plans_sow_id_fkey"
+            columns: ["sow_id"]
+            isOneToOne: false
+            referencedRelation: "sows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_plans_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_runs: {
         Row: {
           billing_plan_id: string
           created_at: string
+          created_by: string | null
           dedupe_key: string
+          due_date: string | null
           engagement_id: string
           error_message: string | null
+          errors: Json | null
           id: string
           invoice_id: string | null
+          invoices_created: number | null
+          invoices_skipped: number | null
           period_end: string
           period_start: string
+          plans_processed: number | null
+          ran_at: string | null
           status: string
           workspace_id: string
         }
         Insert: {
           billing_plan_id: string
           created_at?: string
+          created_by?: string | null
           dedupe_key: string
+          due_date?: string | null
           engagement_id: string
           error_message?: string | null
+          errors?: Json | null
           id?: string
           invoice_id?: string | null
+          invoices_created?: number | null
+          invoices_skipped?: number | null
           period_end: string
           period_start: string
+          plans_processed?: number | null
+          ran_at?: string | null
           status?: string
           workspace_id: string
         }
         Update: {
           billing_plan_id?: string
           created_at?: string
+          created_by?: string | null
           dedupe_key?: string
+          due_date?: string | null
           engagement_id?: string
           error_message?: string | null
+          errors?: Json | null
           id?: string
           invoice_id?: string | null
+          invoices_created?: number | null
+          invoices_skipped?: number | null
           period_end?: string
           period_start?: string
+          plans_processed?: number | null
+          ran_at?: string | null
           status?: string
           workspace_id?: string
         }
@@ -1847,6 +2124,9 @@ export type Database = {
       invoices: {
         Row: {
           amount: number
+          billing_to_address: Json | null
+          billing_to_email: string | null
+          billing_to_name: string | null
           company_id: string
           created_at: string
           currency: string
@@ -1855,15 +2135,25 @@ export type Database = {
           engagement_id: string | null
           id: string
           invoice_number: string | null
+          invoice_plan_id: string | null
           issued_date: string | null
           notes: string | null
           paid_date: string | null
+          pdf_url: string | null
+          po_number: string | null
           status: string
+          subtotal: number
+          tax_amount: number
+          total: number
           updated_at: string
+          vat_number: string | null
           workspace_id: string
         }
         Insert: {
           amount?: number
+          billing_to_address?: Json | null
+          billing_to_email?: string | null
+          billing_to_name?: string | null
           company_id: string
           created_at?: string
           currency?: string
@@ -1872,15 +2162,25 @@ export type Database = {
           engagement_id?: string | null
           id?: string
           invoice_number?: string | null
+          invoice_plan_id?: string | null
           issued_date?: string | null
           notes?: string | null
           paid_date?: string | null
+          pdf_url?: string | null
+          po_number?: string | null
           status?: string
+          subtotal?: number
+          tax_amount?: number
+          total?: number
           updated_at?: string
+          vat_number?: string | null
           workspace_id: string
         }
         Update: {
           amount?: number
+          billing_to_address?: Json | null
+          billing_to_email?: string | null
+          billing_to_name?: string | null
           company_id?: string
           created_at?: string
           currency?: string
@@ -1889,11 +2189,18 @@ export type Database = {
           engagement_id?: string | null
           id?: string
           invoice_number?: string | null
+          invoice_plan_id?: string | null
           issued_date?: string | null
           notes?: string | null
           paid_date?: string | null
+          pdf_url?: string | null
+          po_number?: string | null
           status?: string
+          subtotal?: number
+          tax_amount?: number
+          total?: number
           updated_at?: string
+          vat_number?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -1916,6 +2223,13 @@ export type Database = {
             columns: ["engagement_id"]
             isOneToOne: false
             referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_invoice_plan_id_fkey"
+            columns: ["invoice_plan_id"]
+            isOneToOne: false
+            referencedRelation: "invoice_plans"
             referencedColumns: ["id"]
           },
           {
@@ -3467,6 +3781,92 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      workspace_billing_settings: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_iban: string | null
+          bank_sort_code: string | null
+          bank_swift: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          currency: string
+          id: string
+          invoice_prefix: string
+          legal_name: string | null
+          logo_url: string | null
+          next_invoice_number: number
+          payment_terms_days: number
+          postcode: string | null
+          tax_label: string
+          trading_name: string | null
+          updated_at: string
+          vat_number: string | null
+          workspace_id: string
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_iban?: string | null
+          bank_sort_code?: string | null
+          bank_swift?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_prefix?: string
+          legal_name?: string | null
+          logo_url?: string | null
+          next_invoice_number?: number
+          payment_terms_days?: number
+          postcode?: string | null
+          tax_label?: string
+          trading_name?: string | null
+          updated_at?: string
+          vat_number?: string | null
+          workspace_id: string
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_iban?: string | null
+          bank_sort_code?: string | null
+          bank_swift?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          invoice_prefix?: string
+          legal_name?: string | null
+          logo_url?: string | null
+          next_invoice_number?: number
+          payment_terms_days?: number
+          postcode?: string | null
+          tax_label?: string
+          trading_name?: string | null
+          updated_at?: string
+          vat_number?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_billing_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       workspace_branding: {
         Row: {

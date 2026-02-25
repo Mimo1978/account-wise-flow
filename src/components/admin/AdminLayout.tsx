@@ -12,6 +12,7 @@ import {
   Megaphone,
   Plug,
   Palette,
+  Receipt,
 } from 'lucide-react';
 import type { AdminSection } from './AdminRouteGuard';
 
@@ -28,6 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Data Quality', path: '/admin/data-quality', icon: Database, section: 'data-quality' },
   { label: 'Outreach Defaults', path: '/admin/outreach', icon: Megaphone, section: 'outreach' },
   { label: 'Integrations', path: '/admin/integrations', icon: Plug, section: 'integrations' },
+  { label: 'Billing & Invoices', path: '/admin/billing', icon: Receipt, section: 'integrations' },
   { label: 'Schema Inventory', path: '/admin/schema', icon: Database, section: 'schema' },
 ];
 
@@ -66,6 +68,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   '/admin/outreach': 'Outreach Defaults',
   '/admin/schema': 'Schema Inventory',
   '/admin/integrations': 'Integrations',
+  '/admin/billing': 'Billing & Invoices',
 };
 
 function AdminBreadcrumb() {

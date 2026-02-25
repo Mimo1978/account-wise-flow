@@ -7,6 +7,9 @@ import { useSows, type Sow } from '@/hooks/use-sows';
 import { useInvoices, useUpdateInvoice, type Invoice } from '@/hooks/use-invoices';
 import { useDeals, useUpdateDeal, type Deal, DEAL_STAGES, DEAL_STAGE_LABELS } from '@/hooks/use-deals';
 import { useOutreachMetrics, type OutreachActionItem } from '@/hooks/use-outreach-metrics';
+import { useBillingPlans } from '@/hooks/use-billing-plans';
+import { usePermissions } from '@/hooks/use-permissions';
+import { supabase } from '@/integrations/supabase/client';
 import { CreateEngagementModal } from '@/components/home/CreateEngagementModal';
 import { CreateSowModal } from '@/components/home/CreateSowModal';
 import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
@@ -32,9 +35,11 @@ import {
   Target,
   Phone,
   Users,
+  Zap,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 /* ─── Types ─── */
@@ -341,8 +346,36 @@ const HomeCommandCenter = () => {
   const { data: invoices = [], isLoading: invLoading } = useInvoices(currentWorkspace?.id);
   const { data: deals = [], isLoading: dealsLoading } = useDeals(currentWorkspace?.id);
   const { data: outreachMetrics } = useOutreachMetrics(currentWorkspace?.id);
+  const { data: billingPlans = [] } = useBillingPlans(currentWorkspace?.id);
+  const { isAdmin, isManager } = usePermissions();
+  const queryClient = useQueryClient();
+  const [runningDue, setRunningDue] = useState(false);
   const updateInvoice = useUpdateInvoice();
   const updateDeal = useUpdateDeal();
+
+  const activePlansExist = billingPlans.some(p => p.status === 'active');
+  const todayStr = format(startOfDay(new Date()), 'yyyy-MM-dd');
+  const scheduledTodayCount = billingPlans.filter(p => p.status === 'active' && p.next_run_date === todayStr).length;
+
+  const handleRunDueInvoices = async () => {
+    if (!currentWorkspace?.id) return;
+    setRunningDue(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('billing-run', {
+        body: { workspace_id: currentWorkspace.id, mode: 'due_plans' },
+      });
+      if (error) throw error;
+      const created = data?.created_count ?? 0;
+      const skipped = data?.skipped_count ?? 0;
+      toast.success(`${created} invoice(s) created, ${skipped} skipped`);
+      queryClient.invalidateQueries({ queryKey: ['invoices'] });
+      queryClient.invalidateQueries({ queryKey: ['billing-plans'] });
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to run due invoices');
+    } finally {
+      setRunningDue(false);
+    }
+  };
 
   const activeCount = engagements.filter((e) => e.stage === 'active').length;
   const pipelineCount = engagements.filter((e) => e.stage === 'pipeline').length;
@@ -538,7 +571,15 @@ const HomeCommandCenter = () => {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">My Work</h2>
-            <Badge variant="secondary" className="text-xs">{myWorkItems.length} items</Badge>
+            <div className="flex items-center gap-2">
+              {scheduledTodayCount > 0 && (
+                <Badge variant="outline" className="text-xs gap-1">
+                  <Zap className="w-3 h-3" />
+                  {scheduledTodayCount} invoice{scheduledTodayCount !== 1 ? 's' : ''} scheduled today
+                </Badge>
+              )}
+              <Badge variant="secondary" className="text-xs">{myWorkItems.length} items</Badge>
+            </div>
           </div>
           {myWorkItems.length === 0 ? (
             <EmptyPanel
@@ -605,11 +646,33 @@ const HomeCommandCenter = () => {
       {/* ── Billing Snapshot ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Billing Snapshot</h2>
-          <Button size="sm" className="gap-1.5" onClick={() => setInvoiceOpen(true)}>
-            <Plus className="w-3.5 h-3.5" />
-            Create Invoice
-          </Button>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Billing Snapshot</h2>
+            {activePlansExist && (
+              <Badge variant="secondary" className="text-xs gap-1">
+                <Zap className="w-3 h-3" />
+                Auto-billing
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {(isAdmin || isManager) && activePlansExist && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={handleRunDueInvoices}
+                disabled={runningDue}
+              >
+                {runningDue ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                Run due invoices
+              </Button>
+            )}
+            <Button size="sm" className="gap-1.5" onClick={() => setInvoiceOpen(true)}>
+              <Plus className="w-3.5 h-3.5" />
+              Create Invoice
+            </Button>
+          </div>
         </div>
 
         {invLoading ? (

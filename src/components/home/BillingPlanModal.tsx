@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useState, useEffect, useMemo } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateBillingPlan, useUpdateBillingPlan, type BillingPlan } from '@/hooks/use-billing-plans';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Info } from 'lucide-react';
 
 interface BillingPlanModalProps {
   open: boolean;
@@ -18,25 +18,54 @@ interface BillingPlanModalProps {
   existingPlan?: BillingPlan | null;
 }
 
-const FREQUENCIES = [
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'biweekly', label: 'Bi-weekly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'quarterly', label: 'Quarterly' },
-  { value: 'milestone', label: 'Milestone' },
-];
+/* ─── Plan-type rules ─── */
+const PLAN_TYPE_RULES: Record<string, {
+  label: string;
+  hint: string;
+  allowedFrequencies: string[];
+  allowedModes: string[];
+  defaultFrequency: string;
+  defaultMode: string;
+}> = {
+  consulting: {
+    label: 'Consulting',
+    hint: 'Supports monthly/weekly billing with fixed or day-rate modes.',
+    allowedFrequencies: ['weekly', 'biweekly', 'monthly', 'quarterly'],
+    allowedModes: ['fixed', 'day_rate', 'estimate'],
+    defaultFrequency: 'monthly',
+    defaultMode: 'fixed',
+  },
+  recruitment: {
+    label: 'Recruitment',
+    hint: 'Fixed-fee milestone billing. Use "Create milestone invoice" to invoice on stage change.',
+    allowedFrequencies: ['milestone'],
+    allowedModes: ['fixed'],
+    defaultFrequency: 'milestone',
+    defaultMode: 'fixed',
+  },
+  managed_services: {
+    label: 'Managed Services',
+    hint: 'Fixed monthly or quarterly retainer.',
+    allowedFrequencies: ['monthly', 'quarterly'],
+    allowedModes: ['fixed'],
+    defaultFrequency: 'monthly',
+    defaultMode: 'fixed',
+  },
+};
 
-const BILLING_MODES = [
-  { value: 'fixed', label: 'Fixed Amount' },
-  { value: 'day_rate', label: 'Day Rate' },
-  { value: 'estimate', label: 'Estimate' },
-];
+const ALL_FREQUENCIES: Record<string, string> = {
+  weekly: 'Weekly',
+  biweekly: 'Bi-weekly',
+  monthly: 'Monthly',
+  quarterly: 'Quarterly',
+  milestone: 'Milestone',
+};
 
-const PLAN_TYPES = [
-  { value: 'consulting', label: 'Consulting' },
-  { value: 'recruitment', label: 'Recruitment' },
-  { value: 'managed_services', label: 'Managed Services' },
-];
+const ALL_MODES: Record<string, string> = {
+  fixed: 'Fixed Amount',
+  day_rate: 'Day Rate',
+  estimate: 'Estimate',
+};
 
 export function BillingPlanModal({
   open,
@@ -65,6 +94,16 @@ export function BillingPlanModal({
   const [nextRunDate, setNextRunDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
+
+  const rules = PLAN_TYPE_RULES[planType] ?? PLAN_TYPE_RULES.consulting;
+
+  // When plan type changes, reset frequency & mode to valid defaults
+  const handlePlanTypeChange = (newType: string) => {
+    setPlanType(newType);
+    const r = PLAN_TYPE_RULES[newType] ?? PLAN_TYPE_RULES.consulting;
+    if (!r.allowedFrequencies.includes(frequency)) setFrequency(r.defaultFrequency);
+    if (!r.allowedModes.includes(billingMode)) setBillingMode(r.defaultMode);
+  };
 
   useEffect(() => {
     if (open && existingPlan) {
@@ -100,6 +139,7 @@ export function BillingPlanModal({
     }
   }, [open, existingPlan]);
 
+  const isMilestone = frequency === 'milestone';
   const isPending = createPlan.isPending || updatePlan.isPending;
 
   const handleSubmit = async () => {
@@ -120,7 +160,7 @@ export function BillingPlanModal({
       invoice_day_of_month: invoiceDayOfMonth ? parseInt(invoiceDayOfMonth) : null,
       vat_rate: vatRate ? parseFloat(vatRate) : null,
       po_number: poNumber || null,
-      next_run_date: nextRunDate || null,
+      next_run_date: isMilestone ? null : (nextRunDate || null),
       end_date: endDate || null,
       notes: notes || null,
     };
@@ -162,10 +202,12 @@ export function BillingPlanModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">Plan Type</Label>
-              <Select value={planType} onValueChange={setPlanType}>
+              <Select value={planType} onValueChange={handlePlanTypeChange}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {PLAN_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                  {Object.entries(PLAN_TYPE_RULES).map(([val, r]) => (
+                    <SelectItem key={val} value={val}>{r.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -174,10 +216,18 @@ export function BillingPlanModal({
               <Select value={frequency} onValueChange={setFrequency}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {FREQUENCIES.map((f) => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}
+                  {rules.allowedFrequencies.map((f) => (
+                    <SelectItem key={f} value={f}>{ALL_FREQUENCIES[f]}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Plan type hint */}
+          <div className="flex items-start gap-2 rounded-md bg-muted/50 p-2.5">
+            <Info className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">{rules.hint}</p>
           </div>
 
           {/* Billing Mode */}
@@ -186,7 +236,9 @@ export function BillingPlanModal({
             <Select value={billingMode} onValueChange={setBillingMode}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {BILLING_MODES.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                {rules.allowedModes.map((m) => (
+                  <SelectItem key={m} value={m}>{ALL_MODES[m]}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -194,7 +246,9 @@ export function BillingPlanModal({
           {/* Amount fields based on billing mode */}
           {(billingMode === 'fixed' || billingMode === 'estimate') && (
             <div>
-              <Label className="text-xs">Fixed Amount (GBP)</Label>
+              <Label className="text-xs">
+                {isMilestone ? 'Milestone Fee (GBP)' : 'Fixed Amount (GBP)'}
+              </Label>
               <Input type="number" value={fixedAmount} onChange={(e) => setFixedAmount(e.target.value)} placeholder="0.00" />
             </div>
           )}
@@ -216,9 +270,9 @@ export function BillingPlanModal({
             </div>
           )}
 
-          {/* Invoice day + VAT */}
+          {/* Invoice day + VAT — hide invoice day for milestone */}
           <div className="grid grid-cols-2 gap-3">
-            {frequency === 'monthly' && (
+            {frequency === 'monthly' && !isMilestone && (
               <div>
                 <Label className="text-xs">Invoice Day of Month</Label>
                 <Input type="number" min="1" max="28" value={invoiceDayOfMonth} onChange={(e) => setInvoiceDayOfMonth(e.target.value)} placeholder="1-28" />
@@ -236,17 +290,28 @@ export function BillingPlanModal({
             <Input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} placeholder="Optional" />
           </div>
 
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">Next Run Date</Label>
-              <Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} />
-            </div>
+          {/* Dates — hide next run for milestone */}
+          <div className={`grid gap-3 ${isMilestone ? 'grid-cols-1' : 'grid-cols-2'}`}>
+            {!isMilestone && (
+              <div>
+                <Label className="text-xs">Next Run Date</Label>
+                <Input type="date" value={nextRunDate} onChange={(e) => setNextRunDate(e.target.value)} />
+              </div>
+            )}
             <div>
               <Label className="text-xs">End Date</Label>
               <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
+
+          {isMilestone && (
+            <div className="flex items-start gap-2 rounded-md bg-muted/50 p-2.5">
+              <Info className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                Milestone plans are invoiced manually. Use the "Create milestone invoice" button on the Billing tab when a stage changes.
+              </p>
+            </div>
+          )}
 
           {/* Notes */}
           <div>

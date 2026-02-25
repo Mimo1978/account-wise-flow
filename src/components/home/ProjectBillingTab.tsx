@@ -223,9 +223,15 @@ export function ProjectBillingTab({ engagementId, companyId, workspaceId }: Proj
                     <div className="flex items-center gap-2">
                       <CalendarClock className="w-4 h-4 text-muted-foreground shrink-0" />
                       <div>
-                        <p className="text-[10px] text-muted-foreground uppercase">Next Run</p>
+                        <p className="text-[10px] text-muted-foreground uppercase">
+                          {activePlan.frequency === 'milestone' ? 'Billing' : 'Next Run'}
+                        </p>
                         <p className="text-sm font-medium text-foreground">
-                          {activePlan.next_run_date ? format(new Date(activePlan.next_run_date), 'dd MMM yyyy') : 'Not set'}
+                          {activePlan.frequency === 'milestone'
+                            ? 'Manual trigger'
+                            : activePlan.next_run_date
+                              ? format(new Date(activePlan.next_run_date), 'dd MMM yyyy')
+                              : 'Not set'}
                         </p>
                       </div>
                     </div>
@@ -269,7 +275,7 @@ export function ProjectBillingTab({ engagementId, companyId, workspaceId }: Proj
                       disabled={runningNow || activePlan.status !== 'active'}
                     >
                       {runningNow ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
-                      Run Now
+                      {activePlan.frequency === 'milestone' ? 'Create milestone invoice' : 'Run Now'}
                     </Button>
                   </div>
                 )}

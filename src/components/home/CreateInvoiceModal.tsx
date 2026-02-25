@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,9 +14,13 @@ import { Loader2 } from 'lucide-react';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Pre-fill company */
+  prefillCompanyId?: string;
+  /** Pre-fill engagement */
+  prefillEngagementId?: string;
 }
 
-export function CreateInvoiceModal({ open, onOpenChange }: Props) {
+export function CreateInvoiceModal({ open, onOpenChange, prefillCompanyId, prefillEngagementId }: Props) {
   const { currentWorkspace } = useWorkspace();
   const createInvoice = useCreateInvoice();
 
@@ -27,6 +31,14 @@ export function CreateInvoiceModal({ open, onOpenChange }: Props) {
   const [dueDate, setDueDate] = useState('');
   const [status, setStatus] = useState('draft');
   const [notes, setNotes] = useState('');
+
+  // Apply prefills when modal opens
+  useEffect(() => {
+    if (open) {
+      setCompanyId(prefillCompanyId ?? '');
+      setEngagementId(prefillEngagementId ?? '');
+    }
+  }, [open, prefillCompanyId, prefillEngagementId]);
 
   const { data: companies = [] } = useQuery({
     queryKey: ['companies-list', currentWorkspace?.id],
@@ -43,14 +55,21 @@ export function CreateInvoiceModal({ open, onOpenChange }: Props) {
   });
 
   const { data: engagements = [] } = useQuery({
-    queryKey: ['engagements-list', currentWorkspace?.id],
+    queryKey: ['engagements-list', currentWorkspace?.id, companyId],
     queryFn: async () => {
       if (!currentWorkspace?.id) return [];
-      const { data } = await supabase
+      let query = supabase
         .from('engagements')
-        .select('id, name')
+        .select('id, name, company_id')
         .eq('workspace_id', currentWorkspace.id)
         .order('name');
+
+      // Filter engagements by selected company when one is chosen
+      if (companyId) {
+        query = query.eq('company_id', companyId);
+      }
+
+      const { data } = await query;
       return data ?? [];
     },
     enabled: !!currentWorkspace?.id && open,
@@ -103,7 +122,16 @@ export function CreateInvoiceModal({ open, onOpenChange }: Props) {
             <select
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
+              onChange={(e) => {
+                setCompanyId(e.target.value);
+                // Reset engagement if company changes and it no longer matches
+                if (engagementId) {
+                  const eng = engagements.find(en => en.id === engagementId);
+                  if (eng && eng.company_id !== e.target.value) {
+                    setEngagementId('');
+                  }
+                }
+              }}
             >
               <option value="">Select company…</option>
               {companies.map((c) => (
@@ -112,7 +140,7 @@ export function CreateInvoiceModal({ open, onOpenChange }: Props) {
             </select>
           </div>
           <div>
-            <Label>Engagement (optional)</Label>
+            <Label>Project (optional)</Label>
             <select
               className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               value={engagementId}

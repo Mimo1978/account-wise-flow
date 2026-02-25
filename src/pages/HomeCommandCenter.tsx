@@ -341,6 +341,7 @@ const HomeCommandCenter = () => {
   const [dealOpen, setDealOpen] = useState(false);
   const [selectedSow, setSelectedSow] = useState<Sow | null>(null);
   const [sowSheetOpen, setSowSheetOpen] = useState(false);
+  const [convertDeal, setConvertDeal] = useState<Deal | null>(null);
 
   const { data: engagements = [], isLoading: engLoading } = useEngagements(currentWorkspace?.id);
   const { data: sows = [], isLoading: sowsLoading } = useSows(currentWorkspace?.id);
@@ -1037,19 +1038,69 @@ const HomeCommandCenter = () => {
                         <p className="text-xs text-muted-foreground">No deals</p>
                       </div>
                     ) : (
-                      stageDeals.map((deal) => (
-                        <Card key={deal.id} className="p-3 hover:shadow-sm transition-shadow">
-                          <p className="text-sm font-medium text-foreground truncate">{deal.name}</p>
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.companies?.name ?? '—'}</p>
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-xs font-medium text-foreground">£{deal.value.toLocaleString()}</span>
-                            <Badge variant="outline" className="text-xs">{deal.probability}%</Badge>
-                          </div>
-                          {deal.expected_close_date && (
-                            <p className="text-xs text-muted-foreground mt-1">Close: {format(new Date(deal.expected_close_date), 'dd MMM')}</p>
-                          )}
-                        </Card>
-                      ))
+                      stageDeals.map((deal) => {
+                        const stageIdx = DEAL_STAGES.indexOf(deal.stage as any);
+                        const nextStage = stageIdx >= 0 && stageIdx < DEAL_STAGES.length - 2 ? DEAL_STAGES[stageIdx + 1] : null;
+                        return (
+                          <Card key={deal.id} className="p-3 hover:shadow-sm transition-shadow">
+                            <p className="text-sm font-medium text-foreground truncate">{deal.name}</p>
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.companies?.name ?? '—'}</p>
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="text-xs font-medium text-foreground">£{deal.value.toLocaleString()}</span>
+                              <Badge variant="outline" className="text-xs">{deal.probability}%</Badge>
+                            </div>
+                            {deal.expected_close_date && (
+                              <p className="text-xs text-muted-foreground mt-1">Close: {format(new Date(deal.expected_close_date), 'dd MMM')}</p>
+                            )}
+                            {/* Deal actions */}
+                            <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/40">
+                              {nextStage && deal.stage !== 'won' && deal.stage !== 'lost' && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 text-[10px] px-2"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    updateDeal.mutateAsync({ id: deal.id, stage: nextStage });
+                                    toast.success(`Moved to ${DEAL_STAGE_LABELS[nextStage]}`);
+                                  }}
+                                >
+                                  → {DEAL_STAGE_LABELS[nextStage]}
+                                </Button>
+                              )}
+                              {deal.stage === 'won' && !deal.engagement_id && (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  className="h-6 text-[10px] px-2 gap-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setConvertDeal(deal);
+                                    setCreateOpen(true);
+                                  }}
+                                >
+                                  <Briefcase className="w-3 h-3" />
+                                  Create Project
+                                </Button>
+                              )}
+                              {deal.stage === 'won' && deal.engagement_id && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 text-[10px] px-2 gap-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/projects/${deal.engagement_id}`);
+                                  }}
+                                >
+                                  <ArrowRight className="w-3 h-3" />
+                                  View Project
+                                </Button>
+                              )}
+                            </div>
+                          </Card>
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -1061,7 +1112,17 @@ const HomeCommandCenter = () => {
 
 
       {/* ── Modals ── */}
-      <CreateEngagementModal open={createOpen} onOpenChange={setCreateOpen} />
+      <CreateEngagementModal
+        open={createOpen}
+        onOpenChange={(v) => {
+          setCreateOpen(v);
+          if (!v) setConvertDeal(null);
+        }}
+        prefillCompanyId={convertDeal?.company_id}
+        prefillDealId={convertDeal?.id}
+        prefillName={convertDeal ? `${convertDeal.name} — Delivery` : undefined}
+        prefillValue={convertDeal?.value}
+      />
       <CreateSowModal open={sowOpen} onOpenChange={setSowOpen} />
       <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} />
       <CreateDealModal open={dealOpen} onOpenChange={setDealOpen} />

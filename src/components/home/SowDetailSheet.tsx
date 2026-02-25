@@ -49,7 +49,7 @@ export function SowDetailSheet({ sow, open, onOpenChange }: Props) {
 
             {sow.engagements?.name && (
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Engagement</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Project</p>
                 <p className="font-medium text-foreground">{sow.engagements.name}</p>
               </div>
             )}
@@ -93,18 +93,22 @@ export function SowDetailSheet({ sow, open, onOpenChange }: Props) {
           </div>
 
           <div className="flex flex-col gap-2 pt-2 border-t border-border">
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/companies" className="gap-1.5">
-                <Building2 className="w-3.5 h-3.5" />
-                Open Company
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/home" className="gap-1.5">
-                <Briefcase className="w-3.5 h-3.5" />
-                Open Engagement
-              </Link>
-            </Button>
+            {sow.engagement_id && (
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/projects/${sow.engagement_id}`} className="gap-1.5">
+                  <Briefcase className="w-3.5 h-3.5" />
+                  Open Project
+                </Link>
+              </Button>
+            )}
+            {sow.company_id && (
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/companies" className="gap-1.5">
+                  <Building2 className="w-3.5 h-3.5" />
+                  Open Company
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </SheetContent>

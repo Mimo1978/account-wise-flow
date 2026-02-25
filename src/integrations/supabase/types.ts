@@ -154,6 +154,109 @@ export type Database = {
           },
         ]
       }
+      billing_plans: {
+        Row: {
+          billing_mode: string
+          company_id: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          day_rate: number | null
+          end_date: string | null
+          engagement_id: string
+          estimated_days: number | null
+          fixed_amount: number | null
+          frequency: string
+          id: string
+          included_days: number | null
+          invoice_day_of_month: number | null
+          last_run_at: string | null
+          next_run_date: string | null
+          notes: string | null
+          plan_name: string
+          plan_type: string
+          po_number: string | null
+          status: string
+          updated_at: string
+          vat_rate: number | null
+          workspace_id: string
+        }
+        Insert: {
+          billing_mode?: string
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          day_rate?: number | null
+          end_date?: string | null
+          engagement_id: string
+          estimated_days?: number | null
+          fixed_amount?: number | null
+          frequency?: string
+          id?: string
+          included_days?: number | null
+          invoice_day_of_month?: number | null
+          last_run_at?: string | null
+          next_run_date?: string | null
+          notes?: string | null
+          plan_name: string
+          plan_type?: string
+          po_number?: string | null
+          status?: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id: string
+        }
+        Update: {
+          billing_mode?: string
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          day_rate?: number | null
+          end_date?: string | null
+          engagement_id?: string
+          estimated_days?: number | null
+          fixed_amount?: number | null
+          frequency?: string
+          id?: string
+          included_days?: number | null
+          invoice_day_of_month?: number | null
+          last_run_at?: string | null
+          next_run_date?: string | null
+          notes?: string | null
+          plan_name?: string
+          plan_type?: string
+          po_number?: string | null
+          status?: string
+          updated_at?: string
+          vat_rate?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_plans_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_plans_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "billing_plans_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_connections: {
         Row: {
           access_token_encrypted: string | null

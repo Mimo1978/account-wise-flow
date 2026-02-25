@@ -18,6 +18,7 @@ import {
 } from '@/hooks/use-outreach';
 import { CreateSowModal } from '@/components/home/CreateSowModal';
 import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
+import { ProjectBillingTab } from '@/components/home/ProjectBillingTab';
 import { CreateCampaignModal } from '@/components/outreach/CreateCampaignModal';
 import { AddTargetsModal } from '@/components/outreach/AddTargetsModal';
 import { OutreachTargetRow } from '@/components/outreach/OutreachTargetRow';
@@ -413,7 +414,7 @@ const ProjectDetail = () => {
   const { data: allInvoices = [] } = useInvoices(currentWorkspace?.id);
 
   const [sowOpen, setSowOpen] = useState(false);
-  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(false); // kept for legacy/contracts use
 
   const engSows = useMemo(() => {
     if (!engagement) return [];
@@ -607,51 +608,11 @@ const ProjectDetail = () => {
 
         {/* Billing Tab */}
         <TabsContent value="billing">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Invoices</h3>
-            <Button size="sm" className="gap-1.5" onClick={() => setInvoiceOpen(true)}>
-              <Plus className="w-3.5 h-3.5" />
-              Create Invoice
-            </Button>
-          </div>
-          {engInvoices.length === 0 ? (
-            <Card className="flex flex-col items-center justify-center text-center p-8">
-              <Receipt className="w-8 h-8 text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground">No invoices linked to this project yet.</p>
-              <Button size="sm" className="gap-1.5 mt-3" onClick={() => setInvoiceOpen(true)}>
-                <Plus className="w-3.5 h-3.5" /> Create Invoice
-              </Button>
-            </Card>
-          ) : (
-            <Card>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Invoice</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Amount</th>
-                      <th className="text-left px-4 py-3 font-medium text-muted-foreground">Due Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {engInvoices.map((inv) => (
-                      <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3 font-medium text-foreground">{inv.invoice_number || '#' + inv.id.slice(0, 6)}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant={STATUS_BADGE_VARIANT[inv.status] ?? 'secondary'} className="text-xs capitalize">{inv.status}</Badge>
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">{inv.currency} {inv.amount.toLocaleString()}</td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">
-                          {inv.due_date ? format(new Date(inv.due_date), 'dd MMM yyyy') : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          )}
+          <ProjectBillingTab
+            engagementId={engagement.id}
+            companyId={engagement.company_id ?? ''}
+            workspaceId={currentWorkspace?.id ?? ''}
+          />
         </TabsContent>
 
         {/* Outreach Tab */}

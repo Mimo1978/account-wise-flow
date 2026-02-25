@@ -1773,6 +1773,77 @@ export type Database = {
           },
         ]
       }
+      invoice_runs: {
+        Row: {
+          billing_plan_id: string
+          created_at: string
+          dedupe_key: string
+          engagement_id: string
+          error_message: string | null
+          id: string
+          invoice_id: string | null
+          period_end: string
+          period_start: string
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          billing_plan_id: string
+          created_at?: string
+          dedupe_key: string
+          engagement_id: string
+          error_message?: string | null
+          id?: string
+          invoice_id?: string | null
+          period_end: string
+          period_start: string
+          status?: string
+          workspace_id: string
+        }
+        Update: {
+          billing_plan_id?: string
+          created_at?: string
+          dedupe_key?: string
+          engagement_id?: string
+          error_message?: string | null
+          id?: string
+          invoice_id?: string | null
+          period_end?: string
+          period_start?: string
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_runs_billing_plan_id_fkey"
+            columns: ["billing_plan_id"]
+            isOneToOne: false
+            referencedRelation: "billing_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_runs_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_runs_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount: number

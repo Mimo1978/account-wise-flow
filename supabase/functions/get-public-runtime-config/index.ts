@@ -14,11 +14,13 @@ serve(async (req) => {
   try {
     const resendConfigured = !!Deno.env.get("RESEND_API_KEY");
     const outreachFromEmail = Deno.env.get("OUTREACH_FROM_EMAIL") || null;
+    const billingAutomationEnabled = true; // billing-run edge function is deployed
 
     return new Response(
       JSON.stringify({
         resend_configured: resendConfigured,
         outreach_from_email: outreachFromEmail,
+        billing_automation_enabled: billingAutomationEnabled,
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );

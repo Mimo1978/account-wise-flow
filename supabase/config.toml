@@ -70,3 +70,6 @@ verify_jwt = false
 
 [functions.ai-response-processor]
 verify_jwt = false
+
+[functions.billing-run]
+verify_jwt = false

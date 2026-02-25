@@ -15,6 +15,7 @@ import { CreateSowModal } from '@/components/home/CreateSowModal';
 import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
 import { CreateDealModal } from '@/components/home/CreateDealModal';
 import { SowDetailSheet } from '@/components/home/SowDetailSheet';
+import { BillingDiagnosticsPanel } from '@/components/home/BillingDiagnosticsPanel';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   RefreshCw,
@@ -1008,6 +1009,9 @@ const HomeCommandCenter = () => {
           </div>
         )}
       </section>
+
+      {/* ── DEV: Billing Diagnostics ── */}
+      <BillingDiagnosticsPanel />
 
       {/* ── Modals ── */}
       <CreateEngagementModal open={createOpen} onOpenChange={setCreateOpen} />

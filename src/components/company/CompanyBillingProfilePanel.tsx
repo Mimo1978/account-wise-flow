@@ -5,15 +5,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCompanyBillingProfile, useUpsertCompanyBillingProfile } from '@/hooks/use-company-billing-profile';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { toast } from 'sonner';
 import { Loader2, Save, Receipt } from 'lucide-react';
 
 interface CompanyBillingProfilePanelProps {
-  workspaceId: string;
+  workspaceId?: string;
   companyId: string;
 }
 
-export function CompanyBillingProfilePanel({ workspaceId, companyId }: CompanyBillingProfilePanelProps) {
+export function CompanyBillingProfilePanel({ workspaceId: propWorkspaceId, companyId }: CompanyBillingProfilePanelProps) {
+  const { currentWorkspace } = useWorkspace();
+  const workspaceId = propWorkspaceId || currentWorkspace?.id || '';
   const { data: profile, isLoading } = useCompanyBillingProfile(workspaceId, companyId);
   const upsert = useUpsertCompanyBillingProfile();
 

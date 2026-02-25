@@ -7,7 +7,7 @@ import { useSows, type Sow } from '@/hooks/use-sows';
 import { useInvoices, useUpdateInvoice, type Invoice } from '@/hooks/use-invoices';
 import { useDeals, useUpdateDeal, type Deal, DEAL_STAGES, DEAL_STAGE_LABELS } from '@/hooks/use-deals';
 import { useOutreachMetrics, type OutreachActionItem } from '@/hooks/use-outreach-metrics';
-import { useBillingPlans } from '@/hooks/use-billing-plans';
+import { useInvoicePlans } from '@/hooks/use-invoice-plans';
 import { usePermissions } from '@/hooks/use-permissions';
 import { supabase } from '@/integrations/supabase/client';
 import { CreateEngagementModal } from '@/components/home/CreateEngagementModal';
@@ -347,30 +347,31 @@ const HomeCommandCenter = () => {
   const { data: invoices = [], isLoading: invLoading } = useInvoices(currentWorkspace?.id);
   const { data: deals = [], isLoading: dealsLoading } = useDeals(currentWorkspace?.id);
   const { data: outreachMetrics } = useOutreachMetrics(currentWorkspace?.id);
-  const { data: billingPlans = [] } = useBillingPlans(currentWorkspace?.id);
+  const { data: invoicePlans = [] } = useInvoicePlans(currentWorkspace?.id);
   const { isAdmin, isManager } = usePermissions();
   const queryClient = useQueryClient();
   const [runningDue, setRunningDue] = useState(false);
   const updateInvoice = useUpdateInvoice();
   const updateDeal = useUpdateDeal();
 
-  const activePlansExist = billingPlans.some(p => p.status === 'active');
+  const activePlansExist = invoicePlans.some(p => p.status === 'active');
   const todayStr = format(startOfDay(new Date()), 'yyyy-MM-dd');
-  const scheduledTodayCount = billingPlans.filter(p => p.status === 'active' && p.next_run_date === todayStr).length;
+  const scheduledTodayCount = invoicePlans.filter(p => p.status === 'active' && p.next_run_date === todayStr).length;
+  const blockedPlansCount = invoicePlans.filter(p => p.status === 'active' && !p.fixed_amount && !p.rate_per_day).length;
 
   const handleRunDueInvoices = async () => {
     if (!currentWorkspace?.id) return;
     setRunningDue(true);
     try {
-      const { data, error } = await supabase.functions.invoke('billing-run', {
-        body: { workspace_id: currentWorkspace.id, mode: 'due_plans' },
+      const { data, error } = await supabase.functions.invoke('billing-run-due-plans', {
+        body: { workspace_id: currentWorkspace.id, mode: 'execute' },
       });
       if (error) throw error;
-      const created = data?.created_count ?? 0;
-      const skipped = data?.skipped_count ?? 0;
+      const created = data?.invoices_created ?? data?.created_count ?? 0;
+      const skipped = data?.invoices_skipped ?? data?.skipped_count ?? 0;
       toast.success(`${created} invoice(s) created, ${skipped} skipped`);
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
-      queryClient.invalidateQueries({ queryKey: ['billing-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice-plans'] });
     } catch (e: any) {
       toast.error(e.message || 'Failed to run due invoices');
     } finally {
@@ -643,6 +644,54 @@ const HomeCommandCenter = () => {
           )}
         </div>
       </div>
+
+      {/* ── Billing Alerts ── */}
+      {(scheduledTodayCount > 0 || blockedPlansCount > 0 || billing.overdueCount > 0) && (
+        <section>
+          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3">Billing Alerts</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {scheduledTodayCount > 0 && (
+              <Card className="border-primary/30">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Zap className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{scheduledTodayCount} invoice{scheduledTodayCount !== 1 ? 's' : ''} due to generate</p>
+                    <p className="text-xs text-muted-foreground">Scheduled for today</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {blockedPlansCount > 0 && (
+              <Card className="border-warning/30">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-warning/10 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4 text-warning" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{blockedPlansCount} blocked plan{blockedPlansCount !== 1 ? 's' : ''}</p>
+                    <p className="text-xs text-muted-foreground">Missing amount configuration</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {billing.overdueCount > 0 && (
+              <Card className="border-destructive/30">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-destructive/10 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">£{billing.overdueAmount.toLocaleString()} overdue</p>
+                    <p className="text-xs text-muted-foreground">{billing.overdueCount} invoice{billing.overdueCount !== 1 ? 's' : ''}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* ── Billing Snapshot ── */}
       <section>

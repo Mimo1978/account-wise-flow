@@ -308,21 +308,53 @@ const Canvas = () => {
   const queryClient = useQueryClient();
   const handleStructuralDrop = useCallback(async (draggedId: string, targetId: string | null, zone: DropZone) => {
     if (!account) return;
-    
+
+    // Build a complete hierarchy snapshot so drops work even if some contacts
+    // don't yet have explicit org_chart_edges rows.
+    const hierarchyState = new Map<string, { parentContactId: string | null; siblingOrder: number }>();
+
+    account.contacts.forEach((contact, index) => {
+      hierarchyState.set(contact.id, {
+        parentContactId: contact.managerId ?? null,
+        siblingOrder: contact.siblingOrder ?? index,
+      });
+    });
+
+    orgNodes.forEach((node) => {
+      hierarchyState.set(node.contactId, {
+        parentContactId: node.parentContactId,
+        siblingOrder: node.siblingOrder,
+      });
+    });
+
+    const getNodeState = (contactId: string) =>
+      hierarchyState.get(contactId) ?? { parentContactId: null, siblingOrder: 0 };
+
+    const getSiblings = (parentContactId: string | null, excludeId?: string) =>
+      Array.from(hierarchyState.entries())
+        .filter(([id, n]) => id !== excludeId && n.parentContactId === parentContactId)
+        .map(([contactId, n]) => ({ contactId, siblingOrder: n.siblingOrder }))
+        .sort((a, b) => a.siblingOrder - b.siblingOrder || a.contactId.localeCompare(b.contactId));
+
     try {
       switch (zone) {
-        case "company_root":
-          await setParent({ contactId: draggedId, newParentContactId: null, newSiblingOrder: 0 });
+        case "company_root": {
+          // Dropping near company icon should always add to top line (as root sibling).
+          const rootSiblings = getSiblings(null, draggedId);
+          const nextRootOrder = rootSiblings.length > 0
+            ? Math.max(...rootSiblings.map((s) => s.siblingOrder)) + 1
+            : 0;
+          await setParent({ contactId: draggedId, newParentContactId: null, newSiblingOrder: nextRootOrder });
           break;
+        }
 
         case "left": {
-          // Left of target → insert as sibling BEFORE target (lower sibling order)
+          // Left of target → insert as sibling BEFORE target
           if (!targetId) return;
-          const targetNodeLeft = orgNodes.find(n => n.contactId === targetId);
-          const parentIdLeft = targetNodeLeft?.parentContactId ?? null;
-          const orderLeft = Math.max(0, (targetNodeLeft?.siblingOrder ?? 0));
-          // Shift target and later siblings forward to make room
-          const siblingsToShiftLeft = orgNodes.filter(n => n.parentContactId === parentIdLeft && n.contactId !== draggedId && n.siblingOrder >= orderLeft);
+          const targetNodeLeft = getNodeState(targetId);
+          const parentIdLeft = targetNodeLeft.parentContactId;
+          const orderLeft = Math.max(0, targetNodeLeft.siblingOrder);
+          const siblingsToShiftLeft = getSiblings(parentIdLeft, draggedId).filter((s) => s.siblingOrder >= orderLeft);
           for (const sib of siblingsToShiftLeft) {
             await setParent({ contactId: sib.contactId, newParentContactId: parentIdLeft, newSiblingOrder: sib.siblingOrder + 1 });
           }
@@ -331,13 +363,12 @@ const Canvas = () => {
         }
 
         case "right": {
-          // Right of target → insert as sibling AFTER target (higher sibling order)
+          // Right of target → insert as sibling AFTER target
           if (!targetId) return;
-          const targetNodeRight = orgNodes.find(n => n.contactId === targetId);
-          const parentIdRight = targetNodeRight?.parentContactId ?? null;
-          const orderRight = (targetNodeRight?.siblingOrder ?? 0) + 1;
-          // Shift later siblings forward
-          const siblingsToShiftRight = orgNodes.filter(n => n.parentContactId === parentIdRight && n.contactId !== draggedId && n.siblingOrder >= orderRight);
+          const targetNodeRight = getNodeState(targetId);
+          const parentIdRight = targetNodeRight.parentContactId;
+          const orderRight = targetNodeRight.siblingOrder + 1;
+          const siblingsToShiftRight = getSiblings(parentIdRight, draggedId).filter((s) => s.siblingOrder >= orderRight);
           for (const sib of siblingsToShiftRight) {
             await setParent({ contactId: sib.contactId, newParentContactId: parentIdRight, newSiblingOrder: sib.siblingOrder + 1 });
           }
@@ -346,10 +377,12 @@ const Canvas = () => {
         }
 
         case "bottom": {
-          // Below target → connect as NEW CHILD of target (new branch)
+          // Below target → connect as NEW CHILD of target
           if (!targetId) return;
-          const existingChildren = orgNodes.filter(n => n.parentContactId === targetId);
-          const nextOrder = existingChildren.length > 0 ? Math.max(...existingChildren.map(c => c.siblingOrder)) + 1 : 0;
+          const existingChildren = getSiblings(targetId, draggedId);
+          const nextOrder = existingChildren.length > 0
+            ? Math.max(...existingChildren.map((c) => c.siblingOrder)) + 1
+            : 0;
           await setParent({ contactId: draggedId, newParentContactId: targetId, newSiblingOrder: nextOrder });
           break;
         }
@@ -357,10 +390,10 @@ const Canvas = () => {
         case "top": {
           // Top — treat same as left (sibling before)
           if (!targetId) return;
-          const targetNodeTop = orgNodes.find(n => n.contactId === targetId);
-          const parentIdTop = targetNodeTop?.parentContactId ?? null;
-          const orderTop = Math.max(0, (targetNodeTop?.siblingOrder ?? 0));
-          const siblingsToShiftTop = orgNodes.filter(n => n.parentContactId === parentIdTop && n.contactId !== draggedId && n.siblingOrder >= orderTop);
+          const targetNodeTop = getNodeState(targetId);
+          const parentIdTop = targetNodeTop.parentContactId;
+          const orderTop = Math.max(0, targetNodeTop.siblingOrder);
+          const siblingsToShiftTop = getSiblings(parentIdTop, draggedId).filter((s) => s.siblingOrder >= orderTop);
           for (const sib of siblingsToShiftTop) {
             await setParent({ contactId: sib.contactId, newParentContactId: parentIdTop, newSiblingOrder: sib.siblingOrder + 1 });
           }

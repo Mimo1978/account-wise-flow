@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, Phone, Mic, Bot, CheckCircle2, Eye, EyeOff, ExternalLink, Loader2 } from "lucide-react";
+import { Mail, Phone, Mic, Bot, CheckCircle2, Eye, EyeOff, ExternalLink, Loader2, ChevronRight, Info, Shield, Zap } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface KeyField {
@@ -20,6 +20,12 @@ interface KeyField {
   validate?: (v: string) => string | null;
 }
 
+interface SetupStep {
+  step: number;
+  title: string;
+  description: string;
+}
+
 interface ServiceCard {
   service: string;
   label: string;
@@ -28,6 +34,9 @@ interface ServiceCard {
   signupUrl: string;
   optional?: boolean;
   fields: KeyField[];
+  setupSteps: SetupStep[];
+  whatYouGet: string[];
+  pricing: string;
 }
 
 const SERVICE_CARDS: ServiceCard[] = [
@@ -35,47 +44,131 @@ const SERVICE_CARDS: ServiceCard[] = [
     service: "resend",
     label: "Email via Resend",
     icon: Mail,
-    description: "Send emails directly from the CRM using your own Resend account. Free tier includes 3,000 emails per month.",
+    description: "Send emails directly from the CRM — outreach sequences, follow-ups and templated communications from your own domain.",
     signupUrl: "https://resend.com",
+    pricing: "Free tier: 3,000 emails/month • 100 emails/day",
+    whatYouGet: [
+      "Send personalised emails from contact records",
+      "Use email templates with merge tags ({{first_name}}, {{company_name}})",
+      "Track outreach campaigns with delivery status",
+      "Send from your own domain for better deliverability",
+    ],
+    setupSteps: [
+      { step: 1, title: "Create a Resend account", description: "Go to resend.com and sign up for a free account. No credit card required." },
+      { step: 2, title: "Verify your sending domain", description: "In Resend dashboard → Domains → Add Domain. Add the DNS records they provide to your domain registrar. Wait for verification (usually 5–10 minutes)." },
+      { step: 3, title: "Generate an API key", description: "In Resend dashboard → API Keys → Create API Key. Name it 'CRM Integration'. Copy the key — it starts with re_" },
+      { step: 4, title: "Paste your credentials below", description: "Enter the API key and the email address you verified (e.g. hello@yourcompany.com). Click Save." },
+    ],
     fields: [
-      { key_name: "RESEND_API_KEY", label: "Resend API Key", type: "password", helper: "Must start with re_", validate: v => v && !v.startsWith("re_") ? "Must start with re_" : null },
-      { key_name: "FROM_EMAIL_ADDRESS", label: "From Email", type: "text", helper: "Must be a verified sender in your Resend account e.g. hello@yourcompany.com" },
+      { key_name: "RESEND_API_KEY", label: "Resend API Key", type: "password", helper: "Starts with re_ — found in Resend Dashboard → API Keys", validate: v => v && !v.startsWith("re_") ? "Must start with re_" : null },
+      { key_name: "FROM_EMAIL_ADDRESS", label: "From Email Address", type: "text", helper: "Must be a verified sender in your Resend account, e.g. hello@yourcompany.com" },
     ],
   },
   {
     service: "twilio",
-    label: "SMS and Voice via Twilio",
+    label: "SMS & Voice via Twilio",
     icon: Phone,
-    description: "Send SMS messages and make AI-powered outbound calls using your own Twilio account.",
+    description: "Send SMS messages to contacts and power AI-driven outbound voice calls — all logged automatically in the CRM.",
     signupUrl: "https://twilio.com",
+    pricing: "Pay-as-you-go • SMS from $0.0079/msg • Voice from $0.013/min",
+    whatYouGet: [
+      "Send SMS directly from contact and outreach views",
+      "GDPR-aware SMS gate — consent checked before sending",
+      "AI-powered outbound calls with script support",
+      "All communications logged as activities automatically",
+    ],
+    setupSteps: [
+      { step: 1, title: "Create a Twilio account", description: "Go to twilio.com and sign up. You'll get a free trial with credit to test." },
+      { step: 2, title: "Find your Account SID and Auth Token", description: "In Twilio Console → Account Info (top of dashboard). Your Account SID starts with AC. Click 'Show' to reveal the Auth Token." },
+      { step: 3, title: "Get a phone number", description: "In Twilio Console → Phone Numbers → Buy a Number. Select one with SMS and Voice capabilities. Note it in E.164 format (e.g. +441234567890)." },
+      { step: 4, title: "Paste your credentials below", description: "Enter all three values: Account SID, Auth Token, and your Twilio phone number. Click Save." },
+    ],
     fields: [
-      { key_name: "TWILIO_ACCOUNT_SID", label: "Account SID", type: "password", helper: "Found in Twilio Console > Account Info. Starts with AC", validate: v => v && !v.startsWith("AC") ? "Must start with AC" : null },
-      { key_name: "TWILIO_AUTH_TOKEN", label: "Auth Token", type: "password", helper: "Found in Twilio Console > Account Info" },
-      { key_name: "TWILIO_PHONE_NUMBER", label: "Phone Number", type: "text", helper: "Your Twilio number in E.164 format e.g. +441234567890. Must have SMS and Voice capabilities." },
+      { key_name: "TWILIO_ACCOUNT_SID", label: "Account SID", type: "password", helper: "Starts with AC — found in Twilio Console → Account Info", validate: v => v && !v.startsWith("AC") ? "Must start with AC" : null },
+      { key_name: "TWILIO_AUTH_TOKEN", label: "Auth Token", type: "password", helper: "Found in Twilio Console → Account Info (click 'Show')" },
+      { key_name: "TWILIO_PHONE_NUMBER", label: "Twilio Phone Number", type: "text", helper: "E.164 format, e.g. +441234567890 — must have SMS + Voice capabilities" },
     ],
   },
   {
     service: "elevenlabs",
     label: "AI Voice via ElevenLabs",
     icon: Mic,
-    description: "Adds a natural-sounding AI voice to outbound calls. Requires Twilio to be configured first. If not configured, calls will use Twilio's standard text-to-speech.",
+    description: "Add natural-sounding AI voices to your outbound calls. Makes automated calls sound human and professional.",
     signupUrl: "https://elevenlabs.io",
     optional: true,
+    pricing: "Free tier: 10,000 characters/month • Paid from $5/month",
+    whatYouGet: [
+      "Natural AI voice on outbound calls (instead of robotic TTS)",
+      "Multiple voice options and accents",
+      "Professional-sounding automated outreach",
+    ],
+    setupSteps: [
+      { step: 1, title: "Ensure Twilio is configured first", description: "ElevenLabs enhances Twilio calls — you need Twilio set up before this will work." },
+      { step: 2, title: "Create an ElevenLabs account", description: "Go to elevenlabs.io and sign up. The free tier gives you enough to test." },
+      { step: 3, title: "Generate an API key", description: "Click your profile icon → Profile + API Key → Generate. Copy the key." },
+      { step: 4, title: "Paste your API key below", description: "Enter the key and click Save. AI voice will be used automatically on outbound calls." },
+    ],
     fields: [
-      { key_name: "ELEVENLABS_API_KEY", label: "ElevenLabs API Key", type: "password", helper: "" },
+      { key_name: "ELEVENLABS_API_KEY", label: "ElevenLabs API Key", type: "password", helper: "Found in ElevenLabs → Profile → API Key" },
     ],
   },
   {
     service: "anthropic",
-    label: "Jarvis AI Assistant via Anthropic",
+    label: "Jarvis AI Assistant",
     icon: Bot,
-    description: "Powers the Jarvis AI assistant built into your CRM. Your data is never used to train AI models. All API calls are made server-side only.",
+    description: "Powers the Jarvis AI assistant — your intelligent CRM copilot that can search, create records, manage pipeline and draft communications using natural language.",
     signupUrl: "https://console.anthropic.com",
+    pricing: "Pay-per-use • ~$3 per 1M input tokens • ~$15 per 1M output tokens",
+    whatYouGet: [
+      "Natural language CRM commands (\"Find contacts at Acme Corp\")",
+      "AI-powered contact and company creation from conversation",
+      "Pipeline management through chat",
+      "Draft emails and communications with AI assistance",
+      "All actions are audit-logged — your data is never used for training",
+    ],
+    setupSteps: [
+      { step: 1, title: "Create an Anthropic account", description: "Go to console.anthropic.com and sign up. You'll need to add a payment method." },
+      { step: 2, title: "Add billing credits", description: "In the Anthropic Console → Billing → Add credits. $5 is enough for thousands of queries." },
+      { step: 3, title: "Generate an API key", description: "Go to API Keys → Create Key. Name it 'CRM Jarvis'. Copy the key — it starts with sk-ant-" },
+      { step: 4, title: "Paste your API key below", description: "Enter the key and click Save. The Jarvis sparkle button will appear in the bottom-right of your CRM." },
+    ],
     fields: [
-      { key_name: "ANTHROPIC_API_KEY", label: "Anthropic API Key", type: "password", helper: "Starts with sk-ant-", validate: v => v && !v.startsWith("sk-ant-") ? "Must start with sk-ant-" : null },
+      { key_name: "ANTHROPIC_API_KEY", label: "Anthropic API Key", type: "password", helper: "Starts with sk-ant- — found in Anthropic Console → API Keys", validate: v => v && !v.startsWith("sk-ant-") ? "Must start with sk-ant-" : null },
     ],
   },
 ];
+
+function SetupGuide({ steps, signupUrl }: { steps: SetupStep[]; signupUrl: string }) {
+  return (
+    <div className="space-y-3 mb-4">
+      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+        <Info className="w-4 h-4 text-primary" />
+        Step-by-step setup
+      </div>
+      <ol className="space-y-2">
+        {steps.map(s => (
+          <li key={s.step} className="flex gap-3 items-start">
+            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">
+              {s.step}
+            </span>
+            <div>
+              <p className="text-sm font-medium text-foreground">{s.title}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{s.description}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <a
+        href={signupUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline mt-1"
+      >
+        Open {new URL(signupUrl).hostname} <ExternalLink className="w-3 h-3" />
+      </a>
+    </div>
+  );
+}
 
 function ServiceCardComponent({ card }: { card: ServiceCard }) {
   const { user } = useAuth();
@@ -109,7 +202,6 @@ function ServiceCardComponent({ card }: { card: ServiceCard }) {
   };
 
   const handleSave = async () => {
-    // Check for validation errors
     const newErrors: Record<string, string> = {};
     card.fields.forEach(f => {
       const val = values[f.key_name] || "";
@@ -156,11 +248,13 @@ function ServiceCardComponent({ card }: { card: ServiceCard }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <card.icon className="w-5 h-5" />
+            <div className={`p-2 rounded-lg ${isConfigured ? 'bg-emerald-500/10' : 'bg-muted'}`}>
+              <card.icon className={`w-5 h-5 ${isConfigured ? 'text-emerald-600' : 'text-muted-foreground'}`} />
+            </div>
             {card.label}
             {card.optional && <Badge variant="outline" className="text-xs">Optional</Badge>}
           </CardTitle>
@@ -168,43 +262,73 @@ function ServiceCardComponent({ card }: { card: ServiceCard }) {
             {isConfigured ? <><CheckCircle2 className="w-3 h-3 mr-1" /> Connected</> : "Not configured"}
           </Badge>
         </div>
-        <CardDescription>{card.description}</CardDescription>
-        <a href={card.signupUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1 mt-1">
-          Sign up at {card.signupUrl} <ExternalLink className="w-3 h-3" />
-        </a>
+        <CardDescription className="mt-2">{card.description}</CardDescription>
+        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+          <Zap className="w-3 h-3" /> {card.pricing}
+        </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
+        {/* What you get */}
+        <div className="mb-4 p-3 rounded-lg bg-muted/50 border border-border/50">
+          <p className="text-xs font-semibold text-foreground mb-2">What this enables:</p>
+          <ul className="space-y-1">
+            {card.whatYouGet.map((item, i) => (
+              <li key={i} className="text-xs text-muted-foreground flex items-start gap-2">
+                <ChevronRight className="w-3 h-3 mt-0.5 text-primary flex-shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <Accordion type="single" collapsible>
           <AccordionItem value="configure" className="border-none">
-            <AccordionTrigger className="text-sm py-2">Configure</AccordionTrigger>
+            <AccordionTrigger className="text-sm py-2 font-medium">
+              {isConfigured ? "Update configuration" : "Set up now"}
+            </AccordionTrigger>
             <AccordionContent className="space-y-4 pt-2">
-              {card.fields.map(field => (
-                <div key={field.key_name} className="space-y-1.5">
-                  <Label htmlFor={field.key_name} className="text-sm">{field.label}</Label>
-                  <div className="relative">
-                    <Input
-                      id={field.key_name}
-                      type={field.type === "password" && !visible[field.key_name] ? "password" : "text"}
-                      placeholder={hasExistingKey(field.key_name) ? "••••••••" : ""}
-                      value={values[field.key_name] || ""}
-                      onChange={e => setValues(prev => ({ ...prev, [field.key_name]: e.target.value }))}
-                      onBlur={() => handleBlur(field)}
-                      className="pr-10"
-                    />
-                    {field.type === "password" && (
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        onClick={() => setVisible(prev => ({ ...prev, [field.key_name]: !prev[field.key_name] }))}
-                      >
-                        {visible[field.key_name] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    )}
+              {/* Setup guide */}
+              <SetupGuide steps={card.setupSteps} signupUrl={card.signupUrl} />
+
+              {/* Divider */}
+              <div className="border-t border-border/50" />
+
+              {/* Fields */}
+              <div className="space-y-4">
+                <p className="text-xs font-semibold text-foreground">Your credentials</p>
+                {card.fields.map(field => (
+                  <div key={field.key_name} className="space-y-1.5">
+                    <Label htmlFor={field.key_name} className="text-sm flex items-center gap-2">
+                      {field.label}
+                      {hasExistingKey(field.key_name) && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-emerald-600 border-emerald-300">Saved</Badge>
+                      )}
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id={field.key_name}
+                        type={field.type === "password" && !visible[field.key_name] ? "password" : "text"}
+                        placeholder={hasExistingKey(field.key_name) ? "••••••••  (enter new value to update)" : "Paste here…"}
+                        value={values[field.key_name] || ""}
+                        onChange={e => setValues(prev => ({ ...prev, [field.key_name]: e.target.value }))}
+                        onBlur={() => handleBlur(field)}
+                        className="pr-10"
+                      />
+                      {field.type === "password" && (
+                        <button
+                          type="button"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          onClick={() => setVisible(prev => ({ ...prev, [field.key_name]: !prev[field.key_name] }))}
+                        >
+                          {visible[field.key_name] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      )}
+                    </div>
+                    {field.helper && <p className="text-xs text-muted-foreground">{field.helper}</p>}
+                    {errors[field.key_name] && <p className="text-xs text-destructive">{errors[field.key_name]}</p>}
                   </div>
-                  {field.helper && <p className="text-xs text-muted-foreground">{field.helper}</p>}
-                  {errors[field.key_name] && <p className="text-xs text-destructive">{errors[field.key_name]}</p>}
-                </div>
-              ))}
+                ))}
+              </div>
 
               {lastUpdated && (
                 <p className="text-xs text-muted-foreground">
@@ -215,7 +339,7 @@ function ServiceCardComponent({ card }: { card: ServiceCard }) {
               <div className="flex gap-2 pt-2">
                 <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending}>
                   {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
-                  Save
+                  Save Keys
                 </Button>
                 {isConfigured && (
                   <Button size="sm" variant="outline" onClick={handleTest} disabled={testing}>
@@ -234,12 +358,18 @@ function ServiceCardComponent({ card }: { card: ServiceCard }) {
 
 export default function IntegrationsSettings() {
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6 max-w-3xl">
       <div>
         <h1 className="text-2xl font-bold">Integrations & API Keys</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Connect your own service accounts to enable email, SMS and AI calling. Your keys are stored securely, used only on the server, and never visible in the browser.
+          Connect your own service accounts to enable email, SMS, AI calling and the Jarvis assistant. Follow the step-by-step guides below for each service.
         </p>
+        <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-start gap-2">
+          <Shield className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-muted-foreground">
+            <strong className="text-foreground">Security:</strong> All API keys are encrypted at rest, stored per-user, and only used on the server. They are never exposed to the browser or shared with other users.
+          </p>
+        </div>
       </div>
 
       {SERVICE_CARDS.map(card => (

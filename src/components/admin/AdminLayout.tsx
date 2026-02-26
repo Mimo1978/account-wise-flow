@@ -32,7 +32,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Workspace & Roles', path: '/admin/access', icon: Shield, section: 'access' },
   { label: 'Data Quality', path: '/admin/data-quality', icon: Database, section: 'data-quality' },
   { label: 'Outreach Defaults', path: '/admin/outreach', icon: Megaphone, section: 'outreach' },
-  { label: 'Integrations', path: '/admin/integrations', icon: Plug, section: 'integrations' },
   { label: 'Billing & Invoices', path: '/admin/billing', icon: Receipt, section: 'integrations' },
   { label: 'Schema Inventory', path: '/admin/schema', icon: Database, section: 'schema' },
   { label: 'Jarvis AI Guide', path: '/admin/jarvis-guide', icon: Sparkles, section: 'integrations' },
@@ -75,7 +74,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   '/admin/data-quality': 'Data Quality',
   '/admin/outreach': 'Outreach Defaults',
   '/admin/schema': 'Schema Inventory',
-  '/admin/integrations': 'Integrations',
+  
   '/admin/billing': 'Billing & Invoices',
   '/admin/jarvis-guide': 'Jarvis AI Guide',
   '/admin/email-guide': 'Email Guide',

@@ -41,7 +41,7 @@ import AdminOverview from "./pages/admin/AdminOverview";
 import AdminAccess from "./pages/admin/AdminAccess";
 import AdminOutreach from "./pages/admin/AdminOutreach";
 import AdminDataQuality from "./pages/admin/AdminDataQuality";
-import AdminIntegrations from "./pages/admin/AdminIntegrations";
+
 import AdminBilling from "./pages/admin/AdminBilling";
 import AdminJarvisGuide from "./pages/admin/AdminJarvisGuide";
 import AdminEmailGuide from "./pages/admin/AdminEmailGuide";
@@ -189,7 +189,7 @@ const App = () => {
             <Route path="/admin/data-quality" element={<AdminPage section="data-quality"><AdminDataQuality /></AdminPage>} />
             <Route path="/admin/outreach" element={<AdminPage section="outreach"><AdminOutreach /></AdminPage>} />
             <Route path="/admin/schema" element={<AdminPage section="schema"><SchemaInventory /></AdminPage>} />
-            <Route path="/admin/integrations" element={<AdminPage section="integrations"><AdminIntegrations /></AdminPage>} />
+            
             <Route path="/admin/billing" element={<AdminPage section="integrations"><AdminBilling /></AdminPage>} />
             <Route path="/admin/jarvis-guide" element={<AdminPage section="integrations"><AdminJarvisGuide /></AdminPage>} />
             <Route path="/admin/email-guide" element={<AdminPage section="integrations"><AdminEmailGuide /></AdminPage>} />

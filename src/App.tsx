@@ -56,6 +56,8 @@ import CrmDealDetail from "./pages/crm/CrmDealDetail";
 import CrmDocuments from "./pages/crm/CrmDocuments";
 import CrmInvoices from "./pages/crm/CrmInvoices";
 import CrmInvoiceDetail from "./pages/crm/CrmInvoiceDetail";
+import IntegrationsSettings from "./pages/settings/IntegrationsSettings";
+import EmailTemplatesSettings from "./pages/settings/EmailTemplatesSettings";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -165,6 +167,11 @@ const App = () => {
             <Route path="/crm/documents" element={<ProtectedRoute><ProductLayout><CrmDocuments /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/invoices" element={<ProtectedRoute><ProductLayout><CrmInvoices /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/invoices/:id" element={<ProtectedRoute><ProductLayout><CrmInvoiceDetail /></ProductLayout></ProtectedRoute>} />
+
+            {/* SETTINGS ROUTES */}
+            <Route path="/settings/integrations" element={<ProtectedRoute><ProductLayout><IntegrationsSettings /></ProductLayout></ProtectedRoute>} />
+            <Route path="/settings/email-templates" element={<ProtectedRoute><ProductLayout><EmailTemplatesSettings /></ProductLayout></ProtectedRoute>} />
+
             {/* ADMIN CONSOLE ROUTES */}
             <Route path="/admin" element={<AdminPage section="overview"><AdminOverview /></AdminPage>} />
             <Route path="/admin/overview" element={<AdminPage section="overview"><AdminOverview /></AdminPage>} />

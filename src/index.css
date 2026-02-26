@@ -158,3 +158,20 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Jarvis floating button pulsing ring */
+@keyframes jarvis-ring-pulse {
+  0% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 10px hsl(var(--primary) / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+  }
+}
+
+.jarvis-pulse-ring {
+  animation: jarvis-ring-pulse 2s ease-in-out infinite;
+}

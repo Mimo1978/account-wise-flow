@@ -13,6 +13,7 @@ import {
   Plug,
   Palette,
   Receipt,
+  Sparkles,
 } from 'lucide-react';
 import type { AdminSection } from './AdminRouteGuard';
 
@@ -31,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Integrations', path: '/admin/integrations', icon: Plug, section: 'integrations' },
   { label: 'Billing & Invoices', path: '/admin/billing', icon: Receipt, section: 'integrations' },
   { label: 'Schema Inventory', path: '/admin/schema', icon: Database, section: 'schema' },
+  { label: 'Jarvis AI Guide', path: '/admin/jarvis-guide', icon: Sparkles, section: 'integrations' },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -69,6 +71,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   '/admin/schema': 'Schema Inventory',
   '/admin/integrations': 'Integrations',
   '/admin/billing': 'Billing & Invoices',
+  '/admin/jarvis-guide': 'Jarvis AI Guide',
 };
 
 function AdminBreadcrumb() {

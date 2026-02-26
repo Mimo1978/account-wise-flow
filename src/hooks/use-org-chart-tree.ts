@@ -47,9 +47,7 @@ export function useOrgChartTree(companyId: string | null | undefined) {
   });
 
   /**
-   * setParent – move a contact to a new parent (or to root if newParentContactId is null).
-   * Handles root-swap automatically: if moving to root and another root exists,
-   * the previous root becomes a child of the new root.
+   * setParent – move a contact to a new parent (or to top-level if newParentContactId is null).
    */
   const setParentMutation = useMutation({
     mutationFn: async ({
@@ -62,27 +60,6 @@ export function useOrgChartTree(companyId: string | null | undefined) {
       newSiblingOrder?: number;
     }) => {
       if (!companyId) throw new Error("No company selected");
-
-      // If promoting to root, check for an existing root and swap
-      if (newParentContactId === null) {
-        const existingRoot = nodes.find(
-          (n) => n.parentContactId === null && n.contactId !== contactId
-        );
-
-        if (existingRoot) {
-          // Demote old root: make it a child of the new root
-          const { error: demoteErr } = await supabase
-            .from("org_chart_edges")
-            .update({
-              parent_contact_id: contactId,
-              position_index: 0,
-            })
-            .eq("company_id", companyId)
-            .eq("child_contact_id", existingRoot.contactId);
-
-          if (demoteErr) throw demoteErr;
-        }
-      }
 
       // Upsert the moved node
       const { error } = await supabase

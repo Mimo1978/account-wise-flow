@@ -44,6 +44,9 @@ import AdminDataQuality from "./pages/admin/AdminDataQuality";
 import AdminIntegrations from "./pages/admin/AdminIntegrations";
 import AdminBilling from "./pages/admin/AdminBilling";
 import AdminJarvisGuide from "./pages/admin/AdminJarvisGuide";
+import AdminEmailGuide from "./pages/admin/AdminEmailGuide";
+import AdminSmsGuide from "./pages/admin/AdminSmsGuide";
+import AdminAiCallingGuide from "./pages/admin/AdminAiCallingGuide";
 import CrmCompanies from "./pages/crm/CrmCompanies";
 import CrmCompanyDetail from "./pages/crm/CrmCompanyDetail";
 import CrmContacts from "./pages/crm/CrmContacts";
@@ -189,6 +192,9 @@ const App = () => {
             <Route path="/admin/integrations" element={<AdminPage section="integrations"><AdminIntegrations /></AdminPage>} />
             <Route path="/admin/billing" element={<AdminPage section="integrations"><AdminBilling /></AdminPage>} />
             <Route path="/admin/jarvis-guide" element={<AdminPage section="integrations"><AdminJarvisGuide /></AdminPage>} />
+            <Route path="/admin/email-guide" element={<AdminPage section="integrations"><AdminEmailGuide /></AdminPage>} />
+            <Route path="/admin/sms-guide" element={<AdminPage section="integrations"><AdminSmsGuide /></AdminPage>} />
+            <Route path="/admin/ai-calling-guide" element={<AdminPage section="integrations"><AdminAiCallingGuide /></AdminPage>} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

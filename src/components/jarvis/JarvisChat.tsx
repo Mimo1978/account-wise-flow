@@ -10,6 +10,8 @@ import {
   VolumeOff,
   CheckCircle2,
   ArrowUpRight,
+  Key,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { useJarvis, JarvisMessage } from "@/hooks/use-jarvis";
 import { useIsServiceConfigured } from "@/hooks/use-integration-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useNavigate } from "react-router-dom";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                   */
@@ -185,6 +188,70 @@ function useSpeechSynthesis() {
   }, []);
 
   return { enabled, toggle, speak };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Unconfigured panel                                                 */
+/* ------------------------------------------------------------------ */
+function JarvisUnconfiguredPanel({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+
+  return (
+    <div
+      className={cn(
+        "fixed z-[60] flex flex-col border border-border bg-background shadow-2xl overflow-hidden",
+        isMobile
+          ? "inset-0 rounded-none"
+          : "bottom-24 right-6 w-[420px] h-[580px] rounded-2xl"
+      )}
+    >
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center">
+            <Sparkles className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm text-foreground leading-none">Jarvis</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">AI CRM Assistant</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+          <X className="h-4 w-4 text-muted-foreground" />
+        </Button>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-4">
+        <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+          <Key className="h-8 w-8 text-primary/60" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-foreground text-lg">Jarvis Needs Setup</h3>
+          <p className="text-sm text-muted-foreground mt-2 max-w-[300px]">
+            To use Jarvis, you need to connect your Anthropic API key. This takes less than 2 minutes.
+          </p>
+        </div>
+
+        <div className="w-full space-y-2 mt-2">
+          <Button className="w-full" onClick={() => { onClose(); navigate('/settings/integrations'); }}>
+            <Key className="h-4 w-4 mr-2" />
+            Set Up API Key
+          </Button>
+          <Button variant="outline" className="w-full" onClick={() => { onClose(); navigate('/admin/jarvis-guide'); }}>
+            <Settings className="h-4 w-4 mr-2" />
+            View Setup Guide
+          </Button>
+        </div>
+
+        <div className="text-xs text-muted-foreground mt-4 space-y-1 text-left w-full">
+          <p className="font-medium text-foreground">Quick steps:</p>
+          <p>1. Get an API key from console.anthropic.com</p>
+          <p>2. Go to Settings → Integrations</p>
+          <p>3. Paste your key in the Jarvis AI section</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -428,11 +495,15 @@ export function JarvisFloatingButton() {
   const [isOpen, setIsOpen] = useState(false);
   const { isConfigured, isLoading } = useIsServiceConfigured("anthropic");
 
-  if (isLoading || !isConfigured) return null;
+  if (isLoading) return null;
 
   return (
     <>
-      {isOpen && <JarvisChatPanel onClose={() => setIsOpen(false)} />}
+      {isOpen && (
+        isConfigured
+          ? <JarvisChatPanel onClose={() => setIsOpen(false)} />
+          : <JarvisUnconfiguredPanel onClose={() => setIsOpen(false)} />
+      )}
 
       <Tooltip>
         <TooltipTrigger asChild>

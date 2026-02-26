@@ -43,6 +43,7 @@ import AdminOutreach from "./pages/admin/AdminOutreach";
 import AdminDataQuality from "./pages/admin/AdminDataQuality";
 import AdminIntegrations from "./pages/admin/AdminIntegrations";
 import AdminBilling from "./pages/admin/AdminBilling";
+import AdminJarvisGuide from "./pages/admin/AdminJarvisGuide";
 import CrmCompanies from "./pages/crm/CrmCompanies";
 import CrmCompanyDetail from "./pages/crm/CrmCompanyDetail";
 import CrmContacts from "./pages/crm/CrmContacts";
@@ -187,6 +188,7 @@ const App = () => {
             <Route path="/admin/schema" element={<AdminPage section="schema"><SchemaInventory /></AdminPage>} />
             <Route path="/admin/integrations" element={<AdminPage section="integrations"><AdminIntegrations /></AdminPage>} />
             <Route path="/admin/billing" element={<AdminPage section="integrations"><AdminBilling /></AdminPage>} />
+            <Route path="/admin/jarvis-guide" element={<AdminPage section="integrations"><AdminJarvisGuide /></AdminPage>} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

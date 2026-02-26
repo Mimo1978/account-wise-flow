@@ -54,6 +54,8 @@ import CrmOpportunityDetail from "./pages/crm/CrmOpportunityDetail";
 import CrmDeals from "./pages/crm/CrmDeals";
 import CrmDealDetail from "./pages/crm/CrmDealDetail";
 import CrmDocuments from "./pages/crm/CrmDocuments";
+import CrmInvoices from "./pages/crm/CrmInvoices";
+import CrmInvoiceDetail from "./pages/crm/CrmInvoiceDetail";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -161,6 +163,8 @@ const App = () => {
             <Route path="/crm/deals" element={<ProtectedRoute><ProductLayout><CrmDeals /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/deals/:id" element={<ProtectedRoute><ProductLayout><CrmDealDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/documents" element={<ProtectedRoute><ProductLayout><CrmDocuments /></ProductLayout></ProtectedRoute>} />
+            <Route path="/crm/invoices" element={<ProtectedRoute><ProductLayout><CrmInvoices /></ProductLayout></ProtectedRoute>} />
+            <Route path="/crm/invoices/:id" element={<ProtectedRoute><ProductLayout><CrmInvoiceDetail /></ProductLayout></ProtectedRoute>} />
             {/* ADMIN CONSOLE ROUTES */}
             <Route path="/admin" element={<AdminPage section="overview"><AdminOverview /></AdminPage>} />
             <Route path="/admin/overview" element={<AdminPage section="overview"><AdminOverview /></AdminPage>} />

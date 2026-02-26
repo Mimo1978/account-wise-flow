@@ -194,17 +194,26 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   }, []);
 
   // ── Zone detection ──
+  const NODE_HEIGHT = 90;
   const detectZone = useCallback((dragX: number, dragY: number, targetX: number, targetY: number): DropZone | null => {
     const dx = dragX - targetX;
     const dy = dragY - targetY;
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > ZONE_DETECT_RADIUS) return null;
-    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    // Narrow "child" zone to only directly below (60°–120°),
-    // so dragging at roughly the same level triggers sibling placement instead
-    if (angle > 60 && angle < 120) return "bottom";
-    if (angle >= 120 || angle < -45) return "left";
-    return "right";
+
+    // If the dragged node is within the vertical band of the target node
+    // (roughly same Y level), ALWAYS treat as sibling — never as child.
+    // This ensures dragging beside a contact puts them on the same reporting line.
+    const ySiblingThreshold = NODE_HEIGHT * 0.75; // 67px tolerance
+    if (Math.abs(dy) < ySiblingThreshold) {
+      return dx < 0 ? "left" : "right";
+    }
+
+    // Only treat as "child" when clearly dragged below the target
+    if (dy > 0) return "bottom";
+
+    // Above the target — treat as sibling
+    return dx < 0 ? "left" : "right";
   }, []);
 
   // ── Auto-pan ──

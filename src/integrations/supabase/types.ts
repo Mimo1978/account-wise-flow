@@ -2126,6 +2126,30 @@ export type Database = {
           },
         ]
       }
+      edge_function_rate_limits: {
+        Row: {
+          function_name: string
+          id: string
+          request_count: number
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          function_name: string
+          id?: string
+          request_count?: number
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          function_name?: string
+          id?: string
+          request_count?: number
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           body_html: string
@@ -2337,6 +2361,41 @@ export type Database = {
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gdpr_consent_log: {
+        Row: {
+          action: string
+          contact_id: string
+          created_at: string
+          id: string
+          method: string | null
+          recorded_by: string
+        }
+        Insert: {
+          action: string
+          contact_id: string
+          created_at?: string
+          id?: string
+          method?: string | null
+          recorded_by: string
+        }
+        Update: {
+          action?: string
+          contact_id?: string
+          created_at?: string
+          id?: string
+          method?: string | null
+          recorded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gdpr_consent_log_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
             referencedColumns: ["id"]
           },
         ]

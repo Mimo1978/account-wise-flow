@@ -59,9 +59,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
     { path: '/insights', label: 'Insights', icon: BarChart3 },
   ];
 
-  const aiNavItems = [
-    { path: '/canvas', label: 'Knowledge', icon: BookOpen, hash: '#knowledge' },
-  ];
+  const aiNavItems: typeof navItems = [];
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 

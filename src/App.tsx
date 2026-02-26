@@ -43,6 +43,10 @@ import AdminOutreach from "./pages/admin/AdminOutreach";
 import AdminDataQuality from "./pages/admin/AdminDataQuality";
 import AdminIntegrations from "./pages/admin/AdminIntegrations";
 import AdminBilling from "./pages/admin/AdminBilling";
+import CrmCompanies from "./pages/crm/CrmCompanies";
+import CrmCompanyDetail from "./pages/crm/CrmCompanyDetail";
+import CrmContacts from "./pages/crm/CrmContacts";
+import CrmContactDetail from "./pages/crm/CrmContactDetail";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -137,6 +141,12 @@ const App = () => {
             <Route path="/imports/:batchId/review" element={<ProtectedRoute><ProductLayout><ImportReview /></ProductLayout></ProtectedRoute>} />
             <Route path="/workspace-settings" element={<ProtectedRoute><ProductLayout><WorkspaceSettings /></ProductLayout></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProductLayout><UserProfile /></ProductLayout></ProtectedRoute>} />
+
+            {/* CRM MODULE ROUTES */}
+            <Route path="/crm/companies" element={<ProtectedRoute><ProductLayout><CrmCompanies /></ProductLayout></ProtectedRoute>} />
+            <Route path="/crm/companies/:id" element={<ProtectedRoute><ProductLayout><CrmCompanyDetail /></ProductLayout></ProtectedRoute>} />
+            <Route path="/crm/contacts" element={<ProtectedRoute><ProductLayout><CrmContacts /></ProductLayout></ProtectedRoute>} />
+            <Route path="/crm/contacts/:id" element={<ProtectedRoute><ProductLayout><CrmContactDetail /></ProductLayout></ProtectedRoute>} />
 
             {/* ADMIN CONSOLE ROUTES */}
             <Route path="/admin" element={<AdminPage section="overview"><AdminOverview /></AdminPage>} />

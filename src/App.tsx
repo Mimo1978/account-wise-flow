@@ -58,6 +58,8 @@ import CrmInvoices from "./pages/crm/CrmInvoices";
 import CrmInvoiceDetail from "./pages/crm/CrmInvoiceDetail";
 import IntegrationsSettings from "./pages/settings/IntegrationsSettings";
 import EmailTemplatesSettings from "./pages/settings/EmailTemplatesSettings";
+import Dashboard from "./pages/Dashboard";
+import Reports from "./pages/Reports";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -137,6 +139,8 @@ const App = () => {
 
             {/* PROTECTED ROUTES */}
             <Route path="/home" element={<ProtectedRoute><ProductLayout><HomeCommandCenter /></ProductLayout></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><ProductLayout><Dashboard /></ProductLayout></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><ProductLayout><Reports /></ProductLayout></ProtectedRoute>} />
             <Route path="/workspace" element={<ProtectedRoute><WorkspaceSelector /></ProtectedRoute>} />
             <Route path="/demo-workspace" element={<ProtectedRoute><ProductLayout><DemoWorkspace /></ProductLayout></ProtectedRoute>} />
             <Route path="/canvas" element={<ProtectedRoute><ProductLayout><Canvas /></ProductLayout></ProtectedRoute>} />

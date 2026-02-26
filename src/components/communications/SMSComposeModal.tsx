@@ -45,6 +45,26 @@ export function SMSComposeModal({ open, onOpenChange, contactId, contactMobile, 
       toast.error("Phone number and message are required");
       return;
     }
+
+    // Log GDPR override if consent not given
+    if (!gdprConsent && consentConfirmed) {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from("crm_ai_audit_log" as any).insert({
+            action: "sms_gdpr_override",
+            entity_type: "crm_contacts",
+            entity_id: contactId,
+            user_id: user.id,
+            input_summary: "action:sms_gdpr_override",
+            output_summary: `entity:${contactId}`,
+          } as any);
+        }
+      } catch (e) {
+        console.error("Audit log error:", e);
+      }
+    }
+
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-sms", {

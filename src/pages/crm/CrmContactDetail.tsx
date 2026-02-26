@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Pencil, Mail, Phone, MessageSquare, CalendarPlus, Target, Globe, Shield, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Pencil, Mail, Phone, MessageSquare, CalendarPlus, Target, Globe, Shield, ShieldCheck, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { SMSComposeModal } from "@/components/communications/SMSComposeModal";
 import { AICallModal } from "@/components/communications/AICallModal";
 import { LogActivityModal } from "@/components/communications/LogActivityModal";
 import { ContactActivityTab } from "@/components/communications/ContactActivityTab";
+import { GdprDataRightsTab } from "@/components/crm/GdprDataRightsTab";
 import { format } from "date-fns";
 
 export default function CrmContactDetail() {
@@ -76,6 +77,7 @@ export default function CrmContactDetail() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="gdpr">Data & Rights</TabsTrigger>
           <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
         </TabsList>
@@ -125,6 +127,10 @@ export default function CrmContactDetail() {
 
         <TabsContent value="activity" className="mt-4">
           <ContactActivityTab contactId={contact.id} companyId={contact.company_id} />
+        </TabsContent>
+
+        <TabsContent value="gdpr" className="mt-4">
+          <GdprDataRightsTab contact={contact} />
         </TabsContent>
 
         {["opportunities", "documents"].map(tab => (

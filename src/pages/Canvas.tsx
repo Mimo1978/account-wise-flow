@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, Lightbulb, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Brain, Network, Table2, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountCanvas, AccountCanvasRef, DropZone } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
@@ -12,7 +12,7 @@ import { AddContactModal } from "@/components/canvas/AddContactModal";
 import { SmartImportModal } from "@/components/import/SmartImportModal";
 import { CompanyDatabaseView } from "@/components/canvas/CompanyDatabaseView";
 import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
-import { AIInsightsPanel } from "@/components/canvas/AIInsightsPanel";
+// AIInsightsPanel removed — merged into AIKnowledgePanel
 import { AIRoleSuggestionsPanel } from "@/components/canvas/AIRoleSuggestionsPanel";
 import { GlobalSearch } from "@/components/canvas/GlobalSearch";
 import { ResponsiveToolbar, ToolbarAction } from "@/components/canvas/ResponsiveToolbar";
@@ -109,7 +109,7 @@ const Canvas = () => {
   const [showCompanySaveDialog, setShowCompanySaveDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"canvas" | "database">("canvas");
   const [isAIKnowledgeOpen, setIsAIKnowledgeOpen] = useState(false);
-  const [isAIInsightsOpen, setIsAIInsightsOpen] = useState(false);
+  // isAIInsightsOpen removed — merged into AIKnowledgePanel
   const [isRoleSuggestionsOpen, setIsRoleSuggestionsOpen] = useState(false);
   const [highlightedContactIds, setHighlightedContactIds] = useState<string[]>([]);
   const [showTalentOverlay, setShowTalentOverlay] = useState(false);
@@ -408,17 +408,8 @@ const Canvas = () => {
     });
 
     actions.push({
-      id: "ai-insights",
-      label: "AI Insights",
-      icon: <Lightbulb className="w-4 h-4" />,
-      onClick: () => setIsAIInsightsOpen(!isAIInsightsOpen),
-      isActive: isAIInsightsOpen,
-      priority: "secondary",
-    });
-
-    actions.push({
-      id: "ai-knowledge",
-      label: "AI Knowledge",
+      id: "ai-assistant",
+      label: "AI Assistant",
       icon: <Brain className="w-4 h-4" />,
       onClick: () => setIsAIKnowledgeOpen(!isAIKnowledgeOpen),
       isActive: isAIKnowledgeOpen,
@@ -445,7 +436,7 @@ const Canvas = () => {
     });
 
     return actions;
-  }, [isRoleSuggestionsOpen, isAIInsightsOpen, isAIKnowledgeOpen]);
+  }, [isRoleSuggestionsOpen, isAIKnowledgeOpen]);
 
   // Left side content for the toolbar
   const toolbarLeftContent = account ? (
@@ -743,15 +734,7 @@ const Canvas = () => {
         />
       )}
 
-      {/* AI Insights Panel */}
-      {viewMode === "canvas" && (
-        <AIInsightsPanel
-          account={account}
-          isOpen={isAIInsightsOpen}
-          onToggle={() => setIsAIInsightsOpen(!isAIInsightsOpen)}
-          onHighlightContacts={handleHighlightContacts}
-        />
-      )}
+      {/* AI Insights Panel removed — merged into AIKnowledgePanel */}
 
       {/* AI Role Suggestions Panel */}
       {viewMode === "canvas" && (

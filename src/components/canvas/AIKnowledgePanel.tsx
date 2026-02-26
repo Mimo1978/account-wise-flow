@@ -14,16 +14,29 @@ import {
   Send, 
   X, 
   Sparkles, 
-  MessageSquare,
   User,
   Loader2,
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  Info,
   GripVertical,
-  RotateCcw
+  RotateCcw,
+  Lightbulb,
+  TrendingDown,
+  Users,
+  Building2,
+  ShieldAlert,
+  AlertTriangle,
+  ChevronRight,
+  Eye,
+  RefreshCw,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Account, Contact } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useDraggable } from "@/hooks/use-draggable";
@@ -53,6 +66,22 @@ const EXAMPLE_QUESTIONS = [
   "Which contacts haven't been reached recently?",
 ];
 
+const INSIGHTS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-insights-analysis`;
+
+interface InsightTheme { theme: string; description: string; evidence: string[]; contactIds: string[]; }
+interface MissingStakeholder { gap: string; reason: string; recommendation: string; relatedContactIds: string[]; }
+interface DepartmentGap { department: string; issue: string; contactIds: string[]; recommendation: string; }
+interface UnbalancedBlocker { blockerName: string; blockerId: string; concern: string; recommendation: string; }
+interface EngagementGap { area: string; contactIds: string[]; recommendation: string; }
+interface AIInsights {
+  repeatedThemes: InsightTheme[];
+  missingStakeholders: MissingStakeholder[];
+  departmentsWithoutOwners: DepartmentGap[];
+  unbalancedBlockers: UnbalancedBlocker[];
+  engagementGaps: EngagementGap[];
+  summary: string;
+}
+
 export function AIKnowledgePanel({ 
   account, 
   isOpen, 
@@ -64,6 +93,11 @@ export function AIKnowledgePanel({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [activeTab, setActiveTab] = useState<"chat" | "analysis">("chat");
+  const [insights, setInsights] = useState<AIInsights | null>(null);
+  const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['summary']));
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -174,6 +208,53 @@ export function AIKnowledgePanel({
       importantNote: account.importantNote,
     };
   }, [account]);
+
+  const fetchInsights = useCallback(async () => {
+    setIsAnalysisLoading(true);
+    setAnalysisError(null);
+    try {
+      const response = await fetch(INSIGHTS_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ accountContext: buildAccountContext() }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Request failed: ${response.status}`);
+      }
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      setInsights(data);
+    } catch (err) {
+      console.error("AI insights error:", err);
+      setAnalysisError(err instanceof Error ? err.message : "Failed to fetch insights");
+    } finally {
+      setIsAnalysisLoading(false);
+    }
+  }, [buildAccountContext]);
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(section)) next.delete(section); else next.add(section);
+      return next;
+    });
+  };
+
+  const getTotalInsightsCount = () => {
+    if (!insights) return 0;
+    return insights.repeatedThemes.length + insights.missingStakeholders.length +
+      insights.departmentsWithoutOwners.length + insights.unbalancedBlockers.length +
+      insights.engagementGaps.length;
+  };
+
+  const handleRunAnalysis = () => {
+    setActiveTab("analysis");
+    fetchInsights();
+  };
 
   const sendMessage = async (questionText: string) => {
     if (!questionText.trim() || isLoading) return;
@@ -348,28 +429,8 @@ export function AIKnowledgePanel({
               className="h-12 flex items-center gap-2 flex-1"
             >
               <Brain className="w-4 h-4" />
-              <span className="font-medium text-sm">AI Knowledge</span>
+              <span className="font-medium text-sm">AI Assistant</span>
             </button>
-
-            {/* Home/Reset button */}
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleResetPosition();
-                    }}
-                    className="h-12 w-10 flex items-center justify-center rounded-r-lg hover:bg-primary-foreground/10 transition-colors"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs">
-                  Reset position
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </div>
         </div>
       )}
@@ -414,7 +475,7 @@ export function AIKnowledgePanel({
                 <Brain className="w-4 h-4 text-primary" />
               </div>
               <div>
-                <h3 className="font-semibold text-sm">AI Knowledge</h3>
+                <h3 className="font-semibold text-sm">AI Assistant</h3>
                 {!isMinimized && (
                   <p className="text-xs text-muted-foreground">{account.name}</p>
                 )}
@@ -472,128 +533,351 @@ export function AIKnowledgePanel({
 
           {!isMinimized && (
             <>
-              {/* Messages Area */}
-              <ScrollArea className="h-[360px] p-4" ref={scrollRef}>
-                {messages.length === 0 ? (
-                  <div className="space-y-4">
-                    <div className="text-center py-4">
-                      <div className="p-3 bg-primary/10 rounded-full w-fit mx-auto mb-3">
-                        <Sparkles className="w-6 h-6 text-primary" />
-                      </div>
-                      <h4 className="font-medium mb-1">Ask about your account</h4>
-                      <p className="text-xs text-muted-foreground">
-                        I can analyze contacts, notes, and engagement patterns
-                      </p>
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        Try asking:
-                      </p>
-                      {EXAMPLE_QUESTIONS.map((q, i) => (
+              {/* Tab Toggle */}
+              <div className="flex border-b border-border">
+                <button
+                  onClick={() => setActiveTab("chat")}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors",
+                    activeTab === "chat"
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Brain className="w-3.5 h-3.5" />
+                  Chat
+                </button>
+                <button
+                  onClick={() => { setActiveTab("analysis"); if (!insights && !isAnalysisLoading) fetchInsights(); }}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors",
+                    activeTab === "analysis"
+                      ? "text-primary border-b-2 border-primary"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Lightbulb className="w-3.5 h-3.5" />
+                  Analysis
+                  {insights && <Badge variant="secondary" className="text-[10px] px-1 py-0">{getTotalInsightsCount()}</Badge>}
+                </button>
+              </div>
+
+              {activeTab === "chat" ? (
+                <>
+                  {/* Messages Area */}
+                  <ScrollArea className="h-[320px] p-4" ref={scrollRef}>
+                    {messages.length === 0 ? (
+                      <div className="space-y-4">
+                        <div className="text-center py-4">
+                          <div className="p-3 bg-primary/10 rounded-full w-fit mx-auto mb-3">
+                            <Sparkles className="w-6 h-6 text-primary" />
+                          </div>
+                          <h4 className="font-medium mb-1">Ask about your account</h4>
+                          <p className="text-xs text-muted-foreground">
+                            I can analyze contacts, notes, and engagement patterns
+                          </p>
+                        </div>
+
+                        {/* Run Full Analysis CTA */}
                         <button
-                          key={i}
-                          onClick={() => handleExampleClick(q)}
-                          className="w-full text-left text-sm p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                          onClick={handleRunAnalysis}
+                          disabled={isAnalysisLoading}
+                          className="w-full flex items-center gap-3 p-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-100/50 dark:hover:bg-amber-950/40 transition-colors text-left"
                         >
-                          {q}
+                          <div className="p-2 bg-amber-500/10 rounded-lg">
+                            <Lightbulb className="w-4 h-4 text-amber-500" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">Run Full Analysis</p>
+                            <p className="text-xs text-muted-foreground">Gaps, themes, missing stakeholders & more</p>
+                          </div>
                         </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {messages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          "flex gap-2",
-                          msg.role === "user" ? "justify-end" : "justify-start"
-                        )}
-                      >
-                        {msg.role === "assistant" && (
-                          <div className="p-1.5 bg-primary/10 rounded-lg h-fit mt-0.5">
-                            <Brain className="w-3 h-3 text-primary" />
-                          </div>
-                        )}
-                        <div
-                          className={cn(
-                            "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                            msg.role === "user"
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted"
-                          )}
-                        >
-                          {msg.role === "assistant" ? (
-                            <SafeAIText
-                              content={msg.content}
-                              formatText={(text) => formatResponseText(text, account.contacts)}
-                              renderBold={true}
-                            />
-                          ) : (
-                            <SafeAIText
-                              content={msg.content}
-                              renderBold={false}
-                            />
-                          )}
-                          {msg.highlightedContacts && msg.highlightedContacts.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-border/50">
-                              <p className="text-xs text-muted-foreground">
-                                📍 {msg.highlightedContacts.length} contact(s) highlighted on canvas
-                              </p>
-                            </div>
-                          )}
+
+                        <div className="space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Or ask a question:
+                          </p>
+                          {EXAMPLE_QUESTIONS.map((q, i) => (
+                            <button
+                              key={i}
+                              onClick={() => handleExampleClick(q)}
+                              className="w-full text-left text-sm p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                            >
+                              {q}
+                            </button>
+                          ))}
                         </div>
-                        {msg.role === "user" && (
-                          <div className="p-1.5 bg-primary rounded-lg h-fit mt-0.5">
-                            <User className="w-3 h-3 text-primary-foreground" />
-                          </div>
-                        )}
                       </div>
-                    ))}
-                    {isLoading && (
-                      <div className="flex gap-2">
-                        <div className="p-1.5 bg-primary/10 rounded-lg h-fit">
-                          <Brain className="w-3 h-3 text-primary" />
-                        </div>
-                        <div className="bg-muted rounded-lg px-3 py-2">
-                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                        </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {messages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={cn(
+                              "flex gap-2",
+                              msg.role === "user" ? "justify-end" : "justify-start"
+                            )}
+                          >
+                            {msg.role === "assistant" && (
+                              <div className="p-1.5 bg-primary/10 rounded-lg h-fit mt-0.5">
+                                <Brain className="w-3 h-3 text-primary" />
+                              </div>
+                            )}
+                            <div
+                              className={cn(
+                                "max-w-[85%] rounded-lg px-3 py-2 text-sm",
+                                msg.role === "user"
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted"
+                              )}
+                            >
+                              {msg.role === "assistant" ? (
+                                <SafeAIText
+                                  content={msg.content}
+                                  formatText={(text) => formatResponseText(text, account.contacts)}
+                                  renderBold={true}
+                                />
+                              ) : (
+                                <SafeAIText
+                                  content={msg.content}
+                                  renderBold={false}
+                                />
+                              )}
+                              {msg.highlightedContacts && msg.highlightedContacts.length > 0 && (
+                                <div className="mt-2 pt-2 border-t border-border/50">
+                                  <p className="text-xs text-muted-foreground">
+                                    📍 {msg.highlightedContacts.length} contact(s) highlighted on canvas
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            {msg.role === "user" && (
+                              <div className="p-1.5 bg-primary rounded-lg h-fit mt-0.5">
+                                <User className="w-3 h-3 text-primary-foreground" />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {isLoading && (
+                          <div className="flex gap-2">
+                            <div className="p-1.5 bg-primary/10 rounded-lg h-fit">
+                              <Brain className="w-3 h-3 text-primary" />
+                            </div>
+                            <div className="bg-muted rounded-lg px-3 py-2">
+                              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
-                  </div>
-                )}
-                {error && (
-                  <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg mt-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    <p className="text-sm">{error}</p>
-                  </div>
-                )}
-              </ScrollArea>
+                    {error && (
+                      <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg mt-2">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        <p className="text-sm">{error}</p>
+                      </div>
+                    )}
+                  </ScrollArea>
 
-              {/* Input Area */}
-              <form onSubmit={handleSubmit} className="p-3 border-t border-border">
-                <div className="flex gap-2">
-                  <Input
-                    ref={inputRef}
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Ask about contacts, themes, gaps..."
-                    className="flex-1"
-                    disabled={isLoading}
-                  />
-                  <Button 
-                    type="submit" 
-                    size="icon" 
-                    disabled={!input.trim() || isLoading}
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-              </form>
+                  {/* Input Area */}
+                  <form onSubmit={handleSubmit} className="p-3 border-t border-border">
+                    <div className="flex gap-2">
+                      <Input
+                        ref={inputRef}
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder="Ask about contacts, themes, gaps..."
+                        className="flex-1"
+                        disabled={isLoading}
+                      />
+                      <Button 
+                        type="submit" 
+                        size="icon" 
+                        disabled={!input.trim() || isLoading}
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </form>
+                </>
+              ) : (
+                /* Analysis Tab */
+                <ScrollArea className="h-[360px]">
+                  <div className="p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">Full account analysis</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 gap-1 text-xs"
+                        onClick={fetchInsights}
+                        disabled={isAnalysisLoading}
+                      >
+                        <RefreshCw className={cn("w-3 h-3", isAnalysisLoading && "animate-spin")} />
+                        Refresh
+                      </Button>
+                    </div>
+
+                    {isAnalysisLoading && (
+                      <div className="flex flex-col items-center justify-center py-12 gap-3">
+                        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">Analyzing account...</p>
+                      </div>
+                    )}
+
+                    {analysisError && (
+                      <div className="flex items-center gap-2 p-3 bg-destructive/10 text-destructive rounded-lg">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        <p className="text-sm">{analysisError}</p>
+                      </div>
+                    )}
+
+                    {insights && !isAnalysisLoading && (
+                      <>
+                        <div className="p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                          <p className="text-sm text-amber-900 dark:text-amber-100">{insights.summary}</p>
+                        </div>
+
+                        {insights.repeatedThemes.length > 0 && (
+                          <InlineInsightSection title="Repeated Themes" icon={<TrendingDown className="w-4 h-4" />} count={insights.repeatedThemes.length} isExpanded={expandedSections.has('themes')} onToggle={() => toggleSection('themes')} variant="info">
+                            {insights.repeatedThemes.map((theme, i) => (
+                              <InlineInsightCard key={i} title={theme.theme} description={theme.description} details={theme.evidence} contactIds={theme.contactIds} onHighlight={onHighlightContacts} />
+                            ))}
+                          </InlineInsightSection>
+                        )}
+
+                        {insights.missingStakeholders.length > 0 && (
+                          <InlineInsightSection title="Missing Stakeholders" icon={<Users className="w-4 h-4" />} count={insights.missingStakeholders.length} isExpanded={expandedSections.has('stakeholders')} onToggle={() => toggleSection('stakeholders')} variant="warning">
+                            {insights.missingStakeholders.map((gap, i) => (
+                              <InlineInsightCard key={i} title={gap.gap} description={gap.reason} recommendation={gap.recommendation} contactIds={gap.relatedContactIds} onHighlight={onHighlightContacts} />
+                            ))}
+                          </InlineInsightSection>
+                        )}
+
+                        {insights.departmentsWithoutOwners.length > 0 && (
+                          <InlineInsightSection title="Departments Without Owners" icon={<Building2 className="w-4 h-4" />} count={insights.departmentsWithoutOwners.length} isExpanded={expandedSections.has('departments')} onToggle={() => toggleSection('departments')} variant="warning">
+                            {insights.departmentsWithoutOwners.map((dept, i) => (
+                              <InlineInsightCard key={i} title={dept.department} description={dept.issue} recommendation={dept.recommendation} contactIds={dept.contactIds} onHighlight={onHighlightContacts} />
+                            ))}
+                          </InlineInsightSection>
+                        )}
+
+                        {insights.unbalancedBlockers.length > 0 && (
+                          <InlineInsightSection title="Blockers Without Counterbalance" icon={<ShieldAlert className="w-4 h-4" />} count={insights.unbalancedBlockers.length} isExpanded={expandedSections.has('blockers')} onToggle={() => toggleSection('blockers')} variant="danger">
+                            {insights.unbalancedBlockers.map((blocker, i) => (
+                              <InlineInsightCard key={i} title={blocker.blockerName} description={blocker.concern} recommendation={blocker.recommendation} contactIds={[blocker.blockerId]} onHighlight={onHighlightContacts} />
+                            ))}
+                          </InlineInsightSection>
+                        )}
+
+                        {insights.engagementGaps.length > 0 && (
+                          <InlineInsightSection title="Engagement Gaps" icon={<AlertTriangle className="w-4 h-4" />} count={insights.engagementGaps.length} isExpanded={expandedSections.has('engagement')} onToggle={() => toggleSection('engagement')} variant="warning">
+                            {insights.engagementGaps.map((gap, i) => (
+                              <InlineInsightCard key={i} title={gap.area} recommendation={gap.recommendation} contactIds={gap.contactIds} onHighlight={onHighlightContacts} />
+                            ))}
+                          </InlineInsightSection>
+                        )}
+
+                        {getTotalInsightsCount() === 0 && (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <Lightbulb className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No significant gaps detected</p>
+                            <p className="text-xs">Account coverage looks healthy</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </ScrollArea>
+              )}
             </>
           )}
         </div>
       )}
     </>
+  );
+}
+
+// ── Inline Insight Components ──
+
+interface InlineInsightSectionProps {
+  title: string;
+  icon: React.ReactNode;
+  count: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+  variant: 'info' | 'warning' | 'danger';
+  children: React.ReactNode;
+}
+
+function InlineInsightSection({ title, icon, count, isExpanded, onToggle, variant, children }: InlineInsightSectionProps) {
+  const variantStyles = {
+    info: 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300',
+    warning: 'bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300',
+    danger: 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300',
+  };
+
+  return (
+    <Collapsible open={isExpanded} onOpenChange={onToggle}>
+      <CollapsibleTrigger asChild>
+        <button className={cn(
+          "w-full flex items-center justify-between p-3 rounded-lg border transition-colors",
+          variantStyles[variant]
+        )}>
+          <div className="flex items-center gap-2">
+            {icon}
+            <span className="font-medium text-sm">{title}</span>
+            <Badge variant="secondary" className="text-xs">{count}</Badge>
+          </div>
+          <ChevronRight className={cn("w-4 h-4 transition-transform", isExpanded && "rotate-90")} />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2 space-y-2">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+interface InlineInsightCardProps {
+  title: string;
+  description?: string;
+  details?: string[];
+  recommendation?: string;
+  contactIds: string[];
+  onHighlight: (contactIds: string[]) => void;
+}
+
+function InlineInsightCard({ title, description, details, recommendation, contactIds, onHighlight }: InlineInsightCardProps) {
+  return (
+    <div className="p-3 bg-muted/50 rounded-lg border border-border/50 space-y-2">
+      <div className="flex items-start justify-between gap-2">
+        <h4 className="font-medium text-sm">{title}</h4>
+        {contactIds.length > 0 && (
+          <Button variant="ghost" size="sm" className="h-6 px-2 gap-1 text-xs" onClick={() => onHighlight(contactIds)}>
+            <Eye className="w-3 h-3" />
+            View
+          </Button>
+        )}
+      </div>
+      {description && <p className="text-xs text-muted-foreground">{description}</p>}
+      {details && details.length > 0 && (
+        <ul className="text-xs text-muted-foreground space-y-1">
+          {details.map((detail, i) => (
+            <li key={i} className="flex items-start gap-1">
+              <span className="text-primary">•</span>
+              {detail}
+            </li>
+          ))}
+        </ul>
+      )}
+      {recommendation && (
+        <div className="pt-2 border-t border-border/50">
+          <p className="text-xs">
+            <span className="font-medium text-primary">Recommendation:</span>{' '}
+            <span className="text-muted-foreground">{recommendation}</span>
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

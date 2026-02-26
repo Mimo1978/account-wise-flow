@@ -55,7 +55,7 @@ interface InternalNode {
  * @returns          Array of TreeNodePosition for every contact that's part of the tree
  */
 export function computeTreeLayout(
-  contacts: { id: string; managerId: string | null }[],
+  contacts: { id: string; managerId: string | null; siblingOrder?: number }[],
   config?: Partial<TreeLayoutConfig>
 ): TreeNodePosition[] {
   const cfg = { ...DEFAULT_CONFIG, ...config };
@@ -66,19 +66,34 @@ export function computeTreeLayout(
   const childrenMap = new Map<string, string[]>();
   const parentMap = new Map<string, string | null>();
   const contactIds = new Set(contacts.map(c => c.id));
+  const contactIndex = new Map<string, number>();
+  const siblingOrderMap = new Map<string, number>();
 
-  for (const c of contacts) {
+  contacts.forEach((c, index) => {
+    contactIndex.set(c.id, index);
+    siblingOrderMap.set(c.id, c.siblingOrder ?? Number.MAX_SAFE_INTEGER);
     parentMap.set(c.id, c.managerId);
     if (c.managerId && contactIds.has(c.managerId)) {
       if (!childrenMap.has(c.managerId)) childrenMap.set(c.managerId, []);
       childrenMap.get(c.managerId)!.push(c.id);
     }
+  });
+
+  const bySiblingOrder = (a: string, b: string) => {
+    const orderA = siblingOrderMap.get(a) ?? Number.MAX_SAFE_INTEGER;
+    const orderB = siblingOrderMap.get(b) ?? Number.MAX_SAFE_INTEGER;
+    if (orderA !== orderB) return orderA - orderB;
+    return (contactIndex.get(a) ?? 0) - (contactIndex.get(b) ?? 0);
+  };
+
+  for (const [, children] of childrenMap) {
+    children.sort(bySiblingOrder);
   }
 
   // Find root nodes (no parent, or parent not in contact set)
-  const roots = contacts.filter(
-    c => !c.managerId || !contactIds.has(c.managerId)
-  );
+  const roots = contacts
+    .filter(c => !c.managerId || !contactIds.has(c.managerId))
+    .sort((a, b) => bySiblingOrder(a.id, b.id));
 
   if (roots.length === 0) return [];
 

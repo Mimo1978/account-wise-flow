@@ -66,10 +66,12 @@ export function useCompanyCanvas(options: UseCompanyCanvasOptions = {}): UseComp
         console.error('Error fetching contacts:', contactsResult.error);
       }
 
-      // Build parentMap from org_chart_edges
+      // Build hierarchy maps from org_chart_edges
       const parentMap = new Map<string, string | null>();
+      const siblingOrderMap = new Map<string, number>();
       for (const edge of orgResult.data ?? []) {
         parentMap.set(edge.child_contact_id, edge.parent_contact_id);
+        siblingOrderMap.set(edge.child_contact_id, edge.position_index ?? 0);
       }
       
       const contacts = contactsResult.data ?? [];
@@ -91,6 +93,7 @@ export function useCompanyCanvas(options: UseCompanyCanvasOptions = {}): UseComp
           status: (c.status as Contact['status']) || 'unknown',
           engagementScore: 50,
           managerId: parentMap.get(c.id) ?? null, // manager_id deprecated; derive from org_chart_edges only
+          siblingOrder: siblingOrderMap.get(c.id) ?? 0,
         })),
         lastUpdated: data.updated_at,
         engagementScore: 50,

@@ -670,7 +670,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     const NODE_W = 180, NODE_H = 90;
 
     // Fingerprint to detect hierarchy-only vs full-contact-set changes
-    const contactFingerprint = account.contacts.map(c => `${c.id}:${c.managerId || ''}`).sort().join('|');
+    const contactFingerprint = account.contacts.map(c => `${c.id}:${c.managerId || ''}:${c.siblingOrder ?? 0}`).sort().join('|');
     const contactIdSet = account.contacts.map(c => c.id).sort().join(',');
     const prevFingerprint = prevContactsRef.current;
     const prevIdSet = prevFingerprint.split('|').map(s => s.split(':')[0]).filter(Boolean).sort().join(',');
@@ -680,7 +680,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     if (isHierarchyOnlyChange && contactNodesRef.current.size > 0) {
       // ── Smooth animated re-layout (hierarchy changed, no new contacts) ──
       const treePositions = computeTreeLayout(
-        account.contacts.map(c => ({ id: c.id, managerId: c.managerId || null })),
+        account.contacts.map(c => ({ id: c.id, managerId: c.managerId || null, siblingOrder: c.siblingOrder ?? 0 })),
         { nodeWidth: NODE_W, nodeHeight: NODE_H, horizontalGap: 40, verticalGap: 80, rootY: 220, centerX: canvasW / 2 }
       );
 
@@ -803,7 +803,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     account.contacts.forEach(c => contactMap.set(c.id, c));
 
     const treePositions = computeTreeLayout(
-      account.contacts.map(c => ({ id: c.id, managerId: c.managerId || null })),
+      account.contacts.map(c => ({ id: c.id, managerId: c.managerId || null, siblingOrder: c.siblingOrder ?? 0 })),
       { nodeWidth: NODE_W, nodeHeight: NODE_H, horizontalGap: 40, verticalGap: 80, rootY: 220, centerX: canvasW / 2 }
     );
 

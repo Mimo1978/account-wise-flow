@@ -22,6 +22,7 @@ export interface Contact {
   role?: "economic-buyer" | "technical-evaluator" | "champion" | "blocker" | "influencer";
   reportsTo?: string;
   managerId?: string | null; // authoritative parent FK for hierarchy
+  siblingOrder?: number; // ordering among siblings in org chart (derived from org_chart_edges.position_index)
   linkedIn?: string;
   contactOwner?: string;
   profilePhoto?: string;

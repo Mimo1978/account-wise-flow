@@ -2126,6 +2126,36 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          body_html: string
+          created_at: string
+          id: string
+          name: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body_html?: string
+          created_at?: string
+          id?: string
+          name: string
+          subject?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body_html?: string
+          created_at?: string
+          id?: string
+          name?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       engagements: {
         Row: {
           company_id: string | null
@@ -2462,6 +2492,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      integration_settings: {
+        Row: {
+          created_at: string
+          id: string
+          is_configured: boolean
+          key_name: string
+          key_value: string
+          service: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_configured?: boolean
+          key_name: string
+          key_value?: string
+          service: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_configured?: boolean
+          key_name?: string
+          key_value?: string
+          service?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       invoice_line_items: {
         Row: {
@@ -4581,7 +4644,14 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      integration_status: {
+        Row: {
+          is_fully_configured: boolean | null
+          service: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_with_demo_isolation: {

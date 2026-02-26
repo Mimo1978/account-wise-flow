@@ -5,9 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { useCrmContact } from "@/hooks/use-crm-contacts";
 import { AddEditContactPanel } from "@/components/crm/AddEditContactPanel";
+import { IntegrationGuard } from "@/components/integrations/IntegrationGuard";
+import { EmailComposeModal } from "@/components/communications/EmailComposeModal";
+import { SMSComposeModal } from "@/components/communications/SMSComposeModal";
+import { AICallModal } from "@/components/communications/AICallModal";
+import { LogActivityModal } from "@/components/communications/LogActivityModal";
+import { ContactActivityTab } from "@/components/communications/ContactActivityTab";
 import { format } from "date-fns";
 
 export default function CrmContactDetail() {
@@ -15,6 +20,10 @@ export default function CrmContactDetail() {
   const navigate = useNavigate();
   const { data: contact, isLoading } = useCrmContact(id);
   const [editOpen, setEditOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [smsOpen, setSmsOpen] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
 
   if (isLoading) return <div className="p-6 text-muted-foreground">Loading…</div>;
   if (!contact) return <div className="p-6 text-muted-foreground">Contact not found</div>;
@@ -55,10 +64,10 @@ export default function CrmContactDetail() {
 
       {/* Quick actions */}
       <div className="flex gap-2">
-        <Button variant="outline" size="sm"><Mail className="h-4 w-4 mr-1" /> Email</Button>
-        <Button variant="outline" size="sm"><Phone className="h-4 w-4 mr-1" /> Call</Button>
-        <Button variant="outline" size="sm"><MessageSquare className="h-4 w-4 mr-1" /> SMS</Button>
-        <Button variant="outline" size="sm"><CalendarPlus className="h-4 w-4 mr-1" /> Log Activity</Button>
+        <Button variant="outline" size="sm" onClick={() => setEmailOpen(true)}><Mail className="h-4 w-4 mr-1" /> Email</Button>
+        <Button variant="outline" size="sm" onClick={() => setCallOpen(true)}><Phone className="h-4 w-4 mr-1" /> AI Call</Button>
+        <Button variant="outline" size="sm" onClick={() => setSmsOpen(true)}><MessageSquare className="h-4 w-4 mr-1" /> SMS</Button>
+        <Button variant="outline" size="sm" onClick={() => setLogOpen(true)}><CalendarPlus className="h-4 w-4 mr-1" /> Log Activity</Button>
         <Button variant="outline" size="sm"><Target className="h-4 w-4 mr-1" /> Add to Opportunity</Button>
       </div>
 
@@ -114,7 +123,11 @@ export default function CrmContactDetail() {
           )}
         </TabsContent>
 
-        {["activity", "opportunities", "documents"].map(tab => (
+        <TabsContent value="activity" className="mt-4">
+          <ContactActivityTab contactId={contact.id} companyId={contact.company_id} />
+        </TabsContent>
+
+        {["opportunities", "documents"].map(tab => (
           <TabsContent key={tab} value={tab} className="mt-4">
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
@@ -126,6 +139,43 @@ export default function CrmContactDetail() {
       </Tabs>
 
       <AddEditContactPanel open={editOpen} onOpenChange={setEditOpen} contact={contact} />
+      
+      <EmailComposeModal
+        open={emailOpen}
+        onOpenChange={setEmailOpen}
+        contactId={contact.id}
+        contactEmail={contact.email}
+        contactFirstName={contact.first_name}
+        companyId={contact.company_id}
+        companyName={contact.crm_companies?.name}
+      />
+
+      <SMSComposeModal
+        open={smsOpen}
+        onOpenChange={setSmsOpen}
+        contactId={contact.id}
+        contactMobile={contact.mobile}
+        contactFirstName={contact.first_name}
+        companyId={contact.company_id}
+        gdprConsent={contact.gdpr_consent}
+      />
+
+      <AICallModal
+        open={callOpen}
+        onOpenChange={setCallOpen}
+        contactId={contact.id}
+        contactFirstName={contact.first_name}
+        contactLastName={contact.last_name}
+        companyName={contact.crm_companies?.name}
+        contactMobile={contact.mobile}
+      />
+
+      <LogActivityModal
+        open={logOpen}
+        onOpenChange={setLogOpen}
+        contactId={contact.id}
+        companyId={contact.company_id}
+      />
     </div>
   );
 }

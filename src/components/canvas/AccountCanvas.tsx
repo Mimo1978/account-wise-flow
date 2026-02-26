@@ -127,6 +127,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const AUTO_PAN_SPEED = 8;
   const COMPANY_SNAP_RADIUS = 70;
   const ZONE_DETECT_RADIUS = 180;
+  const TOP_ROW_SNAP_Y_THRESHOLD = 90;
 
   // ── Safety reset on mode switch ──
   useEffect(() => {
@@ -415,7 +416,49 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       }
       snapResultRef.current = { targetId: best.id, zone: best.zone };
     } else {
-      snapResultRef.current = null;
+      // Root-row fallback: allow dropping anywhere on the top line to create
+      // additional top-level siblings (critical for multi-contact senior rows).
+      const rootCandidates = accountContactsRef.current
+        .filter((c) => (c.managerId ?? null) === null && c.id !== carriedId)
+        .map((c) => {
+          const node = contactNodesRef.current.get(c.id);
+          if (!node) return null;
+          return { id: c.id, center: node.group.getCenterPoint() };
+        })
+        .filter((n): n is { id: string; center: Point } => !!n)
+        .sort((a, b) => a.center.x - b.center.x);
+
+      if (rootCandidates.length > 0) {
+        const avgRootY = rootCandidates.reduce((sum, n) => sum + n.center.y, 0) / rootCandidates.length;
+        const inTopRowBand = Math.abs(dragY - avgRootY) <= TOP_ROW_SNAP_Y_THRESHOLD;
+
+        if (inTopRowBand) {
+          const nearestRoot = rootCandidates.reduce((closest, current) => {
+            const closestDist = Math.abs(dragX - closest.center.x);
+            const currentDist = Math.abs(dragX - current.center.x);
+            return currentDist < closestDist ? current : closest;
+          });
+
+          const zone: DropZone = dragX < nearestRoot.center.x ? "left" : "right";
+          const tc = nearestRoot.center;
+          const hw = NODE_W / 2;
+          const siblingColor = "hsl(221 83% 53%)";
+
+          if (zone === "left") {
+            addGuideRect(canvas, tc.x - hw - 6, tc.y - NODE_H / 2, 4, NODE_H, siblingColor, 0.7);
+            addGuideLine(canvas, tc.x - hw - 4, tc.y, dragX + hw, dragY, siblingColor);
+          } else {
+            addGuideRect(canvas, tc.x + hw + 2, tc.y - NODE_H / 2, 4, NODE_H, siblingColor, 0.7);
+            addGuideLine(canvas, tc.x + hw + 4, tc.y, dragX - hw, dragY, siblingColor);
+          }
+
+          snapResultRef.current = { targetId: nearestRoot.id, zone };
+        } else {
+          snapResultRef.current = null;
+        }
+      } else {
+        snapResultRef.current = null;
+      }
     }
     canvas.requestRenderAll();
   }, [clearGuideLines, addGuideRect, addGuideLine, detectZone, isDescendant]);

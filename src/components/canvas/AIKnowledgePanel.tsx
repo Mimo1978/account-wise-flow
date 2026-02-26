@@ -21,6 +21,8 @@ import {
   ChevronUp,
   GripVertical,
   RotateCcw,
+  Maximize2,
+  Minimize2,
   Lightbulb,
   TrendingDown,
   Users,
@@ -93,6 +95,7 @@ export function AIKnowledgePanel({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<"chat" | "analysis">("chat");
   const [insights, setInsights] = useState<AIInsights | null>(null);
   const [isAnalysisLoading, setIsAnalysisLoading] = useState(false);
@@ -440,8 +443,8 @@ export function AIKnowledgePanel({
         <div 
           ref={dragRef}
           className={cn(
-            "fixed bg-background border border-border rounded-xl shadow-2xl z-50",
-            isMinimized ? "w-80 h-14" : "w-96 h-[500px]",
+            "fixed bg-background border border-border rounded-xl shadow-2xl z-50 transition-all duration-200",
+            isMinimized ? "w-80 h-14" : isPanelExpanded ? "w-[600px] h-[700px]" : "w-96 h-[500px]",
             isDragging ? "cursor-grabbing" : ""
           )}
           style={{
@@ -499,6 +502,30 @@ export function AIKnowledgePanel({
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="text-xs">
                     Reset position
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsPanelExpanded(!isPanelExpanded);
+                      }}
+                    >
+                      {isPanelExpanded ? (
+                        <Minimize2 className="w-3.5 h-3.5" />
+                      ) : (
+                        <Maximize2 className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    {isPanelExpanded ? "Compact view" : "Expand panel"}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -565,7 +592,7 @@ export function AIKnowledgePanel({
               {activeTab === "chat" ? (
                 <>
                   {/* Messages Area */}
-                  <ScrollArea className="h-[320px] p-4" ref={scrollRef}>
+                  <ScrollArea className={cn("p-4", isPanelExpanded ? "h-[520px]" : "h-[320px]")} ref={scrollRef}>
                     {messages.length === 0 ? (
                       <div className="space-y-4">
                         <div className="text-center py-4">
@@ -701,7 +728,7 @@ export function AIKnowledgePanel({
                 </>
               ) : (
                 /* Analysis Tab */
-                <ScrollArea className="h-[360px]">
+                <ScrollArea className={cn(isPanelExpanded ? "h-[560px]" : "h-[360px]")}>
                   <div className="p-4 space-y-4">
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">Full account analysis</p>

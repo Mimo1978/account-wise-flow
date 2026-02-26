@@ -6,10 +6,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCrmDeal, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS } from "@/hooks/use-crm-deals";
 import { useCrmDocuments, useUpdateCrmDocument, getSignedDocumentUrl, DOC_TYPE_LABELS, DOC_STATUS_LABELS, DOC_STATUS_COLORS } from "@/hooks/use-crm-documents";
+import { useCrmInvoices, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS, getDisplayStatus } from "@/hooks/use-crm-invoices";
 import { AddEditDealPanel } from "@/components/crm/AddEditDealPanel";
 import { CrmDocumentUploadModal } from "@/components/crm/CrmDocumentUploadModal";
+import { CreateCrmInvoicePanel } from "@/components/crm/CreateCrmInvoicePanel";
 import { toast } from "@/hooks/use-toast";
-import { Pencil, ArrowLeft, Loader2, ExternalLink, Upload, Send, CheckCircle, FileText, Download } from "lucide-react";
+import { Pencil, ArrowLeft, Loader2, ExternalLink, Upload, Send, CheckCircle, FileText, Download, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -18,9 +20,11 @@ export default function CrmDealDetail() {
   const navigate = useNavigate();
   const { data: deal, isLoading } = useCrmDeal(id);
   const { data: docs = [] } = useCrmDocuments({ deal_id: id });
+  const { data: invoices = [] } = useCrmInvoices({ deal_id: id });
   const updateDoc = useUpdateCrmDocument();
   const [editOpen, setEditOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   if (!deal) return <div className="p-6 text-muted-foreground">Deal not found</div>;
@@ -174,7 +178,45 @@ export default function CrmDealDetail() {
         </TabsContent>
 
         <TabsContent value="invoices">
-          <Card><CardContent className="py-8 text-center text-muted-foreground">Invoices module coming soon</CardContent></Card>
+          <div className="space-y-4">
+            <div className="flex justify-end">
+              <Button onClick={() => setInvoiceOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Create Invoice
+              </Button>
+            </div>
+            {invoices.length === 0 ? (
+              <Card><CardContent className="py-8 text-center text-muted-foreground">No invoices yet. Create one to get started.</CardContent></Card>
+            ) : (
+              <div className="border rounded-lg overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Issue Date</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invoices.map(inv => {
+                      const ds = getDisplayStatus(inv);
+                      const cs = deal?.currency === "GBP" ? "£" : deal?.currency === "USD" ? "$" : "€";
+                      return (
+                        <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/crm/invoices/${inv.id}`)}>
+                          <TableCell className="font-medium text-primary">{inv.invoice_number || "—"}</TableCell>
+                          <TableCell>{inv.issue_date ? format(new Date(inv.issue_date), "dd MMM yyyy") : "—"}</TableCell>
+                          <TableCell>{inv.due_date ? format(new Date(inv.due_date), "dd MMM yyyy") : "—"}</TableCell>
+                          <TableCell className="font-semibold">{cs}{inv.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell><Badge variant="secondary" className={INVOICE_STATUS_COLORS[ds]}>{INVOICE_STATUS_LABELS[ds]}</Badge></TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="activity">
@@ -184,6 +226,7 @@ export default function CrmDealDetail() {
 
       <AddEditDealPanel open={editOpen} onOpenChange={setEditOpen} deal={deal} />
       <CrmDocumentUploadModal open={uploadOpen} onOpenChange={setUploadOpen} defaultDealId={id} defaultCompanyId={deal.company_id || undefined} />
+      <CreateCrmInvoicePanel open={invoiceOpen} onOpenChange={setInvoiceOpen} defaultDealId={id} />
     </div>
   );
 }

@@ -61,6 +61,7 @@ import EmailTemplatesSettings from "./pages/settings/EmailTemplatesSettings";
 import Dashboard from "./pages/Dashboard";
 import Reports from "./pages/Reports";
 import { Loader2 } from "lucide-react";
+import { JarvisFloatingButton } from "@/components/jarvis/JarvisChat";
 
 const queryClient = new QueryClient();
 
@@ -191,6 +192,7 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        <JarvisFloatingButton />
       </TooltipProvider>
       </SearchContextProvider>
       </WorkspaceProvider>

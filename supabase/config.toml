@@ -79,3 +79,6 @@ verify_jwt = false
 
 [functions.invoice-generate-pdf]
 verify_jwt = false
+
+[functions.jarvis-assistant]
+verify_jwt = false

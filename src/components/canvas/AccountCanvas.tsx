@@ -200,8 +200,10 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist > ZONE_DETECT_RADIUS) return null;
     const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-    if (angle > 30 && angle < 150) return "bottom";
-    if (angle > 150 || angle < -60) return "left";
+    // Narrow "child" zone to only directly below (60°–120°),
+    // so dragging at roughly the same level triggers sibling placement instead
+    if (angle > 60 && angle < 120) return "bottom";
+    if (angle >= 120 || angle < -45) return "left";
     return "right";
   }, []);
 

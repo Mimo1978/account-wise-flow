@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { useEngagement } from '@/hooks/use-engagements';
+import { useEngagement, useUpdateEngagement } from '@/hooks/use-engagements';
 import { useSows } from '@/hooks/use-sows';
 import { useInvoices } from '@/hooks/use-invoices';
 import {
@@ -23,6 +23,7 @@ import { CreateCampaignModal } from '@/components/outreach/CreateCampaignModal';
 import { AddTargetsModal } from '@/components/outreach/AddTargetsModal';
 import { OutreachTargetRow } from '@/components/outreach/OutreachTargetRow';
 import { TargetDetailSheet } from '@/components/outreach/TargetDetailSheet';
+import { DocumentList } from '@/components/documents/DocumentList';
 import {
   ArrowLeft,
   Briefcase,
@@ -39,11 +40,20 @@ import {
   Unlink,
   ChevronDown,
   ChevronUp,
+  Pencil,
+  Activity,
 } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const STAGE_LABELS: Record<string, string> = {
   pipeline: 'Pipeline',
@@ -76,6 +86,261 @@ const CAMPAIGN_STATUS_BADGE: Record<string, string> = {
   completed: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
   archived: 'bg-muted text-muted-foreground',
 };
+
+const TYPES = [
+  { value: 'consulting', label: 'Consulting' },
+  { value: 'recruitment', label: 'Recruitment' },
+  { value: 'managed_service', label: 'Managed Service' },
+  { value: 'other', label: 'Other' },
+];
+
+const STAGES = [
+  { value: 'pipeline', label: 'Pipeline' },
+  { value: 'active', label: 'Active' },
+  { value: 'on_hold', label: 'On Hold' },
+  { value: 'closed_won', label: 'Closed Won' },
+  { value: 'closed_lost', label: 'Closed Lost' },
+];
+
+/* ─── Edit Engagement Modal ─── */
+function EditEngagementModal({
+  open,
+  onOpenChange,
+  engagement,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  engagement: any;
+}) {
+  const { currentWorkspace } = useWorkspace();
+  const updateMutation = useUpdateEngagement();
+
+  const [name, setName] = useState(engagement.name);
+  const [companyId, setCompanyId] = useState(engagement.company_id || '');
+  const [engagementType, setEngagementType] = useState(engagement.engagement_type);
+  const [stage, setStage] = useState(engagement.stage);
+  const [health, setHealth] = useState(engagement.health || 'green');
+  const [forecastValue, setForecastValue] = useState(engagement.forecast_value?.toString() || '');
+  const [currency, setCurrency] = useState(engagement.currency || 'GBP');
+  const [description, setDescription] = useState(engagement.description || '');
+  const [startDate, setStartDate] = useState(engagement.start_date || '');
+  const [endDate, setEndDate] = useState(engagement.end_date || '');
+
+  useEffect(() => {
+    if (open) {
+      setName(engagement.name);
+      setCompanyId(engagement.company_id || '');
+      setEngagementType(engagement.engagement_type);
+      setStage(engagement.stage);
+      setHealth(engagement.health || 'green');
+      setForecastValue(engagement.forecast_value?.toString() || '');
+      setCurrency(engagement.currency || 'GBP');
+      setDescription(engagement.description || '');
+      setStartDate(engagement.start_date || '');
+      setEndDate(engagement.end_date || '');
+    }
+  }, [open, engagement]);
+
+  const { data: companies = [] } = useQuery({
+    queryKey: ['companies-list', currentWorkspace?.id],
+    queryFn: async () => {
+      if (!currentWorkspace?.id) return [];
+      const { data } = await supabase
+        .from('companies')
+        .select('id, name')
+        .eq('team_id', currentWorkspace.id)
+        .order('name');
+      return data ?? [];
+    },
+    enabled: !!currentWorkspace?.id && open,
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    try {
+      await updateMutation.mutateAsync({
+        id: engagement.id,
+        name: name.trim(),
+        company_id: companyId || null,
+        engagement_type: engagementType,
+        stage,
+        health,
+        forecast_value: forecastValue ? parseInt(forecastValue) : 0,
+        currency,
+        description: description.trim() || null,
+        start_date: startDate || null,
+        end_date: endDate || null,
+      });
+      toast.success('Project updated');
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update project');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Project</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Project Name *</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Company</Label>
+            <Select value={companyId} onValueChange={setCompanyId}>
+              <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+              <SelectContent>
+                {companies.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select value={engagementType} onValueChange={setEngagementType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Stage</Label>
+              <Select value={stage} onValueChange={setStage}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {STAGES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Health</Label>
+              <Select value={health} onValueChange={setHealth}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="green">Green</SelectItem>
+                  <SelectItem value="amber">Amber</SelectItem>
+                  <SelectItem value="red">Red</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Select value={currency} onValueChange={setCurrency}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="GBP">GBP (£)</SelectItem>
+                  <SelectItem value="USD">USD ($)</SelectItem>
+                  <SelectItem value="EUR">EUR (€)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Forecast Value</Label>
+            <Input type="number" value={forecastValue} onChange={(e) => setForecastValue(e.target.value)} placeholder="0" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Start Date</Label>
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>End Date</Label>
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Description</Label>
+            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" disabled={!name.trim() || updateMutation.isPending}>
+              {updateMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── Recent Activity Section ─── */
+function RecentActivitySection({ engagementId, companyId }: { engagementId: string; companyId: string | null }) {
+  const { data: activities = [], isLoading } = useQuery({
+    queryKey: ['project-activity', engagementId],
+    queryFn: async () => {
+      // Get audit log entries for this engagement
+      const { data: auditData } = await supabase
+        .from('audit_log')
+        .select('*')
+        .eq('entity_id', engagementId)
+        .order('changed_at', { ascending: false })
+        .limit(10);
+
+      // Also get related invoice/sow changes
+      const items: { id: string; action: string; entity_type: string; changed_at: string; summary: string }[] = [];
+      
+      if (auditData) {
+        auditData.forEach((a: any) => {
+          items.push({
+            id: a.id,
+            action: a.action,
+            entity_type: a.entity_type,
+            changed_at: a.changed_at,
+            summary: `${a.action} on ${a.entity_type}`,
+          });
+        });
+      }
+
+      return items;
+    },
+    enabled: !!engagementId,
+  });
+
+  if (isLoading) return <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />;
+
+  if (activities.length === 0) {
+    return (
+      <Card className="mt-4">
+        <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Activity className="w-4 h-4" /> Recent Activity</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">No activity logged yet. Changes to this project, contracts, invoices, and files will appear here.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="mt-4">
+      <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Activity className="w-4 h-4" /> Recent Activity</CardTitle></CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {activities.map((a) => (
+            <div key={a.id} className="flex items-start gap-3 text-sm">
+              <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-foreground capitalize">{a.summary}</p>
+                <p className="text-xs text-muted-foreground">{format(new Date(a.changed_at), 'dd MMM yyyy HH:mm')}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 /* ─── Link Existing Campaign Modal ─── */
 function LinkCampaignModal({
@@ -414,7 +679,8 @@ const ProjectDetail = () => {
   const { data: allInvoices = [] } = useInvoices(currentWorkspace?.id);
 
   const [sowOpen, setSowOpen] = useState(false);
-  const [invoiceOpen, setInvoiceOpen] = useState(false); // kept for legacy/contracts use
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const engSows = useMemo(() => {
     if (!engagement) return [];
@@ -472,6 +738,10 @@ const ProjectDetail = () => {
             <span className="text-xs text-muted-foreground">· Updated {format(new Date(engagement.updated_at), 'dd MMM yyyy')}</span>
           </div>
         </div>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
+          <Pencil className="w-4 h-4" />
+          Edit
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -545,6 +815,9 @@ const ProjectDetail = () => {
               </p>
             </Card>
           </div>
+
+          {/* Recent Activity */}
+          <RecentActivitySection engagementId={engagement.id} companyId={engagement.company_id} />
         </TabsContent>
 
         {/* Contracts Tab */}
@@ -622,17 +895,20 @@ const ProjectDetail = () => {
 
         {/* Files Tab */}
         <TabsContent value="files">
-          <Card className="flex flex-col items-center justify-center text-center p-8">
-            <FolderOpen className="w-8 h-8 text-muted-foreground mb-3" />
-            <p className="text-sm font-medium text-foreground">Files coming next</p>
-            <p className="text-xs text-muted-foreground mt-1">Project file management will be available in a future update.</p>
-          </Card>
+          <DocumentList
+            entityType="engagement"
+            entityId={engagement.id}
+            entityName={engagement.name}
+            canEdit={true}
+            showCategoryBreakdown={true}
+          />
         </TabsContent>
       </Tabs>
 
       {/* Modals */}
       <CreateSowModal open={sowOpen} onOpenChange={setSowOpen} />
       <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} />
+      <EditEngagementModal open={editOpen} onOpenChange={setEditOpen} engagement={engagement} />
     </div>
   );
 };

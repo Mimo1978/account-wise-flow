@@ -1,6 +1,6 @@
 // Unified document types for Talent, Contacts, and Companies
 
-export type EntityType = 'candidate' | 'contact' | 'company';
+export type EntityType = 'candidate' | 'contact' | 'company' | 'engagement';
 
 export type DocumentType = 
   | 'cv' 
@@ -67,12 +67,12 @@ export const documentTypeConfig: Record<DocumentType, {
   job_spec: { 
     label: "Job Spec", 
     color: "text-purple-500",
-    applicableTo: ['contact', 'company']
+    applicableTo: ['contact', 'company', 'engagement']
   },
   proposal: { 
     label: "Proposal", 
     color: "text-green-500",
-    applicableTo: ['contact', 'company']
+    applicableTo: ['contact', 'company', 'engagement']
   },
   bid: { 
     label: "Bid", 
@@ -82,22 +82,22 @@ export const documentTypeConfig: Record<DocumentType, {
   contract: { 
     label: "Contract", 
     color: "text-red-500",
-    applicableTo: ['candidate', 'contact', 'company']
+    applicableTo: ['candidate', 'contact', 'company', 'engagement']
   },
   nda: { 
     label: "NDA", 
     color: "text-pink-500",
-    applicableTo: ['candidate', 'contact', 'company']
+    applicableTo: ['candidate', 'contact', 'company', 'engagement']
   },
   sow: { 
     label: "Statement of Work", 
     color: "text-cyan-500",
-    applicableTo: ['contact', 'company']
+    applicableTo: ['contact', 'company', 'engagement']
   },
   other: { 
     label: "Other", 
     color: "text-muted-foreground",
-    applicableTo: ['candidate', 'contact', 'company']
+    applicableTo: ['candidate', 'contact', 'company', 'engagement']
   },
 };
 

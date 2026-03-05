@@ -45,6 +45,7 @@ import AdminDataQuality from "./pages/admin/AdminDataQuality";
 
 import AdminBilling from "./pages/admin/AdminBilling";
 import AdminJarvisGuide from "./pages/admin/AdminJarvisGuide";
+import AdminJarvisSettings from "./pages/admin/AdminJarvisSettings";
 import AdminEmailGuide from "./pages/admin/AdminEmailGuide";
 import AdminSmsGuide from "./pages/admin/AdminSmsGuide";
 import AdminAiCallingGuide from "./pages/admin/AdminAiCallingGuide";
@@ -194,6 +195,7 @@ const App = () => {
             
             <Route path="/admin/billing" element={<AdminPage section="integrations"><AdminBilling /></AdminPage>} />
             <Route path="/admin/jarvis-guide" element={<AdminPage section="integrations"><AdminJarvisGuide /></AdminPage>} />
+            <Route path="/admin/jarvis-settings" element={<AdminPage section="integrations"><AdminJarvisSettings /></AdminPage>} />
             <Route path="/admin/email-guide" element={<AdminPage section="integrations"><AdminEmailGuide /></AdminPage>} />
             <Route path="/admin/sms-guide" element={<AdminPage section="integrations"><AdminSmsGuide /></AdminPage>} />
             <Route path="/admin/ai-calling-guide" element={<AdminPage section="integrations"><AdminAiCallingGuide /></AdminPage>} />

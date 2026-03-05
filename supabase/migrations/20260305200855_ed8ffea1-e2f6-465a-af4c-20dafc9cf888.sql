@@ -1,0 +1,1 @@
+ALTER TABLE public.workspace_settings ADD COLUMN IF NOT EXISTS jarvis_settings jsonb NOT NULL DEFAULT '{}'::jsonb;

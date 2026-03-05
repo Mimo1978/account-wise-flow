@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { PendingRequestsBadge } from '@/components/access/PendingRequestsBadge';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,6 +46,12 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const { isAdmin, isManager, isLoading: permLoading } = usePermissions();
   const { theme, setTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/', { replace: true });
+  };
   const showAdminNav = !permLoading && (isAdmin || isManager);
 
   const navItems = [
@@ -202,7 +208,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
+                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive cursor-pointer">
                     <LogOut className="w-4 h-4 mr-2" />
                     Sign Out
                   </DropdownMenuItem>

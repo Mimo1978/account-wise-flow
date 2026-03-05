@@ -4686,6 +4686,7 @@ export type Database = {
           data_quality_rules: Json
           gap_threshold_months: number
           id: string
+          jarvis_settings: Json
           outreach_rules: Json
           short_tenure_threshold_months: number
           top_tier_companies: Json
@@ -4699,6 +4700,7 @@ export type Database = {
           data_quality_rules?: Json
           gap_threshold_months?: number
           id?: string
+          jarvis_settings?: Json
           outreach_rules?: Json
           short_tenure_threshold_months?: number
           top_tier_companies?: Json
@@ -4712,6 +4714,7 @@ export type Database = {
           data_quality_rules?: Json
           gap_threshold_months?: number
           id?: string
+          jarvis_settings?: Json
           outreach_rules?: Json
           short_tenure_threshold_months?: number
           top_tier_companies?: Json

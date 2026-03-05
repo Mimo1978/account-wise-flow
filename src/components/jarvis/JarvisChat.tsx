@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useJarvis, JarvisMessage } from "@/hooks/use-jarvis";
+import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
 
@@ -216,49 +217,49 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
 /* ------------------------------------------------------------------ */
 /*  Speech Synthesis with UK English preference                        */
 /* ------------------------------------------------------------------ */
-function useEnhancedSpeechSynthesis() {
-  const [enabled, setEnabled] = useState(true); // Default ON for voice-first
+function useEnhancedSpeechSynthesis(voiceGender?: 'male' | 'female', speed?: number, volume?: number, muteDefault?: boolean) {
+  const [enabled, setEnabled] = useState(!muteDefault); // Respect mute default
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const getPreferredVoice = useCallback(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return null;
     const voices = window.speechSynthesis.getVoices();
-    // Prefer male voices in priority order
-    const malePreferred = [
-      "Google UK English Male",
-      "Microsoft George",
-      "Daniel",
-    ];
-    for (const name of malePreferred) {
-      const v = voices.find((v) => v.name.includes(name));
-      if (v) return v;
+    const gender = voiceGender || 'male';
+
+    if (gender === 'male') {
+      const malePreferred = ["Google UK English Male", "Microsoft George", "Daniel"];
+      for (const name of malePreferred) {
+        const v = voices.find((v) => v.name.includes(name));
+        if (v) return v;
+      }
+      const maleVoice = voices.find((v) => v.name.includes("Male") && v.lang.startsWith("en"));
+      if (maleVoice) return maleVoice;
+      const enGbNonFemale = voices.find(
+        (v) => v.lang === "en-GB" && !v.name.includes("Female") && !v.name.includes("Martha") && !v.name.includes("Fiona") && !v.name.includes("Kate")
+      );
+      if (enGbNonFemale) return enGbNonFemale;
+    } else {
+      const femalePreferred = ["Google UK English Female", "Microsoft Hazel", "Martha", "Samantha"];
+      for (const name of femalePreferred) {
+        const v = voices.find((v) => v.name.includes(name));
+        if (v) return v;
+      }
+      const femaleVoice = voices.find((v) => v.name.includes("Female") && v.lang.startsWith("en"));
+      if (femaleVoice) return femaleVoice;
+      const enGb = voices.find((v) => v.lang === "en-GB");
+      if (enGb) return enGb;
     }
-    // Any voice with "Male" in the name
-    const maleVoice = voices.find(
-      (v) => v.name.includes("Male") && v.lang.startsWith("en")
-    );
-    if (maleVoice) return maleVoice;
-    // Fallback to any en-GB male-likely voice (avoid Female/Martha/Fiona)
-    const enGbNonFemale = voices.find(
-      (v) =>
-        v.lang === "en-GB" &&
-        !v.name.includes("Female") &&
-        !v.name.includes("Martha") &&
-        !v.name.includes("Fiona") &&
-        !v.name.includes("Kate")
-    );
-    if (enGbNonFemale) return enGbNonFemale;
-    // Last resort: any English voice
     return voices.find((v) => v.lang.startsWith("en")) || null;
-  }, []);
+  }, [voiceGender]);
 
   const speak = useCallback(
     (text: string) => {
       if (!enabled || typeof window === "undefined" || !window.speechSynthesis) return;
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
+      utterance.rate = speed ?? 1.0;
       utterance.pitch = 1.0;
+      utterance.volume = (volume ?? 80) / 100;
       const voice = getPreferredVoice();
       if (voice) utterance.voice = voice;
       utterance.onstart = () => setIsSpeaking(true);
@@ -266,7 +267,7 @@ function useEnhancedSpeechSynthesis() {
       utterance.onerror = () => setIsSpeaking(false);
       window.speechSynthesis.speak(utterance);
     },
-    [enabled, getPreferredVoice]
+    [enabled, getPreferredVoice, speed, volume]
   );
 
   const stop = useCallback(() => {
@@ -292,15 +293,17 @@ function useEnhancedSpeechSynthesis() {
 /* ------------------------------------------------------------------ */
 function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onActiveChange?: (active: boolean) => void }) {
   const { messages, isLoading, sendMessage, clearHistory, userFirstName } = useJarvis();
+  const { settings: jarvisSettings } = useJarvisSettings();
   const [input, setInput] = useState("");
-  const [keepListening, setKeepListening] = useState(false);
+  const [keepListening, setKeepListening] = useState(jarvisSettings.keep_listening_default);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const tts = useEnhancedSpeechSynthesis();
+  const tts = useEnhancedSpeechSynthesis(jarvisSettings.voice_gender, jarvisSettings.speaking_speed, jarvisSettings.volume, jarvisSettings.mute_by_default);
   const hasGreetedRef = useRef(false);
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInteractionRef = useRef(Date.now());
+  const assistantName = jarvisSettings.assistant_name || 'Jarvis';
 
   // Auto-submit handler for voice
   const handleVoiceSubmit = useCallback(
@@ -365,9 +368,11 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   useEffect(() => {
     if (!hasGreetedRef.current) {
       hasGreetedRef.current = true;
-      const greeting = userFirstName
-        ? `Hello ${userFirstName}. I'm Jarvis. How can I help you today?`
-        : `Hello. I'm Jarvis. How can I help you today?`;
+      const greetingTemplate = jarvisSettings.greeting_message || 'Hello {{name}}. I\'m {{assistant}}. How can I help you today?';
+      const greeting = greetingTemplate
+        .replace('{{name}}', userFirstName || '')
+        .replace('{{assistant}}', assistantName)
+        .replace(/^\s+/, '').replace(/\.\s*\./, '.'); // clean up if name empty
 
       // Speak greeting
       if (tts.enabled) {
@@ -400,9 +405,15 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       return;
     }
 
+    const sleepMs = jarvisSettings.auto_sleep_minutes > 0
+      ? jarvisSettings.auto_sleep_minutes * 60_000
+      : 0;
+
+    if (sleepMs === 0) return; // "Never" mode
+
     const checkSleep = () => {
       const elapsed = Date.now() - lastInteractionRef.current;
-      if (elapsed >= 180_000) { // 3 minutes
+      if (elapsed >= sleepMs) {
         setKeepListening(false);
         speech.stopListening();
         if (tts.enabled) {
@@ -469,7 +480,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
           </div>
           <div>
             <p className="font-semibold text-sm text-foreground leading-none">
-              Jarvis
+              {assistantName}
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               {speech.isListening ? "Listening…" : tts.isSpeaking ? "Speaking…" : "AI CRM Assistant"}
@@ -517,7 +528,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
                 <Sparkles className="h-6 w-6 text-primary/50" />
               </div>
               <p className="font-medium text-foreground">
-                Hello {userFirstName}, I'm Jarvis
+                {userFirstName ? `Hello ${userFirstName}, I'm ${assistantName}` : `Hello, I'm ${assistantName}`}
               </p>
               <p className="text-xs mt-1.5 max-w-[260px] mx-auto">
                 Ask me to search contacts, create companies, log calls, or

@@ -18,6 +18,7 @@ import {
   Mail,
   Phone,
   Mic,
+  Settings2,
 } from 'lucide-react';
 import type { AdminSection } from './AdminRouteGuard';
 
@@ -36,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Billing & Invoices', path: '/admin/billing', icon: Receipt, section: 'integrations' },
   { label: 'Schema Inventory', path: '/admin/schema', icon: Database, section: 'schema' },
   { label: 'Jarvis AI Guide', path: '/admin/jarvis-guide', icon: Sparkles, section: 'integrations' },
+  { label: 'Jarvis Settings', path: '/admin/jarvis-settings', icon: Settings2, section: 'integrations' },
   { label: 'Email Guide', path: '/admin/email-guide', icon: Mail, section: 'integrations' },
   { label: 'SMS Guide', path: '/admin/sms-guide', icon: Phone, section: 'integrations' },
   { label: 'AI Calling Guide', path: '/admin/ai-calling-guide', icon: Mic, section: 'integrations' },
@@ -78,6 +80,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   
   '/admin/billing': 'Billing & Invoices',
   '/admin/jarvis-guide': 'Jarvis AI Guide',
+  '/admin/jarvis-settings': 'Jarvis Settings',
   '/admin/email-guide': 'Email Guide',
   '/admin/sms-guide': 'SMS Guide',
   '/admin/ai-calling-guide': 'AI Calling Guide',

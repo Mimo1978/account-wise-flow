@@ -223,15 +223,32 @@ function useEnhancedSpeechSynthesis() {
   const getPreferredVoice = useCallback(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return null;
     const voices = window.speechSynthesis.getVoices();
-    // Prefer UK English voices
-    const ukVoice = voices.find(
-      (v) => v.lang === "en-GB" && (v.name.includes("Google") || v.name.includes("Daniel") || v.name.includes("Martha"))
+    // Prefer male voices in priority order
+    const malePreferred = [
+      "Google UK English Male",
+      "Microsoft George",
+      "Daniel",
+    ];
+    for (const name of malePreferred) {
+      const v = voices.find((v) => v.name.includes(name));
+      if (v) return v;
+    }
+    // Any voice with "Male" in the name
+    const maleVoice = voices.find(
+      (v) => v.name.includes("Male") && v.lang.startsWith("en")
     );
-    if (ukVoice) return ukVoice;
-    // Fallback to any en-GB
-    const anyUk = voices.find((v) => v.lang === "en-GB");
-    if (anyUk) return anyUk;
-    // Fallback to any English
+    if (maleVoice) return maleVoice;
+    // Fallback to any en-GB male-likely voice (avoid Female/Martha/Fiona)
+    const enGbNonFemale = voices.find(
+      (v) =>
+        v.lang === "en-GB" &&
+        !v.name.includes("Female") &&
+        !v.name.includes("Martha") &&
+        !v.name.includes("Fiona") &&
+        !v.name.includes("Kate")
+    );
+    if (enGbNonFemale) return enGbNonFemale;
+    // Last resort: any English voice
     return voices.find((v) => v.lang.startsWith("en")) || null;
   }, []);
 
@@ -348,7 +365,9 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   useEffect(() => {
     if (!hasGreetedRef.current) {
       hasGreetedRef.current = true;
-      const greeting = `Hello ${userFirstName}. I'm Jarvis. How can I help you today?`;
+      const greeting = userFirstName
+        ? `Hello ${userFirstName}. I'm Jarvis. How can I help you today?`
+        : `Hello. I'm Jarvis. How can I help you today?`;
 
       // Speak greeting
       if (tts.enabled) {

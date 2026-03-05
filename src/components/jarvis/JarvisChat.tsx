@@ -9,7 +9,7 @@ import {
   Volume2,
   VolumeOff,
   CheckCircle2,
-  RotateCcw,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { useJarvis, JarvisMessage } from "@/hooks/use-jarvis";
 import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                   */
@@ -47,6 +47,11 @@ function TypingDots() {
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Visual state type                                                  */
+/* ------------------------------------------------------------------ */
+type JarvisVisualState = "idle" | "listening" | "thinking" | "speaking";
 
 /* ------------------------------------------------------------------ */
 /*  Message bubble                                                     */
@@ -90,7 +95,6 @@ function MessageBubble({
         </div>
 
         <div className="flex gap-2 items-center">
-          {/* Confirmation buttons */}
           {message.awaitingConfirmation && onConfirm && onCancel && (
             <>
               <Button size="sm" className="h-7 text-xs" onClick={onConfirm}>
@@ -101,7 +105,6 @@ function MessageBubble({
               </Button>
             </>
           )}
-          {/* Replay button for assistant messages */}
           {!isUser && onReplay && (
             <button
               onClick={onReplay}
@@ -137,6 +140,7 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
   const stopListening = useCallback(() => {
     clearSilenceTimer();
     recognitionRef.current?.stop();
+    recognitionRef.current = null;
     setIsListening(false);
     setInterimTranscript("");
     finalTextRef.current = "";
@@ -187,7 +191,6 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
     };
 
     recognition.onend = () => {
-      // If still supposed to be listening but ended (browser cut off), don't auto-restart here
       setIsListening(false);
       setInterimTranscript("");
     };
@@ -215,10 +218,10 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
 }
 
 /* ------------------------------------------------------------------ */
-/*  Speech Synthesis with UK English preference                        */
+/*  Speech Synthesis                                                   */
 /* ------------------------------------------------------------------ */
 function useEnhancedSpeechSynthesis(voiceGender?: 'male' | 'female', speed?: number, volume?: number, muteDefault?: boolean) {
-  const [enabled, setEnabled] = useState(!muteDefault); // Respect mute default
+  const [enabled, setEnabled] = useState(!muteDefault);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const getPreferredVoice = useCallback(() => {
@@ -253,8 +256,11 @@ function useEnhancedSpeechSynthesis(voiceGender?: 'male' | 'female', speed?: num
   }, [voiceGender]);
 
   const speak = useCallback(
-    (text: string) => {
-      if (!enabled || typeof window === "undefined" || !window.speechSynthesis) return;
+    (text: string, onDone?: () => void) => {
+      if (!enabled || typeof window === "undefined" || !window.speechSynthesis) {
+        onDone?.();
+        return;
+      }
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = speed ?? 1.0;
@@ -263,8 +269,8 @@ function useEnhancedSpeechSynthesis(voiceGender?: 'male' | 'female', speed?: num
       const voice = getPreferredVoice();
       if (voice) utterance.voice = voice;
       utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => setIsSpeaking(false);
-      utterance.onerror = () => setIsSpeaking(false);
+      utterance.onend = () => { setIsSpeaking(false); onDone?.(); };
+      utterance.onerror = () => { setIsSpeaking(false); onDone?.(); };
       window.speechSynthesis.speak(utterance);
     },
     [enabled, getPreferredVoice, speed, volume]
@@ -289,21 +295,65 @@ function useEnhancedSpeechSynthesis(voiceGender?: 'male' | 'female', speed?: num
 }
 
 /* ------------------------------------------------------------------ */
+/*  Hook: detect modals & focused inputs to auto-pause Jarvis          */
+/* ------------------------------------------------------------------ */
+function useJarvisPauseDetection(onPause: () => void) {
+  useEffect(() => {
+    // Detect focus on inputs / textareas / contenteditable
+    const handleFocusIn = (e: FocusEvent) => {
+      const el = e.target as HTMLElement;
+      if (!el) return;
+      const tag = el.tagName?.toLowerCase();
+      // Ignore the Jarvis own input (has specific placeholder)
+      if (el.getAttribute("placeholder")?.includes("Jarvis")) return;
+      if (
+        tag === "input" ||
+        tag === "textarea" ||
+        el.isContentEditable ||
+        el.getAttribute("role") === "textbox"
+      ) {
+        onPause();
+      }
+    };
+
+    // Detect modal / dialog opening via MutationObserver
+    const observer = new MutationObserver(() => {
+      const hasModal = document.querySelector(
+        '[role="dialog"], [role="alertdialog"], [data-radix-portal], .modal, [data-state="open"][data-radix-dialog-overlay]'
+      );
+      if (hasModal) {
+        onPause();
+      }
+    });
+
+    document.addEventListener("focusin", handleFocusIn);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      document.removeEventListener("focusin", handleFocusIn);
+      observer.disconnect();
+    };
+  }, [onPause]);
+}
+
+/* ------------------------------------------------------------------ */
 /*  Chat panel                                                         */
 /* ------------------------------------------------------------------ */
 function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onActiveChange?: (active: boolean) => void }) {
   const { messages, isLoading, sendMessage, clearHistory, userFirstName } = useJarvis();
   const { settings: jarvisSettings } = useJarvisSettings();
   const [input, setInput] = useState("");
-  const [keepListening, setKeepListening] = useState(jarvisSettings.keep_listening_default);
+  const [keepListening, setKeepListening] = useState(false); // Always default OFF
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
   const tts = useEnhancedSpeechSynthesis(jarvisSettings.voice_gender, jarvisSettings.speaking_speed, jarvisSettings.volume, jarvisSettings.mute_by_default);
-  const hasGreetedRef = useRef(false);
+  const greetingDoneRef = useRef(false); // tracks if greeting listen cycle done
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInteractionRef = useRef(Date.now());
   const assistantName = jarvisSettings.assistant_name || 'Jarvis';
+  const prevLocationRef = useRef(location.pathname);
 
   // Auto-submit handler for voice
   const handleVoiceSubmit = useCallback(
@@ -318,6 +368,22 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   );
 
   const speech = useEnhancedSpeechRecognition(handleVoiceSubmit);
+
+  // --- Auto-pause on modals/form focus ---
+  const pauseListening = useCallback(() => {
+    speech.stopListening();
+  }, [speech]);
+
+  useJarvisPauseDetection(pauseListening);
+
+  // --- Stop listening on route change ---
+  useEffect(() => {
+    if (location.pathname !== prevLocationRef.current) {
+      prevLocationRef.current = location.pathname;
+      speech.stopListening();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   // Report active state
   useEffect(() => {
@@ -339,66 +405,76 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   }, [speech.interimTranscript]);
 
   // Speak assistant responses + handle navigation
+  // After speaking, only re-listen if keepListening is ON
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
-      if (tts.enabled) {
-        tts.speak(last.content);
-      }
       // Handle navigation
       if (last.navigateTo) {
         setTimeout(() => navigate(last.navigateTo!), 1000);
       }
-      // Re-activate mic if keep listening is on
-      if (keepListening && !isLoading) {
-        // Wait for TTS to finish (approx) before re-listening
-        const delay = tts.enabled ? Math.min(last.content.length * 60, 8000) : 500;
-        const t = setTimeout(() => {
+
+      if (tts.enabled) {
+        tts.speak(last.content, () => {
+          // After TTS finishes, re-listen ONLY if keepListening is ON
           if (keepListening && speech.supported) {
             speech.startListening();
           }
-        }, delay);
-        return () => clearTimeout(t);
+        });
+      } else {
+        // No TTS — re-listen only if keepListening
+        if (keepListening && speech.supported) {
+          const t = setTimeout(() => speech.startListening(), 300);
+          return () => clearTimeout(t);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
-  // Greeting on first open
+  // One-time greeting per session
   useEffect(() => {
-    if (!hasGreetedRef.current) {
-      hasGreetedRef.current = true;
-      const greetingTemplate = jarvisSettings.greeting_message || 'Hello {{name}}. I\'m {{assistant}}. How can I help you today?';
-      const greeting = greetingTemplate
-        .replace('{{name}}', userFirstName || '')
-        .replace('{{assistant}}', assistantName)
-        .replace(/^\s+/, '').replace(/\.\s*\./, '.'); // clean up if name empty
+    const alreadyGreeted = sessionStorage.getItem("jarvis_greeted");
+    if (alreadyGreeted || greetingDoneRef.current) return;
+    greetingDoneRef.current = true;
+    sessionStorage.setItem("jarvis_greeted", "1");
 
-      // Speak greeting
+    const greetingTemplate = jarvisSettings.greeting_message || "Hello {{name}}. I'm {{assistant}}. How can I help you today?";
+    const greeting = greetingTemplate
+      .replace("{{name}}", userFirstName || "")
+      .replace("{{assistant}}", assistantName)
+      .replace(/^\s+/, "")
+      .replace(/\.\s*\./, ".");
+
+    const doGreeting = () => {
       if (tts.enabled) {
-        // Need voices to be loaded first
-        const speakGreeting = () => tts.speak(greeting);
-        if (window.speechSynthesis.getVoices().length > 0) {
-          setTimeout(speakGreeting, 300);
-        } else {
-          window.speechSynthesis.onvoiceschanged = () => {
-            setTimeout(speakGreeting, 300);
-          };
+        tts.speak(greeting, () => {
+          // After greeting speech, listen for exactly ONE cycle then stop
+          if (speech.supported) {
+            speech.startListening();
+          }
+        });
+      } else {
+        // No TTS — listen for one cycle
+        if (speech.supported) {
+          speech.startListening();
         }
       }
+    };
 
-      // Start listening after greeting
-      if (speech.supported) {
-        const listenDelay = tts.enabled ? 3500 : 500;
-        setTimeout(() => {
-          if (speech.supported) speech.startListening();
-        }, listenDelay);
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      if (window.speechSynthesis.getVoices().length > 0) {
+        setTimeout(doGreeting, 300);
+      } else {
+        window.speechSynthesis.onvoiceschanged = () => {
+          setTimeout(doGreeting, 300);
+        };
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep-listening auto-sleep after 3 minutes
+  // Keep-listening auto-sleep
   useEffect(() => {
     if (!keepListening) {
       if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
@@ -409,7 +485,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       ? jarvisSettings.auto_sleep_minutes * 60_000
       : 0;
 
-    if (sleepMs === 0) return; // "Never" mode
+    if (sleepMs === 0) return;
 
     const checkSleep = () => {
       const elapsed = Date.now() - lastInteractionRef.current;
@@ -417,7 +493,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
         setKeepListening(false);
         speech.stopListening();
         if (tts.enabled) {
-          tts.speak("Going to sleep. Click the button when you need me.");
+          tts.speak("Going to sleep. Click the microphone when you need me.");
         }
       } else {
         sleepTimerRef.current = setTimeout(checkSleep, 30_000);
@@ -460,6 +536,22 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     tts.speak(text);
   };
 
+  // Compute visual state
+  const visualState: JarvisVisualState = speech.isListening
+    ? "listening"
+    : isLoading
+    ? "thinking"
+    : tts.isSpeaking
+    ? "speaking"
+    : "idle";
+
+  const statusText: Record<JarvisVisualState, string> = {
+    listening: "Listening…",
+    thinking: "Thinking…",
+    speaking: "Speaking…",
+    idle: "AI CRM Assistant",
+  };
+
   return (
     <div
       className={cn(
@@ -473,8 +565,14 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center relative">
-            <Sparkles className="h-4 w-4 text-primary" />
-            {speech.isListening && (
+            {visualState === "thinking" ? (
+              <Loader2 className="h-4 w-4 text-primary animate-spin" />
+            ) : visualState === "speaking" ? (
+              <Volume2 className="h-4 w-4 text-primary animate-pulse" />
+            ) : (
+              <Sparkles className="h-4 w-4 text-primary" />
+            )}
+            {visualState === "listening" && (
               <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" />
             )}
           </div>
@@ -483,7 +581,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
               {assistantName}
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              {speech.isListening ? "Listening…" : tts.isSpeaking ? "Speaking…" : "AI CRM Assistant"}
+              {statusText[visualState]}
             </p>
           </div>
         </div>
@@ -506,7 +604,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { clearHistory(); hasGreetedRef.current = false; }}>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { clearHistory(); }}>
                 <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
               </Button>
             </TooltipTrigger>
@@ -583,7 +681,6 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
       {/* Keep Listening toggle + Input */}
       <div className="border-t border-border p-3 shrink-0 space-y-2">
-        {/* Keep Listening toggle */}
         {speech.supported && (
           <div className="flex items-center justify-between px-1">
             <label htmlFor="keep-listening" className="text-xs text-muted-foreground cursor-pointer">
@@ -598,13 +695,15 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
                 if (v && !speech.isListening && !isLoading) {
                   speech.startListening();
                 }
+                if (!v) {
+                  speech.stopListening();
+                }
               }}
             />
           </div>
         )}
 
         <div className="flex items-center gap-2">
-          {/* Voice input button */}
           {speech.supported && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -629,7 +728,6 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
                   {speech.isListening ? (
                     <>
                       <MicOff className="h-4 w-4" />
-                      {/* Pulsing ring */}
                       <span className="absolute inset-0 rounded-full border-2 border-destructive animate-ping opacity-30" />
                     </>
                   ) : (

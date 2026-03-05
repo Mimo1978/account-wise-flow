@@ -4,7 +4,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { AdminSettingsPanel } from '@/components/admin/AdminSettingsPanel';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Database } from 'lucide-react';
+import { ArrowLeft, Database, ChevronLeft } from 'lucide-react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -71,9 +71,10 @@ export default function WorkspaceSettings() {
           <Button
             onClick={() => navigate(-1)}
             variant="ghost"
-            className="mb-6"
+            size="sm"
+            className="mb-6 gap-1 text-muted-foreground hover:text-foreground -ml-2"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ChevronLeft className="w-4 h-4" />
             Back
           </Button>
 

@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowLeft,
+  ChevronLeft,
   CheckCircle2,
   XCircle,
   AlertCircle,
@@ -128,8 +129,8 @@ export default function ImportReview() {
       <div className="border-b bg-card/50 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground hover:text-foreground -ml-2">
+              <ChevronLeft className="h-4 w-4" />
               Back
             </Button>
             <Separator orientation="vertical" className="h-6" />

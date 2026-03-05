@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSaveIntegrationKeys, useIntegrationSettings, useIntegrationStatus } from "@/hooks/use-integration-settings";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, Phone, Mic, Bot, CheckCircle2, Eye, EyeOff, ExternalLink, Loader2, ChevronRight, Info, Shield, Zap } from "lucide-react";
+import { Mail, Phone, Mic, Bot, CheckCircle2, Eye, EyeOff, ExternalLink, Loader2, ChevronRight, ChevronLeft, Info, Shield, Zap } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface KeyField {
@@ -357,9 +358,13 @@ function ServiceCardComponent({ card }: { card: ServiceCard }) {
 }
 
 export default function IntegrationsSettings() {
+  const navigate = useNavigate();
   return (
     <div className="space-y-6 p-6 max-w-3xl">
       <div>
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground hover:text-foreground -ml-2 mb-2">
+          <ChevronLeft className="h-4 w-4" /> Back
+        </Button>
         <h1 className="text-2xl font-bold">Integrations & API Keys</h1>
         <p className="text-muted-foreground text-sm mt-1">
           Connect your own service accounts to enable email, SMS, AI calling and the Jarvis assistant. Follow the step-by-step guides below for each service.

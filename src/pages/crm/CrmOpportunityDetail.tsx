@@ -11,7 +11,7 @@ import { useCreateCrmDeal } from "@/hooks/use-crm-deals";
 import { useCreateCrmActivity } from "@/hooks/use-crm-activities";
 import { AddEditOpportunityPanel } from "@/components/crm/AddEditOpportunityPanel";
 import { toast } from "@/hooks/use-toast";
-import { Pencil, ArrowLeft, Loader2, ExternalLink, Handshake } from "lucide-react";
+import { Pencil, ArrowLeft, Loader2, ExternalLink, Handshake, ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
 
 export default function CrmOpportunityDetail() {
@@ -60,8 +60,8 @@ export default function CrmOpportunityDetail() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/crm/pipeline")}>
-          <ArrowLeft className="h-4 w-4" />
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground hover:text-foreground -ml-2">
+          <ChevronLeft className="h-4 w-4" /> Back
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">

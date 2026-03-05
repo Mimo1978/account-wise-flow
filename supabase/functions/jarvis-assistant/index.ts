@@ -8,194 +8,269 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// ---------- Tool definitions for Claude ----------
+// ---------- Tool definitions (OpenAI function-calling format) ----------
 const TOOL_DEFINITIONS = [
   {
-    name: "search_companies",
-    description: "Search CRM companies by name or keyword. Returns id, name, industry, city, country.",
-    input_schema: {
-      type: "object",
-      properties: { query: { type: "string", description: "Search term" } },
-      required: ["query"],
-    },
-  },
-  {
-    name: "search_contacts",
-    description: "Search CRM contacts by name, email, or job title. Optionally filter by company_id.",
-    input_schema: {
-      type: "object",
-      properties: {
-        query: { type: "string" },
-        company_id: { type: "string", description: "Optional company UUID to filter by" },
+    type: "function",
+    function: {
+      name: "search_companies",
+      description: "Search CRM companies by name or keyword. Returns id, name, industry, city, country.",
+      parameters: {
+        type: "object",
+        properties: { query: { type: "string", description: "Search term" } },
+        required: ["query"],
       },
-      required: ["query"],
     },
   },
   {
-    name: "create_company",
-    description: "Create a new company in the CRM.",
-    input_schema: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        website: { type: "string" },
-        industry: { type: "string" },
-        city: { type: "string" },
-        country: { type: "string" },
-      },
-      required: ["name"],
-    },
-  },
-  {
-    name: "create_contact",
-    description: "Create a new contact in the CRM. GDPR consent must be collected.",
-    input_schema: {
-      type: "object",
-      properties: {
-        first_name: { type: "string" },
-        last_name: { type: "string" },
-        email: { type: "string" },
-        company_id: { type: "string" },
-        job_title: { type: "string" },
-        phone: { type: "string" },
-        gdpr_consent: { type: "boolean" },
-        gdpr_consent_method: { type: "string" },
-      },
-      required: ["first_name", "last_name", "email", "company_id", "gdpr_consent"],
-    },
-  },
-  {
-    name: "create_project",
-    description: "Create a new CRM project.",
-    input_schema: {
-      type: "object",
-      properties: {
-        name: { type: "string" },
-        company_id: { type: "string" },
-        project_type: { type: "string" },
-        description: { type: "string" },
-      },
-      required: ["name", "company_id", "project_type"],
-    },
-  },
-  {
-    name: "create_opportunity",
-    description: "Create a new sales opportunity.",
-    input_schema: {
-      type: "object",
-      properties: {
-        title: { type: "string" },
-        company_id: { type: "string" },
-        project_id: { type: "string" },
-        value: { type: "number" },
-        currency: { type: "string" },
-        stage: { type: "string" },
-        expected_close_date: { type: "string" },
-        contact_id: { type: "string" },
-      },
-      required: ["title", "company_id", "value"],
-    },
-  },
-  {
-    name: "update_opportunity_stage",
-    description: "Move an opportunity to a new pipeline stage.",
-    input_schema: {
-      type: "object",
-      properties: {
-        opportunity_id: { type: "string" },
-        new_stage: { type: "string" },
-      },
-      required: ["opportunity_id", "new_stage"],
-    },
-  },
-  {
-    name: "create_deal",
-    description: "Create a deal from a won opportunity.",
-    input_schema: {
-      type: "object",
-      properties: {
-        title: { type: "string" },
-        opportunity_id: { type: "string" },
-        company_id: { type: "string" },
-        value: { type: "number" },
-        signed_date: { type: "string" },
-        payment_terms: { type: "string" },
-      },
-      required: ["title", "company_id", "value"],
-    },
-  },
-  {
-    name: "create_invoice",
-    description: "Create an invoice for a deal. Requires explicit user confirmation.",
-    input_schema: {
-      type: "object",
-      properties: {
-        deal_id: { type: "string" },
-        line_items: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              description: { type: "string" },
-              quantity: { type: "number" },
-              unit_price: { type: "number" },
-              vat_rate: { type: "number" },
-            },
-            required: ["description", "quantity", "unit_price"],
-          },
+    type: "function",
+    function: {
+      name: "search_contacts",
+      description: "Search CRM contacts by name, email, or job title. Optionally filter by company_id.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string" },
+          company_id: { type: "string", description: "Optional company UUID to filter by" },
         },
-        due_date: { type: "string" },
+        required: ["query"],
       },
-      required: ["deal_id", "line_items"],
     },
   },
   {
-    name: "send_email",
-    description: "Send an email to a contact. Requires Resend integration configured.",
-    input_schema: {
-      type: "object",
-      properties: {
-        contact_id: { type: "string" },
-        subject: { type: "string" },
-        body: { type: "string" },
-        template_id: { type: "string" },
+    type: "function",
+    function: {
+      name: "create_company",
+      description: "Create a new company in the CRM.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          website: { type: "string" },
+          industry: { type: "string" },
+          city: { type: "string" },
+          country: { type: "string" },
+        },
+        required: ["name"],
       },
-      required: ["contact_id", "subject", "body"],
     },
   },
   {
-    name: "send_sms",
-    description: "Send an SMS to a contact. Requires Twilio integration configured.",
-    input_schema: {
-      type: "object",
-      properties: {
-        contact_id: { type: "string" },
-        message: { type: "string" },
+    type: "function",
+    function: {
+      name: "create_contact",
+      description: "Create a new contact in the CRM. GDPR consent must be collected.",
+      parameters: {
+        type: "object",
+        properties: {
+          first_name: { type: "string" },
+          last_name: { type: "string" },
+          email: { type: "string" },
+          company_id: { type: "string" },
+          job_title: { type: "string" },
+          phone: { type: "string" },
+          gdpr_consent: { type: "boolean" },
+          gdpr_consent_method: { type: "string" },
+        },
+        required: ["first_name", "last_name", "email", "company_id", "gdpr_consent"],
       },
-      required: ["contact_id", "message"],
     },
   },
   {
-    name: "get_pipeline_summary",
-    description: "Returns pipeline value grouped by stage.",
-    input_schema: { type: "object", properties: {}, required: [] },
-  },
-  {
-    name: "get_contact_activity",
-    description: "Returns last 10 activities for a contact.",
-    input_schema: {
-      type: "object",
-      properties: { contact_id: { type: "string" } },
-      required: ["contact_id"],
+    type: "function",
+    function: {
+      name: "create_project",
+      description: "Create a new CRM project.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          company_id: { type: "string" },
+          project_type: { type: "string" },
+          description: { type: "string" },
+        },
+        required: ["name", "company_id", "project_type"],
+      },
     },
   },
   {
-    name: "get_company_overview",
-    description: "Returns company stats: contacts count, pipeline value, invoiced total.",
-    input_schema: {
-      type: "object",
-      properties: { company_id: { type: "string" } },
-      required: ["company_id"],
+    type: "function",
+    function: {
+      name: "create_opportunity",
+      description: "Create a new sales opportunity.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          company_id: { type: "string" },
+          project_id: { type: "string" },
+          value: { type: "number" },
+          currency: { type: "string" },
+          stage: { type: "string" },
+          expected_close_date: { type: "string" },
+          contact_id: { type: "string" },
+        },
+        required: ["title", "company_id", "value"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_opportunity_stage",
+      description: "Move an opportunity to a new pipeline stage.",
+      parameters: {
+        type: "object",
+        properties: {
+          opportunity_id: { type: "string" },
+          new_stage: { type: "string" },
+        },
+        required: ["opportunity_id", "new_stage"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_deal",
+      description: "Create a deal from a won opportunity.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          opportunity_id: { type: "string" },
+          company_id: { type: "string" },
+          value: { type: "number" },
+          signed_date: { type: "string" },
+          payment_terms: { type: "string" },
+        },
+        required: ["title", "company_id", "value"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_invoice",
+      description: "Create an invoice for a deal. Requires explicit user confirmation.",
+      parameters: {
+        type: "object",
+        properties: {
+          deal_id: { type: "string" },
+          line_items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                description: { type: "string" },
+                quantity: { type: "number" },
+                unit_price: { type: "number" },
+                vat_rate: { type: "number" },
+              },
+              required: ["description", "quantity", "unit_price"],
+            },
+          },
+          due_date: { type: "string" },
+        },
+        required: ["deal_id", "line_items"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "send_email",
+      description: "Send an email to a contact. Requires Resend integration configured.",
+      parameters: {
+        type: "object",
+        properties: {
+          contact_id: { type: "string" },
+          subject: { type: "string" },
+          body: { type: "string" },
+          template_id: { type: "string" },
+        },
+        required: ["contact_id", "subject", "body"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "send_sms",
+      description: "Send an SMS to a contact. Requires Twilio integration configured.",
+      parameters: {
+        type: "object",
+        properties: {
+          contact_id: { type: "string" },
+          message: { type: "string" },
+        },
+        required: ["contact_id", "message"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_pipeline_summary",
+      description: "Returns pipeline value grouped by stage.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_contact_activity",
+      description: "Returns last 10 activities for a contact.",
+      parameters: {
+        type: "object",
+        properties: { contact_id: { type: "string" } },
+        required: ["contact_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_company_overview",
+      description: "Returns company stats: contacts count, pipeline value, invoiced total.",
+      parameters: {
+        type: "object",
+        properties: { company_id: { type: "string" } },
+        required: ["company_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "log_call",
+      description: "Log a call activity with a contact in the CRM.",
+      parameters: {
+        type: "object",
+        properties: {
+          contact_id: { type: "string" },
+          subject: { type: "string", description: "Brief call summary" },
+          body: { type: "string", description: "Detailed notes from the call" },
+          outcome: { type: "string", description: "e.g. positive, neutral, negative, no_answer" },
+          follow_up_action: { type: "string", description: "Next step after the call" },
+        },
+        required: ["contact_id", "subject"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "navigate",
+      description: "Navigate the user to a specific page in the CRM. Returns a URL path for the frontend to navigate to.",
+      parameters: {
+        type: "object",
+        properties: {
+          destination: { type: "string", description: "Where to navigate: companies, contacts, deals, pipeline, invoices, projects, outreach, dashboard, insights" },
+          entity_id: { type: "string", description: "Optional entity ID for detail pages" },
+        },
+        required: ["destination"],
+      },
     },
   },
 ];
@@ -203,12 +278,15 @@ const TOOL_DEFINITIONS = [
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.
 
 Rules:
-- Always confirm what you are about to do before executing any write action
+- Always confirm what you are about to do before executing any write action. Say exactly what you will do and ask "Shall I go ahead?" or "Is that correct?"
 - For destructive or financial actions (creating invoices, closing deals), always ask for explicit confirmation
 - Never reveal raw database IDs to users — use names instead
 - If you are unsure of a field value, ask for it rather than guessing
 - Keep responses concise and professional
-- If a user asks you to do something outside your tools, politely decline`;
+- If a user asks you to do something outside your tools, politely decline
+- When the user confirms (says "yes", "go ahead", "confirm", etc.), proceed with the action immediately
+- When logging calls, search for the contact first to get their ID
+- When asked to navigate, use the navigate tool to provide the correct path`;
 
 // ---------- Tool executors ----------
 async function executeTool(
@@ -335,7 +413,6 @@ async function executeTool(
       return { result: data, entityType: "crm_deals", entityId: data?.id };
     }
     case "create_invoice": {
-      // Get deal to find company_id
       const { data: deal } = await supabaseAdmin
         .from("crm_deals")
         .select("company_id")
@@ -368,7 +445,6 @@ async function executeTool(
         .single();
       if (error) return { result: { error: error.message }, entityType: "crm_invoices" };
 
-      // Insert line items
       if (inv) {
         for (const li of lineItems) {
           await supabaseAdmin.from("crm_invoice_line_items").insert({
@@ -384,7 +460,6 @@ async function executeTool(
       return { result: inv, entityType: "crm_invoices", entityId: inv?.id };
     }
     case "send_email": {
-      // Get contact email
       const { data: contact } = await supabaseAdmin
         .from("crm_contacts")
         .select("email, first_name, company_id")
@@ -392,7 +467,6 @@ async function executeTool(
         .single();
       if (!contact?.email) return { result: { error: "Contact has no email address" }, entityType: "crm_contacts" };
 
-      // Get user's Resend keys
       const { data: keys } = await supabaseAdmin
         .from("integration_settings")
         .select("key_name, key_value")
@@ -415,7 +489,6 @@ async function executeTool(
       });
       if (!res.ok) return { result: { error: `Email send failed: ${res.status}` }, entityType: "email" };
 
-      // Log activity
       await supabaseAdmin.from("crm_activities").insert({
         type: "email",
         direction: "outbound",
@@ -522,6 +595,46 @@ async function executeTool(
         entityId: companyId,
       };
     }
+    case "log_call": {
+      const { data, error } = await supabaseAdmin
+        .from("crm_activities")
+        .insert({
+          type: "call",
+          direction: "outbound",
+          subject: (input.subject as string) || "Call logged",
+          body: (input.body as string) || null,
+          contact_id: input.contact_id as string,
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          created_by: userId,
+        })
+        .select("id")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "crm_activities" };
+      return { result: { success: true, activity_id: data?.id }, entityType: "crm_activities", entityId: data?.id };
+    }
+    case "navigate": {
+      const dest = input.destination as string;
+      const entityId = input.entity_id as string | undefined;
+      const routes: Record<string, string> = {
+        companies: "/crm/companies",
+        contacts: "/crm/contacts",
+        deals: "/crm/deals",
+        pipeline: "/crm/pipeline",
+        invoices: "/crm/invoices",
+        projects: "/crm/projects",
+        outreach: "/outreach",
+        dashboard: "/dashboard",
+        insights: "/executive-insights",
+      };
+      let path = routes[dest] || "/dashboard";
+      if (entityId) {
+        if (dest === "companies") path = `/crm/companies/${entityId}`;
+        else if (dest === "contacts") path = `/crm/contacts/${entityId}`;
+        else if (dest === "deals") path = `/crm/deals/${entityId}`;
+      }
+      return { result: { navigate_to: path }, entityType: "navigation" };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }
@@ -583,7 +696,7 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    // Rate limiting: 60 requests per user per hour
+    // Rate limiting
     const rateCheck = await checkRateLimit(supabaseAdmin, userId, "jarvis-assistant", 60);
     if (!rateCheck.allowed) {
       return new Response(
@@ -591,27 +704,8 @@ serve(async (req) => {
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    // Get Anthropic API key from integration_settings
-    const { data: anthKeys } = await supabaseAdmin
-      .from("integration_settings")
-      .select("key_value")
-      .eq("user_id", userId)
-      .eq("service", "anthropic")
-      .eq("key_name", "ANTHROPIC_API_KEY")
-      .single();
 
-    if (!anthKeys?.key_value) {
-      return new Response(
-        JSON.stringify({
-          error: "integration_not_configured",
-          service: "anthropic",
-          message: "Jarvis is not set up. Go to Settings > Integrations to add your Anthropic API key.",
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const { user_message, conversation_history } = await req.json();
+    const { user_message, conversation_history, user_first_name } = await req.json();
     if (!user_message || typeof user_message !== "string") {
       return new Response(JSON.stringify({ error: "user_message is required" }), {
         status: 400,
@@ -619,69 +713,90 @@ serve(async (req) => {
       });
     }
 
-    // Build messages for Claude
+    // Build messages for Lovable AI (OpenAI format)
+    const systemWithName = user_first_name
+      ? SYSTEM_PROMPT + `\n\nThe user's first name is "${user_first_name}". Use it when greeting them.`
+      : SYSTEM_PROMPT;
+
     const messages = [
+      { role: "system", content: systemWithName },
       ...(conversation_history || []),
       { role: "user", content: user_message },
     ];
 
-    // Initial Claude call
-    let claudeResponse = await callClaude(anthKeys.key_value, messages, SYSTEM_PROMPT);
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
+    if (!lovableApiKey) {
+      return new Response(
+        JSON.stringify({ error: "AI service not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    // Tool use loop (max 5 iterations to prevent infinite loops)
+    // Initial call
+    let aiResponse = await callLovableAI(lovableApiKey, messages);
+
+    // Tool use loop (max 5 iterations)
     let iterations = 0;
-    while (claudeResponse.stop_reason === "tool_use" && iterations < 5) {
-      iterations++;
-      const toolBlocks = claudeResponse.content.filter((b: any) => b.type === "tool_use");
-      const toolResults: any[] = [];
+    let currentMessages = [...messages];
 
-      for (const toolBlock of toolBlocks) {
+    while (aiResponse.choices?.[0]?.finish_reason === "tool_calls" && iterations < 5) {
+      iterations++;
+      const toolCalls = aiResponse.choices[0].message.tool_calls || [];
+
+      // Add assistant message with tool calls
+      currentMessages.push(aiResponse.choices[0].message);
+
+      for (const toolCall of toolCalls) {
+        const toolInput = JSON.parse(toolCall.function.arguments || "{}");
         const { result, entityType, entityId } = await executeTool(
-          toolBlock.name,
-          toolBlock.input,
+          toolCall.function.name,
+          toolInput,
           supabaseAdmin,
           userId
         );
 
-        // Audit log — NO PII, only action name and entity ID
+        // Audit log
         await logAudit(
           supabaseAdmin,
           userId,
-          toolBlock.name,
+          toolCall.function.name,
           entityType,
           entityId || null,
-          `tool:${toolBlock.name}`,
+          `tool:${toolCall.function.name}`,
           entityId ? `entity:${entityId}` : "search_results"
         );
 
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: toolBlock.id,
+        // Add tool result
+        currentMessages.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
           content: JSON.stringify(result),
         });
       }
 
-      // Send tool results back to Claude
-      const updatedMessages = [
-        ...messages,
-        { role: "assistant", content: claudeResponse.content },
-        ...toolResults.map((tr) => ({ role: "user", content: [tr] })),
-      ];
-
-      claudeResponse = await callClaude(anthKeys.key_value, updatedMessages, SYSTEM_PROMPT);
+      aiResponse = await callLovableAI(lovableApiKey, currentMessages);
     }
 
     // Extract text response
-    const textBlocks = claudeResponse.content.filter((b: any) => b.type === "text");
-    const responseText = textBlocks.map((b: any) => b.text).join("\n");
+    const responseText = aiResponse.choices?.[0]?.message?.content || "";
+
+    // Check if there's a navigation action in the response
+    let navigationPath: string | null = null;
+    const toolCalls = aiResponse.choices?.[0]?.message?.tool_calls;
+    if (toolCalls) {
+      for (const tc of toolCalls) {
+        if (tc.function.name === "navigate") {
+          const navInput = JSON.parse(tc.function.arguments || "{}");
+          const navResult = await executeTool("navigate", navInput, supabaseAdmin, userId);
+          navigationPath = (navResult.result as any)?.navigate_to || null;
+        }
+      }
+    }
 
     return new Response(
       JSON.stringify({
         response: responseText,
-        conversation_history: [
-          ...messages,
-          { role: "assistant", content: responseText },
-        ],
+        navigate_to: navigationPath,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -694,22 +809,16 @@ serve(async (req) => {
   }
 });
 
-async function callClaude(
-  apiKey: string,
-  messages: any[],
-  systemPrompt: string
-) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+async function callLovableAI(apiKey: string, messages: any[]) {
+  const res = await fetch("https://api.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
+      Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model: "openai/gpt-5-mini",
       max_tokens: 4096,
-      system: systemPrompt,
       messages,
       tools: TOOL_DEFINITIONS,
     }),
@@ -717,7 +826,7 @@ async function callClaude(
 
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Claude API error ${res.status}: ${errorText}`);
+    throw new Error(`AI API error ${res.status}: ${errorText}`);
   }
 
   return await res.json();

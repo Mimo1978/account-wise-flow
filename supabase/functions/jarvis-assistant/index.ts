@@ -810,15 +810,15 @@ serve(async (req) => {
 });
 
 async function callLovableAI(apiKey: string, messages: any[]) {
-  const res = await fetch("https://api.lovable.dev/v1/chat/completions", {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "openai/gpt-5-mini",
-      max_tokens: 4096,
+      model: "google/gemini-2.5-flash",
+      max_completion_tokens: 4096,
       messages,
       tools: TOOL_DEFINITIONS,
     }),

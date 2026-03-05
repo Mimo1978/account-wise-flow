@@ -24,7 +24,7 @@ export function useJarvis() {
   const { user } = useAuth();
 
   const userFirstName = user?.user_metadata?.first_name || 
-    user?.email?.split("@")[0] || "there";
+    user?.user_metadata?.full_name?.split(" ")[0] || "";
 
   const sendMessage = useCallback(
     async (userMessage: string) => {

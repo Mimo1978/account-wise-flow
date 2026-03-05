@@ -130,8 +130,8 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <WelcomeModal />
         <BrowserRouter>
+          <WelcomeModal />
           <Routes>
             {/* PUBLIC ROUTES */}
             <Route path="/" element={<Index />} />

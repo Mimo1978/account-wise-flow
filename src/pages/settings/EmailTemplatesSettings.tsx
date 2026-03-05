@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useEmailTemplates, useCreateEmailTemplate, useUpdateEmailTemplate, useDeleteEmailTemplate, EmailTemplate } from "@/hooks/use-email-templates";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { toast } from "@/components/ui/sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronLeft } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { TipTapEditor } from "@/components/communications/TipTapEditor";
 
 export default function EmailTemplatesSettings() {
+  const navigate = useNavigate();
   const { data: templates = [], isLoading } = useEmailTemplates();
   const createMut = useCreateEmailTemplate();
   const updateMut = useUpdateEmailTemplate();
@@ -73,6 +75,9 @@ export default function EmailTemplatesSettings() {
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground hover:text-foreground -ml-2 mb-2">
+            <ChevronLeft className="h-4 w-4" /> Back
+          </Button>
           <h1 className="text-2xl font-bold">Email Templates</h1>
           <p className="text-muted-foreground text-sm mt-1">Create reusable email templates with merge tags.</p>
         </div>

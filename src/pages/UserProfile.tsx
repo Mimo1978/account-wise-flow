@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { usePremiumStatus } from '@/hooks/use-premium';
@@ -11,12 +12,14 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { 
   User, Moon, Sun, Shield, Bell, Globe, Key, 
-  Crown, Sparkles, Mail, Building2, Calendar
+  Crown, Sparkles, Mail, Building2, Calendar,
+  ChevronLeft
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from '@/components/ui/sonner';
 
 const UserProfile = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { currentWorkspace } = useWorkspace();
   const { tier, isPremium, isProfessionalOrAbove, isStarterOrAbove } = usePremiumStatus();
@@ -41,6 +44,9 @@ const UserProfile = () => {
   return (
     <div className="container mx-auto px-6 py-8 max-w-4xl">
       <div className="mb-8">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground hover:text-foreground -ml-2 mb-2">
+          <ChevronLeft className="h-4 w-4" /> Back
+        </Button>
         <h1 className="text-2xl font-bold text-foreground">Profile & Settings</h1>
         <p className="text-muted-foreground mt-1">Manage your account, preferences, and subscription</p>
       </div>

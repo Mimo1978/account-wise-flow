@@ -10,7 +10,7 @@ import { useCrmOpportunities } from "@/hooks/use-crm-opportunities";
 import { STAGE_LABELS, STAGE_COLORS } from "@/hooks/use-crm-opportunities";
 import { AddEditProjectPanel } from "@/components/crm/AddEditProjectPanel";
 import { AddEditOpportunityPanel } from "@/components/crm/AddEditOpportunityPanel";
-import { Pencil, Plus, ArrowLeft, Loader2, ExternalLink } from "lucide-react";
+import { Pencil, Plus, ArrowLeft, Loader2, ExternalLink, ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -38,8 +38,8 @@ export default function CrmProjectDetail() {
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/crm/projects")}>
-          <ArrowLeft className="h-4 w-4" />
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground hover:text-foreground -ml-2">
+          <ChevronLeft className="h-4 w-4" /> Back
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/collapsible";
 import {
   ArrowLeft,
+  ChevronLeft,
   Mail,
   Phone,
   MapPin,
@@ -215,10 +216,10 @@ export default function CandidateProfile() {
         <div className="flex items-center gap-4 mb-4">
           <Button variant="ghost" size="sm" onClick={() => {
             if (returnTo === "outreach") navigate(returnCampaignId ? `/outreach?campaignId=${returnCampaignId}` : "/outreach");
-            else navigate("/talent");
-          }}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            {returnTo === "outreach" ? "Back to Outreach" : "Back"}
+            else navigate(-1);
+          }} className="gap-1 text-muted-foreground hover:text-foreground -ml-2">
+            <ChevronLeft className="h-4 w-4" />
+            Back
           </Button>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">

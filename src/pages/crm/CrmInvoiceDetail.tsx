@@ -12,7 +12,7 @@ import { useCrmInvoice, useUpdateCrmInvoice, INVOICE_STATUS_LABELS, INVOICE_STAT
 import { useCrmInvoiceLineItems } from "@/hooks/use-crm-invoice-line-items";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Loader2, Pencil, Download, Send, CheckCircle, XCircle, ExternalLink } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Download, Send, CheckCircle, XCircle, ExternalLink, ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
 
 export default function CrmInvoiceDetail() {
@@ -96,8 +96,8 @@ export default function CrmInvoiceDetail() {
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/crm/invoices")}>
-          <ArrowLeft className="h-4 w-4" />
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground hover:text-foreground -ml-2">
+          <ChevronLeft className="h-4 w-4" /> Back
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">

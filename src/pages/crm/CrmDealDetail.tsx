@@ -11,7 +11,7 @@ import { AddEditDealPanel } from "@/components/crm/AddEditDealPanel";
 import { CrmDocumentUploadModal } from "@/components/crm/CrmDocumentUploadModal";
 import { CreateCrmInvoicePanel } from "@/components/crm/CreateCrmInvoicePanel";
 import { toast } from "@/hooks/use-toast";
-import { Pencil, ArrowLeft, Loader2, ExternalLink, Upload, Send, CheckCircle, FileText, Download, Plus } from "lucide-react";
+import { Pencil, ArrowLeft, Loader2, ExternalLink, Upload, Send, CheckCircle, FileText, Download, Plus, ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -61,8 +61,8 @@ export default function CrmDealDetail() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/crm/deals")}>
-          <ArrowLeft className="h-4 w-4" />
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground hover:text-foreground -ml-2">
+          <ChevronLeft className="h-4 w-4" /> Back
         </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">

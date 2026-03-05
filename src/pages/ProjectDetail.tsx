@@ -26,6 +26,7 @@ import { TargetDetailSheet } from '@/components/outreach/TargetDetailSheet';
 import { DocumentList } from '@/components/documents/DocumentList';
 import {
   ArrowLeft,
+  ChevronLeft,
   Briefcase,
   Loader2,
   Plus,
@@ -723,9 +724,9 @@ const ProjectDetail = () => {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 mb-1" onClick={() => navigate('/projects')}>
-            <ArrowLeft className="w-4 h-4" />
-            Projects
+          <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground -ml-2 mb-1" onClick={() => navigate(-1)}>
+            <ChevronLeft className="w-4 h-4" />
+            Back
           </Button>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">{engagement.name}</h1>
           <div className="flex items-center gap-2 flex-wrap">

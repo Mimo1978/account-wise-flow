@@ -1,10 +1,11 @@
 import { ReactNode } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { usePermissions, AppRole } from '@/hooks/use-permissions';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   LayoutDashboard,
   Shield,
@@ -84,6 +85,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
 
 function AdminBreadcrumb() {
   const location = useLocation();
+  const navigate = useNavigate();
   const path = location.pathname;
   const isOverview = path === '/admin' || path === '/admin/overview';
 
@@ -92,13 +94,25 @@ function AdminBreadcrumb() {
   const pageLabel = BREADCRUMB_LABELS[path] || path.split('/').pop()?.replace(/-/g, ' ') || '';
 
   return (
-    <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mb-4">
-      <Link to="/admin" className="hover:text-foreground transition-colors">
-        Admin Console
-      </Link>
-      <ChevronRight className="w-3 h-3" />
-      <span className="text-foreground font-medium capitalize">{pageLabel}</span>
-    </nav>
+    <div className="flex items-center gap-2 mb-4">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate(-1)}
+        className="gap-1 text-muted-foreground hover:text-foreground -ml-2"
+      >
+        <ChevronLeft className="h-4 w-4" />
+        Back
+      </Button>
+      <span className="text-xs text-muted-foreground">·</span>
+      <nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Link to="/admin" className="hover:text-foreground transition-colors">
+          Admin Console
+        </Link>
+        <ChevronRight className="w-3 h-3" />
+        <span className="text-foreground font-medium capitalize">{pageLabel}</span>
+      </nav>
+    </div>
   );
 }
 

@@ -9,6 +9,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { SearchContextProvider } from "@/contexts/SearchContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { WelcomeModal } from "@/components/auth/WelcomeModal";
 import { ProductLayout } from "@/components/layout/ProductLayout";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { AdminRouteGuard } from "@/components/admin/AdminRouteGuard";
@@ -128,6 +129,7 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <WelcomeModal />
         <BrowserRouter>
           <Routes>
             {/* PUBLIC ROUTES */}

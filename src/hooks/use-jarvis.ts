@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,9 +22,28 @@ export function useJarvis() {
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const { user } = useAuth();
+  const [userFirstName, setUserFirstName] = useState("");
 
-  const userFirstName = user?.user_metadata?.first_name || 
-    user?.user_metadata?.full_name?.split(" ")[0] || "";
+  // Fetch first name from profiles table
+  useEffect(() => {
+    if (!user) return;
+    // Try user_metadata first (instant), then fetch from profiles
+    const metaName = user.user_metadata?.first_name || user.user_metadata?.full_name?.split(" ")[0];
+    if (metaName) {
+      setUserFirstName(metaName);
+      return;
+    }
+    supabase
+      .from("profiles" as any)
+      .select("first_name")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data && (data as any).first_name) {
+          setUserFirstName((data as any).first_name);
+        }
+      });
+  }, [user]);
 
   const sendMessage = useCallback(
     async (userMessage: string) => {

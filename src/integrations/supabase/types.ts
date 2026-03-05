@@ -4826,6 +4826,7 @@ export type Database = {
         }
         Returns: Json
       }
+      lookup_user_id_by_email: { Args: { _email: string }; Returns: string }
       reset_demo_data: { Args: { _user_id: string }; Returns: boolean }
       search_candidates: {
         Args: {

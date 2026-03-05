@@ -158,8 +158,24 @@ export default function AdminAccess() {
   const handleAddUser = async () => {
     if (!currentWorkspace?.id || !newUserId.trim()) return;
     setSaving(true);
+
+    let resolvedUserId = newUserId.trim();
+
+    // If input looks like an email, look up the user ID
+    if (resolvedUserId.includes('@')) {
+      const { data: foundId, error: lookupErr } = await supabase.rpc('lookup_user_id_by_email', {
+        _email: resolvedUserId
+      });
+      if (lookupErr || !foundId) {
+        toast.error('No account found with that email. The user must sign up first.');
+        setSaving(false);
+        return;
+      }
+      resolvedUserId = foundId;
+    }
+
     const { error: insertErr } = await supabase.from('user_roles').insert([{
-      user_id: newUserId.trim(),
+      user_id: resolvedUserId,
       role: newRole as 'admin' | 'manager' | 'contributor' | 'viewer',
       team_id: currentWorkspace.id,
     }]);
@@ -171,7 +187,7 @@ export default function AdminAccess() {
       }
     } else {
       toast.success('User added with role: ' + newRole);
-      await writeAuditLog('role_added', newUserId.trim(), { role: newRole, added_by: currentUserId });
+      await writeAuditLog('role_added', resolvedUserId, { role: newRole, added_by: currentUserId });
       setShowAdd(false);
       setNewUserId('');
       setNewRole('viewer');
@@ -317,18 +333,20 @@ export default function AdminAccess() {
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add User to Workspace</DialogTitle>
-            <DialogDescription>Enter the user's ID and assign their initial role.</DialogDescription>
+            <DialogTitle>Invite User to Workspace</DialogTitle>
+            <DialogDescription>Enter the user's email address and assign their initial role.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>User ID (UUID)</Label>
+              <Label>Email Address</Label>
               <Input
+                type="email"
                 value={newUserId}
                 onChange={(e) => setNewUserId(e.target.value)}
-                placeholder="e.g. a1b2c3d4-e5f6-..."
-                className="font-mono text-sm"
+                placeholder="colleague@company.com"
+                className="text-sm"
               />
+              <p className="text-xs text-muted-foreground mt-1">The user must have an existing account.</p>
             </div>
             <div>
               <Label>Initial Role</Label>

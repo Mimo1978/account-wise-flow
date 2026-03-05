@@ -175,3 +175,17 @@ All colors MUST be HSL.
 .jarvis-pulse-ring {
   animation: jarvis-ring-pulse 2s ease-in-out infinite;
 }
+
+.jarvis-active-ring {
+  box-shadow: 0 0 0 4px hsl(var(--destructive) / 0.3);
+  animation: jarvis-active-pulse 1s ease-in-out infinite;
+}
+
+@keyframes jarvis-active-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 4px hsl(var(--destructive) / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 8px hsl(var(--destructive) / 0.15);
+  }
+}

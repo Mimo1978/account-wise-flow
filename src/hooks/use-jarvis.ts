@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface JarvisMessage {
   role: "user" | "assistant";
@@ -9,6 +10,8 @@ export interface JarvisMessage {
   awaitingConfirmation?: boolean;
   /** Whether this was a successful action result */
   isSuccess?: boolean;
+  /** Navigation path if Jarvis wants to navigate */
+  navigateTo?: string;
 }
 
 const TIMEOUT_MS = 30_000;
@@ -18,6 +21,10 @@ export function useJarvis() {
   const [messages, setMessages] = useState<JarvisMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const { user } = useAuth();
+
+  const userFirstName = user?.user_metadata?.first_name || 
+    user?.email?.split("@")[0] || "there";
 
   const sendMessage = useCallback(
     async (userMessage: string) => {
@@ -25,7 +32,6 @@ export function useJarvis() {
       setMessages((prev) => [...prev, userMsg]);
       setIsLoading(true);
 
-      // Build context — last N messages only, strip UI-only fields
       const contextMessages = [...messages, userMsg]
         .slice(-MAX_CONTEXT_MESSAGES)
         .map((m) => ({ role: m.role, content: m.content }));
@@ -39,7 +45,8 @@ export function useJarvis() {
           {
             body: {
               user_message: userMessage,
-              conversation_history: contextMessages.slice(0, -1), // exclude the just-sent user msg (it's passed as user_message)
+              conversation_history: contextMessages.slice(0, -1),
+              user_first_name: userFirstName,
             },
           }
         );
@@ -48,38 +55,19 @@ export function useJarvis() {
 
         if (error) throw error;
 
-        if (data?.error === "integration_not_configured") {
-          toast.error(
-            data.message ||
-              "Jarvis is not configured. Go to Settings > Integrations."
-          );
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              content:
-                data.message ||
-                "I'm not configured yet. Please add your Anthropic API key in Settings > Integrations.",
-            },
-          ]);
-          return;
-        }
-
         if (data?.error) {
           throw new Error(data.error);
         }
 
         const responseText: string = data.response || "";
 
-        // Detect confirmation patterns from Jarvis
         const isConfirmation =
-          /\b(confirm|shall I|should I|would you like me to|proceed|go ahead)\b/i.test(
+          /\b(confirm|shall I|should I|would you like me to|proceed|go ahead|is that correct)\b/i.test(
             responseText
           );
 
-        // Detect success patterns
         const isSuccess =
-          /\b(created|saved|sent|updated|done|successfully)\b/i.test(
+          /\b(created|saved|sent|updated|done|successfully|added|logged)\b/i.test(
             responseText
           );
 
@@ -90,6 +78,7 @@ export function useJarvis() {
             content: responseText,
             awaitingConfirmation: isConfirmation,
             isSuccess,
+            navigateTo: data.navigate_to || undefined,
           },
         ]);
       } catch (e: any) {
@@ -110,10 +99,10 @@ export function useJarvis() {
         setIsLoading(false);
       }
     },
-    [messages]
+    [messages, userFirstName]
   );
 
   const clearHistory = useCallback(() => setMessages([]), []);
 
-  return { messages, isLoading, sendMessage, clearHistory };
+  return { messages, isLoading, sendMessage, clearHistory, userFirstName };
 }

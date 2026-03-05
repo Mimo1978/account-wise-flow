@@ -231,19 +231,6 @@ export default function OutreachPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* DEV-ONLY diagnostic banner */}
-      {import.meta.env.DEV && (
-        <div className="bg-yellow-100 dark:bg-yellow-900/30 border-b border-yellow-300 dark:border-yellow-700 px-6 py-2 text-xs font-mono text-yellow-900 dark:text-yellow-200 flex flex-wrap gap-x-6 gap-y-1">
-          <span>workspace: {currentWorkspace?.id ?? "none"}</span>
-          <span>user: {user?.id ?? userId ?? "none"}</span>
-          <span>role: {role ?? "loading"}</span>
-          <span>teamId: {teamId ?? "none"}</span>
-          <span>campaigns: {campaignsLoading ? "…" : campaigns.length}</span>
-          <span>targets: {targetsLoading ? "…" : targets.length}</span>
-          <span>scripts: {scriptsLoading ? "…" : scripts.length}</span>
-          <span>source: Supabase (real data)</span>
-        </div>
-      )}
       {/* Header */}
       <div className="border-b border-border/50 bg-background">
         <div className="container mx-auto px-6 py-5">

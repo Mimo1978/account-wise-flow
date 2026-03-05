@@ -2,6 +2,14 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
+
+export interface JarvisAction {
+  tool: string;
+  entityType: string;
+  entityId?: string;
+  success: boolean;
+}
 
 export interface JarvisMessage {
   role: "user" | "assistant";
@@ -12,6 +20,10 @@ export interface JarvisMessage {
   isSuccess?: boolean;
   /** Navigation path if Jarvis wants to navigate */
   navigateTo?: string;
+  /** Actions that were executed by the backend */
+  actionsExecuted?: JarvisAction[];
+  /** Query keys to invalidate in React Query */
+  invalidateQueries?: string[];
 }
 
 const TIMEOUT_MS = 30_000;
@@ -23,11 +35,11 @@ export function useJarvis() {
   const abortRef = useRef<AbortController | null>(null);
   const { user } = useAuth();
   const [userFirstName, setUserFirstName] = useState("");
+  const queryClient = useQueryClient();
 
   // Fetch first name from profiles table
   useEffect(() => {
     if (!user) return;
-    // Try user_metadata first (instant), then fetch from profiles
     const metaName = user.user_metadata?.first_name || user.user_metadata?.full_name?.split(" ")[0];
     if (metaName) {
       setUserFirstName(metaName);
@@ -79,13 +91,27 @@ export function useJarvis() {
         }
 
         const responseText: string = data.response || "";
+        const actionsExecuted: JarvisAction[] = data.actions_executed || [];
+        const invalidateQueryKeys: string[] = data.invalidate_queries || [];
+
+        // Invalidate React Query caches for mutated entities
+        if (invalidateQueryKeys.length > 0) {
+          for (const queryKey of invalidateQueryKeys) {
+            queryClient.invalidateQueries({ queryKey: [queryKey] });
+          }
+          console.log("[Jarvis] Invalidated queries:", invalidateQueryKeys);
+        }
+
+        const hasSuccessfulMutation = actionsExecuted.some(a => a.success);
 
         const isConfirmation =
+          !hasSuccessfulMutation &&
           /\b(confirm|shall I|should I|would you like me to|proceed|go ahead|is that correct)\b/i.test(
             responseText
           );
 
         const isSuccess =
+          hasSuccessfulMutation ||
           /\b(created|saved|sent|updated|done|successfully|added|logged)\b/i.test(
             responseText
           );
@@ -98,8 +124,19 @@ export function useJarvis() {
             awaitingConfirmation: isConfirmation,
             isSuccess,
             navigateTo: data.navigate_to || undefined,
+            actionsExecuted,
+            invalidateQueries: invalidateQueryKeys,
           },
         ]);
+
+        // Show toast for successful mutations
+        if (hasSuccessfulMutation) {
+          const actionNames = actionsExecuted
+            .filter(a => a.success)
+            .map(a => a.tool.replace(/_/g, ' '))
+            .join(', ');
+          toast.success(`Jarvis completed: ${actionNames}`);
+        }
       } catch (e: any) {
         clearTimeout(timeout);
         console.error("Jarvis error:", e);
@@ -118,7 +155,7 @@ export function useJarvis() {
         setIsLoading(false);
       }
     },
-    [messages, userFirstName]
+    [messages, userFirstName, queryClient]
   );
 
   const clearHistory = useCallback(() => setMessages([]), []);

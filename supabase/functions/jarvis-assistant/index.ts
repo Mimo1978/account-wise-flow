@@ -277,16 +277,18 @@ const TOOL_DEFINITIONS = [
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.
 
-Rules:
-- Always confirm what you are about to do before executing any write action. Say exactly what you will do and ask "Shall I go ahead?" or "Is that correct?"
-- For destructive or financial actions (creating invoices, closing deals), always ask for explicit confirmation
-- Never reveal raw database IDs to users — use names instead
-- If you are unsure of a field value, ask for it rather than guessing
-- Keep responses concise and professional
-- If a user asks you to do something outside your tools, politely decline
-- When the user confirms (says "yes", "go ahead", "confirm", etc.), proceed with the action immediately
-- When logging calls, search for the contact first to get their ID
-- When asked to navigate, use the navigate tool to provide the correct path`;
+CRITICAL RULES — YOU MUST FOLLOW THESE:
+1. CONFIRMATION FLOW: For any CREATE, UPDATE, or DELETE action, FIRST state what you will do and ask "Shall I go ahead?". Example: "I'll create a company called Memo B. Shall I go ahead?"
+2. WHEN USER CONFIRMS: When the user says "yes", "go ahead", "confirm", "do it", "sure", "yep", or similar — you MUST IMMEDIATELY call the appropriate tool function. Do NOT just say you did it — actually call the tool. The tool will execute the database operation.
+3. DIRECT MODE: If the user provides enough information in a single request (e.g. "Create a company called Memo B"), confirm first, then execute when they say yes.
+4. GUIDED MODE: If the user's request is missing required fields (e.g. "Add a new contact" without name/email), ask for the missing information before confirming.
+5. TOOL USAGE: You MUST use the provided tool functions for ALL actions. Never pretend to do something without calling a tool. If you say "Done" or "Created", a tool MUST have been called.
+6. Never reveal raw database IDs to users — use names instead.
+7. Keep responses concise and professional.
+8. When logging calls, search for the contact first to get their ID.
+9. When asked to navigate, use the navigate tool immediately.
+10. For search queries, call the search tool and present results in a readable format.
+11. If a user asks you to do something outside your tools, politely decline.`;
 
 // ---------- Tool executors ----------
 async function executeTool(
@@ -626,6 +628,7 @@ async function executeTool(
         outreach: "/outreach",
         dashboard: "/dashboard",
         insights: "/executive-insights",
+        talent: "/talent",
       };
       let path = routes[dest] || "/dashboard";
       if (entityId) {
@@ -633,7 +636,7 @@ async function executeTool(
         else if (dest === "contacts") path = `/crm/contacts/${entityId}`;
         else if (dest === "deals") path = `/crm/deals/${entityId}`;
       }
-      return { result: { navigate_to: path }, entityType: "navigation" };
+      return { result: { navigate_to: path }, entityType: "navigation", entityId: path };
     }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
@@ -738,6 +741,7 @@ serve(async (req) => {
     // Tool use loop (max 5 iterations)
     let iterations = 0;
     let currentMessages = [...messages];
+    const actionsExecuted: Array<{ tool: string; entityType: string; entityId?: string; success: boolean }> = [];
 
     while (aiResponse.choices?.[0]?.finish_reason === "tool_calls" && iterations < 5) {
       iterations++;
@@ -755,6 +759,16 @@ serve(async (req) => {
           userId
         );
 
+        const hasError = result && typeof result === "object" && "error" in (result as any);
+
+        // Track executed actions
+        actionsExecuted.push({
+          tool: toolCall.function.name,
+          entityType,
+          entityId: entityId || undefined,
+          success: !hasError,
+        });
+
         // Audit log
         await logAudit(
           supabaseAdmin,
@@ -763,7 +777,7 @@ serve(async (req) => {
           entityType,
           entityId || null,
           `tool:${toolCall.function.name}`,
-          entityId ? `entity:${entityId}` : "search_results"
+          hasError ? `error:${(result as any).error}` : entityId ? `entity:${entityId}` : "search_results"
         );
 
         // Add tool result
@@ -777,18 +791,81 @@ serve(async (req) => {
       aiResponse = await callLovableAI(lovableApiKey, currentMessages);
     }
 
+    // Also handle tool_calls in the final response (not just finish_reason loop)
+    const finalToolCalls = aiResponse.choices?.[0]?.message?.tool_calls;
+    if (finalToolCalls && finalToolCalls.length > 0) {
+      currentMessages.push(aiResponse.choices[0].message);
+      
+      for (const toolCall of finalToolCalls) {
+        const toolInput = JSON.parse(toolCall.function.arguments || "{}");
+        const { result, entityType, entityId } = await executeTool(
+          toolCall.function.name,
+          toolInput,
+          supabaseAdmin,
+          userId
+        );
+
+        const hasError = result && typeof result === "object" && "error" in (result as any);
+        actionsExecuted.push({
+          tool: toolCall.function.name,
+          entityType,
+          entityId: entityId || undefined,
+          success: !hasError,
+        });
+
+        await logAudit(
+          supabaseAdmin,
+          userId,
+          toolCall.function.name,
+          entityType,
+          entityId || null,
+          `tool:${toolCall.function.name}`,
+          hasError ? `error:${(result as any).error}` : entityId ? `entity:${entityId}` : "search_results"
+        );
+
+        currentMessages.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(result),
+        });
+      }
+
+      // Get final text response after executing remaining tools
+      aiResponse = await callLovableAI(lovableApiKey, currentMessages);
+    }
+
     // Extract text response
     const responseText = aiResponse.choices?.[0]?.message?.content || "";
 
-    // Check if there's a navigation action in the response
+    // Extract navigation from executed actions
     let navigationPath: string | null = null;
-    const toolCalls = aiResponse.choices?.[0]?.message?.tool_calls;
-    if (toolCalls) {
-      for (const tc of toolCalls) {
-        if (tc.function.name === "navigate") {
-          const navInput = JSON.parse(tc.function.arguments || "{}");
-          const navResult = await executeTool("navigate", navInput, supabaseAdmin, userId);
-          navigationPath = (navResult.result as any)?.navigate_to || null;
+    for (const action of actionsExecuted) {
+      if (action.tool === "navigate" && action.entityType === "navigation") {
+        // Re-derive the path from the action
+        navigationPath = action.entityId || null;
+      }
+    }
+
+    // Build invalidation list for frontend cache
+    const invalidateQueries: string[] = [];
+    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms"]);
+    const entityQueryMap: Record<string, string[]> = {
+      crm_companies: ["crm_companies"],
+      crm_contacts: ["crm_contacts"],
+      crm_projects: ["crm_projects"],
+      crm_opportunities: ["crm_opportunities"],
+      crm_deals: ["crm_deals"],
+      crm_invoices: ["crm_invoices"],
+      crm_activities: ["crm_activities"],
+      email: ["crm_activities"],
+      sms: ["crm_activities"],
+    };
+
+    for (const action of actionsExecuted) {
+      if (mutationTools.has(action.tool) && action.success) {
+        const queries = entityQueryMap[action.entityType] || [];
+        for (const q of queries) {
+          if (!invalidateQueries.includes(q)) invalidateQueries.push(q);
         }
       }
     }
@@ -797,6 +874,8 @@ serve(async (req) => {
       JSON.stringify({
         response: responseText,
         navigate_to: navigationPath,
+        actions_executed: actionsExecuted.filter(a => mutationTools.has(a.tool)),
+        invalidate_queries: invalidateQueries,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

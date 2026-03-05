@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,41 @@ import {
 } from 'lucide-react';
 import { useRevenueIntelligence, type CompanyRiskProfile, type RevenueIntelligenceData, type SalesMomentum } from '@/hooks/use-revenue-intelligence';
 
+// ── Lazy Section (Intersection Observer) ──
+
+function LazySection({ children, height = 300 }: { children: React.ReactNode; height?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  if (!visible) {
+    return (
+      <div ref={ref} style={{ minHeight: height }} className="space-y-4">
+        <Skeleton className="h-6 w-48 rounded-md" />
+        <Skeleton className="h-40 w-full rounded-xl" />
+        <Skeleton className="h-24 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  return <div ref={ref}>{children}</div>;
+}
+
 // ── Page ──
 
 const ExecutiveInsights = () => {
@@ -65,7 +100,7 @@ const ExecutiveInsights = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* ── Main Content ── */}
           <div className="lg:col-span-3 space-y-8">
-            {/* §1 Revenue Risk Snapshot */}
+            {/* §1 Revenue Risk Snapshot — loads immediately */}
             <RevenueRiskSnapshot
               atRiskCount={atRiskCount}
               singleThreadedCount={singleThreadedCount}
@@ -74,30 +109,40 @@ const ExecutiveInsights = () => {
               riskSummary={riskSummary}
             />
 
-            {/* §2 Relationship Strength Index */}
-            <RelationshipStrengthIndex
-              avgRsi={avgRsi}
-              distribution={rsiDistribution}
-              companies={companies}
-            />
+            {/* §2 Relationship Strength Index — lazy */}
+            <LazySection height={420}>
+              <RelationshipStrengthIndex
+                avgRsi={avgRsi}
+                distribution={rsiDistribution}
+                companies={companies}
+              />
+            </LazySection>
 
-            {/* §3 Pipeline Acceleration Signals */}
-            <PipelineAcceleration pipeline={pipeline} />
+            {/* §3 Pipeline Acceleration Signals — lazy */}
+            <LazySection height={280}>
+              <PipelineAcceleration pipeline={pipeline} />
+            </LazySection>
 
-            {/* §3b Analytics Charts */}
-            {!chartsLoading && (
-              <>
-                <PipelineByStageChart data={pipelineByStage} />
-                <InvoicesByWeekChart data={invoiceWeeks} />
-                <OutreachOutcomesChart data={outreachOutcomes} />
-              </>
-            )}
+            {/* §3b Analytics Charts — lazy */}
+            <LazySection height={350}>
+              {!chartsLoading && (
+                <>
+                  <PipelineByStageChart data={pipelineByStage} />
+                  <InvoicesByWeekChart data={invoiceWeeks} />
+                  <OutreachOutcomesChart data={outreachOutcomes} />
+                </>
+              )}
+            </LazySection>
 
-            {/* §4 Sales Momentum */}
-            <SalesMomentumSection momentum={salesMomentum} />
+            {/* §4 Sales Momentum — lazy */}
+            <LazySection height={320}>
+              <SalesMomentumSection momentum={salesMomentum} />
+            </LazySection>
 
-            {/* §5 Org Penetration Analytics */}
-            <OrgPenetrationHeatmap companies={companies} />
+            {/* §5 Org Penetration Analytics — lazy */}
+            <LazySection height={400}>
+              <OrgPenetrationHeatmap companies={companies} />
+            </LazySection>
           </div>
 
           {/* ── Action Panel (sticky) ── */}

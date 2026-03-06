@@ -123,7 +123,7 @@ export default function CrmDocumentsPage() {
                 <TableCell><Badge variant="outline">{DOC_TYPE_LABELS[doc.type]}</Badge></TableCell>
                 <TableCell>
                   {doc.crm_companies ? (
-                    <span className="text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/companies/${doc.crm_companies!.id}`)}>
+                    <span className="text-primary cursor-pointer hover:underline" onClick={() => navigate(`/companies/${doc.crm_companies!.id}`)}>
                       {doc.crm_companies.name}
                     </span>
                   ) : "—"}

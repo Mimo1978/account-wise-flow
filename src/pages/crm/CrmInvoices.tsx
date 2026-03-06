@@ -131,7 +131,7 @@ export default function CrmInvoicesPage() {
                   <TableCell className="font-medium text-primary">{inv.invoice_number || "—"}</TableCell>
                   <TableCell>
                     {inv.crm_companies ? (
-                      <span className="text-primary cursor-pointer hover:underline" onClick={e => { e.stopPropagation(); navigate(`/crm/companies/${inv.crm_companies!.id}`); }}>
+                      <span className="text-primary cursor-pointer hover:underline" onClick={e => { e.stopPropagation(); navigate(`/companies/${inv.crm_companies!.id}`); }}>
                         {inv.crm_companies.name}
                       </span>
                     ) : "—"}

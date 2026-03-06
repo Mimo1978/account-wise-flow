@@ -71,7 +71,7 @@ export default function CrmDealDetail() {
             <span className="text-lg font-semibold text-foreground">{currencySymbol}{deal.value.toLocaleString()}</span>
           </div>
           {deal.crm_companies && (
-            <span className="text-sm text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/companies/${deal.crm_companies!.id}`)}>
+            <span className="text-sm text-primary cursor-pointer hover:underline" onClick={() => navigate(`/companies/${deal.crm_companies!.id}`)}>
               {deal.crm_companies.name} <ExternalLink className="inline h-3 w-3" />
             </span>
           )}

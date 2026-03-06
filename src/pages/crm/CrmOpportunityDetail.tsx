@@ -70,7 +70,7 @@ export default function CrmOpportunityDetail() {
             <span className="text-lg font-semibold text-foreground">{currencySymbol}{opp.value.toLocaleString()}</span>
           </div>
           {opp.crm_companies && (
-            <span className="text-sm text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/companies/${opp.crm_companies!.id}`)}>
+            <span className="text-sm text-primary cursor-pointer hover:underline" onClick={() => navigate(`/companies/${opp.crm_companies!.id}`)}>
               {opp.crm_companies.name} <ExternalLink className="inline h-3 w-3" />
             </span>
           )}

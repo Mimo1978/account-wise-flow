@@ -48,7 +48,7 @@ export default function CrmProjectDetail() {
             {project.project_type && <Badge variant="outline" className="capitalize">{project.project_type}</Badge>}
           </div>
           {project.crm_companies && (
-            <span className="text-sm text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/companies/${project.crm_companies!.id}`)}>
+            <span className="text-sm text-primary cursor-pointer hover:underline" onClick={() => navigate(`/companies/${project.crm_companies!.id}`)}>
               {project.crm_companies.name} <ExternalLink className="inline h-3 w-3" />
             </span>
           )}

@@ -318,20 +318,24 @@ async function executeTool(
       return { result: data ?? [], entityType: "crm_contacts" };
     }
     case "create_company": {
+      // Build headquarters string from city/country
+      const city = (input.city as string) || null;
+      const country = (input.country as string) || null;
+      const headquarters = [city, country].filter(Boolean).join(", ") || null;
+
       const { data, error } = await supabaseAdmin
-        .from("crm_companies")
+        .from("companies")
         .insert({
           name: input.name as string,
           website: (input.website as string) || null,
           industry: (input.industry as string) || null,
-          city: (input.city as string) || null,
-          country: (input.country as string) || null,
-          created_by: userId,
+          headquarters,
+          owner_id: userId,
         })
         .select("id, name")
         .single();
-      if (error) return { result: { error: error.message }, entityType: "crm_companies" };
-      return { result: { ...data, navigate_to: "/crm/companies" }, entityType: "crm_companies", entityId: data?.id };
+      if (error) return { result: { error: error.message }, entityType: "companies" };
+      return { result: { ...data, navigate_to: "/companies" }, entityType: "companies", entityId: data?.id };
     }
     case "create_contact": {
       const { data, error } = await supabaseAdmin
@@ -619,7 +623,7 @@ async function executeTool(
       const dest = input.destination as string;
       const entityId = input.entity_id as string | undefined;
       const routes: Record<string, string> = {
-        companies: "/crm/companies",
+        companies: "/companies",
         contacts: "/crm/contacts",
         deals: "/crm/deals",
         pipeline: "/crm/pipeline",
@@ -632,7 +636,7 @@ async function executeTool(
       };
       let path = routes[dest] || "/dashboard";
       if (entityId) {
-        if (dest === "companies") path = `/crm/companies/${entityId}`;
+        if (dest === "companies") path = `/companies/${entityId}`;
         else if (dest === "contacts") path = `/crm/contacts/${entityId}`;
         else if (dest === "deals") path = `/crm/deals/${entityId}`;
       }

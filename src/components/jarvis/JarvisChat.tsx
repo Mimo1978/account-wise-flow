@@ -26,6 +26,7 @@ import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useJarvisNavigation } from "@/hooks/use-jarvis-navigation";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                   */

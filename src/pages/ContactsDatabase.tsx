@@ -524,6 +524,7 @@ export default function ContactsDatabase() {
                       size="sm"
                       onClick={() => setShowAddContactModal(true)}
                       disabled={!canInsert}
+                      data-jarvis-id="add-contact-button"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Contact
@@ -541,7 +542,7 @@ export default function ContactsDatabase() {
                   <span className="inline-flex">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" className="gap-2" disabled={!canInsert}>
+                        <Button variant="outline" size="sm" className="gap-2" disabled={!canInsert} data-jarvis-id="import-button">
                           <Upload className="h-4 w-4" />
                           Import
                           <ChevronDown className="h-3 w-3" />

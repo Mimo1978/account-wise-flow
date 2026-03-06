@@ -719,7 +719,7 @@ const HomeCommandCenter = () => {
                 Run due invoices
               </Button>
             )}
-            <Button size="sm" className="gap-1.5" onClick={() => setInvoiceOpen(true)}>
+            <Button size="sm" className="gap-1.5" onClick={() => setInvoiceOpen(true)} data-jarvis-id="create-invoice-button">
               <Plus className="w-3.5 h-3.5" />
               Create Invoice
             </Button>
@@ -995,7 +995,7 @@ const HomeCommandCenter = () => {
             <div className="text-xs text-muted-foreground">
               Total: £{totalPipelineValue.toLocaleString()} · Weighted: £{weightedPipelineValue.toLocaleString()} · 30d forecast: £{next30Forecast.toLocaleString()}
             </div>
-            <Button size="sm" className="gap-1.5" onClick={() => setDealOpen(true)}>
+            <Button size="sm" className="gap-1.5" onClick={() => setDealOpen(true)} data-jarvis-id="add-deal-button">
               <Plus className="w-3.5 h-3.5" />
               Create Deal
             </Button>

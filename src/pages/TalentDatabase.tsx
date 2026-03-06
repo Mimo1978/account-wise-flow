@@ -892,6 +892,7 @@ export default function TalentDatabase() {
                       size="sm" 
                       onClick={handleAddTalent}
                       disabled={!canInsert}
+                      data-jarvis-id="add-candidate-button"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       + Add Candidate

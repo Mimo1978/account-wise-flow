@@ -60,14 +60,16 @@ function showTooltip(el: HTMLElement, label: string) {
   setTimeout(() => tip.remove(), 4000);
 }
 
-/** Find a DOM element by id with retries (for post-navigation render) */
+/** Find a DOM element by data-jarvis-id with retries (for post-navigation render) */
 function findElement(
   targetId: string,
   maxRetries: number,
   onFound: (el: HTMLElement) => void
 ) {
   const attempt = (retries: number) => {
-    const el = document.getElementById(targetId);
+    const el =
+      document.querySelector<HTMLElement>(`[data-jarvis-id="${targetId}"]`) ||
+      document.getElementById(targetId);
     if (el) {
       onFound(el);
     } else if (retries > 0) {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Pencil, Globe, Building2, MapPin, Phone, StickyNote, ChevronLeft } from "lucide-react";
+import { ArrowLeft, Pencil, Globe, Building2, MapPin, Phone, StickyNote, ChevronLeft, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,16 +47,16 @@ export default function CrmCompanyDetail() {
         </Button>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — always render ALL tabs */}
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
-          <TabsTrigger value="projects">Projects</TabsTrigger>
-          <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
           <TabsTrigger value="deals">Deals</TabsTrigger>
+          <TabsTrigger value="projects">Projects</TabsTrigger>
           <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="canvas">Canvas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 mt-4">
@@ -153,15 +153,55 @@ export default function CrmCompanyDetail() {
           </div>
         </TabsContent>
 
-        {["projects", "opportunities", "deals", "documents", "activity"].map(tab => (
-          <TabsContent key={tab} value={tab} className="mt-4">
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                {tab.charAt(0).toUpperCase() + tab.slice(1)} module coming soon.
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
+        {/* Deals tab */}
+        <TabsContent value="deals" className="mt-4">
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              Deals module coming soon.
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Projects tab */}
+        <TabsContent value="projects" className="mt-4">
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              Projects module coming soon.
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Documents tab */}
+        <TabsContent value="documents" className="mt-4">
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              Documents module coming soon.
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Activity tab */}
+        <TabsContent value="activity" className="mt-4">
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              Activity module coming soon.
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Canvas tab — opens Canvas with this company pre-loaded */}
+        <TabsContent value="canvas" className="mt-4">
+          <Card>
+            <CardContent className="py-12 text-center space-y-4">
+              <Network className="h-12 w-12 text-muted-foreground mx-auto" />
+              <p className="text-muted-foreground">View {company.name}'s org chart and relationship map on the Canvas.</p>
+              <Button onClick={() => navigate(`/canvas?company=${id}`)} className="gap-2">
+                <Network className="h-4 w-4" />
+                Open on Canvas
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <AddEditCompanyPanel open={editOpen} onOpenChange={setEditOpen} company={company} />

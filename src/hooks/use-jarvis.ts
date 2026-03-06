@@ -14,20 +14,37 @@ export interface JarvisAction {
 export interface JarvisMessage {
   role: "user" | "assistant";
   content: string;
-  /** If true, Jarvis is asking user to confirm an action */
   awaitingConfirmation?: boolean;
-  /** Whether this was a successful action result */
   isSuccess?: boolean;
-  /** Navigation path if Jarvis wants to navigate */
   navigateTo?: string;
-  /** Actions that were executed by the backend */
   actionsExecuted?: JarvisAction[];
-  /** Query keys to invalidate in React Query */
   invalidateQueries?: string[];
 }
 
 const TIMEOUT_MS = 30_000;
 const MAX_CONTEXT_MESSAGES = 20;
+
+/** Strip UUIDs (8-4-4-4-12 hex format) and long numeric IDs from Jarvis responses */
+function stripIds(text: string): string {
+  // Remove UUIDs
+  let cleaned = text.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '');
+  // Remove orphaned labels like "record number ", "ID: ", "id: " left behind
+  cleaned = cleaned.replace(/\b(record\s*(number|id)|ID)\s*[:=]?\s*,?\s*/gi, '');
+  // Clean up extra whitespace and trailing commas/periods from removal
+  cleaned = cleaned.replace(/\s{2,}/g, ' ').replace(/\s+([.,])/g, '$1').trim();
+  return cleaned;
+}
+
+/** Map of entity types to all React Query keys that should be invalidated */
+const ENTITY_QUERY_KEY_MAP: Record<string, string[]> = {
+  crm_companies: ['crm_companies', 'companies', 'canvas-companies'],
+  crm_contacts: ['crm_contacts', 'crm-contacts'],
+  crm_deals: ['crm_deals'],
+  crm_opportunities: ['crm_opportunities'],
+  crm_projects: ['crm_projects'],
+  crm_invoices: ['crm_invoices'],
+  crm_activities: ['crm_activities'],
+};
 
 export function useJarvis() {
   const [messages, setMessages] = useState<JarvisMessage[]>([]);
@@ -37,7 +54,6 @@ export function useJarvis() {
   const [userFirstName, setUserFirstName] = useState("");
   const queryClient = useQueryClient();
 
-  // Fetch first name from profiles table
   useEffect(() => {
     if (!user) return;
     const metaName = user.user_metadata?.first_name || user.user_metadata?.full_name?.split(" ")[0];
@@ -85,21 +101,39 @@ export function useJarvis() {
         clearTimeout(timeout);
 
         if (error) throw error;
+        if (data?.error) throw new Error(data.error);
 
-        if (data?.error) {
-          throw new Error(data.error);
-        }
-
-        const responseText: string = data.response || "";
+        // Strip UUIDs from the response text
+        const responseText: string = stripIds(data.response || "");
         const actionsExecuted: JarvisAction[] = data.actions_executed || [];
         const invalidateQueryKeys: string[] = data.invalidate_queries || [];
 
-        // Invalidate React Query caches for mutated entities
-        if (invalidateQueryKeys.length > 0) {
-          for (const queryKey of invalidateQueryKeys) {
-            queryClient.invalidateQueries({ queryKey: [queryKey] });
+        // Invalidate React Query caches — expand entity types to all relevant query keys
+        const allKeysToInvalidate = new Set<string>();
+        for (const queryKey of invalidateQueryKeys) {
+          const mapped = ENTITY_QUERY_KEY_MAP[queryKey];
+          if (mapped) {
+            mapped.forEach(k => allKeysToInvalidate.add(k));
+          } else {
+            allKeysToInvalidate.add(queryKey);
           }
-          console.log("[Jarvis] Invalidated queries:", invalidateQueryKeys);
+        }
+
+        // Also derive from actionsExecuted for comprehensive invalidation
+        for (const action of actionsExecuted) {
+          if (action.success && action.entityType) {
+            const mapped = ENTITY_QUERY_KEY_MAP[action.entityType];
+            if (mapped) {
+              mapped.forEach(k => allKeysToInvalidate.add(k));
+            }
+          }
+        }
+
+        if (allKeysToInvalidate.size > 0) {
+          for (const key of allKeysToInvalidate) {
+            queryClient.invalidateQueries({ queryKey: [key] });
+          }
+          console.log("[Jarvis] Invalidated queries:", Array.from(allKeysToInvalidate));
         }
 
         const hasSuccessfulMutation = actionsExecuted.some(a => a.success);
@@ -129,7 +163,6 @@ export function useJarvis() {
           },
         ]);
 
-        // Show toast for successful mutations
         if (hasSuccessfulMutation) {
           const actionNames = actionsExecuted
             .filter(a => a.success)

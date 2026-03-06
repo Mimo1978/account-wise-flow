@@ -631,6 +631,31 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
+    const lower = trimmed.toLowerCase();
+
+    // Intercept tour control commands from text input
+    if (jarvisNav.tourState.status === "running" || jarvisNav.tourState.status === "paused") {
+      if (/^(stop|cancel|quit|end tour)$/i.test(lower)) {
+        setInput("");
+        jarvisNav.stopTour();
+        return;
+      }
+      if (/^(pause|wait|hold on)$/i.test(lower)) {
+        setInput("");
+        jarvisNav.pauseTour();
+        return;
+      }
+      if (/^(next|skip|continue|go on|resume)$/i.test(lower)) {
+        setInput("");
+        if (jarvisNav.tourState.status === "paused") {
+          jarvisNav.resumeTour();
+        } else {
+          jarvisNav.skipTourStep();
+        }
+        return;
+      }
+    }
+
     setInput("");
     speech.stopListening();
     conversationActiveRef.current = true;
@@ -814,6 +839,15 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
           )}
         </div>
       </ScrollArea>
+
+      {/* Guided Tour Player */}
+      <GuidedTourPlayer
+        tour={jarvisNav.tourState}
+        onPause={jarvisNav.pauseTour}
+        onResume={jarvisNav.resumeTour}
+        onSkip={jarvisNav.skipTourStep}
+        onStop={jarvisNav.stopTour}
+      />
 
       {/* Keep Listening toggle + Input */}
       <div className="border-t border-border p-3 shrink-0 space-y-2">

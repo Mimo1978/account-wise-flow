@@ -273,6 +273,7 @@ export default function OutreachPage() {
                 onClick={() => setCreateCampaignOpen(true)}
                 disabled={isReadOnly}
                 title={isReadOnly ? "Viewers have read-only access" : undefined}
+                data-jarvis-id="new-campaign-button"
               >
                 <Plus className="w-4 h-4" />
                 New Campaign

@@ -274,6 +274,7 @@ export default function CompaniesDatabase() {
                       size="sm"
                       onClick={handleAddCompany}
                       disabled={!canInsert}
+                      data-jarvis-id="add-company-button"
                     >
                       <Plus className="h-4 w-4 mr-2" />
                       Add Company

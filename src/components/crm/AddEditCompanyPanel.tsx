@@ -111,7 +111,7 @@ export function AddEditCompanyPanel({ open, onOpenChange, company }: Props) {
         <div className="space-y-4 py-4">
           <div>
             <Label htmlFor="name">Company Name *</Label>
-            <Input id="name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            <Input id="name" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} data-jarvis-id="company-name-input" />
             {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
           </div>
 
@@ -178,13 +178,13 @@ export function AddEditCompanyPanel({ open, onOpenChange, company }: Props) {
 
           <div>
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" rows={4} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+            <Textarea id="notes" rows={4} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} data-jarvis-id="notes-input" />
           </div>
         </div>
 
         <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isPending}>
+          <Button onClick={handleSave} disabled={isPending} data-jarvis-id="save-button">
             {isPending ? "Saving…" : isEdit ? "Update" : "Create Company"}
           </Button>
         </SheetFooter>

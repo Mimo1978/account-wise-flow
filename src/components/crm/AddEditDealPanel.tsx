@@ -147,7 +147,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         <div className="space-y-4 py-4">
           <div>
             <Label>Title *</Label>
-            <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+            <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} data-jarvis-id="deal-title-input" />
             {errors.title && <p className="text-xs text-destructive mt-1">{errors.title}</p>}
           </div>
 
@@ -176,7 +176,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Value *</Label>
-              <Input type="number" min="0" step="0.01" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} />
+              <Input type="number" min="0" step="0.01" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} data-jarvis-id="deal-value-input" />
               {errors.value && <p className="text-xs text-destructive mt-1">{errors.value}</p>}
             </div>
             <div>
@@ -222,7 +222,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
           <div>
             <Label>Status</Label>
             <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger data-jarvis-id="deal-stage-select"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-popover z-[9999]">
                 {STATUSES.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
               </SelectContent>
@@ -231,13 +231,13 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
 
           <div>
             <Label>Notes</Label>
-            <Textarea rows={3} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+            <Textarea rows={3} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} data-jarvis-id="notes-input" />
           </div>
         </div>
 
         <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isPending}>
+          <Button onClick={handleSave} disabled={isPending} data-jarvis-id="save-button">
             {isPending ? "Saving…" : isEdit ? "Update" : "Create Deal"}
           </Button>
         </SheetFooter>

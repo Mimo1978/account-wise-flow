@@ -132,7 +132,7 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>First Name *</Label>
-              <Input value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} />
+              <Input value={form.first_name} onChange={e => setForm(f => ({ ...f, first_name: e.target.value }))} data-jarvis-id="contact-first-name-input" />
               {errors.first_name && <p className="text-xs text-destructive mt-1">{errors.first_name}</p>}
             </div>
             <div>
@@ -144,8 +144,8 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
 
           <div>
             <Label>Company *</Label>
-            <Select value={form.company_id} onValueChange={v => setForm(f => ({ ...f, company_id: v }))}>
-              <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+            <Select value={form.company_id} onValueChange={v => setForm(f => ({ ...f, company_id: v }))} data-jarvis-id="contact-company-select">
+              <SelectTrigger data-jarvis-id="contact-company-select"><SelectValue placeholder="Select company" /></SelectTrigger>
               <SelectContent className="bg-popover z-[9999]">
                 <div className="p-2">
                   <Input
@@ -173,7 +173,7 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
 
           <div>
             <Label>Email *</Label>
-            <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+            <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} data-jarvis-id="contact-email-input" />
             {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
           </div>
 
@@ -205,7 +205,7 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
 
           <div>
             <Label>Notes</Label>
-            <Textarea rows={3} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+            <Textarea rows={3} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} data-jarvis-id="notes-input" />
           </div>
 
           <Separator />
@@ -257,7 +257,7 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
 
         <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isPending}>
+          <Button onClick={handleSave} disabled={isPending} data-jarvis-id="save-button">
             {isPending ? "Saving…" : isEdit ? "Update" : "Create Contact"}
           </Button>
         </SheetFooter>

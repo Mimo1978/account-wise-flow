@@ -55,14 +55,14 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const showAdminNav = !permLoading && (isAdmin || isManager);
 
   const navItems = [
-    { path: '/home', label: 'Home', icon: Home },
-    { path: '/projects', label: 'Projects', icon: Briefcase },
-    { path: '/canvas', label: 'Canvas', icon: LayoutDashboard },
-    { path: '/companies', label: 'Companies', icon: Building2 },
-    { path: '/contacts', label: 'Contacts', icon: Users },
-    { path: '/talent', label: 'Talent', icon: Database },
-    { path: '/outreach', label: 'Outreach', icon: Megaphone },
-    { path: '/insights', label: 'Insights', icon: BarChart3 },
+    { path: '/home', label: 'Home', icon: Home, jarvisId: 'nav-home' },
+    { path: '/projects', label: 'Projects', icon: Briefcase, jarvisId: 'nav-projects' },
+    { path: '/canvas', label: 'Canvas', icon: LayoutDashboard, jarvisId: 'nav-canvas' },
+    { path: '/companies', label: 'Companies', icon: Building2, jarvisId: 'nav-companies' },
+    { path: '/contacts', label: 'Contacts', icon: Users, jarvisId: 'nav-contacts' },
+    { path: '/talent', label: 'Talent', icon: Database, jarvisId: 'nav-talent' },
+    { path: '/outreach', label: 'Outreach', icon: Megaphone, jarvisId: 'nav-outreach' },
+    { path: '/insights', label: 'Insights', icon: BarChart3, jarvisId: 'nav-insights' },
   ];
 
   const aiNavItems: typeof navItems = [];
@@ -98,12 +98,14 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                     variant={isActive(item.path) ? 'secondary' : 'ghost'}
                     size="sm"
                     className="gap-2"
+                    data-jarvis-id={item.jarvisId}
                   >
                     <item.icon className="w-4 h-4" />
                     {item.label}
                   </Button>
                 </Link>
               ))}
+
               
               {/* AI Tools - visual separator */}
               <div className="w-px h-6 bg-border mx-2" />
@@ -130,6 +132,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                       variant={location.pathname.startsWith('/admin') ? 'secondary' : 'ghost'}
                       size="sm"
                       className="gap-2"
+                      data-jarvis-id="nav-admin"
                     >
                       <ShieldCheck className="w-4 h-4" />
                       Admin

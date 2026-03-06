@@ -18,6 +18,7 @@ export interface ToolbarAction {
   isActive?: boolean;
   priority: "critical" | "secondary"; // critical = always visible, secondary = can overflow
   hideLabel?: boolean; // For icon-only buttons
+  jarvisId?: string; // data-jarvis-id attribute for Jarvis navigation
 }
 
 interface ResponsiveToolbarProps {
@@ -135,6 +136,7 @@ export const ResponsiveToolbar: React.FC<ResponsiveToolbarProps> = ({
         onClick={action.onClick}
         data-toolbar-action
         data-toolbar-secondary={action.priority === "secondary" ? "true" : undefined}
+        {...(action.jarvisId ? { "data-jarvis-id": action.jarvisId } : {})}
       >
         {action.icon}
         {!action.hideLabel && <span className="hidden sm:inline">{action.label}</span>}

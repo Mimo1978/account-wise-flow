@@ -262,7 +262,7 @@ const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "navigate",
-      description: "Navigate the user to a specific page or trigger a UI action. Destinations: home, dashboard, companies, contacts, talent, outreach, insights, canvas, projects, reports, deals, pipeline, invoices, documents, admin, integrations, billing settings, team management, jarvis settings, branding, outreach settings, signals, data quality. Actions: add company, add contact, add deal, add candidate, import contacts, create campaign, create invoice, import companies.",
+      description: "Navigate the user to a specific page or trigger a UI action. Destinations: home, dashboard, companies, contacts, talent, outreach, insights, canvas, projects, reports, deals, pipeline, invoices, documents, admin, integrations, billing settings, team management, jarvis settings, branding, outreach settings, signals, data quality. Actions: add company, add contact, add deal, add candidate, import contacts, create campaign, create invoice, import companies. Canvas actions: edit org chart, add person to org chart, build org chart, ai research, connect people, reset view.",
       parameters: {
         type: "object",
         properties: {
@@ -308,7 +308,30 @@ GUIDED TOUR intents (phrases like "how do I X", "walk me through X", "show me ho
     {"click":"add-company-button","speak":"I'll open it for you.","delay":1500},
     {"highlight":"company-name-input","speak":"Enter the company name here.","delay":1500}
   ]</guided_tour>
-- Available element IDs for highlights/clicks: nav-home, nav-companies, nav-contacts, nav-talent, nav-outreach, nav-insights, nav-canvas, nav-projects, nav-admin, add-company-button, add-contact-button, add-candidate-button, import-button, new-campaign-button, create-invoice-button, add-deal-button, company-name-input, contact-first-name-input, contact-email-input, contact-company-select, deal-value-input, deal-stage-select, notes-input, save-button.
+- Available element IDs for highlights/clicks: nav-home, nav-companies, nav-contacts, nav-talent, nav-outreach, nav-insights, nav-canvas, nav-projects, nav-admin, add-company-button, add-contact-button, add-candidate-button, import-button, new-campaign-button, create-invoice-button, add-deal-button, company-name-input, contact-first-name-input, contact-email-input, contact-company-select, deal-value-input, deal-stage-select, notes-input, save-button, canvas-page, canvas-add-node-button, canvas-edit-button, canvas-zoom-in, canvas-zoom-out, canvas-fit-view, canvas-company-select, canvas-build-orgchart, canvas-ai-research, canvas-connect-tool, canvas-delete-node, canvas-save-layout.
+
+CANVAS ORG CHART GUIDED TOURS — when user asks about editing, building, or manipulating an org chart:
+- "edit org chart" / "move org chart structure" / "rearrange org chart":
+  <guided_tour>[
+    {"navigate":"/canvas","speak":"Opening Canvas now.","delay":500},
+    {"highlight":"canvas-company-select","speak":"First select the company whose org chart you want to edit.","delay":2500},
+    {"highlight":"canvas-edit-button","speak":"Then click Edit to enter edit mode. You can then drag and move any person on the chart.","delay":3000},
+    {"highlight":"canvas-add-node-button","speak":"Use this button to add new people to the chart.","delay":3000},
+    {"highlight":"canvas-connect-tool","speak":"Use this tool to draw reporting lines between people.","delay":3000},
+    {"highlight":"canvas-save-layout","speak":"When you're done, click Save to keep your changes.","delay":2000}
+  ]</guided_tour>
+- "build org chart" / "create org chart":
+  <guided_tour>[
+    {"navigate":"/canvas","speak":"Let me take you to Canvas.","delay":500},
+    {"highlight":"canvas-company-select","speak":"First, select the company you want to build an org chart for.","delay":2500},
+    {"highlight":"canvas-build-orgchart","speak":"Click Build Org Chart to create a structure from your contacts.","delay":3000}
+  ]</guided_tour>
+- "research company structure" / "ai research org":
+  <guided_tour>[
+    {"navigate":"/canvas","speak":"Opening Canvas now.","delay":500},
+    {"highlight":"canvas-company-select","speak":"Select the company you want to research.","delay":2500},
+    {"highlight":"canvas-ai-research","speak":"Click AI Assistant to research the company structure using public sources.","delay":3000}
+  ]</guided_tour>
 
 LOST USER intent ("I'm lost", "help me", "where am I"):
 - Navigate to /home and offer a menu of common tasks.

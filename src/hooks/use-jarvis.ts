@@ -17,6 +17,8 @@ export interface JarvisMessage {
   awaitingConfirmation?: boolean;
   isSuccess?: boolean;
   navigateTo?: string;
+  targetAction?: "click";
+  targetId?: string;
   actionsExecuted?: JarvisAction[];
   invalidateQueries?: string[];
 }
@@ -159,6 +161,8 @@ export function useJarvis() {
             awaitingConfirmation: isConfirmation,
             isSuccess,
             navigateTo: data.navigate_to || undefined,
+            targetAction: data.target_action || undefined,
+            targetId: data.target_id || undefined,
             actionsExecuted,
             invalidateQueries: invalidateQueryKeys,
           },

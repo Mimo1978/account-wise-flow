@@ -189,3 +189,24 @@ All colors MUST be HSL.
     box-shadow: 0 0 0 8px hsl(var(--destructive) / 0.15);
   }
 }
+
+/* Jarvis navigation highlight — pulsing ring around target element */
+.jarvis-highlight {
+  position: relative;
+  z-index: 50;
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 4px;
+  border-radius: 8px;
+  animation: jarvis-nav-pulse 0.6s ease-in-out 3;
+}
+
+@keyframes jarvis-nav-pulse {
+  0%, 100% {
+    outline-color: hsl(var(--primary));
+    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
+  }
+  50% {
+    outline-color: hsl(var(--primary) / 0.7);
+    box-shadow: 0 0 12px 4px hsl(var(--primary) / 0.25);
+  }
+}

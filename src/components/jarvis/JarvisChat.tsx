@@ -25,6 +25,7 @@ import { useJarvis, JarvisMessage } from "@/hooks/use-jarvis";
 import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                   */
@@ -218,46 +219,51 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
 }
 
 /* ------------------------------------------------------------------ */
-/*  Speech Synthesis                                                   */
+/*  ElevenLabs TTS with browser fallback                               */
 /* ------------------------------------------------------------------ */
-function useEnhancedSpeechSynthesis(voiceGender?: 'male' | 'female', speed?: number, volume?: number, muteDefault?: boolean) {
+function useElevenLabsTTS(
+  voiceGender?: 'male' | 'female',
+  speed?: number,
+  volume?: number,
+  muteDefault?: boolean,
+  elevenLabsVoiceId?: string
+) {
   const [enabled, setEnabled] = useState(!muteDefault);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const onDoneRef = useRef<(() => void) | null>(null);
 
+  // Browser fallback voice
   const getPreferredVoice = useCallback(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return null;
     const voices = window.speechSynthesis.getVoices();
     const gender = voiceGender || 'male';
-
     if (gender === 'male') {
       const malePreferred = ["Google UK English Male", "Microsoft George", "Daniel"];
       for (const name of malePreferred) {
         const v = voices.find((v) => v.name.includes(name));
         if (v) return v;
       }
-      const maleVoice = voices.find((v) => v.name.includes("Male") && v.lang.startsWith("en"));
-      if (maleVoice) return maleVoice;
-      const enGbNonFemale = voices.find(
-        (v) => v.lang === "en-GB" && !v.name.includes("Female") && !v.name.includes("Martha") && !v.name.includes("Fiona") && !v.name.includes("Kate")
-      );
-      if (enGbNonFemale) return enGbNonFemale;
+      return voices.find((v) => v.name.includes("Male") && v.lang.startsWith("en"))
+        || voices.find((v) => v.lang === "en-GB")
+        || voices.find((v) => v.lang.startsWith("en"))
+        || null;
     } else {
       const femalePreferred = ["Google UK English Female", "Microsoft Hazel", "Martha", "Samantha"];
       for (const name of femalePreferred) {
         const v = voices.find((v) => v.name.includes(name));
         if (v) return v;
       }
-      const femaleVoice = voices.find((v) => v.name.includes("Female") && v.lang.startsWith("en"));
-      if (femaleVoice) return femaleVoice;
-      const enGb = voices.find((v) => v.lang === "en-GB");
-      if (enGb) return enGb;
+      return voices.find((v) => v.name.includes("Female") && v.lang.startsWith("en"))
+        || voices.find((v) => v.lang === "en-GB")
+        || voices.find((v) => v.lang.startsWith("en"))
+        || null;
     }
-    return voices.find((v) => v.lang.startsWith("en")) || null;
   }, [voiceGender]);
 
-  const speak = useCallback(
+  const speakBrowserFallback = useCallback(
     (text: string, onDone?: () => void) => {
-      if (!enabled || typeof window === "undefined" || !window.speechSynthesis) {
+      if (typeof window === "undefined" || !window.speechSynthesis) {
         onDone?.();
         return;
       }
@@ -273,23 +279,80 @@ function useEnhancedSpeechSynthesis(voiceGender?: 'male' | 'female', speed?: num
       utterance.onerror = () => { setIsSpeaking(false); onDone?.(); };
       window.speechSynthesis.speak(utterance);
     },
-    [enabled, getPreferredVoice, speed, volume]
+    [getPreferredVoice, speed, volume]
+  );
+
+  const speak = useCallback(
+    async (text: string, onDone?: () => void) => {
+      if (!enabled) {
+        onDone?.();
+        return;
+      }
+
+      onDoneRef.current = onDone || null;
+      setIsSpeaking(true);
+
+      try {
+        // Try ElevenLabs first
+        const { data, error } = await supabase.functions.invoke("jarvis-speak", {
+          body: { text, voice_id: elevenLabsVoiceId || "pNInz6obpgDQGcFmaJgB" },
+        });
+
+        if (error || data?.fallback || !data?.audio) {
+          // Fallback to browser TTS
+          console.log("[Jarvis] ElevenLabs unavailable, using browser TTS");
+          setIsSpeaking(false);
+          speakBrowserFallback(text, onDone);
+          return;
+        }
+
+        // Play ElevenLabs audio via data URI
+        const audioUrl = `data:audio/mpeg;base64,${data.audio}`;
+        const audio = new Audio(audioUrl);
+        audio.volume = (volume ?? 80) / 100;
+        audioRef.current = audio;
+
+        audio.onended = () => {
+          setIsSpeaking(false);
+          audioRef.current = null;
+          onDoneRef.current?.();
+          onDoneRef.current = null;
+        };
+        audio.onerror = () => {
+          setIsSpeaking(false);
+          audioRef.current = null;
+          // Fallback on audio play error
+          speakBrowserFallback(text, onDone);
+        };
+
+        await audio.play();
+      } catch (e) {
+        console.warn("[Jarvis] ElevenLabs error, falling back:", e);
+        setIsSpeaking(false);
+        speakBrowserFallback(text, onDone);
+      }
+    },
+    [enabled, elevenLabsVoiceId, volume, speakBrowserFallback]
   );
 
   const stop = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
     window.speechSynthesis?.cancel();
     setIsSpeaking(false);
+    onDoneRef.current = null;
   }, []);
 
   const toggle = useCallback(() => {
     setEnabled((e) => {
       if (e) {
-        window.speechSynthesis?.cancel();
-        setIsSpeaking(false);
+        stop();
       }
       return !e;
     });
-  }, []);
+  }, [stop]);
 
   return { enabled, toggle, speak, stop, isSpeaking };
 }
@@ -299,12 +362,10 @@ function useEnhancedSpeechSynthesis(voiceGender?: 'male' | 'female', speed?: num
 /* ------------------------------------------------------------------ */
 function useJarvisPauseDetection(onPause: () => void) {
   useEffect(() => {
-    // Detect focus on inputs / textareas / contenteditable
     const handleFocusIn = (e: FocusEvent) => {
       const el = e.target as HTMLElement;
       if (!el) return;
       const tag = el.tagName?.toLowerCase();
-      // Ignore the Jarvis own input (has specific placeholder)
       if (el.getAttribute("placeholder")?.includes("Jarvis")) return;
       if (
         tag === "input" ||
@@ -316,7 +377,6 @@ function useJarvisPauseDetection(onPause: () => void) {
       }
     };
 
-    // Detect modal / dialog opening via MutationObserver
     const observer = new MutationObserver(() => {
       const hasModal = document.querySelector(
         '[role="dialog"], [role="alertdialog"], [data-radix-portal], .modal, [data-state="open"][data-radix-dialog-overlay]'
@@ -343,23 +403,32 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const { messages, isLoading, sendMessage, clearHistory, userFirstName } = useJarvis();
   const { settings: jarvisSettings } = useJarvisSettings();
   const [input, setInput] = useState("");
-  const [keepListening, setKeepListening] = useState(false); // Always default OFF
+  const [keepListening, setKeepListening] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
-  const tts = useEnhancedSpeechSynthesis(jarvisSettings.voice_gender, jarvisSettings.speaking_speed, jarvisSettings.volume, jarvisSettings.mute_by_default);
-  const greetingDoneRef = useRef(false); // tracks if greeting listen cycle done
+  const tts = useElevenLabsTTS(
+    jarvisSettings.voice_gender,
+    jarvisSettings.speaking_speed,
+    jarvisSettings.volume,
+    jarvisSettings.mute_by_default,
+    jarvisSettings.elevenlabs_voice_id
+  );
+  const greetingDoneRef = useRef(false);
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInteractionRef = useRef(Date.now());
   const assistantName = jarvisSettings.assistant_name || 'Jarvis';
   const prevLocationRef = useRef(location.pathname);
+  const conversationActiveRef = useRef(false); // Track if user started a conversation
+  const pausedRef = useRef(false); // Track if auto-paused by modal/focus
 
   // Auto-submit handler for voice
   const handleVoiceSubmit = useCallback(
     (text: string) => {
       if (text && !isLoading) {
         setInput("");
+        conversationActiveRef.current = true; // Conversation is now active
         sendMessage(text);
         lastInteractionRef.current = Date.now();
       }
@@ -369,8 +438,23 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
   const speech = useEnhancedSpeechRecognition(handleVoiceSubmit);
 
+  // Re-listen after TTS finishes (conversational flow)
+  const relistenAfterSpeech = useCallback(() => {
+    if (!speech.supported) return;
+    if (pausedRef.current) return;
+    // Always re-listen after Jarvis speaks during an active conversation
+    if (conversationActiveRef.current || keepListening) {
+      setTimeout(() => {
+        if (!pausedRef.current) {
+          speech.startListening();
+        }
+      }, 200);
+    }
+  }, [speech, keepListening]);
+
   // --- Auto-pause on modals/form focus ---
   const pauseListening = useCallback(() => {
+    pausedRef.current = true;
     speech.stopListening();
   }, [speech]);
 
@@ -381,6 +465,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     if (location.pathname !== prevLocationRef.current) {
       prevLocationRef.current = location.pathname;
       speech.stopListening();
+      pausedRef.current = false; // Reset on navigation
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
@@ -405,28 +490,19 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   }, [speech.interimTranscript]);
 
   // Speak assistant responses + handle navigation
-  // After speaking, only re-listen if keepListening is ON
+  // After speaking, re-listen automatically for conversational flow
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
-      // Handle navigation
       if (last.navigateTo) {
         setTimeout(() => navigate(last.navigateTo!), 1000);
       }
 
       if (tts.enabled) {
-        tts.speak(last.content, () => {
-          // After TTS finishes, re-listen ONLY if keepListening is ON
-          if (keepListening && speech.supported) {
-            speech.startListening();
-          }
-        });
+        tts.speak(last.content, relistenAfterSpeech);
       } else {
-        // No TTS — re-listen only if keepListening
-        if (keepListening && speech.supported) {
-          const t = setTimeout(() => speech.startListening(), 300);
-          return () => clearTimeout(t);
-        }
+        // No TTS — re-listen for conversational flow
+        relistenAfterSpeech();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -447,72 +523,66 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       .replace(/\.\s*\./, ".");
 
     const doGreeting = () => {
+      conversationActiveRef.current = true;
       if (tts.enabled) {
         tts.speak(greeting, () => {
-          // After greeting speech, listen for exactly ONE cycle then stop
+          // After greeting, start listening for the first response
           if (speech.supported) {
             speech.startListening();
           }
         });
       } else {
-        // No TTS — listen for one cycle
         if (speech.supported) {
           speech.startListening();
         }
       }
     };
 
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      if (window.speechSynthesis.getVoices().length > 0) {
-        setTimeout(doGreeting, 300);
-      } else {
-        window.speechSynthesis.onvoiceschanged = () => {
-          setTimeout(doGreeting, 300);
-        };
-      }
-    }
+    // Small delay to let component mount
+    setTimeout(doGreeting, 500);
+
+    // Pre-warm the edge function
+    supabase.functions.invoke("jarvis-assistant", {
+      body: { user_message: "ping", conversation_history: [], user_first_name: "" },
+    }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep-listening auto-sleep
+  // Keep-listening auto-sleep (60s silence → stop)
   useEffect(() => {
-    if (!keepListening) {
+    if (!conversationActiveRef.current && !keepListening) {
       if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
       return;
     }
 
-    const sleepMs = jarvisSettings.auto_sleep_minutes > 0
-      ? jarvisSettings.auto_sleep_minutes * 60_000
-      : 0;
-
-    if (sleepMs === 0) return;
+    const sleepMs = 60_000; // 60 seconds of silence
 
     const checkSleep = () => {
       const elapsed = Date.now() - lastInteractionRef.current;
       if (elapsed >= sleepMs) {
+        conversationActiveRef.current = false;
         setKeepListening(false);
         speech.stopListening();
-        if (tts.enabled) {
-          tts.speak("Going to sleep. Click the microphone when you need me.");
-        }
       } else {
-        sleepTimerRef.current = setTimeout(checkSleep, 30_000);
+        sleepTimerRef.current = setTimeout(checkSleep, 15_000);
       }
     };
 
-    sleepTimerRef.current = setTimeout(checkSleep, 30_000);
+    sleepTimerRef.current = setTimeout(checkSleep, 15_000);
     return () => {
       if (sleepTimerRef.current) clearTimeout(sleepTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keepListening]);
+  }, [keepListening, messages]);
 
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
     setInput("");
     speech.stopListening();
+    conversationActiveRef.current = true;
     lastInteractionRef.current = Date.now();
+    pausedRef.current = false;
     sendMessage(trimmed);
   };
 
@@ -525,6 +595,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
   const handleConfirm = () => {
     lastInteractionRef.current = Date.now();
+    pausedRef.current = false;
     sendMessage("Yes, go ahead.");
   };
   const handleCancel = () => {
@@ -586,7 +657,6 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
           </div>
         </div>
         <div className="flex items-center gap-0.5">
-          {/* TTS mute toggle */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={tts.toggle}>
@@ -611,7 +681,12 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
             <TooltipContent side="bottom">Clear conversation</TooltipContent>
           </Tooltip>
 
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { speech.stopListening(); tts.stop(); onClose(); }}>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
+            speech.stopListening();
+            tts.stop();
+            conversationActiveRef.current = false;
+            onClose();
+          }}>
             <X className="h-4 w-4 text-muted-foreground" />
           </Button>
         </div>
@@ -676,6 +751,14 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
               <span className="italic opacity-70">{speech.interimTranscript}</span>
             </div>
           )}
+
+          {/* Listening indicator when no transcript yet */}
+          {speech.isListening && !speech.interimTranscript && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-destructive/5 border border-destructive/20 text-sm text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-destructive animate-pulse shrink-0" />
+              <span className="italic">Listening…</span>
+            </div>
+          )}
         </div>
       </ScrollArea>
 
@@ -692,10 +775,12 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
               onCheckedChange={(v) => {
                 setKeepListening(v);
                 lastInteractionRef.current = Date.now();
-                if (v && !speech.isListening && !isLoading) {
+                pausedRef.current = false;
+                if (v && !speech.isListening && !isLoading && !tts.isSpeaking) {
+                  conversationActiveRef.current = true;
                   speech.startListening();
                 }
-                if (!v) {
+                if (!v && !conversationActiveRef.current) {
                   speech.stopListening();
                 }
               }}
@@ -717,13 +802,15 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
                   )}
                   onClick={() => {
                     lastInteractionRef.current = Date.now();
+                    pausedRef.current = false;
                     if (speech.isListening) {
                       speech.stopListening();
                     } else {
+                      conversationActiveRef.current = true;
                       speech.startListening();
                     }
                   }}
-                  disabled={isLoading}
+                  disabled={isLoading || tts.isSpeaking}
                 >
                   {speech.isListening ? (
                     <>

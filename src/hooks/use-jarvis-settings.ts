@@ -8,20 +8,31 @@ export interface JarvisSettings {
   // Voice
   voice_gender: 'male' | 'female';
   voice_style: 'professional' | 'friendly' | 'formal';
-  speaking_speed: number; // 0.7 = slow, 1.0 = normal, 1.3 = fast
-  volume: number; // 0-100
+  speaking_speed: number;
+  volume: number;
   mute_by_default: boolean;
+
+  // ElevenLabs voice selection
+  elevenlabs_voice_id: string;
+  elevenlabs_voice_name: string;
 
   // Personalisation
   assistant_name: string;
   greeting_message: string;
 
   // Behaviour
-  auto_sleep_minutes: number; // 1, 3, 5, 0 = never
+  auto_sleep_minutes: number;
   keep_listening_default: boolean;
   confirmation_mode: 'always' | 'smart' | 'never';
   show_conversation_history: boolean;
 }
+
+export const ELEVENLABS_VOICES = [
+  { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', description: 'British male, natural' },
+  { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni', description: 'American male, warm' },
+  { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh', description: 'American male, deep' },
+  { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold', description: 'Strong male' },
+] as const;
 
 export const DEFAULT_JARVIS_SETTINGS: JarvisSettings = {
   voice_gender: 'male',
@@ -29,6 +40,8 @@ export const DEFAULT_JARVIS_SETTINGS: JarvisSettings = {
   speaking_speed: 1.0,
   volume: 80,
   mute_by_default: false,
+  elevenlabs_voice_id: 'pNInz6obpgDQGcFmaJgB',
+  elevenlabs_voice_name: 'Adam',
   assistant_name: 'Jarvis',
   greeting_message: 'Hello {{name}}. I\'m {{assistant}}. How can I help you today?',
   auto_sleep_minutes: 3,
@@ -67,7 +80,6 @@ export function useJarvisSettings() {
     mutationFn: async (updates: JarvisSettings) => {
       if (!currentWorkspace) throw new Error('No workspace');
 
-      // Check if settings row exists
       const { data: existing } = await supabase
         .from('workspace_settings')
         .select('id')

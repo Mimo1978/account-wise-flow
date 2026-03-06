@@ -10,60 +10,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Volume2, Mic, Sparkles, Settings2, RotateCcw, Loader2 } from 'lucide-react';
-import { useJarvisSettings, DEFAULT_JARVIS_SETTINGS, JarvisSettings } from '@/hooks/use-jarvis-settings';
+import { useJarvisSettings, DEFAULT_JARVIS_SETTINGS, JarvisSettings, ELEVENLABS_VOICES } from '@/hooks/use-jarvis-settings';
 import { cn } from '@/lib/utils';
 
-/* ------------------------------------------------------------------ */
-/*  Speed label                                                        */
-/* ------------------------------------------------------------------ */
 function speedLabel(v: number): string {
   if (v <= 0.8) return 'Slow';
   if (v <= 1.1) return 'Normal';
   return 'Fast';
 }
 
-/* ------------------------------------------------------------------ */
-/*  Test voice helper                                                  */
-/* ------------------------------------------------------------------ */
-function testVoice(s: JarvisSettings) {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(
-    `Hello, I am ${s.assistant_name}. Ready to assist you.`
-  );
-  utterance.rate = s.speaking_speed;
-  utterance.volume = s.volume / 100;
-
-  const voices = window.speechSynthesis.getVoices();
-  if (s.voice_gender === 'male') {
-    const preferred = ['Google UK English Male', 'Microsoft George', 'Daniel'];
-    let voice = null;
-    for (const name of preferred) {
-      voice = voices.find((v) => v.name.includes(name));
-      if (voice) break;
-    }
-    if (!voice) voice = voices.find((v) => v.name.includes('Male') && v.lang.startsWith('en'));
-    if (!voice) voice = voices.find((v) => v.lang === 'en-GB');
-    if (voice) utterance.voice = voice;
-  } else {
-    const preferred = ['Google UK English Female', 'Microsoft Hazel', 'Martha', 'Samantha'];
-    let voice = null;
-    for (const name of preferred) {
-      voice = voices.find((v) => v.name.includes(name));
-      if (voice) break;
-    }
-    if (!voice) voice = voices.find((v) => v.name.includes('Female') && v.lang.startsWith('en'));
-    if (!voice) voice = voices.find((v) => v.lang === 'en-GB');
-    if (voice) utterance.voice = voice;
-  }
-
-  window.speechSynthesis.speak(utterance);
-}
-
-/* ------------------------------------------------------------------ */
-/*  Section wrapper                                                    */
-/* ------------------------------------------------------------------ */
 function Section({ icon: Icon, title, description, children }: {
   icon: React.ElementType;
   title: string;
@@ -86,15 +41,11 @@ function Section({ icon: Icon, title, description, children }: {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main panel                                                         */
-/* ------------------------------------------------------------------ */
 export default function AdminJarvisSettings() {
   const { settings, isLoading, saveSettings, isSaving } = useJarvisSettings();
   const [draft, setDraft] = useState<JarvisSettings>(DEFAULT_JARVIS_SETTINGS);
   const [dirty, setDirty] = useState(false);
 
-  // Sync draft when loaded
   useEffect(() => {
     if (!isLoading && settings) {
       setDraft(settings);
@@ -134,9 +85,36 @@ export default function AdminJarvisSettings() {
 
       {/* ==================== VOICE ==================== */}
       <Section icon={Volume2} title="Voice Settings" description="Control how Jarvis sounds">
-        {/* Gender */}
+        {/* ElevenLabs Voice */}
         <div className="space-y-2">
-          <Label>Voice Gender</Label>
+          <Label>Voice</Label>
+          <Select
+            value={draft.elevenlabs_voice_id}
+            onValueChange={(v) => {
+              const voice = ELEVENLABS_VOICES.find(ev => ev.id === v);
+              update('elevenlabs_voice_id', v);
+              if (voice) update('elevenlabs_voice_name', voice.name);
+            }}
+          >
+            <SelectTrigger className="w-64">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ELEVENLABS_VOICES.map((v) => (
+                <SelectItem key={v.id} value={v.id}>
+                  {v.name} — {v.description}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Requires ElevenLabs API key in Integrations. Falls back to browser voice if not configured.
+          </p>
+        </div>
+
+        {/* Gender (fallback) */}
+        <div className="space-y-2">
+          <Label>Fallback Voice Gender <Badge variant="secondary" className="text-[10px] ml-1">Browser TTS</Badge></Label>
           <div className="flex gap-2">
             {(['male', 'female'] as const).map((g) => (
               <Button
@@ -150,21 +128,6 @@ export default function AdminJarvisSettings() {
               </Button>
             ))}
           </div>
-        </div>
-
-        {/* Style */}
-        <div className="space-y-2">
-          <Label>Voice Style</Label>
-          <Select value={draft.voice_style} onValueChange={(v) => update('voice_style', v as any)}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="professional">Professional</SelectItem>
-              <SelectItem value="friendly">Friendly</SelectItem>
-              <SelectItem value="formal">Formal</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Speed */}
@@ -210,11 +173,6 @@ export default function AdminJarvisSettings() {
           </div>
           <Switch checked={draft.mute_by_default} onCheckedChange={(v) => update('mute_by_default', v)} />
         </div>
-
-        {/* Test */}
-        <Button variant="outline" size="sm" onClick={() => testVoice(draft)} className="gap-2">
-          <Volume2 className="h-4 w-4" /> Test Voice
-        </Button>
       </Section>
 
       {/* ==================== PERSONALISATION ==================== */}

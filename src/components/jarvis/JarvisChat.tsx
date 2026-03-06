@@ -514,15 +514,12 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     if (speech.interimTranscript) setInput(speech.interimTranscript);
   }, [speech.interimTranscript]);
 
-  // Speak assistant responses + handle navigation
-  // After speaking, re-listen automatically for conversational flow
   // Speak assistant responses + handle navigation + guided tours
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
       // Check for guided tour first
       if (last.guidedTour && last.guidedTour.length > 0) {
-        // Speak the message first, then run the tour
         const speakAsync = (text: string) =>
           new Promise<void>((resolve) => {
             if (tts.enabled) {
@@ -532,16 +529,19 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
             }
           });
 
+        const runTour = async () => {
+          const completionMsg = await jarvisNav.runGuidedTour(last.guidedTour!, speakAsync);
+          if (completionMsg) {
+            // Speak the completion message
+            await speakAsync(completionMsg);
+          }
+          relistenAfterSpeech();
+        };
+
         if (tts.enabled) {
-          tts.speak(last.content, () => {
-            jarvisNav.runGuidedTour(last.guidedTour!, speakAsync).then(() => {
-              relistenAfterSpeech();
-            });
-          });
+          tts.speak(last.content, () => { runTour(); });
         } else {
-          jarvisNav.runGuidedTour(last.guidedTour!, speakAsync).then(() => {
-            relistenAfterSpeech();
-          });
+          runTour();
         }
       } else {
         // Delegate navigation to the dedicated hook

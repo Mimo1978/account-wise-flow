@@ -26,6 +26,7 @@ import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useJarvisNavigation } from "@/hooks/use-jarvis-navigation";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                   */
@@ -408,6 +409,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
+  const jarvisNav = useJarvisNavigation();
   const tts = useElevenLabsTTS(
     jarvisSettings.voice_gender,
     jarvisSettings.speaking_speed,
@@ -491,52 +493,20 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
   // Speak assistant responses + handle navigation
   // After speaking, re-listen automatically for conversational flow
-  // Also handle navigation + target element highlighting/clicking
+  // Also handle navigation + target element highlighting/clicking via hook
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
-      if (last.navigateTo) {
-        const navDelay = 600;
-        setTimeout(() => {
-          navigate(last.navigateTo!);
-          // After navigation, try to highlight/click a target element
-          if (last.targetId) {
-            const attemptTarget = (retries: number) => {
-              const el = document.getElementById(last.targetId!);
-              if (el) {
-                // Visual highlight pulse
-                el.classList.add("jarvis-highlight");
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-                setTimeout(() => el.classList.remove("jarvis-highlight"), 3000);
-                // Auto-click if action is "click"
-                if (last.targetAction === "click") {
-                  setTimeout(() => el.click(), 800);
-                }
-              } else if (retries > 0) {
-                setTimeout(() => attemptTarget(retries - 1), 400);
-              }
-            };
-            // Wait for page to render after navigation
-            setTimeout(() => attemptTarget(5), 500);
-          }
-        }, navDelay);
-      } else if (last.targetId) {
-        // Same page — highlight/click immediately
-        const el = document.getElementById(last.targetId);
-        if (el) {
-          el.classList.add("jarvis-highlight");
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          setTimeout(() => el.classList.remove("jarvis-highlight"), 3000);
-          if (last.targetAction === "click") {
-            setTimeout(() => el.click(), 800);
-          }
-        }
-      }
+      // Delegate navigation to the dedicated hook
+      jarvisNav.handleMessageNavigation({
+        navigateTo: last.navigateTo,
+        targetId: last.targetId,
+        targetAction: last.targetAction,
+      });
 
       if (tts.enabled) {
         tts.speak(last.content, relistenAfterSpeech);
       } else {
-        // No TTS — re-listen for conversational flow
         relistenAfterSpeech();
       }
     }

@@ -493,21 +493,46 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
   // Speak assistant responses + handle navigation
   // After speaking, re-listen automatically for conversational flow
-  // Also handle navigation + target element highlighting/clicking via hook
+  // Speak assistant responses + handle navigation + guided tours
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
-      // Delegate navigation to the dedicated hook
-      jarvisNav.handleMessageNavigation({
-        navigateTo: last.navigateTo,
-        targetId: last.targetId,
-        targetAction: last.targetAction,
-      });
+      // Check for guided tour first
+      if (last.guidedTour && last.guidedTour.length > 0) {
+        // Speak the message first, then run the tour
+        const speakAsync = (text: string) =>
+          new Promise<void>((resolve) => {
+            if (tts.enabled) {
+              tts.speak(text, resolve);
+            } else {
+              resolve();
+            }
+          });
 
-      if (tts.enabled) {
-        tts.speak(last.content, relistenAfterSpeech);
+        if (tts.enabled) {
+          tts.speak(last.content, () => {
+            jarvisNav.runGuidedTour(last.guidedTour!, speakAsync).then(() => {
+              relistenAfterSpeech();
+            });
+          });
+        } else {
+          jarvisNav.runGuidedTour(last.guidedTour!, speakAsync).then(() => {
+            relistenAfterSpeech();
+          });
+        }
       } else {
-        relistenAfterSpeech();
+        // Delegate navigation to the dedicated hook
+        jarvisNav.handleMessageNavigation({
+          navigateTo: last.navigateTo,
+          targetId: last.targetId,
+          targetAction: last.targetAction,
+        });
+
+        if (tts.enabled) {
+          tts.speak(last.content, relistenAfterSpeech);
+        } else {
+          relistenAfterSpeech();
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

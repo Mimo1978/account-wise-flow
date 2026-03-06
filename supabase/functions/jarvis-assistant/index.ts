@@ -262,11 +262,11 @@ const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "navigate",
-      description: "Navigate the user to a specific page in the CRM. Returns a URL path for the frontend to navigate to.",
+      description: "Navigate the user to a specific page or trigger a UI action. Destinations: home, dashboard, companies, contacts, talent, outreach, insights, canvas, projects, reports, deals, pipeline, invoices, documents, admin, integrations, billing settings, team management, jarvis settings, branding, outreach settings, signals, data quality. Actions: add company, add contact, add deal, add candidate, import contacts, create campaign, create invoice, import companies.",
       parameters: {
         type: "object",
         properties: {
-          destination: { type: "string", description: "Where to navigate: companies, contacts, deals, pipeline, invoices, projects, outreach, dashboard, insights" },
+          destination: { type: "string", description: "Page name or action keyword from the list above" },
           entity_id: { type: "string", description: "Optional entity ID for detail pages" },
         },
         required: ["destination"],

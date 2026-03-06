@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { resolveNavigation, type NavigationEntry } from "@/lib/jarvis-navigation-map";
+import type { GuidedTourStep } from "@/hooks/use-jarvis";
 
 const TOOLTIP_ID = "jarvis-nav-tooltip";
 const OVERLAY_ID = "jarvis-nav-overlay";
@@ -79,10 +80,16 @@ function findElement(
   attempt(maxRetries);
 }
 
+/** Wait for a specified duration */
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export function useJarvisNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
   const activeTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const tourAbortRef = useRef(false);
 
   const track = (timer: ReturnType<typeof setTimeout>) => {
     activeTimers.current.push(timer);
@@ -92,6 +99,7 @@ export function useJarvisNavigation() {
   const clearAll = useCallback(() => {
     activeTimers.current.forEach(clearTimeout);
     activeTimers.current = [];
+    tourAbortRef.current = true;
     clearVisuals();
   }, []);
 
@@ -230,11 +238,96 @@ export function useJarvisNavigation() {
     [navigateTo, clickElement, highlightElement]
   );
 
+  /**
+   * Execute a guided tour — a sequence of navigate/highlight/click steps
+   * with optional TTS speech at each step.
+   */
+  const runGuidedTour = useCallback(
+    async (
+      steps: GuidedTourStep[],
+      speakFn?: (text: string) => Promise<void>
+    ) => {
+      tourAbortRef.current = false;
+
+      // Activate screen glow for the duration
+      document.body.classList.add(GLOW_CLASS);
+
+      for (const step of steps) {
+        if (tourAbortRef.current) break;
+
+        // Navigate if needed
+        if (step.navigate) {
+          const isSamePage = location.pathname === step.navigate;
+          if (!isSamePage) {
+            showOverlay();
+            navigate(step.navigate);
+            await wait(500); // Wait for navigation render
+            removeOverlay();
+          }
+        }
+
+        if (tourAbortRef.current) break;
+
+        // Speak (non-blocking start, but we wait for delay)
+        if (step.speak && speakFn) {
+          speakFn(step.speak);
+        }
+
+        // Highlight element
+        if (step.highlight) {
+          await new Promise<void>((resolve) => {
+            findElement(step.highlight!, 10, (el) => {
+              clearVisuals();
+              document.body.classList.add(GLOW_CLASS); // Re-add glow after clearVisuals
+              el.classList.add(HIGHLIGHT_CLASS);
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+              if (step.speak) showTooltip(el, step.speak);
+              resolve();
+            });
+            // Resolve after timeout if element not found
+            setTimeout(resolve, 3000);
+          });
+        }
+
+        // Click element
+        if (step.click) {
+          await new Promise<void>((resolve) => {
+            findElement(step.click!, 10, (el) => {
+              clearVisuals();
+              document.body.classList.add(GLOW_CLASS);
+              el.classList.add(HIGHLIGHT_CLASS);
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+              if (step.speak) showTooltip(el, step.speak);
+              setTimeout(() => {
+                el.click();
+                setTimeout(() => {
+                  el.classList.remove(HIGHLIGHT_CLASS);
+                  document.getElementById(TOOLTIP_ID)?.remove();
+                  resolve();
+                }, 500);
+              }, 700);
+            });
+            setTimeout(resolve, 3000);
+          });
+        }
+
+        // Wait for the step's delay
+        const delay = step.delay || 1500;
+        await wait(delay);
+      }
+
+      // Clean up glow at the end
+      document.body.classList.remove(GLOW_CLASS);
+    },
+    [navigate, location.pathname]
+  );
+
   return {
     navigateTo,
     highlightElement,
     clickElement,
     clearAll,
     handleMessageNavigation,
+    runGuidedTour,
   };
 }

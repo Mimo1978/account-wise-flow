@@ -27,6 +27,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useJarvisNavigation } from "@/hooks/use-jarvis-navigation";
+import { GuidedTourPlayer } from "@/components/jarvis/GuidedTourPlayer";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                   */
@@ -425,17 +426,39 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const conversationActiveRef = useRef(false); // Track if user started a conversation
   const pausedRef = useRef(false); // Track if auto-paused by modal/focus
 
-  // Auto-submit handler for voice
+  // Auto-submit handler for voice — also intercept tour commands
   const handleVoiceSubmit = useCallback(
     (text: string) => {
-      if (text && !isLoading) {
-        setInput("");
-        conversationActiveRef.current = true; // Conversation is now active
-        sendMessage(text);
-        lastInteractionRef.current = Date.now();
+      if (!text || isLoading) return;
+
+      const lower = text.toLowerCase().trim();
+
+      // Tour voice controls
+      if (jarvisNav.tourState.status === "running" || jarvisNav.tourState.status === "paused") {
+        if (/^(stop|cancel|quit|end tour)$/i.test(lower)) {
+          jarvisNav.stopTour();
+          return;
+        }
+        if (/^(pause|wait|hold on)$/i.test(lower)) {
+          jarvisNav.pauseTour();
+          return;
+        }
+        if (/^(next|skip|continue|go on|resume)$/i.test(lower)) {
+          if (jarvisNav.tourState.status === "paused") {
+            jarvisNav.resumeTour();
+          } else {
+            jarvisNav.skipTourStep();
+          }
+          return;
+        }
       }
+
+      setInput("");
+      conversationActiveRef.current = true;
+      sendMessage(text);
+      lastInteractionRef.current = Date.now();
     },
-    [isLoading, sendMessage]
+    [isLoading, sendMessage, jarvisNav]
   );
 
   const speech = useEnhancedSpeechRecognition(handleVoiceSubmit);

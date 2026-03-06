@@ -121,7 +121,7 @@ export default function CrmContactsPage() {
                   {c.crm_companies ? (
                     <span
                       className="text-primary hover:underline cursor-pointer"
-                      onClick={e => { e.stopPropagation(); navigate(`/crm/companies/${c.crm_companies!.id}`); }}
+                      onClick={e => { e.stopPropagation(); navigate(`/companies/${c.crm_companies!.id}`); }}
                     >
                       {c.crm_companies.name}
                     </span>

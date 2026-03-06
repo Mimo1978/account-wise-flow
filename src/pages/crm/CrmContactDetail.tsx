@@ -47,7 +47,7 @@ export default function CrmContactDetail() {
                 <span>at</span>
                 <span
                   className="text-primary hover:underline cursor-pointer"
-                  onClick={() => navigate(`/crm/companies/${contact.crm_companies!.id}`)}
+                  onClick={() => navigate(`/companies/${contact.crm_companies!.id}`)}
                 >
                   {contact.crm_companies.name}
                 </span>

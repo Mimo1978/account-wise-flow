@@ -115,7 +115,7 @@ export default function CrmDealsPage() {
                 <TableCell className="font-medium text-primary">{d.title}</TableCell>
                 <TableCell>
                   {d.crm_companies ? (
-                    <span className="text-primary cursor-pointer hover:underline" onClick={e => { e.stopPropagation(); navigate(`/crm/companies/${d.crm_companies!.id}`); }}>
+                    <span className="text-primary cursor-pointer hover:underline" onClick={e => { e.stopPropagation(); navigate(`/companies/${d.crm_companies!.id}`); }}>
                       {d.crm_companies.name}
                     </span>
                   ) : "—"}

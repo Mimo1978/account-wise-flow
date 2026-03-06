@@ -50,8 +50,6 @@ import AdminJarvisSettings from "./pages/admin/AdminJarvisSettings";
 import AdminEmailGuide from "./pages/admin/AdminEmailGuide";
 import AdminSmsGuide from "./pages/admin/AdminSmsGuide";
 import AdminAiCallingGuide from "./pages/admin/AdminAiCallingGuide";
-import CrmCompanies from "./pages/crm/CrmCompanies";
-import CrmCompanyDetail from "./pages/crm/CrmCompanyDetail";
 import CrmContacts from "./pages/crm/CrmContacts";
 import CrmContactDetail from "./pages/crm/CrmContactDetail";
 import CrmProjects from "./pages/crm/CrmProjects";
@@ -168,8 +166,6 @@ const App = () => {
             <Route path="/profile" element={<ProtectedRoute><ProductLayout><UserProfile /></ProductLayout></ProtectedRoute>} />
 
             {/* CRM MODULE ROUTES */}
-            <Route path="/crm/companies" element={<ProtectedRoute><ProductLayout><CrmCompanies /></ProductLayout></ProtectedRoute>} />
-            <Route path="/crm/companies/:id" element={<ProtectedRoute><ProductLayout><CrmCompanyDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/contacts" element={<ProtectedRoute><ProductLayout><CrmContacts /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/contacts/:id" element={<ProtectedRoute><ProductLayout><CrmContactDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/projects" element={<ProtectedRoute><ProductLayout><CrmProjects /></ProductLayout></ProtectedRoute>} />

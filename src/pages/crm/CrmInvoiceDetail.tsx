@@ -109,7 +109,7 @@ export default function CrmInvoiceDetail() {
           </div>
           <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
             {invoice.crm_companies && (
-              <span className="text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/companies/${invoice.crm_companies!.id}`)}>
+              <span className="text-primary cursor-pointer hover:underline" onClick={() => navigate(`/companies/${invoice.crm_companies!.id}`)}>
                 {invoice.crm_companies.name} <ExternalLink className="inline h-3 w-3" />
               </span>
             )}

@@ -287,6 +287,32 @@ CRITICAL RULES — YOU MUST FOLLOW THESE:
 7. For search queries, call the search tool and present results in a readable format.
 8. If a user asks you to do something outside your tools, politely decline.
 
+NAVIGATION INTENT DETECTION — detect these patterns and respond accordingly:
+
+NAVIGATE intents (phrases like "take me to X", "go to X", "open X", "show me X"):
+- Call the navigate tool with the destination immediately.
+- Respond with a short confirmation like "Taking you to Contacts now."
+
+HIGHLIGHT intents (phrases like "where is X", "where do I find X"):
+- Call the navigate tool with the destination.
+- Respond explaining where the feature is and what it does.
+
+GUIDED TOUR intents (phrases like "how do I X", "walk me through X", "show me how to X", "I want to add X"):
+- Instead of just navigating, return a structured guided_tour in your response.
+- Format your response as a conversational message, then on a new line add a JSON block wrapped in <guided_tour>...</guided_tour> tags.
+- Example for "show me how to add a company":
+  Response: "I'll show you how to add a company. Watch the screen."
+  <guided_tour>[
+    {"navigate":"/companies","highlight":"nav-companies","speak":"First, let me take you to Companies.","delay":1500},
+    {"highlight":"add-company-button","speak":"This is the Add Company button.","delay":2500},
+    {"click":"add-company-button","speak":"I'll open it for you.","delay":1500},
+    {"highlight":"company-name-input","speak":"Enter the company name here.","delay":1500}
+  ]</guided_tour>
+- Available element IDs for highlights/clicks: nav-home, nav-companies, nav-contacts, nav-talent, nav-outreach, nav-insights, nav-canvas, nav-projects, nav-admin, add-company-button, add-contact-button, add-candidate-button, import-button, new-campaign-button, create-invoice-button, add-deal-button, company-name-input, contact-first-name-input, contact-email-input, contact-company-select, deal-value-input, deal-stage-select, notes-input, save-button.
+
+LOST USER intent ("I'm lost", "help me", "where am I"):
+- Navigate to /home and offer a menu of common tasks.
+
 GUIDED DATA COLLECTION — follow these flows when creating records:
 
 SMART EXTRACTION: If the user provides multiple fields at once (e.g. "Add Google as a tech company"), extract ALL provided fields and skip those questions. Only ask about fields NOT yet provided.
@@ -960,7 +986,20 @@ serve(async (req) => {
     }
 
     // Extract text response
-    const responseText = aiResponse.choices?.[0]?.message?.content || "";
+    let responseText = aiResponse.choices?.[0]?.message?.content || "";
+
+    // Parse guided_tour from response text if present
+    let guidedTour: any[] | null = null;
+    const tourMatch = responseText.match(/<guided_tour>([\s\S]*?)<\/guided_tour>/);
+    if (tourMatch) {
+      try {
+        guidedTour = JSON.parse(tourMatch[1]);
+        // Remove the guided_tour tag from the visible message
+        responseText = responseText.replace(/<guided_tour>[\s\S]*?<\/guided_tour>/, '').trim();
+      } catch (e) {
+        console.warn("[jarvis] Failed to parse guided_tour:", e);
+      }
+    }
 
     // Extract navigation + target action from executed actions
     let navigationPath: string | null = null;
@@ -1010,6 +1049,7 @@ serve(async (req) => {
         navigate_to: navigationPath,
         target_action: targetAction,
         target_id: targetId,
+        guided_tour: guidedTour,
         actions_executed: actionsExecuted.filter(a => mutationTools.has(a.tool)),
         invalidate_queries: invalidateQueries,
       }),

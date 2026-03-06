@@ -28,7 +28,7 @@ interface UseCompanyCanvasReturn {
  * Supports both URL-based company loading and workspace-based loading
  */
 export function useCompanyCanvas(options: UseCompanyCanvasOptions = {}): UseCompanyCanvasReturn {
-  const { fallbackToMock = true } = options;
+  const { fallbackToMock = false } = options;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { currentWorkspace, isInDemoWorkspace } = useWorkspace();
@@ -143,10 +143,10 @@ export function useCompanyCanvas(options: UseCompanyCanvasOptions = {}): UseComp
       // Only use mock data in demo workspace when no company is specified
       setSelectedAccount(mockAccount);
       setIsUsingMockData(true);
-    } else if (!companyId && workspaceCompanies.length > 0 && !companyLoading) {
-      // Default to first company in workspace if no specific company requested
-      // Navigate to that company's canvas
-      navigate(`/canvas?company=${workspaceCompanies[0].id}`, { replace: true });
+    } else if (!companyId && !companyLoading) {
+      // No company specified — show blank state (do NOT auto-select first company)
+      setSelectedAccount(null);
+      setIsUsingMockData(false);
     }
   }, [companyData, companyId, fallbackToMock, isInDemoWorkspace, workspaceCompanies, companyLoading, navigate]);
 

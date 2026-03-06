@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Plus, Brain, Network, Table2, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, Brain, Network, Table2, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { AccountCanvas, AccountCanvasRef, DropZone } from "@/components/canvas/AccountCanvas";
 import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
@@ -58,7 +58,7 @@ const Canvas = () => {
   } = useOnboarding();
   
   const { currentWorkspace } = useWorkspace();
-  // Use the company canvas hook instead of mock data
+  // Use the company canvas hook — never fall back to mock data
   const { 
     account: loadedAccount, 
     accounts: allAccounts, 
@@ -66,7 +66,7 @@ const Canvas = () => {
     switchCompany,
     isUsingMockData,
     setAccount: setLoadedAccount,
-  } = useCompanyCanvas({ fallbackToMock: true });
+  } = useCompanyCanvas({ fallbackToMock: false });
   
   // Local account state for canvas operations
   const [account, setAccount] = useState<Account | null>(null);
@@ -559,19 +559,32 @@ const Canvas = () => {
     );
   }
 
-  // No company state
+  // No company state — blank canvas with prompt
   if (!account) {
     return (
-      <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center gap-4">
-        <Network className="w-12 h-12 text-muted-foreground" />
-        <h2 className="text-xl font-semibold">No Company Selected</h2>
-        <p className="text-muted-foreground text-center max-w-md">
-          Select a company from your database to view it on the canvas.
-        </p>
-        <Button onClick={handleBackToCompanies} className="gap-2">
-          <ArrowLeft className="w-4 h-4" />
-          Go to Companies
-        </Button>
+      <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center gap-6">
+        <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+          <Network className="w-10 h-10 text-primary" />
+        </div>
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-semibold text-foreground">Select a company to explore their relationship map</h2>
+          <p className="text-muted-foreground max-w-md">
+            Navigate to a company from the Companies page and click "View on Canvas" to visualise their org chart and contacts here.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <Button onClick={handleBackToCompanies} className="gap-2">
+            <Building2 className="w-4 h-4" />
+            Browse Companies
+          </Button>
+          {allAccounts.length > 0 && (
+            <CompanySwitcher 
+              currentCompany=""
+              companies={allAccounts}
+              onCompanySelect={handleCompanySwitch}
+            />
+          )}
+        </div>
       </div>
     );
   }

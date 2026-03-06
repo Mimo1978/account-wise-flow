@@ -17,6 +17,8 @@ export interface JarvisMessage {
   awaitingConfirmation?: boolean;
   isSuccess?: boolean;
   navigateTo?: string;
+  targetAction?: "click";
+  targetId?: string;
   actionsExecuted?: JarvisAction[];
   invalidateQueries?: string[];
 }

@@ -90,13 +90,14 @@ export function useJarvisNavigation() {
   const location = useLocation();
   const activeTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const tourAbortRef = useRef(false);
-
-  const track = (timer: ReturnType<typeof setTimeout>) => {
-    activeTimers.current.push(timer);
-  };
-
-  /** Clear all highlights, tooltips, overlays and glow */
-  const clearAll = useCallback(() => {
+  const tourPausedRef = useRef(false);
+  const tourSkipRef = useRef(false);
+  const tourResumeResolverRef = useRef<(() => void) | null>(null);
+  const [tourState, setTourState] = useState<TourState>({
+    steps: [],
+    currentStep: 0,
+    status: "idle",
+  });
     activeTimers.current.forEach(clearTimeout);
     activeTimers.current = [];
     tourAbortRef.current = true;

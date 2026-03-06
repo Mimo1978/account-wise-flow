@@ -962,20 +962,19 @@ serve(async (req) => {
     // Extract text response
     const responseText = aiResponse.choices?.[0]?.message?.content || "";
 
-    // Extract navigation from executed actions
+    // Extract navigation + target action from executed actions
     let navigationPath: string | null = null;
-    for (const action of actionsExecuted) {
-      if (action.tool === "navigate" && action.entityType === "navigation") {
-        navigationPath = action.entityId || null;
-      }
-    }
-    // Also check tool results for navigate_to (e.g. create_company auto-navigates)
+    let targetAction: string | null = null;
+    let targetId: string | null = null;
+
     for (const msg of currentMessages) {
       if ((msg as any).role === "tool" && typeof (msg as any).content === "string") {
         try {
           const parsed = JSON.parse((msg as any).content);
-          if (parsed?.navigate_to && !navigationPath) {
+          if (parsed?.navigate_to) {
             navigationPath = parsed.navigate_to;
+            if (parsed?.action) targetAction = parsed.action;
+            if (parsed?.target_id) targetId = parsed.target_id;
           }
         } catch {}
       }
@@ -1009,6 +1008,8 @@ serve(async (req) => {
       JSON.stringify({
         response: responseText,
         navigate_to: navigationPath,
+        target_action: targetAction,
+        target_id: targetId,
         actions_executed: actionsExecuted.filter(a => mutationTools.has(a.tool)),
         invalidate_queries: invalidateQueries,
       }),

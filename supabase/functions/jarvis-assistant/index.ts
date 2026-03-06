@@ -693,27 +693,75 @@ async function executeTool(
       return { result: { success: true, activity_id: data?.id }, entityType: "crm_activities", entityId: data?.id };
     }
     case "navigate": {
-      const dest = input.destination as string;
+      const dest = (input.destination as string).toLowerCase().trim();
       const entityId = input.entity_id as string | undefined;
-      const routes: Record<string, string> = {
-        companies: "/companies",
-        contacts: "/crm/contacts",
-        deals: "/crm/deals",
-        pipeline: "/crm/pipeline",
-        invoices: "/crm/invoices",
-        projects: "/crm/projects",
-        outreach: "/outreach",
-        dashboard: "/dashboard",
-        insights: "/executive-insights",
-        talent: "/talent",
+
+      // Comprehensive navigation map with action support
+      const navMap: Record<string, { path: string; action?: string; targetId?: string }> = {
+        // Main pages
+        home: { path: "/home" },
+        dashboard: { path: "/home" },
+        companies: { path: "/companies" },
+        contacts: { path: "/contacts" },
+        talent: { path: "/talent" },
+        outreach: { path: "/outreach" },
+        insights: { path: "/executive-insights" },
+        canvas: { path: "/canvas" },
+        projects: { path: "/projects" },
+        reports: { path: "/reports" },
+        // CRM detail areas
+        deals: { path: "/crm/deals" },
+        pipeline: { path: "/crm/pipeline" },
+        invoices: { path: "/crm/invoices" },
+        "crm projects": { path: "/crm/projects" },
+        documents: { path: "/crm/documents" },
+        // Admin
+        admin: { path: "/admin" },
+        integrations: { path: "/admin/integrations" },
+        "admin integrations": { path: "/admin/integrations" },
+        "billing settings": { path: "/admin/billing" },
+        "team management": { path: "/admin/workspace" },
+        "jarvis settings": { path: "/admin/jarvis" },
+        branding: { path: "/admin/branding" },
+        "outreach settings": { path: "/admin/outreach" },
+        signals: { path: "/admin/signals" },
+        "data quality": { path: "/admin/data-quality" },
+        // Actions (navigate + click)
+        "add company": { path: "/companies", action: "click", targetId: "add-company-button" },
+        "add contact": { path: "/contacts", action: "click", targetId: "add-contact-button" },
+        "add deal": { path: "/crm/deals", action: "click", targetId: "add-deal-button" },
+        "add candidate": { path: "/talent", action: "click", targetId: "add-candidate-button" },
+        "import contacts": { path: "/contacts", action: "click", targetId: "import-button" },
+        "create campaign": { path: "/outreach", action: "click", targetId: "new-campaign-button" },
+        "create invoice": { path: "/home", action: "click", targetId: "create-invoice-button" },
+        "import companies": { path: "/companies", action: "click", targetId: "import-companies-button" },
       };
-      let path = routes[dest] || "/dashboard";
-      if (entityId) {
-        if (dest === "companies") path = `/companies/${entityId}`;
-        else if (dest === "contacts") path = `/crm/contacts/${entityId}`;
-        else if (dest === "deals") path = `/crm/deals/${entityId}`;
+
+      // Try exact match first, then fuzzy keyword match
+      let entry = navMap[dest];
+      if (!entry) {
+        for (const [key, val] of Object.entries(navMap)) {
+          if (dest.includes(key) || key.includes(dest)) {
+            entry = val;
+            break;
+          }
+        }
       }
-      return { result: { navigate_to: path }, entityType: "navigation", entityId: path };
+
+      let path = entry?.path || "/home";
+      if (entityId) {
+        if (dest.includes("compan")) path = `/companies/${entityId}`;
+        else if (dest.includes("contact")) path = `/crm/contacts/${entityId}`;
+        else if (dest.includes("deal")) path = `/crm/deals/${entityId}`;
+        else if (dest.includes("project")) path = `/crm/projects/${entityId}`;
+        else if (dest.includes("invoice")) path = `/crm/invoices/${entityId}`;
+      }
+
+      const result: Record<string, unknown> = { navigate_to: path };
+      if (entry?.action) result.action = entry.action;
+      if (entry?.targetId) result.target_id = entry.targetId;
+
+      return { result, entityType: "navigation", entityId: path };
     }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };

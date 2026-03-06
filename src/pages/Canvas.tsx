@@ -429,6 +429,7 @@ const Canvas = () => {
       icon: <GitBranch className="w-4 h-4" />,
       onClick: () => setShowOrgChartBuilder(true),
       priority: "secondary",
+      jarvisId: "canvas-build-orgchart",
     });
 
     actions.push({
@@ -447,12 +448,14 @@ const Canvas = () => {
       onClick: () => setIsAIKnowledgeOpen(!isAIKnowledgeOpen),
       isActive: isAIKnowledgeOpen,
       priority: "secondary",
+      jarvisId: "canvas-ai-research",
     });
 
     // Critical actions (always visible)
     actions.push({
       id: "import",
       label: "Import Contacts",
+
       icon: <Upload className="w-4 h-4" />,
       onClick: () => setShowAIImportModal(true),
       priority: "critical",
@@ -466,6 +469,7 @@ const Canvas = () => {
       onClick: () => setShowAddContactModal(true),
       variant: "default",
       priority: "critical",
+      jarvisId: "canvas-add-node-button",
     });
 
     return actions;
@@ -590,7 +594,7 @@ const Canvas = () => {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-65px)]">
+    <div className="flex flex-col h-[calc(100vh-65px)]" data-jarvis-id="canvas-page">
       {/* Sub-header with context controls */}
       <div 
         data-toolbar-ribbon

@@ -20,7 +20,7 @@ export const CanvasModeToggle = ({ mode, onModeChange }: CanvasModeToggleProps) 
           <MousePointer2 className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Browse</span>
         </ToggleGroupItem>
-        <ToggleGroupItem value="edit" aria-label="Edit structure mode" className="gap-1.5 text-xs">
+        <ToggleGroupItem value="edit" aria-label="Edit structure mode" className="gap-1.5 text-xs" data-jarvis-id="canvas-edit-button">
           <PenTool className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Edit Structure</span>
         </ToggleGroupItem>

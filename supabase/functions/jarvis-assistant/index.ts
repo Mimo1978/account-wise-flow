@@ -323,18 +323,37 @@ async function executeTool(
       const country = (input.country as string) || null;
       const headquarters = [city, country].filter(Boolean).join(", ") || null;
 
+      // Fetch user's workspace/team_id — required for RLS visibility
+      const { data: userRole, error: roleErr } = await supabaseAdmin
+        .from("user_roles")
+        .select("team_id")
+        .eq("user_id", userId)
+        .limit(1)
+        .single();
+      const teamId = userRole?.team_id || null;
+      console.log("[create_company] userId:", userId, "team_id:", teamId);
+
+      const insertPayload = {
+        name: input.name as string,
+        website: (input.website as string) || null,
+        industry: (input.industry as string) || null,
+        headquarters,
+        owner_id: userId,
+        team_id: teamId,
+      };
+      console.log("[create_company] Attempting insert into 'companies' with payload:", JSON.stringify(insertPayload));
+
       const { data, error } = await supabaseAdmin
         .from("companies")
-        .insert({
-          name: input.name as string,
-          website: (input.website as string) || null,
-          industry: (input.industry as string) || null,
-          headquarters,
-          owner_id: userId,
-        })
+        .insert(insertPayload)
         .select("id, name")
         .single();
-      if (error) return { result: { error: error.message }, entityType: "companies" };
+
+      if (error) {
+        console.error("[create_company] Insert FAILED:", error.message);
+        return { result: { error: error.message }, entityType: "companies" };
+      }
+      console.log("[create_company] Insert SUCCESS — id:", data?.id, "name:", data?.name);
       return { result: { ...data, navigate_to: "/companies" }, entityType: "companies", entityId: data?.id };
     }
     case "create_contact": {

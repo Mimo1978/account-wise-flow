@@ -27,6 +27,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useJarvisNavigation } from "@/hooks/use-jarvis-navigation";
+import { GuidedTourPlayer } from "@/components/jarvis/GuidedTourPlayer";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                   */
@@ -425,17 +426,39 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const conversationActiveRef = useRef(false); // Track if user started a conversation
   const pausedRef = useRef(false); // Track if auto-paused by modal/focus
 
-  // Auto-submit handler for voice
+  // Auto-submit handler for voice — also intercept tour commands
   const handleVoiceSubmit = useCallback(
     (text: string) => {
-      if (text && !isLoading) {
-        setInput("");
-        conversationActiveRef.current = true; // Conversation is now active
-        sendMessage(text);
-        lastInteractionRef.current = Date.now();
+      if (!text || isLoading) return;
+
+      const lower = text.toLowerCase().trim();
+
+      // Tour voice controls
+      if (jarvisNav.tourState.status === "running" || jarvisNav.tourState.status === "paused") {
+        if (/^(stop|cancel|quit|end tour)$/i.test(lower)) {
+          jarvisNav.stopTour();
+          return;
+        }
+        if (/^(pause|wait|hold on)$/i.test(lower)) {
+          jarvisNav.pauseTour();
+          return;
+        }
+        if (/^(next|skip|continue|go on|resume)$/i.test(lower)) {
+          if (jarvisNav.tourState.status === "paused") {
+            jarvisNav.resumeTour();
+          } else {
+            jarvisNav.skipTourStep();
+          }
+          return;
+        }
       }
+
+      setInput("");
+      conversationActiveRef.current = true;
+      sendMessage(text);
+      lastInteractionRef.current = Date.now();
     },
-    [isLoading, sendMessage]
+    [isLoading, sendMessage, jarvisNav]
   );
 
   const speech = useEnhancedSpeechRecognition(handleVoiceSubmit);
@@ -491,15 +514,12 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     if (speech.interimTranscript) setInput(speech.interimTranscript);
   }, [speech.interimTranscript]);
 
-  // Speak assistant responses + handle navigation
-  // After speaking, re-listen automatically for conversational flow
   // Speak assistant responses + handle navigation + guided tours
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
       // Check for guided tour first
       if (last.guidedTour && last.guidedTour.length > 0) {
-        // Speak the message first, then run the tour
         const speakAsync = (text: string) =>
           new Promise<void>((resolve) => {
             if (tts.enabled) {
@@ -509,16 +529,19 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
             }
           });
 
+        const runTour = async () => {
+          const completionMsg = await jarvisNav.runGuidedTour(last.guidedTour!, speakAsync);
+          if (completionMsg) {
+            // Speak the completion message
+            await speakAsync(completionMsg);
+          }
+          relistenAfterSpeech();
+        };
+
         if (tts.enabled) {
-          tts.speak(last.content, () => {
-            jarvisNav.runGuidedTour(last.guidedTour!, speakAsync).then(() => {
-              relistenAfterSpeech();
-            });
-          });
+          tts.speak(last.content, () => { runTour(); });
         } else {
-          jarvisNav.runGuidedTour(last.guidedTour!, speakAsync).then(() => {
-            relistenAfterSpeech();
-          });
+          runTour();
         }
       } else {
         // Delegate navigation to the dedicated hook
@@ -608,6 +631,31 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const handleSend = () => {
     const trimmed = input.trim();
     if (!trimmed || isLoading) return;
+    const lower = trimmed.toLowerCase();
+
+    // Intercept tour control commands from text input
+    if (jarvisNav.tourState.status === "running" || jarvisNav.tourState.status === "paused") {
+      if (/^(stop|cancel|quit|end tour)$/i.test(lower)) {
+        setInput("");
+        jarvisNav.stopTour();
+        return;
+      }
+      if (/^(pause|wait|hold on)$/i.test(lower)) {
+        setInput("");
+        jarvisNav.pauseTour();
+        return;
+      }
+      if (/^(next|skip|continue|go on|resume)$/i.test(lower)) {
+        setInput("");
+        if (jarvisNav.tourState.status === "paused") {
+          jarvisNav.resumeTour();
+        } else {
+          jarvisNav.skipTourStep();
+        }
+        return;
+      }
+    }
+
     setInput("");
     speech.stopListening();
     conversationActiveRef.current = true;
@@ -791,6 +839,15 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
           )}
         </div>
       </ScrollArea>
+
+      {/* Guided Tour Player */}
+      <GuidedTourPlayer
+        tour={jarvisNav.tourState}
+        onPause={jarvisNav.pauseTour}
+        onResume={jarvisNav.resumeTour}
+        onSkip={jarvisNav.skipTourStep}
+        onStop={jarvisNav.stopTour}
+      />
 
       {/* Keep Listening toggle + Input */}
       <div className="border-t border-border p-3 shrink-0 space-y-2">

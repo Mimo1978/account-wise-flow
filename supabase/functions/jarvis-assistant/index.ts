@@ -331,7 +331,7 @@ async function executeTool(
         .select("id, name")
         .single();
       if (error) return { result: { error: error.message }, entityType: "crm_companies" };
-      return { result: data, entityType: "crm_companies", entityId: data?.id };
+      return { result: { ...data, navigate_to: "/crm/companies" }, entityType: "crm_companies", entityId: data?.id };
     }
     case "create_contact": {
       const { data, error } = await supabaseAdmin
@@ -841,8 +841,18 @@ serve(async (req) => {
     let navigationPath: string | null = null;
     for (const action of actionsExecuted) {
       if (action.tool === "navigate" && action.entityType === "navigation") {
-        // Re-derive the path from the action
         navigationPath = action.entityId || null;
+      }
+    }
+    // Also check tool results for navigate_to (e.g. create_company auto-navigates)
+    for (const msg of currentMessages) {
+      if ((msg as any).role === "tool" && typeof (msg as any).content === "string") {
+        try {
+          const parsed = JSON.parse((msg as any).content);
+          if (parsed?.navigate_to && !navigationPath) {
+            navigationPath = parsed.navigate_to;
+          }
+        } catch {}
       }
     }
 

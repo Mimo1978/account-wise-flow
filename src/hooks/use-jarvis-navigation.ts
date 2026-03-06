@@ -1,0 +1,217 @@
+import { useCallback, useRef } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { resolveNavigation, type NavigationEntry } from "@/lib/jarvis-navigation-map";
+
+const TOOLTIP_ID = "jarvis-nav-tooltip";
+const OVERLAY_ID = "jarvis-nav-overlay";
+const HIGHLIGHT_CLASS = "jarvis-highlight";
+const GLOW_CLASS = "jarvis-screen-glow";
+
+/** Remove all Jarvis visual navigation artifacts */
+function clearVisuals() {
+  // Remove highlights
+  document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((el) => {
+    el.classList.remove(HIGHLIGHT_CLASS);
+  });
+  // Remove tooltip
+  document.getElementById(TOOLTIP_ID)?.remove();
+  // Remove overlay
+  document.getElementById(OVERLAY_ID)?.remove();
+  // Remove screen glow
+  document.body.classList.remove(GLOW_CLASS);
+}
+
+/** Inject a floating label tooltip next to an element */
+function showTooltip(el: HTMLElement, label: string) {
+  document.getElementById(TOOLTIP_ID)?.remove();
+
+  const rect = el.getBoundingClientRect();
+  const tip = document.createElement("div");
+  tip.id = TOOLTIP_ID;
+  tip.className = "jarvis-nav-tooltip";
+  tip.textContent = label;
+
+  // Position below the element, centred
+  tip.style.position = "fixed";
+  tip.style.top = `${rect.bottom + 10}px`;
+  tip.style.left = `${rect.left + rect.width / 2}px`;
+  tip.style.transform = "translateX(-50%)";
+  tip.style.zIndex = "9999";
+
+  document.body.appendChild(tip);
+
+  // Auto-remove after 4s
+  setTimeout(() => tip.remove(), 4000);
+}
+
+/** Find a DOM element by id with retries (for post-navigation render) */
+function findElement(
+  targetId: string,
+  maxRetries: number,
+  onFound: (el: HTMLElement) => void
+) {
+  const attempt = (retries: number) => {
+    const el = document.getElementById(targetId);
+    if (el) {
+      onFound(el);
+    } else if (retries > 0) {
+      setTimeout(() => attempt(retries - 1), 300);
+    }
+  };
+  attempt(maxRetries);
+}
+
+export function useJarvisNavigation() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const track = (timer: ReturnType<typeof setTimeout>) => {
+    activeTimers.current.push(timer);
+  };
+
+  /** Clear all highlights, tooltips, and glow */
+  const clearAll = useCallback(() => {
+    activeTimers.current.forEach(clearTimeout);
+    activeTimers.current = [];
+    clearVisuals();
+  }, []);
+
+  /** Highlight a DOM element by id with a glowing ring + tooltip */
+  const highlightElement = useCallback(
+    (targetId: string, label?: string) => {
+      findElement(targetId, 8, (el) => {
+        clearVisuals();
+        el.classList.add(HIGHLIGHT_CLASS);
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (label) showTooltip(el, label);
+
+        // Auto-clear after 4s
+        track(
+          setTimeout(() => {
+            el.classList.remove(HIGHLIGHT_CLASS);
+            document.getElementById(TOOLTIP_ID)?.remove();
+          }, 4000)
+        );
+      });
+    },
+    []
+  );
+
+  /** Programmatically click an element after highlighting it */
+  const clickElement = useCallback(
+    (targetId: string, label?: string) => {
+      findElement(targetId, 8, (el) => {
+        clearVisuals();
+        el.classList.add(HIGHLIGHT_CLASS);
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (label) showTooltip(el, label);
+
+        // Click after a short highlight display
+        track(
+          setTimeout(() => {
+            el.click();
+            track(
+              setTimeout(() => {
+                el.classList.remove(HIGHLIGHT_CLASS);
+                document.getElementById(TOOLTIP_ID)?.remove();
+              }, 1500)
+            );
+          }, 700)
+        );
+      });
+    },
+    []
+  );
+
+  /**
+   * Full navigation sequence:
+   * 1. Activate screen glow
+   * 2. Navigate to the resolved route
+   * 3. Wait for render
+   * 4. Highlight target element (if any)
+   * 5. Show tooltip label
+   * 6. Optionally click the element
+   */
+  const navigateTo = useCallback(
+    (
+      destination: string,
+      options?: {
+        targetId?: string;
+        targetAction?: "click";
+        label?: string;
+      }
+    ) => {
+      clearAll();
+
+      // Resolve destination from navigation map or use raw path
+      const entry: NavigationEntry | null = resolveNavigation(destination);
+      const path = entry?.path || destination;
+      const targetId = options?.targetId || entry?.targetId;
+      const action = options?.targetAction || entry?.action;
+      const label = options?.label || entry?.label || destination;
+
+      // Step 1: Screen glow
+      document.body.classList.add(GLOW_CLASS);
+      track(setTimeout(() => document.body.classList.remove(GLOW_CLASS), 1800));
+
+      // Step 2: Navigate (skip if already on the page)
+      const isSamePage = location.pathname === path;
+      if (!isSamePage) {
+        navigate(path);
+      }
+
+      // Step 3-6: After navigation renders, highlight/click target
+      if (targetId) {
+        const renderDelay = isSamePage ? 100 : 400;
+        track(
+          setTimeout(() => {
+            if (action === "click") {
+              clickElement(targetId, label);
+            } else {
+              highlightElement(targetId, label);
+            }
+          }, renderDelay)
+        );
+      }
+    },
+    [navigate, location.pathname, clearAll, highlightElement, clickElement]
+  );
+
+  /**
+   * Handle a Jarvis message's navigation payload directly.
+   * Called from JarvisChat when a message has navigateTo/targetId.
+   */
+  const handleMessageNavigation = useCallback(
+    (msg: {
+      navigateTo?: string;
+      targetId?: string;
+      targetAction?: "click";
+    }) => {
+      if (!msg.navigateTo && !msg.targetId) return;
+
+      if (msg.navigateTo) {
+        navigateTo(msg.navigateTo, {
+          targetId: msg.targetId,
+          targetAction: msg.targetAction,
+        });
+      } else if (msg.targetId) {
+        // Same-page action only
+        if (msg.targetAction === "click") {
+          clickElement(msg.targetId);
+        } else {
+          highlightElement(msg.targetId);
+        }
+      }
+    },
+    [navigateTo, clickElement, highlightElement]
+  );
+
+  return {
+    navigateTo,
+    highlightElement,
+    clickElement,
+    clearAll,
+    handleMessageNavigation,
+  };
+}

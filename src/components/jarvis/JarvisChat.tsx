@@ -409,6 +409,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
+  const jarvisNav = useJarvisNavigation();
   const tts = useElevenLabsTTS(
     jarvisSettings.voice_gender,
     jarvisSettings.speaking_speed,

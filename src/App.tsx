@@ -23,6 +23,7 @@ import Canvas from "./pages/Canvas";
 import HomeCommandCenter from "./pages/HomeCommandCenter";
 import ContactsDatabase from "./pages/ContactsDatabase";
 import CompaniesDatabase from "./pages/CompaniesDatabase";
+import CompanyDetail from "./pages/CompanyDetail";
 import TalentDatabase from "./pages/TalentDatabase";
 import ExecutiveInsights from "./pages/ExecutiveInsights";
 import Demo from "./pages/Demo";
@@ -154,6 +155,7 @@ const App = () => {
             <Route path="/canvas" element={<ProtectedRoute><ProductLayout><Canvas /></ProductLayout></ProtectedRoute>} />
             <Route path="/database" element={<Navigate to="/companies" replace />} />
             <Route path="/companies" element={<ProtectedRoute><ProductLayout><CompaniesDatabase /></ProductLayout></ProtectedRoute>} />
+            <Route path="/companies/:id" element={<ProtectedRoute><ProductLayout><CompanyDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/contacts" element={<ProtectedRoute><ProductLayout><ContactsDatabase /></ProductLayout></ProtectedRoute>} />
             <Route path="/talent" element={<ProtectedRoute><ProductLayout><TalentDatabase /></ProductLayout></ProtectedRoute>} />
             <Route path="/talent/:candidateId" element={<ProtectedRoute><ProductLayout><CandidateProfile /></ProductLayout></ProtectedRoute>} />

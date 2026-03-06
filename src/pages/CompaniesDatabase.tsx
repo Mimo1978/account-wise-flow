@@ -199,7 +199,7 @@ export default function CompaniesDatabase() {
     if ((e.target as HTMLElement).closest('[data-checkbox]')) {
       return;
     }
-    setSelectedCompany(account);
+    navigate(`/companies/${account.id}`);
   };
 
   // Canvas navigation

@@ -190,76 +190,116 @@ All colors MUST be HSL.
   }
 }
 
-/* Jarvis navigation highlight — orange glowing ring around target element */
+/* ─── Jarvis Visual Effects System ─── */
+
+/* SCREEN BORDER GLOW — Applied to body when Jarvis navigation is active */
+.jarvis-screen-glow::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 3px hsl(24 95% 53%), inset 0 0 60px hsl(24 95% 53% / 0.15);
+  animation: jarvis-border-pulse 2s ease-in-out infinite;
+  z-index: 9999;
+  border-radius: 0;
+}
+
+@keyframes jarvis-border-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* ELEMENT SPOTLIGHT — Glowing ring on target element */
 .jarvis-highlight {
   position: relative;
-  z-index: 50;
-  outline: 3px solid hsl(30 100% 50%);
-  outline-offset: 4px;
-  border-radius: 8px;
-  animation: jarvis-nav-pulse 0.7s ease-in-out 4;
+  box-shadow: 0 0 0 3px hsl(24 95% 53%), 0 0 30px hsl(24 95% 53% / 0.6) !important;
+  border-radius: inherit;
+  z-index: 1000;
+  animation: jarvis-spotlight-pulse 1.4s ease-in-out 3;
 }
 
-@keyframes jarvis-nav-pulse {
+@keyframes jarvis-spotlight-pulse {
   0%, 100% {
-    outline-color: hsl(30 100% 50%);
-    box-shadow: 0 0 0 0 hsl(30 100% 50% / 0.4);
+    box-shadow: 0 0 0 3px hsl(24 95% 53%), 0 0 20px hsl(24 95% 53% / 0.4);
   }
   50% {
-    outline-color: hsl(30 100% 60%);
-    box-shadow: 0 0 16px 6px hsl(30 100% 50% / 0.3);
+    box-shadow: 0 0 0 4px hsl(24 95% 53%), 0 0 40px hsl(24 95% 53% / 0.7);
   }
 }
 
-/* Jarvis screen glow — brief ambient flash on navigation */
-.jarvis-screen-glow {
-  animation: jarvis-glow 1.2s ease-out forwards;
-}
-
-@keyframes jarvis-glow {
-  0% {
-    box-shadow: inset 0 0 80px 20px hsl(var(--primary) / 0.08);
-  }
-  50% {
-    box-shadow: inset 0 0 120px 40px hsl(var(--primary) / 0.12);
-  }
-  100% {
-    box-shadow: inset 0 0 0 0 hsl(var(--primary) / 0);
-  }
-}
-
-/* Jarvis floating tooltip */
+/* FLOATING LABEL TOOLTIP — Above highlighted element */
 .jarvis-nav-tooltip {
-  background: hsl(222 47% 11%);
+  background: hsl(24 95% 53%);
   color: hsl(0 0% 100%);
   font-size: 0.8125rem;
-  font-weight: 500;
+  font-weight: 600;
   padding: 6px 14px;
   border-radius: 8px;
   white-space: nowrap;
   pointer-events: none;
-  box-shadow: 0 4px 16px hsl(0 0% 0% / 0.25);
-  animation: jarvis-tooltip-in 0.25s ease-out;
+  box-shadow: 0 4px 20px hsl(24 95% 53% / 0.35);
+  animation: jarvis-tooltip-in 0.2s ease-out;
+  letter-spacing: 0.01em;
 }
 
-.jarvis-nav-tooltip::before {
-  content: "";
+.jarvis-nav-tooltip::after {
+  content: '';
   position: absolute;
-  top: -5px;
+  bottom: -5px;
   left: 50%;
   transform: translateX(-50%);
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-bottom: 6px solid hsl(222 47% 11%);
+  border-top: 6px solid hsl(24 95% 53%);
 }
 
 @keyframes jarvis-tooltip-in {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(6px);
+    transform: translateX(-50%) translateY(4px);
   }
   to {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
+}
+
+/* NAVIGATION TRANSITION OVERLAY */
+.jarvis-nav-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: hsl(222 47% 6% / 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: jarvis-overlay-in 0.15s ease-out;
+  backdrop-filter: blur(4px);
+}
+
+.jarvis-nav-overlay.removing {
+  animation: jarvis-overlay-out 0.2s ease-in forwards;
+}
+
+@keyframes jarvis-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes jarvis-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.jarvis-nav-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid hsl(24 95% 53% / 0.25);
+  border-top-color: hsl(24 95% 53%);
+  animation: jarvis-spin 0.6s linear infinite;
+}
+
+@keyframes jarvis-spin {
+  to { transform: rotate(360deg); }
 }

@@ -9,19 +9,35 @@ const GLOW_CLASS = "jarvis-screen-glow";
 
 /** Remove all Jarvis visual navigation artifacts */
 function clearVisuals() {
-  // Remove highlights
   document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((el) => {
     el.classList.remove(HIGHLIGHT_CLASS);
   });
-  // Remove tooltip
   document.getElementById(TOOLTIP_ID)?.remove();
-  // Remove overlay
-  document.getElementById(OVERLAY_ID)?.remove();
-  // Remove screen glow
+  removeOverlay();
   document.body.classList.remove(GLOW_CLASS);
 }
 
-/** Inject a floating label tooltip next to an element */
+/** Show the navigation transition overlay (spinner) */
+function showOverlay() {
+  removeOverlay();
+  const overlay = document.createElement("div");
+  overlay.id = OVERLAY_ID;
+  overlay.className = "jarvis-nav-overlay";
+  const spinner = document.createElement("div");
+  spinner.className = "jarvis-nav-spinner";
+  overlay.appendChild(spinner);
+  document.body.appendChild(overlay);
+}
+
+/** Remove overlay with fade-out */
+function removeOverlay() {
+  const existing = document.getElementById(OVERLAY_ID);
+  if (!existing) return;
+  existing.classList.add("removing");
+  setTimeout(() => existing.remove(), 200);
+}
+
+/** Inject a floating label tooltip above an element */
 function showTooltip(el: HTMLElement, label: string) {
   document.getElementById(TOOLTIP_ID)?.remove();
 
@@ -31,11 +47,11 @@ function showTooltip(el: HTMLElement, label: string) {
   tip.className = "jarvis-nav-tooltip";
   tip.textContent = label;
 
-  // Position below the element, centred
+  // Position above the element, centred
   tip.style.position = "fixed";
-  tip.style.top = `${rect.bottom + 10}px`;
+  tip.style.top = `${rect.top - 10}px`;
   tip.style.left = `${rect.left + rect.width / 2}px`;
-  tip.style.transform = "translateX(-50%)";
+  tip.style.transform = "translateX(-50%) translateY(-100%)";
   tip.style.zIndex = "9999";
 
   document.body.appendChild(tip);
@@ -70,7 +86,7 @@ export function useJarvisNavigation() {
     activeTimers.current.push(timer);
   };
 
-  /** Clear all highlights, tooltips, and glow */
+  /** Clear all highlights, tooltips, overlays and glow */
   const clearAll = useCallback(() => {
     activeTimers.current.forEach(clearTimeout);
     activeTimers.current = [];
@@ -126,12 +142,14 @@ export function useJarvisNavigation() {
 
   /**
    * Full navigation sequence:
-   * 1. Activate screen glow
-   * 2. Navigate to the resolved route
-   * 3. Wait for render
-   * 4. Highlight target element (if any)
-   * 5. Show tooltip label
-   * 6. Optionally click the element
+   * 1. Activate screen border glow
+   * 2. Show transition overlay (spinner)
+   * 3. Navigate to the resolved route
+   * 4. Wait for render
+   * 5. Remove overlay
+   * 6. Highlight target element (if any)
+   * 7. Show floating label tooltip
+   * 8. Optionally click the element
    */
   const navigateTo = useCallback(
     (
@@ -151,36 +169,40 @@ export function useJarvisNavigation() {
       const action = options?.targetAction || entry?.action;
       const label = options?.label || entry?.label || destination;
 
-      // Step 1: Screen glow
-      document.body.classList.add(GLOW_CLASS);
-      track(setTimeout(() => document.body.classList.remove(GLOW_CLASS), 1800));
-
-      // Step 2: Navigate (skip if already on the page)
       const isSamePage = location.pathname === path;
+
+      // Step 1: Screen border glow
+      document.body.classList.add(GLOW_CLASS);
+      track(setTimeout(() => document.body.classList.remove(GLOW_CLASS), 3000));
+
+      // Step 2: Show overlay for cross-page navigation
       if (!isSamePage) {
+        showOverlay();
         navigate(path);
       }
 
-      // Step 3-6: After navigation renders, highlight/click target
-      if (targetId) {
-        const renderDelay = isSamePage ? 100 : 400;
-        track(
-          setTimeout(() => {
+      // Step 3-8: After navigation renders, remove overlay + highlight/click
+      const renderDelay = isSamePage ? 100 : 400;
+      track(
+        setTimeout(() => {
+          // Remove transition overlay
+          if (!isSamePage) removeOverlay();
+
+          if (targetId) {
             if (action === "click") {
               clickElement(targetId, label);
             } else {
               highlightElement(targetId, label);
             }
-          }, renderDelay)
-        );
-      }
+          }
+        }, renderDelay)
+      );
     },
     [navigate, location.pathname, clearAll, highlightElement, clickElement]
   );
 
   /**
    * Handle a Jarvis message's navigation payload directly.
-   * Called from JarvisChat when a message has navigateTo/targetId.
    */
   const handleMessageNavigation = useCallback(
     (msg: {
@@ -196,7 +218,6 @@ export function useJarvisNavigation() {
           targetAction: msg.targetAction,
         });
       } else if (msg.targetId) {
-        // Same-page action only
         if (msg.targetAction === "click") {
           clickElement(msg.targetId);
         } else {

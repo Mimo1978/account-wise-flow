@@ -150,10 +150,10 @@ export default function CompanyDetail() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+              <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} data-jarvis-id="company-edit-button">
                 <Pencil className="h-4 w-4 mr-1" /> Edit Company
               </Button>
-              <Button variant="outline" size="sm" onClick={() => navigate(`/contacts?company=${id}`)}>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/contacts?company=${id}`)} data-jarvis-id="company-add-contact-button">
                 <Plus className="h-4 w-4 mr-1" /> Add Contact
               </Button>
               <DropdownMenu>
@@ -163,13 +163,13 @@ export default function CompanyDetail() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => navigate(`/canvas?company=${id}`)}>
+                  <DropdownMenuItem onClick={() => navigate(`/canvas?company=${id}`)} data-jarvis-id="company-open-canvas-button">
                     <Network className="h-4 w-4 mr-2" /> Open on Canvas
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem data-jarvis-id="company-send-email-button">
                     <Mail className="h-4 w-4 mr-2" /> Send Email
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
+                  <DropdownMenuItem data-jarvis-id="company-log-call-button">
                     <Phone className="h-4 w-4 mr-2" /> Log Call
                   </DropdownMenuItem>
                   <DropdownMenuItem>
@@ -199,14 +199,14 @@ export default function CompanyDetail() {
           <div className="flex-1 min-w-0">
             <Tabs defaultValue="overview">
               <TabsList className="mb-4 flex-wrap">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="contacts">Contacts ({contacts.length})</TabsTrigger>
-                <TabsTrigger value="deals">Deals</TabsTrigger>
-                <TabsTrigger value="projects">Projects</TabsTrigger>
-                <TabsTrigger value="documents">Documents</TabsTrigger>
-                <TabsTrigger value="activities">Activities</TabsTrigger>
-                <TabsTrigger value="canvas">Canvas</TabsTrigger>
-                <TabsTrigger value="invoices">Invoices</TabsTrigger>
+                <TabsTrigger value="overview" data-jarvis-id="company-tab-overview">Overview</TabsTrigger>
+                <TabsTrigger value="contacts" data-jarvis-id="company-tab-contacts">Contacts ({contacts.length})</TabsTrigger>
+                <TabsTrigger value="deals" data-jarvis-id="company-tab-deals">Deals</TabsTrigger>
+                <TabsTrigger value="projects" data-jarvis-id="company-tab-projects">Projects</TabsTrigger>
+                <TabsTrigger value="documents" data-jarvis-id="company-tab-documents">Documents</TabsTrigger>
+                <TabsTrigger value="activities" data-jarvis-id="company-tab-activities">Activities</TabsTrigger>
+                <TabsTrigger value="canvas" data-jarvis-id="company-tab-canvas">Canvas</TabsTrigger>
+                <TabsTrigger value="invoices" data-jarvis-id="company-tab-invoices">Invoices</TabsTrigger>
               </TabsList>
 
               {/* OVERVIEW */}

@@ -601,7 +601,7 @@ export default function ContactsDatabase() {
                   {duplicateCount} Duplicate{duplicateCount > 1 ? "s" : ""}
                 </Button>
               )}
-              <Button variant="default" size="sm" onClick={handleViewOrgChart}>
+              <Button variant="default" size="sm" onClick={handleViewOrgChart} data-jarvis-id="contacts-view-orgchart-button">
                 <Network className="h-4 w-4 mr-2" />
                 View Org Chart
               </Button>
@@ -618,6 +618,7 @@ export default function ContactsDatabase() {
             <Input
               placeholder="Search by name, company, department, job title..."
               value={searchQuery}
+              data-jarvis-id="contacts-search-input"
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />

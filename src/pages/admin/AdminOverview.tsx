@@ -14,6 +14,7 @@ interface AdminCard {
   icon: React.ElementType;
   path: string;
   adminOnly?: boolean;
+  jarvisId?: string;
 }
 
 const ADMIN_CARDS: AdminCard[] = [
@@ -23,30 +24,35 @@ const ADMIN_CARDS: AdminCard[] = [
     icon: Shield,
     path: '/admin/access',
     adminOnly: true,
+    jarvisId: 'admin-workspace-roles',
   },
   {
     title: 'Data Quality & Duplicates',
     description: 'Duplicate detection, completeness stats and merge governance.',
     icon: Database,
     path: '/admin/data-quality',
+    jarvisId: 'admin-data-quality',
   },
   {
     title: 'Outreach Defaults',
     description: 'Configure scripts, calling hours and channel defaults.',
     icon: Megaphone,
     path: '/admin/outreach',
+    jarvisId: 'admin-outreach-defaults',
   },
   {
     title: 'Integrations',
     description: 'View integration status and external service configuration.',
     icon: Plug,
     path: '/admin/integrations',
+    jarvisId: 'admin-integrations',
   },
   {
     title: 'Schema Inventory',
     description: 'Explore public-schema tables, columns & constraints.',
     icon: Database,
     path: '/admin/schema',
+    jarvisId: 'admin-schema-inventory',
   },
 ];
 
@@ -67,7 +73,7 @@ export default function AdminOverview() {
           if (card.adminOnly && role !== 'admin') return null;
           const Icon = card.icon;
           return (
-            <Link key={card.path + card.title} to={card.path} className="group">
+            <Link key={card.path + card.title} to={card.path} className="group" data-jarvis-id={card.jarvisId}>
               <Card className="h-full transition-colors hover:border-primary/40">
                 <CardHeader className="flex flex-row items-start gap-3 pb-2">
                   <div className="mt-0.5 rounded-md bg-primary/10 p-2">

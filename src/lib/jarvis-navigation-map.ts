@@ -187,10 +187,10 @@ export const navigationMap: Record<string, NavigationEntry> = {
     keywords: ["add contact", "new contact", "create contact button"],
   },
   addDeal: {
-    path: "/crm/deals",
+    path: "/home",
     label: "Create Deal",
     action: "click",
-    targetId: "add-deal-button",
+    targetId: "home-create-deal-button",
     keywords: ["add deal", "new deal", "create deal button"],
   },
   addCandidate: {
@@ -227,6 +227,47 @@ export const navigationMap: Record<string, NavigationEntry> = {
     action: "click",
     targetId: "import-companies-button",
     keywords: ["import companies", "upload companies", "bulk company import"],
+  },
+
+  // ── In-page interactions: Outreach ──────────────────────────
+  addTargets: {
+    path: "/outreach",
+    label: "Add Targets",
+    action: "click",
+    targetId: "add-targets-button",
+    keywords: ["add targets", "add outreach targets", "new targets"],
+  },
+  newScript: {
+    path: "/outreach",
+    label: "New Script",
+    action: "click",
+    targetId: "new-script-button",
+    keywords: ["new script", "create script", "call script"],
+  },
+
+  // ── In-page interactions: Home ──────────────────────────────
+  addSow: {
+    path: "/home",
+    label: "Add SOW",
+    action: "click",
+    targetId: "home-add-sow-button",
+    keywords: ["add sow", "new sow", "statement of work", "create sow"],
+  },
+  createProject: {
+    path: "/home",
+    label: "Create Project",
+    action: "click",
+    targetId: "home-create-project-button",
+    keywords: ["create project", "new project", "add project"],
+  },
+
+  // ── In-page interactions: Contacts ─────────────────────────
+  viewOrgChart: {
+    path: "/contacts",
+    label: "View Org Chart",
+    action: "click",
+    targetId: "contacts-view-orgchart-button",
+    keywords: ["view org chart from contacts", "contacts org chart"],
   },
 };
 

@@ -253,7 +253,7 @@ export default function CompaniesDatabase() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <TeamManagementPanel />
+              <span data-jarvis-id="companies-team-settings"><TeamManagementPanel /></span>
               
               {/* Import Dropdown - Shared Component */}
               <ImportDropdown
@@ -317,6 +317,7 @@ export default function CompaniesDatabase() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
+              data-jarvis-id="companies-search-input"
             />
           </div>
           

@@ -833,6 +833,9 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
                 onConfirm={isLastAssistant ? handleConfirm : undefined}
                 onCancel={isLastAssistant ? handleCancel : undefined}
                 onReplay={msg.role === "assistant" ? () => handleReplay(msg.content) : undefined}
+                onSuggestionClick={(suggestion) => {
+                  jarvisNav.navigateTo(suggestion.destination);
+                }}
               />
             );
           })}

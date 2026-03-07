@@ -101,7 +101,7 @@ const ExecutiveInsights = () => {
           {/* ── Main Content ── */}
           <div className="lg:col-span-3 space-y-8">
             {/* §1 Revenue Risk Snapshot — loads immediately */}
-            <RevenueRiskSnapshot
+            <RevenueRiskSnapshot data-jarvis-id="insights-risk-snapshot"
               atRiskCount={atRiskCount}
               singleThreadedCount={singleThreadedCount}
               dormantCount={dormantCount}
@@ -182,7 +182,7 @@ function RevenueRiskSnapshot({
   const highRiskCompanies = companies.filter(c => c.riskBand === 'high_risk').slice(0, 5);
 
   return (
-    <section>
+    <section data-jarvis-id="insights-risk-snapshot">
       <SectionHeader icon={ShieldAlert} iconColor="text-destructive" title="Revenue Risk Snapshot" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
         <RiskKpiCard
@@ -324,7 +324,7 @@ function RelationshipStrengthIndex({
     : companies.filter(c => c.rsiTier === bandFilter).sort((a, b) => a.rsiScore - b.rsiScore);
 
   return (
-    <section>
+    <section data-jarvis-id="insights-relationship-strength">
       <SectionHeader icon={TrendingUp} title="Relationship Strength Index" />
 
       <div className="grid md:grid-cols-3 gap-4 mb-4">
@@ -434,7 +434,7 @@ function PipelineAcceleration({ pipeline }: { pipeline: ReturnType<typeof useRev
   const hasSignals = pipeline.respondedTargets > 0 || pipeline.bookedTargets > 0 || pipeline.interestedOutcomes > 0 || pipeline.meetingBookedOutcomes > 0 || pipeline.highResponseCampaigns.length > 0;
 
   return (
-    <section>
+    <section data-jarvis-id="insights-pipeline-signals">
       <SectionHeader icon={Rocket} title="Pipeline Acceleration Signals" />
 
       {!hasSignals ? (
@@ -512,7 +512,7 @@ function SalesMomentumSection({ momentum }: { momentum: SalesMomentum }) {
   const hasData = totalTargets > 0 || totalCalls > 0;
 
   return (
-    <section>
+    <section data-jarvis-id="insights-sales-momentum">
       <SectionHeader icon={BarChart3} title="Sales Momentum" />
 
       {!hasData ? (

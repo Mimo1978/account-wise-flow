@@ -675,7 +675,7 @@ function OrgPenetrationHeatmap({ companies }: { companies: CompanyRiskProfile[] 
 
   if (companies.length === 0) {
     return (
-      <section>
+      <section data-jarvis-id="insights-org-penetration">
         <SectionHeader icon={Network} title="Org Penetration Analytics" />
         <Card>
           <CardContent className="py-10">

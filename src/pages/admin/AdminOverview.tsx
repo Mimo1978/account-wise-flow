@@ -14,6 +14,7 @@ interface AdminCard {
   icon: React.ElementType;
   path: string;
   adminOnly?: boolean;
+  jarvisId?: string;
 }
 
 const ADMIN_CARDS: AdminCard[] = [
@@ -23,30 +24,35 @@ const ADMIN_CARDS: AdminCard[] = [
     icon: Shield,
     path: '/admin/access',
     adminOnly: true,
+    jarvisId: 'admin-workspace-roles',
   },
   {
     title: 'Data Quality & Duplicates',
     description: 'Duplicate detection, completeness stats and merge governance.',
     icon: Database,
     path: '/admin/data-quality',
+    jarvisId: 'admin-data-quality',
   },
   {
     title: 'Outreach Defaults',
     description: 'Configure scripts, calling hours and channel defaults.',
     icon: Megaphone,
     path: '/admin/outreach',
+    jarvisId: 'admin-outreach-defaults',
   },
   {
     title: 'Integrations',
     description: 'View integration status and external service configuration.',
     icon: Plug,
     path: '/admin/integrations',
+    jarvisId: 'admin-integrations',
   },
   {
     title: 'Schema Inventory',
     description: 'Explore public-schema tables, columns & constraints.',
     icon: Database,
     path: '/admin/schema',
+    jarvisId: 'admin-schema-inventory',
   },
 ];
 

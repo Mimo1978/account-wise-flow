@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import { getJarvisNavHistory } from "@/hooks/use-jarvis-navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 export interface JarvisAction {
   tool: string;
@@ -105,6 +107,7 @@ export function useJarvis() {
       const timeout = setTimeout(() => abortRef.current?.abort(), TIMEOUT_MS);
 
       try {
+        const navHistory = getJarvisNavHistory();
         const { data, error } = await supabase.functions.invoke(
           "jarvis-assistant",
           {
@@ -112,6 +115,7 @@ export function useJarvis() {
               user_message: userMessage,
               conversation_history: contextMessages.slice(0, -1),
               user_first_name: userFirstName,
+              nav_history: navHistory.slice(-20).map(e => ({ path: e.path, label: e.label })),
             },
           }
         );

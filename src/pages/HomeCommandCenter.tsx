@@ -573,7 +573,7 @@ const HomeCommandCenter = () => {
         {/* My Work: 30 day window */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">My Work</h2>
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider" data-jarvis-id="home-my-work">My Work</h2>
             <div className="flex items-center gap-2">
               {scheduledTodayCount > 0 && (
                 <Badge variant="outline" className="text-xs gap-1">
@@ -615,7 +615,7 @@ const HomeCommandCenter = () => {
         {/* Diary: 7 day window */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Diary</h2>
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider" data-jarvis-id="home-diary">Diary</h2>
             <Badge variant="secondary" className="text-xs">Next 7 days</Badge>
           </div>
           {diaryItems.length === 0 ? (
@@ -698,7 +698,7 @@ const HomeCommandCenter = () => {
       <section>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Billing Snapshot</h2>
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider" data-jarvis-id="home-billing-snapshot">Billing Snapshot</h2>
             {activePlansExist && (
               <Badge variant="secondary" className="text-xs gap-1">
                 <Zap className="w-3 h-3" />
@@ -831,7 +831,7 @@ const HomeCommandCenter = () => {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">SOWs & Contracts</h2>
-          <Button size="sm" className="gap-1.5" onClick={() => setSowOpen(true)}>
+          <Button size="sm" className="gap-1.5" onClick={() => setSowOpen(true)} data-jarvis-id="home-add-sow-button">
             <Plus className="w-3.5 h-3.5" />
             Add SOW
           </Button>
@@ -907,7 +907,7 @@ const HomeCommandCenter = () => {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Active Projects</h2>
-          <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
+          <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)} data-jarvis-id="home-create-project-button">
             <Plus className="w-3.5 h-3.5" />
             Create Project
           </Button>
@@ -990,12 +990,12 @@ const HomeCommandCenter = () => {
       {/* ── Pipeline Snapshot (Deals Kanban) ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider">Pipeline Snapshot</h2>
+          <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider" data-jarvis-id="home-pipeline-snapshot">Pipeline Snapshot</h2>
           <div className="flex items-center gap-2">
             <div className="text-xs text-muted-foreground">
               Total: £{totalPipelineValue.toLocaleString()} · Weighted: £{weightedPipelineValue.toLocaleString()} · 30d forecast: £{next30Forecast.toLocaleString()}
             </div>
-            <Button size="sm" className="gap-1.5" onClick={() => setDealOpen(true)} data-jarvis-id="add-deal-button">
+            <Button size="sm" className="gap-1.5" onClick={() => setDealOpen(true)} data-jarvis-id="home-create-deal-button">
               <Plus className="w-3.5 h-3.5" />
               Create Deal
             </Button>

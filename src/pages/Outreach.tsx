@@ -252,6 +252,7 @@ export default function OutreachPage() {
                 onClick={() => setAddTargetsOpen(true)}
                 disabled={campaigns.length === 0 || isReadOnly}
                 title={isReadOnly ? "Viewers have read-only access" : undefined}
+                data-jarvis-id="add-targets-button"
               >
                 <Users className="w-4 h-4" />
                 Add Targets
@@ -263,6 +264,7 @@ export default function OutreachPage() {
                 onClick={() => openScriptBuilder()}
                 disabled={isReadOnly}
                 title={isReadOnly ? "Viewers have read-only access" : undefined}
+                data-jarvis-id="new-script-button"
               >
                 <FileText className="w-4 h-4" />
                 New Script
@@ -312,11 +314,11 @@ export default function OutreachPage() {
         <Tabs value={tab} onValueChange={(v) => setTab(v as "queue" | "campaigns" | "scripts")}>
           <div className="flex items-center justify-between mb-4">
             <TabsList>
-              <TabsTrigger value="queue" className="gap-2">
+              <TabsTrigger value="queue" className="gap-2" data-jarvis-id="outreach-tab-queue">
                 <Users className="w-3.5 h-3.5" />
                 Target Queue
               </TabsTrigger>
-              <TabsTrigger value="campaigns" className="gap-2">
+              <TabsTrigger value="campaigns" className="gap-2" data-jarvis-id="outreach-tab-campaigns">
                 <Megaphone className="w-3.5 h-3.5" />
                 Campaigns
                 {campaigns.length > 0 && (
@@ -325,7 +327,7 @@ export default function OutreachPage() {
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="scripts" className="gap-2">
+              <TabsTrigger value="scripts" className="gap-2" data-jarvis-id="outreach-tab-scripts">
                 <FileText className="w-3.5 h-3.5" />
                 Scripts
                 {scripts.length > 0 && (

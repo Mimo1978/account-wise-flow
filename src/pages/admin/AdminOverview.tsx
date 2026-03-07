@@ -67,7 +67,7 @@ export default function AdminOverview() {
           if (card.adminOnly && role !== 'admin') return null;
           const Icon = card.icon;
           return (
-            <Link key={card.path + card.title} to={card.path} className="group">
+            <Link key={card.path + card.title} to={card.path} className="group" data-jarvis-id={card.jarvisId}>
               <Card className="h-full transition-colors hover:border-primary/40">
                 <CardHeader className="flex flex-row items-start gap-3 pb-2">
                   <div className="mt-0.5 rounded-md bg-primary/10 p-2">

@@ -21,7 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useJarvis, JarvisMessage } from "@/hooks/use-jarvis";
+import { useJarvis, JarvisMessage, JarvisSuggestion } from "@/hooks/use-jarvis";
 import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -64,11 +64,13 @@ function MessageBubble({
   onConfirm,
   onCancel,
   onReplay,
+  onSuggestionClick,
 }: {
   message: JarvisMessage;
   onConfirm?: () => void;
   onCancel?: () => void;
   onReplay?: () => void;
+  onSuggestionClick?: (suggestion: JarvisSuggestion) => void;
 }) {
   const isUser = message.role === "user";
 
@@ -96,6 +98,21 @@ function MessageBubble({
           )}
           {message.content}
         </div>
+
+        {/* Suggestion chips */}
+        {!isUser && message.suggestions && message.suggestions.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {message.suggestions.map((s) => (
+              <button
+                key={s.destination}
+                onClick={() => onSuggestionClick?.(s)}
+                className="text-xs px-2.5 py-1 rounded-full border border-border hover:bg-accent hover:border-primary/30 transition-colors text-foreground"
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex gap-2 items-center">
           {message.awaitingConfirmation && onConfirm && onCancel && (
@@ -816,6 +833,9 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
                 onConfirm={isLastAssistant ? handleConfirm : undefined}
                 onCancel={isLastAssistant ? handleCancel : undefined}
                 onReplay={msg.role === "assistant" ? () => handleReplay(msg.content) : undefined}
+                onSuggestionClick={(suggestion) => {
+                  jarvisNav.navigateTo(suggestion.destination);
+                }}
               />
             );
           })}

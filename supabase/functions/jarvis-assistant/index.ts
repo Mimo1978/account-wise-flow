@@ -387,6 +387,26 @@ Outreach intents:
 LOST USER intent ("I'm lost", "help me", "where am I"):
 - Navigate to /home and offer a menu of common tasks.
 
+FALLBACK DISCOVERY — when you receive a request you don't recognise or can't map to a known page/action:
+1. First, try to fuzzy-match the user's words against ALL known page names, button labels, tab names, and element IDs listed above.
+2. If you find a plausible match — navigate there and highlight it. Say something like "I think you mean [X]. Let me take you there."
+3. If you truly cannot find any match, respond with EXACTLY this pattern:
+   - Your text response should say: "I couldn't find that. Here are the main areas I can help you with:"
+   - Then add a JSON block in your response wrapped in <suggestions>...</suggestions> tags with the main navigation options:
+   <suggestions>[
+     {"label":"Home Dashboard","destination":"home"},
+     {"label":"Companies","destination":"companies"},
+     {"label":"Contacts","destination":"contacts"},
+     {"label":"Talent Database","destination":"talent"},
+     {"label":"Outreach","destination":"outreach"},
+     {"label":"Revenue Intelligence","destination":"insights"},
+     {"label":"Canvas Org Chart","destination":"canvas"},
+     {"label":"Projects","destination":"projects"},
+     {"label":"Admin Settings","destination":"admin"}
+   ]</suggestions>
+   The frontend will render these as clickable suggestion chips.
+- IMPORTANT: Before falling back to suggestions, ALWAYS try to search for a keyword match first. For example if a user says "where is the risk dashboard" — try "risk" against all known element IDs and you'll find "insights-risk-snapshot".
+
 GUIDED DATA COLLECTION — follow these flows when creating records:
 
 SMART EXTRACTION: If the user provides multiple fields at once (e.g. "Add Google as a tech company"), extract ALL provided fields and skip those questions. Only ask about fields NOT yet provided.
@@ -1068,10 +1088,21 @@ serve(async (req) => {
     if (tourMatch) {
       try {
         guidedTour = JSON.parse(tourMatch[1]);
-        // Remove the guided_tour tag from the visible message
         responseText = responseText.replace(/<guided_tour>[\s\S]*?<\/guided_tour>/, '').trim();
       } catch (e) {
         console.warn("[jarvis] Failed to parse guided_tour:", e);
+      }
+    }
+
+    // Parse suggestions from response text if present
+    let suggestions: any[] | null = null;
+    const suggestionsMatch = responseText.match(/<suggestions>([\s\S]*?)<\/suggestions>/);
+    if (suggestionsMatch) {
+      try {
+        suggestions = JSON.parse(suggestionsMatch[1]);
+        responseText = responseText.replace(/<suggestions>[\s\S]*?<\/suggestions>/, '').trim();
+      } catch (e) {
+        console.warn("[jarvis] Failed to parse suggestions:", e);
       }
     }
 
@@ -1124,6 +1155,7 @@ serve(async (req) => {
         target_action: targetAction,
         target_id: targetId,
         guided_tour: guidedTour,
+        suggestions: suggestions,
         actions_executed: actionsExecuted.filter(a => mutationTools.has(a.tool)),
         invalidate_queries: invalidateQueries,
       }),

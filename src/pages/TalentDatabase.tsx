@@ -925,13 +925,13 @@ export default function TalentDatabase() {
             onClear={booleanSearch.clearSearch}
             onSubmit={booleanSearch.triggerSearch}
             placeholder="Search by name, skill, role, or email..."
-            className="flex-1 min-w-[300px] max-w-2xl"
+            className="flex-1 min-w-[300px] max-w-2xl" data-jarvis-id="talent-search-input"
             includeCv={booleanSearch.includeCv}
             onIncludeCvChange={booleanSearch.setIncludeCv}
           />
           <div className="flex items-center gap-2 mt-1">
             <Select value={availabilityFilter} onValueChange={setAvailabilityFilter}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-[160px]" data-jarvis-id="talent-filter-availability">
                 <SelectValue placeholder="Availability" />
               </SelectTrigger>
               <SelectContent>
@@ -942,7 +942,7 @@ export default function TalentDatabase() {
               </SelectContent>
             </Select>
             <Select value={roleTypeFilter} onValueChange={setRoleTypeFilter}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-[180px]" data-jarvis-id="talent-filter-role-type">
                 <SelectValue placeholder="Role Type" />
               </SelectTrigger>
               <SelectContent>

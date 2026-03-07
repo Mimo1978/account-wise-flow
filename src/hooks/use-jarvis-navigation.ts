@@ -1,8 +1,67 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { resolveNavigation, type NavigationEntry } from "@/lib/jarvis-navigation-map";
 import type { GuidedTourStep } from "@/hooks/use-jarvis";
 import type { TourState } from "@/components/jarvis/GuidedTourPlayer";
+
+/* ------------------------------------------------------------------ */
+/*  Session navigation history (persisted in sessionStorage)           */
+/* ------------------------------------------------------------------ */
+
+const NAV_HISTORY_KEY = "jarvis_nav_history";
+const MAX_HISTORY = 50;
+
+export interface JarvisNavHistoryEntry {
+  path: string;
+  label: string;
+  timestamp: number;
+}
+
+function readNavHistory(): JarvisNavHistoryEntry[] {
+  try {
+    const raw = sessionStorage.getItem(NAV_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeNavHistory(entries: JarvisNavHistoryEntry[]) {
+  sessionStorage.setItem(NAV_HISTORY_KEY, JSON.stringify(entries.slice(-MAX_HISTORY)));
+}
+
+function pushNavHistory(path: string, label: string) {
+  const history = readNavHistory();
+  // Don't push duplicate consecutive entries
+  const last = history[history.length - 1];
+  if (last && last.path === path) return;
+  history.push({ path, label, timestamp: Date.now() });
+  writeNavHistory(history);
+}
+
+export function getJarvisNavHistory(): JarvisNavHistoryEntry[] {
+  return readNavHistory();
+}
+
+export function getJarvisSessionStart(): JarvisNavHistoryEntry | null {
+  const history = readNavHistory();
+  return history.length > 0 ? history[0] : null;
+}
+
+export function getJarvisPreviousPage(): JarvisNavHistoryEntry | null {
+  const history = readNavHistory();
+  return history.length >= 2 ? history[history.length - 2] : null;
+}
+
+export function getLastCompanyPage(): JarvisNavHistoryEntry | null {
+  const history = readNavHistory();
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].path.startsWith("/crm/companies/") || history[i].path.startsWith("/canvas?company=")) {
+      return history[i];
+    }
+  }
+  return null;
+}
 
 const TOOLTIP_ID = "jarvis-nav-tooltip";
 const OVERLAY_ID = "jarvis-nav-overlay";
@@ -112,6 +171,12 @@ export function useJarvisNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
   const activeTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Track every page the user visits while Jarvis is active
+  useEffect(() => {
+    const label = getPageName(location.pathname);
+    pushNavHistory(location.pathname + location.search, label);
+  }, [location.pathname, location.search]);
 
   // Tour control refs
   const tourAbortRef = useRef(false);
@@ -429,6 +494,36 @@ export function useJarvisNavigation() {
     [navigate, location.pathname, controlledWait]
   );
 
+  /** Navigate back in Jarvis session history (not browser back) */
+  const goBack = useCallback(() => {
+    const prev = getJarvisPreviousPage();
+    if (prev) {
+      navigate(prev.path);
+      return prev;
+    }
+    return null;
+  }, [navigate]);
+
+  /** Go back to the page where Jarvis was first opened this session */
+  const goToSessionStart = useCallback(() => {
+    const start = getJarvisSessionStart();
+    if (start) {
+      navigate(start.path);
+      return start;
+    }
+    return null;
+  }, [navigate]);
+
+  /** Navigate to the last viewed company detail page */
+  const goToLastCompany = useCallback(() => {
+    const entry = getLastCompanyPage();
+    if (entry) {
+      navigate(entry.path);
+      return entry;
+    }
+    return null;
+  }, [navigate]);
+
   return {
     navigateTo,
     highlightElement,
@@ -441,5 +536,9 @@ export function useJarvisNavigation() {
     resumeTour,
     skipTourStep,
     stopTour,
+    goBack,
+    goToSessionStart,
+    goToLastCompany,
+    getNavHistory: readNavHistory,
   };
 }

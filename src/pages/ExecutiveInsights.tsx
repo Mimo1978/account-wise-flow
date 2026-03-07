@@ -101,7 +101,7 @@ const ExecutiveInsights = () => {
           {/* ── Main Content ── */}
           <div className="lg:col-span-3 space-y-8">
             {/* §1 Revenue Risk Snapshot — loads immediately */}
-            <RevenueRiskSnapshot data-jarvis-id="insights-risk-snapshot"
+            <RevenueRiskSnapshot
               atRiskCount={atRiskCount}
               singleThreadedCount={singleThreadedCount}
               dormantCount={dormantCount}

@@ -308,10 +308,21 @@ GUIDED TOUR intents (phrases like "how do I X", "walk me through X", "show me ho
     {"click":"add-company-button","speak":"I'll open it for you.","delay":1500},
     {"highlight":"company-name-input","speak":"Enter the company name here.","delay":1500}
   ]</guided_tour>
-- Available element IDs for highlights/clicks: nav-home, nav-companies, nav-contacts, nav-talent, nav-outreach, nav-insights, nav-canvas, nav-projects, nav-admin, add-company-button, add-contact-button, add-candidate-button, import-button, new-campaign-button, create-invoice-button, add-deal-button, company-name-input, contact-first-name-input, contact-email-input, contact-company-select, deal-value-input, deal-stage-select, notes-input, save-button, canvas-page, canvas-add-node-button, canvas-edit-button, canvas-zoom-in, canvas-zoom-out, canvas-fit-view, canvas-company-select, canvas-build-orgchart, canvas-ai-research, canvas-connect-tool, canvas-delete-node, canvas-save-layout.
+- Available element IDs for highlights/clicks:
+  Navigation: nav-home, nav-companies, nav-contacts, nav-talent, nav-outreach, nav-insights, nav-canvas, nav-projects, nav-admin.
+  Companies page: add-company-button, companies-search-input, companies-filter-industry, companies-filter-country, companies-import-button, companies-team-settings.
+  Company detail: company-tab-overview, company-tab-contacts, company-tab-deals, company-tab-projects, company-tab-documents, company-tab-activities, company-tab-canvas, company-tab-invoices, company-edit-button, company-add-contact-button, company-log-call-button, company-send-email-button, company-open-canvas-button, company-build-orgchart-button.
+  Contacts page: add-contact-button, contacts-search-input, contacts-import-button, contacts-view-orgchart-button.
+  Talent page: add-candidate-button, talent-search-input, talent-import-button, talent-filter-availability, talent-filter-role-type, talent-boolean-search-toggle.
+  Outreach page: new-campaign-button, add-targets-button, new-script-button, outreach-tab-queue, outreach-tab-campaigns, outreach-tab-scripts.
+  Insights page: insights-risk-snapshot, insights-relationship-strength, insights-pipeline-signals, insights-sales-momentum, insights-org-penetration.
+  Home page: home-create-invoice-button, home-add-sow-button, home-create-project-button, home-create-deal-button, home-billing-snapshot, home-pipeline-snapshot, home-diary, home-my-work.
+  Admin pages: admin-workspace-roles, admin-data-quality, admin-outreach-defaults, admin-billing-invoices, admin-schema-inventory, admin-integrations, admin-jarvis-settings.
+  Canvas page: canvas-page, canvas-add-node-button, canvas-edit-button, canvas-zoom-in, canvas-zoom-out, canvas-fit-view, canvas-company-select, canvas-build-orgchart, canvas-ai-research, canvas-connect-tool, canvas-delete-node, canvas-save-layout.
+  Forms: company-name-input, contact-first-name-input, contact-email-input, contact-company-select, deal-value-input, deal-stage-select, notes-input, save-button.
 
 CANVAS ORG CHART GUIDED TOURS — when user asks about editing, building, or manipulating an org chart:
-- "edit org chart" / "move org chart structure" / "rearrange org chart":
+- "edit org chart" / "move org chart structure" / "rearrange org chart" / "move people around on the chart" / "rearrange the org structure":
   <guided_tour>[
     {"navigate":"/canvas","speak":"Opening Canvas now.","delay":500},
     {"highlight":"canvas-company-select","speak":"First select the company whose org chart you want to edit.","delay":2500},
@@ -332,6 +343,46 @@ CANVAS ORG CHART GUIDED TOURS — when user asks about editing, building, or man
     {"highlight":"canvas-company-select","speak":"Select the company you want to research.","delay":2500},
     {"highlight":"canvas-ai-research","speak":"Click AI Assistant to research the company structure using public sources.","delay":3000}
   ]</guided_tour>
+
+SMART INTENT MATCHING — map vague or natural language to the correct action. Use these examples as patterns:
+
+Canvas intents:
+- "add someone to the org chart" / "add a person to the chart" → navigate to canvas, click canvas-add-node-button
+- "connect two people" / "link people" / "draw a reporting line" → navigate to canvas, click canvas-connect-tool
+- "I want to see the chart properly" / "zoom to fit" / "show the full chart" → navigate to canvas, click canvas-fit-view
+
+Company/Contact intents:
+- "filter my companies by industry" / "sort companies by sector" → navigate to /companies, highlight companies-filter-industry, explain it filters the list
+- "search for a contact" / "find someone" / "look up a person" → navigate to /contacts, highlight contacts-search-input, explain they can type a name or email
+- "import my contacts" / "upload a spreadsheet of contacts" → navigate to /contacts, highlight contacts-import-button
+
+Talent intents:
+- "run a boolean search" / "advanced search for candidates" / "use boolean operators":
+  <guided_tour>[
+    {"navigate":"/talent","speak":"Let me take you to the Talent Database.","delay":500},
+    {"highlight":"talent-boolean-search-toggle","speak":"Toggle this on to enable Boolean search. You can use AND, OR, NOT, quotes for exact phrases, and parentheses to group terms.","delay":4000},
+    {"highlight":"talent-search-input","speak":"Then type your search query here. For example: React AND (Senior OR Lead) NOT Junior.","delay":3000}
+  ]</guided_tour>
+
+Admin/Settings intents:
+- "where do I set up email" / "configure email integration" / "set up Resend":
+  <guided_tour>[
+    {"navigate":"/admin/integrations","speak":"Let me take you to the Integrations settings.","delay":500},
+    {"highlight":"admin-integrations","speak":"This is where you configure all your integrations including email via Resend, SMS via Twilio, and voice via ElevenLabs.","delay":3000}
+  ]</guided_tour>
+- "how do I invite a team member" / "add someone to my workspace" / "manage roles":
+  <guided_tour>[
+    {"navigate":"/admin","speak":"Let me take you to Admin.","delay":500},
+    {"highlight":"admin-workspace-roles","speak":"Click here to open Team Management where you can invite new members and assign roles.","delay":3000}
+  ]</guided_tour>
+
+Home/Dashboard intents:
+- "show me my pipeline" / "where is the pipeline" / "pipeline overview" → navigate to /home, highlight home-pipeline-snapshot, explain it shows pipeline value by stage
+- "I want to see revenue" / "show revenue data" / "revenue overview" → navigate to /executive-insights, highlight insights-risk-snapshot, explain the revenue intelligence dashboard
+
+Outreach intents:
+- "create a new outreach script" / "write a call script" → navigate to /outreach, click new-script-button
+- "add targets to my campaign" / "add people to outreach" → navigate to /outreach, highlight add-targets-button
 
 LOST USER intent ("I'm lost", "help me", "where am I"):
 - Navigate to /home and offer a menu of common tasks.

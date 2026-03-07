@@ -4,7 +4,6 @@ import { toast } from "@/components/ui/sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { getJarvisNavHistory } from "@/hooks/use-jarvis-navigation";
-import { useQueryClient } from "@tanstack/react-query";
 
 export interface JarvisAction {
   tool: string;

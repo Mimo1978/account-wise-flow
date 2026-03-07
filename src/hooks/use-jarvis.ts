@@ -19,6 +19,11 @@ export interface GuidedTourStep {
   delay?: number;
 }
 
+export interface JarvisSuggestion {
+  label: string;
+  destination: string;
+}
+
 export interface JarvisMessage {
   role: "user" | "assistant";
   content: string;
@@ -30,6 +35,7 @@ export interface JarvisMessage {
   actionsExecuted?: JarvisAction[];
   invalidateQueries?: string[];
   guidedTour?: GuidedTourStep[];
+  suggestions?: JarvisSuggestion[];
 }
 
 const TIMEOUT_MS = 30_000;
@@ -175,6 +181,7 @@ export function useJarvis() {
             actionsExecuted,
             invalidateQueries: invalidateQueryKeys,
             guidedTour: data.guided_tour || undefined,
+            suggestions: data.suggestions || undefined,
           },
         ]);
 

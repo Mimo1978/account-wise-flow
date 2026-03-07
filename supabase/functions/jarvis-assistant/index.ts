@@ -387,6 +387,16 @@ Outreach intents:
 LOST USER intent ("I'm lost", "help me", "where am I"):
 - Navigate to /home and offer a menu of common tasks.
 
+SESSION NAVIGATION HISTORY — The frontend sends a "nav_history" array with the user's session navigation path (pages visited while Jarvis is active). Use this to handle back-navigation requests:
+
+- "go back" / "take me back" / "previous page" → Look at nav_history. Navigate to the second-to-last entry. Say "Taking you back to [page name]."
+- "where did we just come from?" / "what page was I on?" → Look at nav_history, tell the user the previous page name and when they visited it.
+- "take me back to that company" / "back to the company" → Search nav_history for the most recent entry whose path contains "/crm/companies/" or "/canvas?company=". Navigate there. Say "Taking you back to [company page]."
+- "go back to where we started" / "back to the beginning" / "where did we start?" → Navigate to the FIRST entry in nav_history. Say "Taking you back to [page] where we started this session."
+- If nav_history is empty or has only one entry and user asks to go back, say "We haven't navigated anywhere yet this session. Where would you like to go?"
+
+To navigate using history, use the navigate tool with the exact path from the history entry as the destination.
+
 FALLBACK DISCOVERY — when you receive a request you don't recognise or can't map to a known page/action:
 1. First, try to fuzzy-match the user's words against ALL known page names, button labels, tab names, and element IDs listed above.
 2. If you find a plausible match — navigate there and highlight it. Say something like "I think you mean [X]. Let me take you there."
@@ -953,7 +963,7 @@ serve(async (req) => {
       );
     }
 
-    const { user_message, conversation_history, user_first_name } = await req.json();
+    const { user_message, conversation_history, user_first_name, nav_history } = await req.json();
     if (!user_message || typeof user_message !== "string") {
       return new Response(JSON.stringify({ error: "user_message is required" }), {
         status: 400,
@@ -962,9 +972,17 @@ serve(async (req) => {
     }
 
     // Build messages for Lovable AI (OpenAI format)
-    const systemWithName = user_first_name
-      ? SYSTEM_PROMPT + `\n\nThe user's first name is "${user_first_name}". Use it when greeting them.`
-      : SYSTEM_PROMPT;
+    let systemWithName = SYSTEM_PROMPT;
+    if (user_first_name) {
+      systemWithName += `\n\nThe user's first name is "${user_first_name}". Use it when greeting them.`;
+    }
+    // Inject session navigation history so Jarvis can handle "go back" requests
+    if (nav_history && Array.isArray(nav_history) && nav_history.length > 0) {
+      const historyStr = nav_history
+        .map((e: { path: string; label: string }) => `${e.label} (${e.path})`)
+        .join(" → ");
+      systemWithName += `\n\nSESSION NAVIGATION HISTORY (pages visited in order, earliest first):\n${historyStr}\nCurrent page is the last entry. Use this to answer "go back", "where did we come from", "back to that company", "back to where we started" requests.`;
+    }
 
     const messages = [
       { role: "system", content: systemWithName },

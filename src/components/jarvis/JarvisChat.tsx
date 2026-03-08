@@ -945,6 +945,9 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
                 onSuggestionClick={(suggestion) => {
                   jarvisNav.navigateTo(suggestion.destination);
                 }}
+                onNavigate={(dest) => {
+                  jarvisNav.navigateTo(dest);
+                }}
               />
             );
           })}

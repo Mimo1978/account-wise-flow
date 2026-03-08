@@ -1073,7 +1073,8 @@ serve(async (req) => {
       const historyStr = nav_history
         .map((e: { path: string; label: string }) => `${e.label} (${e.path})`)
         .join(" → ");
-      systemWithName += `\n\nSESSION NAVIGATION HISTORY (pages visited in order, earliest first):\n${historyStr}\nCurrent page is the last entry. Use this to answer "go back", "where did we come from", "back to that company", "back to where we started" requests.`;
+      const currentPage = nav_history[nav_history.length - 1];
+      systemWithName += `\n\nSESSION NAVIGATION HISTORY (pages visited in order, earliest first):\n${historyStr}\nCurrent page: ${currentPage?.label || 'unknown'} (${currentPage?.path || '/'})\nUse this to answer "go back", "where did we come from", "back to that company", "back to where we started", "what have we looked at" requests.`;
     }
     // Inject active flow state for guided collection continuity
     if (flow_state && flow_state.flow) {

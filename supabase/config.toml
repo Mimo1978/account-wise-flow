@@ -88,3 +88,6 @@ verify_jwt = false
 
 [functions.process-application]
 verify_jwt = false
+
+[functions.send-applicant-update]
+verify_jwt = false

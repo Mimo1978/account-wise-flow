@@ -581,6 +581,108 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  // ─── Recruitment workflow tools ───
+  {
+    type: "function",
+    function: {
+      name: "get_job_applications_summary",
+      description: "Get a summary of applications for a specific job — total count, status breakdown, and top-scored applicants. Use when user asks 'how many applications for [job]', 'show me applications for [job]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "score_unprocessed_applications",
+      description: "Trigger AI scoring for all unprocessed applications on a job. Use when user says 'score applications for [job]', 'process new applications'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "bulk_reject_low_scoring",
+      description: "Reject all applications scoring below a threshold (default 50). ALWAYS ask for confirmation first. Use when user says 'reject low-scoring applications', 'reject all bad applications'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+          threshold: { type: "number", description: "Score threshold below which to reject (default 50)" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_shortlist_summary",
+      description: "Get a summary of the shortlist for a job — counts by status, top candidates. Use when user asks 'shortlist status for [job]', 'how is the shortlist looking'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_unresponsive_candidates",
+      description: "List candidates who haven't responded to outreach for a job. Use when user says 'who haven't we heard from', 'unresponsive candidates for [job]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lookup_job",
+      description: "Look up a job by title within the user's workspace. Use this to find a job_id before running recruitment actions like shortlisting, scoring, or outreach.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Job title to search for" },
+        },
+        required: ["title"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "send_applicant_update",
+      description: "Send an automated status update email to an applicant when their application status changes. Use when updating application status.",
+      parameters: {
+        type: "object",
+        properties: {
+          application_id: { type: "string" },
+          new_status: { type: "string" },
+          old_status: { type: "string" },
+        },
+        required: ["application_id", "new_status"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.
@@ -892,12 +994,63 @@ DIARY / CALENDAR intents:
   "what's in my diary today" / "what calls do I have" / "my schedule":
    - Call get_diary_events with period=today (or tomorrow, this_week).
    - Read out events naturally: "You have [n] events today: [list with times]."
-  "cancel the call with [name]" / "remove that meeting":
+   "cancel the call with [name]" / "remove that meeting":
    - Call cancel_diary_event with candidate_name.
    - "Done. The call with [name] has been cancelled."
-  "reschedule [name] call" / "move the meeting with [name]":
+   "reschedule [name] call" / "move the meeting with [name]":
    - Call reschedule_diary_event with candidate_name (no new time → gets new slots).
-   - Present new options, then update when confirmed.`;
+   - Present new options, then update when confirmed.
+   "what recruitment calls do I have this week":
+   - Call get_diary_events with period=this_week, then filter to event_type=call in your response.
+
+RECRUITMENT WORKFLOW — full end-to-end intents:
+
+JOB LOOKUP — CRITICAL:
+  Before running any job-related action (shortlisting, scoring, outreach, applications) where the user says "[job title]" instead of providing an ID:
+  - Call lookup_job with the title to find the job_id.
+  - If 1 match: use it. If multiple: ask. If 0: say "I couldn't find a job matching that."
+
+JOB MANAGEMENT:
+  "show me all active jobs" / "what jobs are active":
+  - Navigate to /jobs and mention they can filter by status there.
+  "how many applications for [job]":
+  - Call lookup_job to get job_id, then call get_job_applications_summary.
+  - Report: "[job title] has [n] applications: [n] new, [n] reviewing, [n] shortlisted, [n] rejected."
+  "what's the status of the [job] shortlist" / "shortlist status":
+  - Call lookup_job, then get_shortlist_summary.
+  - Report counts by status and top 3 candidates with scores.
+  "who haven't we heard back from on [job]" / "unresponsive candidates":
+  - Call lookup_job, then get_unresponsive_candidates.
+  - List candidates with outreach sent but no response.
+
+SPEC AND ADVERTS:
+  "write a job spec" / "new job spec" → enter JOB SPEC WRITER FLOW above.
+  "generate adverts for [job]" / "create adverts":
+  - Call lookup_job to find the job, then call generate_adverts with desired boards.
+  "show me the LinkedIn advert for [job]":
+  - Navigate to /jobs/[job_id] with highlight on job-tab-adverts.
+
+SHORTLIST AND OUTREACH:
+  "shortlist candidates for [job]" → lookup_job then run_shortlist.
+  "send outreach for [job]" / "email the shortlist for [job]":
+  - lookup_job then draft_outreach_emails.
+  "how many candidates responded to [job] outreach":
+  - lookup_job then get_outreach_status. Report responded vs no response.
+
+APPLICATIONS:
+  "show me new applications for [job]":
+  - lookup_job, navigate to /jobs/[job_id] with highlight on job-tab-applications.
+  "score the applications for [job]" / "process applications":
+  - lookup_job then score_unprocessed_applications. Report how many were scored.
+  "reject all low-scoring applications for [job]":
+  - lookup_job then get_job_applications_summary to check counts.
+  - Ask: "I found [n] applications scoring below 50. Want me to reject them all?"
+  - After confirmation: call bulk_reject_low_scoring.
+
+DIARY CONTEXT:
+  "book a call with [candidate] about [job]" → lookup_job for job_id, then diary booking flow.`;
+
+
 
 
 
@@ -2012,6 +2165,196 @@ Return ONLY valid JSON, no markdown fences.`,
       const data = await res.json();
       if (!res.ok) return { result: { error: data.error || "Failed to reschedule" }, entityType: "diary_events" };
       return { result: { ...data, navigate_to: "/home" }, entityType: "diary_events", entityId: eventId };
+    }
+    // ─── Recruitment workflow tools ───
+    case "lookup_job": {
+      const title = (input.title as string).trim();
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      const { data: jobs } = await supabaseAdmin
+        .from("jobs")
+        .select("id, title, status, company_id, companies(name)")
+        .ilike("title", `%${title}%`)
+        .eq("workspace_id", teamId)
+        .limit(5);
+      
+      if (!jobs || jobs.length === 0) {
+        return { result: { matches: [], message: `No job found matching "${title}".` }, entityType: "jobs" };
+      }
+      if (jobs.length === 1) {
+        return { result: { matches: jobs, auto_selected: jobs[0], message: `Found "${jobs[0].title}" — using this job.` }, entityType: "jobs" };
+      }
+      return { result: { matches: jobs, message: `Found ${jobs.length} jobs matching "${title}". Did you mean ${jobs.slice(0, 3).map((j: any) => j.title).join(", or ")}?` }, entityType: "jobs" };
+    }
+    case "get_job_applications_summary": {
+      const jobId = input.job_id as string;
+      const { data: job } = await supabaseAdmin.from("jobs").select("title").eq("id", jobId).single();
+      const { data: apps } = await supabaseAdmin
+        .from("job_applications")
+        .select("id, status, ai_match_score, applicant_name")
+        .eq("job_id", jobId);
+      
+      const total = (apps || []).length;
+      const byStatus: Record<string, number> = {};
+      for (const app of apps || []) {
+        byStatus[app.status || "new"] = (byStatus[app.status || "new"] || 0) + 1;
+      }
+      const topScored = (apps || [])
+        .filter((a: any) => a.ai_match_score != null)
+        .sort((a: any, b: any) => (b.ai_match_score || 0) - (a.ai_match_score || 0))
+        .slice(0, 3)
+        .map((a: any) => ({ name: a.applicant_name, score: a.ai_match_score }));
+      const unscored = (apps || []).filter((a: any) => a.ai_match_score == null).length;
+      
+      return {
+        result: {
+          job_title: job?.title,
+          total,
+          by_status: byStatus,
+          top_scored: topScored,
+          unscored,
+          message: `${job?.title || "Job"} has ${total} applications: ${Object.entries(byStatus).map(([s, c]) => `${c} ${s}`).join(", ")}.${unscored > 0 ? ` ${unscored} still need scoring.` : ""}`,
+        },
+        entityType: "job_applications",
+        entityId: jobId,
+      };
+    }
+    case "score_unprocessed_applications": {
+      const jobId = input.job_id as string;
+      const { data: apps } = await supabaseAdmin
+        .from("job_applications")
+        .select("id")
+        .eq("job_id", jobId)
+        .is("processed_at", null);
+      
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      let scored = 0;
+      for (const app of apps || []) {
+        const res = await fetch(`${supabaseUrl}/functions/v1/process-application`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ application_id: app.id }),
+        });
+        if (res.ok) scored++;
+      }
+      return {
+        result: { scored, total: (apps || []).length, message: `Scored ${scored} applications.`, navigate_to: `/jobs/${jobId}` },
+        entityType: "job_applications",
+        entityId: jobId,
+      };
+    }
+    case "bulk_reject_low_scoring": {
+      const jobId = input.job_id as string;
+      const threshold = (input.threshold as number) || 50;
+      const { data: apps } = await supabaseAdmin
+        .from("job_applications")
+        .select("id, applicant_name, ai_match_score")
+        .eq("job_id", jobId)
+        .lt("ai_match_score", threshold)
+        .neq("status", "rejected");
+      
+      const ids = (apps || []).map((a: any) => a.id);
+      if (ids.length === 0) {
+        return { result: { rejected: 0, message: `No applications scoring below ${threshold} to reject.` }, entityType: "job_applications" };
+      }
+      
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      
+      // Update status
+      await supabaseAdmin.from("job_applications").update({ status: "rejected" }).in("id", ids);
+      
+      // Send rejection emails
+      for (const app of apps || []) {
+        await fetch(`${supabaseUrl}/functions/v1/send-applicant-update`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ application_id: app.id, new_status: "rejected", old_status: "new" }),
+        }).catch(() => {});
+      }
+      
+      return {
+        result: { rejected: ids.length, threshold, message: `Rejected ${ids.length} applications scoring below ${threshold}.`, navigate_to: `/jobs/${jobId}` },
+        entityType: "job_applications",
+        entityId: jobId,
+      };
+    }
+    case "get_shortlist_summary": {
+      const jobId = input.job_id as string;
+      const { data: job } = await supabaseAdmin.from("jobs").select("title").eq("id", jobId).single();
+      const { data: entries } = await supabaseAdmin
+        .from("job_shortlist")
+        .select("id, status, match_score, candidates(name)")
+        .eq("job_id", jobId)
+        .order("match_score", { ascending: false });
+      
+      const total = (entries || []).length;
+      const byStatus: Record<string, number> = {};
+      for (const e of entries || []) {
+        byStatus[e.status || "pending"] = (byStatus[e.status || "pending"] || 0) + 1;
+      }
+      const topCandidates = (entries || []).slice(0, 3).map((e: any) => ({
+        name: e.candidates?.name,
+        score: e.match_score,
+        status: e.status,
+      }));
+      
+      return {
+        result: {
+          job_title: job?.title,
+          total,
+          by_status: byStatus,
+          top_candidates: topCandidates,
+          message: `${job?.title || "Job"} shortlist has ${total} candidates: ${Object.entries(byStatus).map(([s, c]) => `${c} ${s}`).join(", ")}.`,
+        },
+        entityType: "job_shortlist",
+        entityId: jobId,
+      };
+    }
+    case "get_unresponsive_candidates": {
+      const jobId = input.job_id as string;
+      const { data: job } = await supabaseAdmin.from("jobs").select("title").eq("id", jobId).single();
+      const { data: entries } = await supabaseAdmin
+        .from("job_shortlist")
+        .select("id, candidate_id, outreach_sent_at, response_received_at, candidates(name, email)")
+        .eq("job_id", jobId)
+        .not("outreach_sent_at", "is", null)
+        .is("response_received_at", null);
+      
+      const unresponsive = (entries || []).map((e: any) => ({
+        name: e.candidates?.name,
+        email: e.candidates?.email,
+        sent_at: e.outreach_sent_at,
+      }));
+      
+      return {
+        result: {
+          job_title: job?.title,
+          count: unresponsive.length,
+          candidates: unresponsive,
+          message: unresponsive.length > 0
+            ? `${unresponsive.length} candidates haven't responded: ${unresponsive.map((c: any) => c.name).join(", ")}.`
+            : "Everyone has responded!",
+        },
+        entityType: "job_shortlist",
+        entityId: jobId,
+      };
+    }
+    case "send_applicant_update": {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/send-applicant-update`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          application_id: input.application_id,
+          new_status: input.new_status,
+          old_status: input.old_status || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to send update" }, entityType: "job_applications" };
+      return { result: data, entityType: "job_applications", entityId: input.application_id as string };
     }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };

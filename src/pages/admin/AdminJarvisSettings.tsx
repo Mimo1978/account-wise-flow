@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Eye } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -258,6 +259,17 @@ export default function AdminJarvisSettings() {
             <p className="text-xs text-muted-foreground mt-0.5">Display message history in the Jarvis panel</p>
           </div>
           <Switch checked={draft.show_conversation_history} onCheckedChange={(v) => update('show_conversation_history', v)} />
+        </div>
+      </Section>
+
+      {/* ==================== VISUAL EFFECTS ==================== */}
+      <Section icon={Eye} title="Visual Effects" description="Control the Jarvis spotlight and navigation effects">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Spotlight Mode</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Show orange glow and element highlights when Jarvis navigates or guides</p>
+          </div>
+          <Switch checked={draft.spotlight_enabled} onCheckedChange={(v) => update('spotlight_enabled', v)} />
         </div>
       </Section>
 

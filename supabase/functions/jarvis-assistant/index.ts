@@ -410,6 +410,51 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "approve_all_shortlist",
+      description: "Approve all pending candidates on a job shortlist. Use when the user says 'approve everyone', 'approve all', 'approve the shortlist', 'proceed with everyone'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_shortlist_entry",
+      description: "Update a single shortlist entry status or remove it. Use for 'remove [name] from the list', 'move [name] to reserve', 'approve [name]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+          candidate_name: { type: "string", description: "Candidate name to find" },
+          action: { type: "string", description: "One of: approve, remove, reserve, move_to_top" },
+        },
+        required: ["job_id", "candidate_name", "action"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "describe_shortlist_candidate",
+      description: "Get detailed info about a shortlisted candidate including match reasons, concerns, and availability. Use when user says 'tell me about [name]', 'who is the best match', 'describe [name]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+          candidate_name: { type: "string", description: "Candidate name, or 'top' for highest scored" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "update_advert",
       description: "Update the content of an existing job advert. Use when the user asks to shorten, rephrase, or modify a specific advert.",
       parameters: {

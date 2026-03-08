@@ -69,7 +69,7 @@ import {
   Briefcase, FileText, Users, Inbox, Activity, Sparkles, Send, Play,
   Pause, CheckCircle2, XCircle, FileEdit, Copy, Globe, Loader2, Settings2,
   Trash2, Mail, MessageSquare, AlertTriangle, ChevronDown, ChevronUp, GripVertical,
-  ShieldCheck, Archive, ArrowUp, Phone, PhoneCall,
+  ShieldCheck, Archive, ArrowUp, Phone, PhoneCall, Reply, Bell,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';

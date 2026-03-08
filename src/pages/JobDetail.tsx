@@ -385,7 +385,7 @@ const JobDetail = () => {
 };
 
 // ---------- Overview Tab ----------
-function OverviewTab({ job }: { job: any }) {
+function OverviewTab({ job, onProjectLinked }: { job: any; onProjectLinked?: (projectId: string) => void }) {
   const toggleConfidential = useToggleConfidential();
   const isConfidential = job.is_confidential ?? false;
 

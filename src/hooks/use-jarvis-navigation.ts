@@ -415,7 +415,7 @@ export function useJarvisNavigation() {
       tourSkipRef.current = false;
 
       setTourState({ steps, currentStep: 0, status: "running" });
-      document.body.classList.add(GLOW_CLASS);
+      activatePageGlow();
 
       let lastPath = location.pathname;
 

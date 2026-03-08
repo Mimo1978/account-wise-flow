@@ -633,7 +633,7 @@ const HomeCommandCenter = () => {
         </div>
 
         {/* ═══ 4. ACTIVE PROJECTS ═══ */}
-        <section data-jarvis-id="home-active-projects">
+        <section data-jarvis-id="home-active-projects" data-jarvis-section="active-projects">
           <SectionHeader title="Active Projects" icon={Briefcase} accentColor="bg-green-500">
             <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)} data-jarvis-id="home-create-project-button">
               <Plus className="w-3.5 h-3.5" /> Create Project

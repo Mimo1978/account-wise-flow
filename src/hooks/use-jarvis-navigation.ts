@@ -461,15 +461,19 @@ export function useJarvisNavigation() {
         if (step.highlight) {
           await new Promise<void>((resolve) => {
             findElement(step.highlight!, 10, (el) => {
-              // Clear previous highlights but keep glow
+              // Clear previous highlights but keep page glow
               document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((e) =>
                 e.classList.remove(HIGHLIGHT_CLASS)
               );
+              document.querySelectorAll(`.${SECTION_GLOW_CLASS}`).forEach((e) =>
+                e.classList.remove(SECTION_GLOW_CLASS)
+              );
               document.getElementById(TOOLTIP_ID)?.remove();
 
-              el.classList.add(HIGHLIGHT_CLASS);
-              el.scrollIntoView({ behavior: "smooth", block: "center" });
-              if (step.speak) showTooltip(el, step.speak);
+              // Use section glow for data-jarvis-section elements, highlight for others
+              const isSection = el.hasAttribute("data-jarvis-section");
+              el.classList.add(isSection ? SECTION_GLOW_CLASS : HIGHLIGHT_CLASS);
+              el.scrollIntoView({ behavior: "smooth", block: "nearest" });
               resolve();
             });
             setTimeout(resolve, 3000);

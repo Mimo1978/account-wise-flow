@@ -425,12 +425,12 @@ function computeBillingSnapshot(invoices: Invoice[]) {
   return { outstandingAmount, outstandingCount, overdueAmount, overdueCount, due7Amount, due7Count };
 }
 
-const STATUS_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  draft: 'secondary',
-  sent: 'default',
-  paid: 'outline',
-  overdue: 'destructive',
-  void: 'secondary',
+const STATUS_BADGE_STYLES: Record<string, string> = {
+  draft: 'bg-muted text-muted-foreground border-transparent',
+  sent: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-transparent',
+  paid: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-transparent',
+  overdue: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-transparent',
+  void: 'bg-muted text-muted-foreground border-transparent',
 };
 
 /* ─── Diary Events Section (real diary_events + critical dates) ─── */

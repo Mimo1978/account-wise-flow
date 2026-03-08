@@ -10,6 +10,7 @@ import {
   VolumeOff,
   CheckCircle2,
   Loader2,
+  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -533,7 +534,31 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const location = useLocation();
+
+  // Draggable panel logic
+  const PANEL_W = 420;
+  const PANEL_H = 580;
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragHintVisible, setDragHintVisible] = useState(false);
+
+  const getDefaultPos = useCallback(() => ({
+    x: window.innerWidth - PANEL_W - 24,
+    y: window.innerHeight - PANEL_H - 96,
+  }), []);
+
+  const [panelPos, setPanelPos] = useState<{ x: number; y: number }>(() => {
+    try {
+      const saved = sessionStorage.getItem("jarvis_panel_position");
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (typeof p.x === "number" && typeof p.y === "number") return p;
+      }
+    } catch {}
+    return getDefaultPos();
+  });
+  const jarvisLocation = useLocation();
   const jarvisNav = useJarvisNavigation();
   const tts = useElevenLabsTTS(
     jarvisSettings.voice_gender,
@@ -552,11 +577,53 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     });
   }, [jarvisSettings.spotlight_enabled, jarvisSettings.page_glow_enabled, jarvisSettings.tooltip_labels_enabled]);
 
+  // Drag handlers (desktop only)
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    if (isMobile || !panelRef.current) return;
+    e.preventDefault();
+    const rect = panelRef.current.getBoundingClientRect();
+    dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setIsDragging(true);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMove = (e: MouseEvent) => {
+      let nx = e.clientX - dragOffsetRef.current.x;
+      let ny = e.clientY - dragOffsetRef.current.y;
+      nx = Math.max(0, Math.min(window.innerWidth - PANEL_W, nx));
+      ny = Math.max(0, Math.min(window.innerHeight - PANEL_H, ny));
+      setPanelPos({ x: nx, y: ny });
+    };
+    const handleUp = () => setIsDragging(false);
+    document.addEventListener("mousemove", handleMove);
+    document.addEventListener("mouseup", handleUp);
+    return () => { document.removeEventListener("mousemove", handleMove); document.removeEventListener("mouseup", handleUp); };
+  }, [isDragging]);
+
+  // Persist position to sessionStorage
+  useEffect(() => {
+    if (!isDragging && !isMobile) {
+      try { sessionStorage.setItem("jarvis_panel_position", JSON.stringify(panelPos)); } catch {}
+    }
+  }, [panelPos, isDragging, isMobile]);
+
+  // Show drag hint during tours
+  useEffect(() => {
+    if (jarvisNav.tourState.status === "running" && !isMobile) {
+      setDragHintVisible(true);
+      const t = setTimeout(() => setDragHintVisible(false), 4000);
+      return () => clearTimeout(t);
+    } else {
+      setDragHintVisible(false);
+    }
+  }, [jarvisNav.tourState.status, isMobile]);
+
   const greetingDoneRef = useRef(false);
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInteractionRef = useRef(Date.now());
   const assistantName = jarvisSettings.assistant_name || 'Jarvis';
-  const prevLocationRef = useRef(location.pathname);
+  const prevLocationRef = useRef(jarvisLocation.pathname);
   const conversationActiveRef = useRef(false); // Track if user started a conversation
   const pausedRef = useRef(false); // Track if auto-paused by modal/focus
 
@@ -621,13 +688,13 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
   // --- Stop listening on route change ---
   useEffect(() => {
-    if (location.pathname !== prevLocationRef.current) {
-      prevLocationRef.current = location.pathname;
+    if (jarvisLocation.pathname !== prevLocationRef.current) {
+      prevLocationRef.current = jarvisLocation.pathname;
       speech.stopListening();
-      pausedRef.current = false; // Reset on navigation
+      pausedRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  }, [jarvisLocation.pathname]);
 
   // Report active state
   useEffect(() => {
@@ -845,37 +912,57 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
   return (
     <div
+      ref={panelRef}
       className={cn(
         "fixed z-[60] flex flex-col border border-border bg-background shadow-2xl overflow-hidden",
         isMobile
           ? "inset-0 rounded-none"
-          : "bottom-24 right-6 w-[420px] h-[580px] rounded-2xl"
+          : "w-[420px] h-[580px] rounded-2xl",
+        isDragging && "select-none"
       )}
+      style={isMobile ? undefined : { left: panelPos.x, top: panelPos.y }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center relative">
-            {visualState === "thinking" ? (
-              <Loader2 className="h-4 w-4 text-primary animate-spin" />
-            ) : visualState === "speaking" ? (
-              <Volume2 className="h-4 w-4 text-primary animate-pulse" />
-            ) : (
-              <Sparkles className="h-4 w-4 text-primary" />
-            )}
-            {visualState === "listening" && (
-              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" />
+      {/* Drag handle + Header */}
+      <div className="shrink-0 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10">
+        {/* Drag handle bar (desktop only) */}
+        {!isMobile && (
+          <div
+            onMouseDown={handleDragStart}
+            className="h-8 flex items-center justify-center gap-2 relative"
+            style={{ cursor: isDragging ? "grabbing" : "grab" }}
+          >
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50" />
+            {dragHintVisible && (
+              <span className="absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2.5 py-1 rounded-full bg-primary text-primary-foreground text-[10px] font-medium whitespace-nowrap z-10 animate-fade-in shadow-md">
+                Drag me out of the way
+              </span>
             )}
           </div>
-          <div>
-            <p className="font-semibold text-sm text-foreground leading-none">
-              {assistantName}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {statusText[visualState]}
-            </p>
+        )}
+        {/* Header content */}
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center relative">
+              {visualState === "thinking" ? (
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              ) : visualState === "speaking" ? (
+                <Volume2 className="h-4 w-4 text-primary animate-pulse" />
+              ) : (
+                <Sparkles className="h-4 w-4 text-primary" />
+              )}
+              {visualState === "listening" && (
+                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" />
+              )}
+            </div>
+            <div>
+              <p className="font-semibold text-sm text-foreground leading-none">
+                {assistantName}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {statusText[visualState]}
+              </p>
+            </div>
           </div>
-        </div>
         <div className="flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -909,6 +996,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
           }}>
             <X className="h-4 w-4 text-muted-foreground" />
           </Button>
+        </div>
         </div>
       </div>
 

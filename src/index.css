@@ -337,9 +337,6 @@ All colors MUST be HSL.
 @keyframes jarvis-spin {
   to { transform: rotate(360deg); }
 }
-}
-
-@keyframes jarvis-spotlight-pulse {
   0%, 100% {
     box-shadow: 0 0 0 3px hsl(24 95% 53%), 0 0 20px hsl(24 95% 53% / 0.4);
   }

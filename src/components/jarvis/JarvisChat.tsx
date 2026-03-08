@@ -647,13 +647,13 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
   // --- Stop listening on route change ---
   useEffect(() => {
-    if (location.pathname !== prevLocationRef.current) {
-      prevLocationRef.current = location.pathname;
+    if (jarvisLocation.pathname !== prevLocationRef.current) {
+      prevLocationRef.current = jarvisLocation.pathname;
       speech.stopListening();
-      pausedRef.current = false; // Reset on navigation
+      pausedRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  }, [jarvisLocation.pathname]);
 
   // Report active state
   useEffect(() => {

@@ -551,6 +551,14 @@ CREATE PROJECT flow:
 4. "Any description?"
 5. Confirm and create.
 
+ENTITY LOOKUP BEFORE LINKING — CRITICAL:
+When creating a contact, deal, opportunity, project, or logging a call that references another entity (company, contact, or candidate):
+1. ALWAYS call the appropriate lookup tool FIRST (lookup_company, lookup_contact, or lookup_candidate) using the name the user provided.
+2. If exactly 1 result is returned: use that ID automatically and proceed.
+3. If multiple results: ask the user "I found a few matches — did you mean [name1], [name2], or [name3]?" and wait for their answer.
+4. If 0 results: say "I couldn't find [name] in your workspace. Would you like me to create it first?" and wait.
+5. NEVER guess or fabricate an entity ID. NEVER pass a name string where an ID is required.
+
 CONFIRMATION: Always confirm before executing. State ALL collected fields clearly using names (never IDs). Only call the tool AFTER the user confirms.`;
 
 // ---------- Tool executors ----------

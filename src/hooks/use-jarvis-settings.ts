@@ -25,6 +25,9 @@ export interface JarvisSettings {
   keep_listening_default: boolean;
   confirmation_mode: 'always' | 'smart' | 'never';
   show_conversation_history: boolean;
+
+  // Visual effects
+  spotlight_enabled: boolean;
 }
 
 export const ELEVENLABS_VOICES = [

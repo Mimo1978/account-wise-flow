@@ -50,6 +50,7 @@ export interface JobShortlistEntry {
   concerns: string[] | null;
   availability_warning: string | null;
   status: string;
+  priority: number;
   outreach_sent_at: string | null;
   response_received_at: string | null;
   candidate_interest: string | null;

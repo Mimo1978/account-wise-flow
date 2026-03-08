@@ -350,14 +350,15 @@ function DiaryEventsSection({ workspaceId }: { workspaceId: string | undefined }
 
 /* ─── Command Centre Tour Steps ─── */
 const COMMAND_CENTRE_TOUR: GuidedTourStep[] = [
-  { highlight: '[data-jarvis-id="home-kpi-row"]', speak: "These four cards give you your top-line position at a glance — active projects, pipeline value, outstanding invoices, and upcoming renewals." },
-  { highlight: '[data-jarvis-id="home-pipeline-snapshot"]', speak: "Your pipeline shows every deal by stage. Click any stage to see the deals inside it. The colour shows progress — blue is early, green is won." },
-  { highlight: '[data-jarvis-id="home-my-work"]', speak: "My Work shows what needs your attention today — overdue invoices, shortlists to review, and outreach ready to send." },
-  { highlight: '[data-jarvis-id="home-diary"]', speak: "Your diary shows calls and meetings booked for the next 7 days." },
-  { highlight: '[data-jarvis-id="home-active-projects"]', speak: "Active Projects shows all your live engagements. The Jobs column shows open recruitment roles linked to each project." },
-  { highlight: '[data-jarvis-id="home-alerts-strip"]', speak: "Alerts flag anything that needs urgent attention — overdue payments, contracts expiring, or jobs going cold." },
+  { highlight: '[data-jarvis-section="stat-cards"]', speak: "Welcome to your Command Centre. This is the heartbeat of your business." },
+  { highlight: '[data-jarvis-section="stat-cards"]', speak: "These four cards at the top give you your headline numbers — active projects, pipeline value, outstanding invoices, and renewals." },
+  { highlight: '[data-jarvis-section="pipeline-snapshot"]', speak: "Below that is your pipeline snapshot — every deal by stage. Click any stage chevron to see the deals inside." },
+  { highlight: '[data-jarvis-section="my-work"]', speak: "My Work shows what needs your attention today — overdue items, shortlists to review, and outreach ready to send." },
+  { highlight: '[data-jarvis-section="diary"]', speak: "Your diary shows calls and meetings for the next seven days." },
+  { highlight: '[data-jarvis-section="active-projects"]', speak: "Active Projects shows all your live engagements. The Jobs column shows open recruitment roles linked to each project." },
+  { highlight: '[data-jarvis-section="alerts-strip"]', speak: "Billing Alerts will flag anything overdue or expiring." },
 ];
-const TOUR_CLOSING = "That's your Command Centre. Everything in one view. Say 'take me to' anything you see here and I'll navigate you straight there.";
+const TOUR_CLOSING = "That is your Command Centre. Everything in one view. Just ask me to take you anywhere or show you anything.";
 
 /* ─── Main Page ─── */
 const HomeCommandCenter = () => {

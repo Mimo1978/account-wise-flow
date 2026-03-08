@@ -54,6 +54,8 @@ export const DEFAULT_JARVIS_SETTINGS: JarvisSettings = {
   confirmation_mode: 'always',
   show_conversation_history: true,
   spotlight_enabled: true,
+  page_glow_enabled: true,
+  tooltip_labels_enabled: true,
 };
 
 export function useJarvisSettings() {

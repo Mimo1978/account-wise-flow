@@ -266,10 +266,26 @@ export default function AdminJarvisSettings() {
       <Section icon={Eye} title="Visual Effects" description="Control the Jarvis spotlight and navigation effects">
         <div className="flex items-center justify-between">
           <div>
-            <Label>Spotlight Mode</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Show orange glow and element highlights when Jarvis navigates or guides</p>
+            <Label>Visual Spotlight</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Show orange glow and element highlights when Jarvis speaks or navigates</p>
           </div>
           <Switch checked={draft.spotlight_enabled} onCheckedChange={(v) => update('spotlight_enabled', v)} />
+        </div>
+
+        <div className={cn("flex items-center justify-between", !draft.spotlight_enabled && "opacity-50 pointer-events-none")}>
+          <div>
+            <Label>Page Border Glow</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Show the orange border glow around the entire viewport while Jarvis speaks</p>
+          </div>
+          <Switch checked={draft.page_glow_enabled} onCheckedChange={(v) => update('page_glow_enabled', v)} />
+        </div>
+
+        <div className={cn("flex items-center justify-between", !draft.spotlight_enabled && "opacity-50 pointer-events-none")}>
+          <div>
+            <Label>Tooltip Labels</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Show floating orange labels above highlighted elements</p>
+          </div>
+          <Switch checked={draft.tooltip_labels_enabled} onCheckedChange={(v) => update('tooltip_labels_enabled', v)} />
         </div>
       </Section>
 

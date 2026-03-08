@@ -1493,6 +1493,26 @@ Return ONLY valid JSON, no markdown fences.`,
       await supabaseAdmin.from("job_adverts").update({ content: newContent, word_count: wordCount, character_count: charCount }).eq("id", advertId);
       return { result: { success: true, board: advert.board, word_count: wordCount }, entityType: "job_adverts", entityId: advertId };
     }
+    case "run_shortlist": {
+      const jobId = input.job_id as string;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/run-shortlist`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ job_id: jobId }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Shortlist generation failed" }, entityType: "job_shortlist" };
+      return {
+        result: { ...data, navigate_to: `/jobs/${jobId}` },
+        entityType: "job_shortlist",
+        entityId: jobId,
+      };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }

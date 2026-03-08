@@ -1099,6 +1099,14 @@ async function executeTool(
         "draw reporting line": { path: "/canvas", action: "click", targetId: "canvas-connect-tool" },
         "delete node": { path: "/canvas", action: "click", targetId: "canvas-delete-node" },
         "remove from chart": { path: "/canvas", action: "click", targetId: "canvas-delete-node" },
+        // Jobs
+        jobs: { path: "/jobs" },
+        "jobs list": { path: "/jobs" },
+        "my jobs": { path: "/jobs" },
+        "show jobs": { path: "/jobs" },
+        "open jobs": { path: "/jobs" },
+        "add job": { path: "/jobs", action: "click", targetId: "add-job-button" },
+        "new job": { path: "/jobs", action: "click", targetId: "add-job-button" },
       };
 
       // Try exact match first, then fuzzy keyword match

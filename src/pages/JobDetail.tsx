@@ -130,6 +130,8 @@ const JobDetail = () => {
   const navigate = useNavigate();
   const { data: job, isLoading } = useJob(id);
   const updateStatus = useUpdateJobStatus();
+  const { data: jobProjectLinks = [] } = useJobProjects(id);
+  const [showFilledModal, setShowFilledModal] = useState(false);
 
   if (isLoading) {
     return (
@@ -153,8 +155,13 @@ const JobDetail = () => {
   }
 
   const badge = STATUS_BADGE[job.status] || STATUS_BADGE.draft;
+  const hasLinkedProject = jobProjectLinks.length > 0;
   const handleStatusChange = (newStatus: string) => {
     updateStatus.mutate({ id: job.id, status: newStatus });
+    // Pause point 4: show modal when filled and no project linked
+    if (newStatus === 'filled' && !hasLinkedProject) {
+      setShowFilledModal(true);
+    }
   };
 
   return (

@@ -878,10 +878,26 @@ SHORTLIST REVIEW — detect intents:
   - Call update_shortlist_entry with action "reserve".
 
 OUTREACH EMAIL intents:
-  "draft outreach for [job]" / "email the shortlist" / "send outreach" / "draft emails":
-  - Call draft_outreach_emails with the job_id. After drafting: "I've drafted [n] personalised emails for [job title]. Head to the Outreach tab to review and send them."
-  "how many candidates have we contacted for [job]" / "outreach status":
-  - Call get_outreach_status. Report naturally: "You've sent outreach to [n] candidates for [job title], with [n] still in draft."`;
+   "draft outreach for [job]" / "email the shortlist" / "send outreach" / "draft emails":
+   - Call draft_outreach_emails with the job_id. After drafting: "I've drafted [n] personalised emails for [job title]. Head to the Outreach tab to review and send them."
+   "how many candidates have we contacted for [job]" / "outreach status":
+   - Call get_outreach_status. Report naturally: "You've sent outreach to [n] candidates for [job title], with [n] still in draft."
+
+DIARY / CALENDAR intents:
+  "book a call with [candidate]" / "schedule a call with [name]" / "find a time to speak to [name]":
+   - First call find_diary_slots to get available slots.
+   - Present 3 options: "I have these slots available: [1], [2], [3]. Which works best?"
+   - When user picks one, call book_diary_event with the title "Call with [candidate] re [job title]".
+   - After booking: "Booked. [Name] is in your diary for [day] at [time]."
+  "what's in my diary today" / "what calls do I have" / "my schedule":
+   - Call get_diary_events with period=today (or tomorrow, this_week).
+   - Read out events naturally: "You have [n] events today: [list with times]."
+  "cancel the call with [name]" / "remove that meeting":
+   - Call cancel_diary_event with candidate_name.
+   - "Done. The call with [name] has been cancelled."
+  "reschedule [name] call" / "move the meeting with [name]":
+   - Call reschedule_diary_event with candidate_name (no new time → gets new slots).
+   - Present new options, then update when confirmed.`;
 
 
 

@@ -1076,8 +1076,7 @@ const HomeCommandCenter = () => {
                       return (
                         <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
                           <td className="px-4 py-3 font-medium text-foreground">
-                            {inv.invoice_number || inv.description || '#' + inv.id.slice(0, 6)}
-                            {inv.description && inv.invoice_number ? <span className="text-muted-foreground font-normal ml-1.5 text-xs">— {inv.description}</span> : null}
+                            {inv.invoice_number || '#' + inv.id.slice(0, 6)}
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">{inv.companies?.name ?? '—'}</td>
                           <td className="px-4 py-3">

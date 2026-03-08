@@ -632,6 +632,9 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
           existingFormat={existingFormat}
           open={!!boardFormatBoard}
           onOpenChange={(open) => { if (!open) setBoardFormatBoard(null); }}
+        />
+      )}
+    </>
   );
 }
 

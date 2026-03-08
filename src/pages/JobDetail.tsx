@@ -481,7 +481,7 @@ function AdvertsTab({ jobId }: { jobId: string }) {
 }
 
 // ---------- Shortlist Tab ----------
-function ShortlistTab({ jobId }: { jobId: string }) {
+function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const { data: entries = [], isLoading } = useJobShortlist(jobId);
   const removeFromShortlist = useRemoveFromShortlist();
   const runShortlist = useRunShortlist();

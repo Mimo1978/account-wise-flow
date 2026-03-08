@@ -141,9 +141,9 @@ export function ReportBuilderPanel({ open, onOpenChange, preselectedType, autoDo
           const { data } = await supabase
             .from('outreach_targets')
             .select('id, name, status, channel')
-            .eq('workspace_id', wsId);
+            .eq('workspace_id', wsId) as { data: any[] | null };
           const targets = data ?? [];
-          const queued = targets.filter((t: any) => t.status === 'draft').length;
+          const queued = targets.filter((t) => t.status === 'draft').length;
           const contacted = targets.filter((t: any) => t.status === 'sent').length;
           const responded = targets.filter((t: any) => ['replied', 'interested', 'not_interested'].includes(t.status)).length;
           const responseRate = contacted > 0 ? ((responded / contacted) * 100).toFixed(1) : '0';

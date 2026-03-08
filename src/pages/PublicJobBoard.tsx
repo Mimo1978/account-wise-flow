@@ -311,7 +311,7 @@ function ApplicationSheet({ job, onClose }: { job: PublicJob | null; onClose: ()
       } as any);
       if (error) throw error;
 
-      // Fire-and-forget notification
+      // Fire-and-forget notification + AI processing
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       fetch(`https://${projectId}.supabase.co/functions/v1/notify-new-application`, {
         method: 'POST',
@@ -323,6 +323,24 @@ function ApplicationSheet({ job, onClose }: { job: PublicJob | null; onClose: ()
           applicant_phone: form.phone.trim() || null,
         }),
       }).catch(() => {});
+
+      // Trigger AI scoring pipeline - get the inserted application ID first
+      const { data: insertedApp } = await supabase
+        .from('job_applications')
+        .select('id')
+        .eq('job_id', job.id)
+        .eq('applicant_email', form.email.trim())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (insertedApp) {
+        fetch(`https://${projectId}.supabase.co/functions/v1/process-application`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+          body: JSON.stringify({ application_id: insertedApp.id }),
+        }).catch(() => {});
+      }
     },
     onSuccess: () => setSubmitted(true),
     onError: (e: Error) => toast.error(e.message),

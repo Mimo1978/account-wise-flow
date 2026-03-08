@@ -146,9 +146,15 @@ function findElement(
   onFound: (el: HTMLElement) => void
 ) {
   const attempt = (retries: number) => {
-    const el =
-      document.querySelector<HTMLElement>(`[data-jarvis-id="${targetId}"]`) ||
-      document.getElementById(targetId);
+    // Support CSS selectors (starting with [ or .) as well as jarvis-id/element-id
+    let el: HTMLElement | null = null;
+    if (targetId.startsWith("[") || targetId.startsWith(".") || targetId.startsWith("#")) {
+      el = document.querySelector<HTMLElement>(targetId);
+    }
+    if (!el) {
+      el = document.querySelector<HTMLElement>(`[data-jarvis-id="${targetId}"]`) ||
+           document.getElementById(targetId);
+    }
     if (el) {
       onFound(el);
     } else if (retries > 0) {

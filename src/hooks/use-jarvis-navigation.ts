@@ -524,6 +524,69 @@ export function useJarvisNavigation() {
     return null;
   }, [navigate]);
 
+  /* ---------------------------------------------------------------- */
+  /*  Fallback Discovery — search DOM for keyword matches              */
+  /* ---------------------------------------------------------------- */
+
+  const fallbackDiscovery = useCallback(
+    (query: string): { found: boolean; targetId?: string; label?: string; path?: string } => {
+      const q = query.toLowerCase().trim();
+
+      // Step 1: Search all data-jarvis-id attributes
+      const jarvisEls = document.querySelectorAll<HTMLElement>("[data-jarvis-id]");
+      for (const el of jarvisEls) {
+        const id = el.getAttribute("data-jarvis-id") || "";
+        const text = (el.textContent || "").toLowerCase().trim();
+        if (id.includes(q) || text.includes(q) || q.includes(id.replace(/-/g, " "))) {
+          return { found: true, targetId: id, label: text.slice(0, 50) || id };
+        }
+      }
+
+      // Step 2: Search visible buttons, links, headings
+      const interactiveEls = document.querySelectorAll<HTMLElement>(
+        'button, a, h1, h2, h3, [role="button"], [role="tab"]'
+      );
+      for (const el of interactiveEls) {
+        const text = (el.textContent || "").toLowerCase().trim();
+        if (text && text.length < 60 && (text.includes(q) || q.includes(text))) {
+          const jarvisId = el.getAttribute("data-jarvis-id");
+          if (jarvisId) {
+            return { found: true, targetId: jarvisId, label: text };
+          }
+          // If no jarvis-id, try to get closest parent with one
+          const parent = el.closest("[data-jarvis-id]");
+          if (parent) {
+            return { found: true, targetId: parent.getAttribute("data-jarvis-id")!, label: text };
+          }
+        }
+      }
+
+      // Step 3: Search navigation map keywords (partial)
+      const navEntry = findDestination(q);
+      if (navEntry) {
+        return { found: true, path: navEntry.path, targetId: navEntry.targetId, label: navEntry.label };
+      }
+
+      return { found: false };
+    },
+    []
+  );
+
+  /** Get recent pages visited as summary */
+  const getRecentPages = useCallback((count = 5): JarvisNavHistoryEntry[] => {
+    const history = readNavHistory();
+    // Deduplicate by path, keep most recent
+    const seen = new Set<string>();
+    const deduped: JarvisNavHistoryEntry[] = [];
+    for (let i = history.length - 1; i >= 0 && deduped.length < count; i--) {
+      if (!seen.has(history[i].path)) {
+        seen.add(history[i].path);
+        deduped.push(history[i]);
+      }
+    }
+    return deduped.reverse();
+  }, []);
+
   return {
     navigateTo,
     highlightElement,
@@ -540,5 +603,7 @@ export function useJarvisNavigation() {
     goToSessionStart,
     goToLastCompany,
     getNavHistory: readNavHistory,
+    getRecentPages,
+    fallbackDiscovery,
   };
 }

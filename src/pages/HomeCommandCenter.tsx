@@ -1260,28 +1260,29 @@ const HomeCommandCenter = () => {
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Stage</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Health</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Jobs</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Forecast</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Updated</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {engagements.map((eng) => (
+                  {engagements.map((eng) => {
+                    const roleCount = jobProjectLinksMap.get(eng.id) || 0;
+                    const healthColor = eng.health === 'green' ? 'bg-green-500' : eng.health === 'amber' ? 'bg-amber-500' : eng.health === 'red' ? 'bg-red-500' : 'bg-muted';
+                    return (
                     <tr key={eng.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/projects/${eng.id}`)}>
-                      <td className="px-4 py-3 font-medium text-foreground">
-                        <span className="flex items-center gap-2">
-                          {eng.name}
-                          {(() => {
-                            const roleCount = jobProjectLinksMap.get(eng.id) || 0;
-                            return roleCount > 0 ? (
-                              <Badge variant="outline" className="text-[10px] gap-0.5 font-normal">
-                                <Users className="w-2.5 h-2.5" />
-                                {roleCount} open role{roleCount !== 1 ? 's' : ''}
-                              </Badge>
-                            ) : null;
-                          })()}
-                        </span>
+                      <td className="px-4 py-3">
+                        <div>
+                          <span className="font-medium text-foreground">{eng.name}</span>
+                          <div className={`mt-1 h-1 w-16 rounded-full ${healthColor}`} />
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{eng.companies?.name ?? '—'}</td>
+                      <td className="px-4 py-3">
+                        {eng.companies?.name
+                          ? <span className="text-muted-foreground">{eng.companies.name}</span>
+                          : <span className="text-muted-foreground italic">Independent</span>
+                        }
+                      </td>
                       <td className="px-4 py-3">
                         <Badge variant="secondary" className="text-xs capitalize">{eng.engagement_type.replace('_', ' ')}</Badge>
                       </td>
@@ -1289,7 +1290,17 @@ const HomeCommandCenter = () => {
                         <Badge variant="outline" className="text-xs">{STAGE_LABELS[eng.stage] ?? eng.stage}</Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-block w-2.5 h-2.5 rounded-full ${HEALTH_COLORS[eng.health]?.split(' ')[0] ?? 'bg-muted'}`} />
+                        <span className={`inline-block w-2.5 h-2.5 rounded-full ${healthColor}`} title={eng.health ?? 'unknown'} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {roleCount > 0 ? (
+                          <Badge className="text-[10px] gap-0.5 font-normal bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-0">
+                            <Users className="w-2.5 h-2.5" />
+                            {roleCount} role{roleCount !== 1 ? 's' : ''}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {eng.forecast_value > 0 ? `${eng.currency} ${eng.forecast_value.toLocaleString()}` : '—'}
@@ -1298,7 +1309,8 @@ const HomeCommandCenter = () => {
                         {format(new Date(eng.updated_at), 'dd MMM yyyy')}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

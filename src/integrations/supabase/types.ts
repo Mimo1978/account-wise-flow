@@ -3208,8 +3208,10 @@ export type Database = {
       job_shortlist: {
         Row: {
           availability_confirmed: string | null
+          availability_warning: string | null
           candidate_id: string | null
           candidate_interest: string | null
+          concerns: string[] | null
           created_at: string | null
           id: string
           interview_booked_at: string | null
@@ -3224,8 +3226,10 @@ export type Database = {
         }
         Insert: {
           availability_confirmed?: string | null
+          availability_warning?: string | null
           candidate_id?: string | null
           candidate_interest?: string | null
+          concerns?: string[] | null
           created_at?: string | null
           id?: string
           interview_booked_at?: string | null
@@ -3240,8 +3244,10 @@ export type Database = {
         }
         Update: {
           availability_confirmed?: string | null
+          availability_warning?: string | null
           candidate_id?: string | null
           candidate_interest?: string | null
+          concerns?: string[] | null
           created_at?: string | null
           id?: string
           interview_booked_at?: string | null

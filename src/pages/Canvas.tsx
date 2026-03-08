@@ -613,6 +613,10 @@ const Canvas = () => {
             <CanvasModeToggle
               mode={canvasMode}
               onModeChange={setCanvasMode}
+              onSaveLayout={() => {
+                toast.success("Layout saved");
+                setHasPendingStructuralChanges(false);
+              }}
             />
           </>
         )}

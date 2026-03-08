@@ -467,56 +467,135 @@ function AdvertsTab({ jobId }: { jobId: string }) {
 // ---------- Shortlist Tab ----------
 function ShortlistTab({ jobId }: { jobId: string }) {
   const { data: entries = [], isLoading } = useJobShortlist(jobId);
+  const removeFromShortlist = useRemoveFromShortlist();
+  const runShortlist = useRunShortlist();
+
   if (isLoading) return <TableSkeleton />;
+
+  const scoreBadgeClass = (score: number) => {
+    if (score >= 80) return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30';
+    if (score >= 60) return 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30';
+    return 'bg-muted text-muted-foreground';
+  };
 
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="text-sm">Shortlisted Candidates</CardTitle>
-        <Button variant="outline" size="sm" data-jarvis-id="job-send-outreach-button">
-          <Send className="w-3.5 h-3.5 mr-1.5" /> Send Outreach
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => runShortlist.mutate(jobId)}
+            disabled={runShortlist.isPending}
+            data-jarvis-id="job-run-shortlist-trigger"
+          >
+            {runShortlist.isPending ? (
+              <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Matching...</>
+            ) : (
+              <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist</>
+            )}
+          </Button>
+          <Button variant="outline" size="sm" data-jarvis-id="job-send-outreach-button">
+            <Send className="w-3.5 h-3.5 mr-1.5" /> Send Outreach
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="p-0">
         {entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">No candidates shortlisted yet.</p>
+          <div className="text-center py-8 space-y-3">
+            <Users className="w-8 h-8 text-muted-foreground mx-auto" />
+            <p className="text-sm text-muted-foreground">No candidates shortlisted yet.</p>
+            <p className="text-xs text-muted-foreground">Click "Run Shortlist" to match candidates from your talent database.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => runShortlist.mutate(jobId)}
+              disabled={runShortlist.isPending}
+            >
+              {runShortlist.isPending ? (
+                <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Matching...</>
+              ) : (
+                <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist</>
+              )}
+            </Button>
+          </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Candidate</TableHead>
-                <TableHead>Score</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Interest</TableHead>
-                <TableHead>Outreach</TableHead>
+                <TableHead className="w-20">Score</TableHead>
+                <TableHead>Match Reasons</TableHead>
+                <TableHead>Availability</TableHead>
+                <TableHead className="w-24">Status</TableHead>
+                <TableHead className="w-28 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {entries.map(e => (
                 <TableRow key={e.id}>
                   <TableCell>
-                    <div>
-                      <span className="font-medium">{(e as any).candidates?.name || '—'}</span>
+                    <div className="space-y-0.5">
+                      <span className="font-medium text-sm">{(e as any).candidates?.name || '—'}</span>
                       {(e as any).candidates?.current_title && (
-                        <span className="text-xs text-muted-foreground ml-1.5">{(e as any).candidates.current_title}</span>
+                        <p className="text-xs text-muted-foreground">{(e as any).candidates.current_title}</p>
+                      )}
+                      {(e as any).candidates?.location && (
+                        <p className="text-xs text-muted-foreground">{(e as any).candidates.location}</p>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
                     {e.match_score != null ? (
-                      <Badge variant="outline" className={
-                        e.match_score >= 80 ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400' :
-                        e.match_score >= 50 ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400' :
-                        'bg-muted text-muted-foreground'
-                      }>
+                      <Badge variant="outline" className={scoreBadgeClass(e.match_score)}>
                         {e.match_score}%
                       </Badge>
                     ) : '—'}
                   </TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {(e.match_reasons || []).slice(0, 4).map((r, i) => (
+                        <span key={i} className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                          {r}
+                        </span>
+                      ))}
+                      {(e.concerns || []).length > 0 && (
+                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">
+                          {(e.concerns as string[])[0]}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {e.availability_warning ? (
+                      <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                        <AlertTriangle className="w-3 h-3" />
+                        {e.availability_warning}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400">Available</span>
+                    )}
+                  </TableCell>
                   <TableCell className="text-sm">{SHORTLIST_STATUS[e.status] || e.status}</TableCell>
-                  <TableCell className="text-sm capitalize">{e.candidate_interest || '—'}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {e.outreach_sent_at ? format(new Date(e.outreach_sent_at), 'dd MMM') : '—'}
+                  <TableCell>
+                    <div className="flex items-center gap-1 justify-end">
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Email">
+                        <Mail className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="SMS">
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        title="Remove"
+                        onClick={() => removeFromShortlist.mutate(e.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

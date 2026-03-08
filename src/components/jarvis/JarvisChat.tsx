@@ -185,8 +185,13 @@ function MessageBubble({
           {message.content}
         </div>
 
+        {/* Help menu grid for SHOW_MENU */}
+        {!isUser && message.actionPayload?.type === 'SHOW_MENU' && onNavigate && (
+          <HelpMenuGrid onNavigate={onNavigate} />
+        )}
+
         {/* Suggestion chips / SHOW_MENU buttons */}
-        {!isUser && message.suggestions && message.suggestions.length > 0 && (
+        {!isUser && message.suggestions && message.suggestions.length > 0 && message.actionPayload?.type !== 'SHOW_MENU' && (
           <div className="flex flex-wrap gap-1.5 mt-1">
             {message.suggestions.map((s) => {
               const isMenu = (s as any).isMenu || message.actionPayload?.type === 'SHOW_MENU';

@@ -597,16 +597,24 @@ export function useNewApplicationsCount() {
   });
 }
 
-// ---------- Update application status ----------
+// ---------- Update application status (with automated email) ----------
 export function useUpdateApplicationStatus() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, oldStatus }: { id: string; status: string; oldStatus?: string }) => {
       const { error } = await supabase
         .from('job_applications')
         .update({ status } as any)
         .eq('id', id);
       if (error) throw error;
+      
+      // Fire-and-forget: send automated status email
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      fetch(`https://${projectId}.supabase.co/functions/v1/send-applicant-update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        body: JSON.stringify({ application_id: id, new_status: status, old_status: oldStatus }),
+      }).catch(() => {});
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['job_applications'] });

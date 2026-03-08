@@ -845,7 +845,7 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
                         <span className="text-xs text-emerald-600 dark:text-emerald-400">Available</span>
                       )}
                     </TableCell>
-                    <TableCell>{statusBadge(e.status)}</TableCell>
+                    <TableCell>{statusBadge(e.status, e)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 justify-end">
                         {e.status === 'pending' && (

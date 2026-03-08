@@ -125,7 +125,7 @@ interface ProjectLinkPromptProps {
   onProjectLinked?: (projectId: string) => void;
 }
 
-export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss }: ProjectLinkPromptProps) {
+export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss, onProjectLinked }: ProjectLinkPromptProps) {
   const { data: links = [] } = useJobProjects(jobId);
   const [dismissed, setDismissed] = useState(false);
 

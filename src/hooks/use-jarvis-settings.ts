@@ -28,6 +28,8 @@ export interface JarvisSettings {
 
   // Visual effects
   spotlight_enabled: boolean;
+  page_glow_enabled: boolean;
+  tooltip_labels_enabled: boolean;
 }
 
 export const ELEVENLABS_VOICES = [

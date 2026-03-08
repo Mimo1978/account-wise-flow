@@ -1220,6 +1220,7 @@ serve(async (req) => {
         target_id: targetId,
         guided_tour: guidedTour,
         suggestions: suggestions,
+        action: actionPayload,
         actions_executed: actionsExecuted.filter(a => mutationTools.has(a.tool)),
         invalidate_queries: invalidateQueries,
       }),

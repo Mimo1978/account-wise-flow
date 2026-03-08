@@ -497,6 +497,90 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  // ─── Diary tools ───
+  {
+    type: "function",
+    function: {
+      name: "find_diary_slots",
+      description: "Find available 30-minute diary slots for the recruiter in the next 5 working days. Use when the user says 'book a call', 'find a time', 'what slots are free', 'schedule a meeting'.",
+      parameters: {
+        type: "object",
+        properties: {
+          max_slots: { type: "number", description: "Number of slots to return (default 3)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "book_diary_event",
+      description: "Book a diary event (call/meeting/task) for the recruiter. Use after the user confirms a time slot.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          start_time: { type: "string", description: "ISO datetime" },
+          end_time: { type: "string", description: "ISO datetime" },
+          event_type: { type: "string", description: "call, meeting, or task" },
+          candidate_name: { type: "string", description: "Candidate name to look up" },
+          job_id: { type: "string" },
+          contact_name: { type: "string" },
+        },
+        required: ["title", "start_time", "end_time"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_diary_events",
+      description: "Get diary events for today, tomorrow, or a date range. Use when user asks 'what's in my diary', 'what calls do I have today', 'show my schedule'.",
+      parameters: {
+        type: "object",
+        properties: {
+          period: { type: "string", description: "today, tomorrow, this_week, or custom" },
+          date_from: { type: "string", description: "ISO date for custom range" },
+          date_to: { type: "string", description: "ISO date for custom range" },
+        },
+        required: ["period"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cancel_diary_event",
+      description: "Cancel a diary event. Use when user says 'cancel the call with [name]', 'remove that meeting'.",
+      parameters: {
+        type: "object",
+        properties: {
+          candidate_name: { type: "string", description: "Search for event by candidate name" },
+          event_id: { type: "string", description: "Direct event ID if known" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "reschedule_diary_event",
+      description: "Reschedule a diary event to a new time. Use when user says 'reschedule [name] call', 'move that meeting'.",
+      parameters: {
+        type: "object",
+        properties: {
+          candidate_name: { type: "string", description: "Search for event by candidate name" },
+          event_id: { type: "string", description: "Direct event ID if known" },
+          new_start_time: { type: "string", description: "New ISO datetime" },
+          new_end_time: { type: "string", description: "New ISO datetime" },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.
@@ -794,10 +878,26 @@ SHORTLIST REVIEW — detect intents:
   - Call update_shortlist_entry with action "reserve".
 
 OUTREACH EMAIL intents:
-  "draft outreach for [job]" / "email the shortlist" / "send outreach" / "draft emails":
-  - Call draft_outreach_emails with the job_id. After drafting: "I've drafted [n] personalised emails for [job title]. Head to the Outreach tab to review and send them."
-  "how many candidates have we contacted for [job]" / "outreach status":
-  - Call get_outreach_status. Report naturally: "You've sent outreach to [n] candidates for [job title], with [n] still in draft."`;
+   "draft outreach for [job]" / "email the shortlist" / "send outreach" / "draft emails":
+   - Call draft_outreach_emails with the job_id. After drafting: "I've drafted [n] personalised emails for [job title]. Head to the Outreach tab to review and send them."
+   "how many candidates have we contacted for [job]" / "outreach status":
+   - Call get_outreach_status. Report naturally: "You've sent outreach to [n] candidates for [job title], with [n] still in draft."
+
+DIARY / CALENDAR intents:
+  "book a call with [candidate]" / "schedule a call with [name]" / "find a time to speak to [name]":
+   - First call find_diary_slots to get available slots.
+   - Present 3 options: "I have these slots available: [1], [2], [3]. Which works best?"
+   - When user picks one, call book_diary_event with the title "Call with [candidate] re [job title]".
+   - After booking: "Booked. [Name] is in your diary for [day] at [time]."
+  "what's in my diary today" / "what calls do I have" / "my schedule":
+   - Call get_diary_events with period=today (or tomorrow, this_week).
+   - Read out events naturally: "You have [n] events today: [list with times]."
+  "cancel the call with [name]" / "remove that meeting":
+   - Call cancel_diary_event with candidate_name.
+   - "Done. The call with [name] has been cancelled."
+  "reschedule [name] call" / "move the meeting with [name]":
+   - Call reschedule_diary_event with candidate_name (no new time → gets new slots).
+   - Present new options, then update when confirmed.`;
 
 
 
@@ -1737,6 +1837,182 @@ Return ONLY valid JSON, no markdown fences.`,
         entityId: jobId,
       };
     }
+    // ─── Diary tools ───
+    case "find_diary_slots": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "diary_events" };
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/diary-booking`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "find_slots", user_id: userId, workspace_id: teamId, max_slots: input.max_slots || 3 }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to find slots" }, entityType: "diary_events" };
+      return { result: data, entityType: "diary_events" };
+    }
+    case "book_diary_event": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "diary_events" };
+      
+      // Resolve candidate_id if name provided
+      let candidateId: string | null = null;
+      if (input.candidate_name) {
+        const candidates = await lookupRecord("candidates", "name", input.candidate_name as string, teamId, supabaseAdmin, "tenant_id");
+        if (candidates.length > 0) candidateId = candidates[0].id;
+      }
+      
+      // Resolve contact_id if name provided
+      let contactId: string | null = null;
+      if (input.contact_name) {
+        const contacts = await lookupRecord("contacts", "name", input.contact_name as string, teamId, supabaseAdmin);
+        if (contacts.length > 0) contactId = contacts[0].id;
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/diary-booking`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "book",
+          user_id: userId,
+          workspace_id: teamId,
+          title: input.title,
+          description: input.description || null,
+          start_time: input.start_time,
+          end_time: input.end_time,
+          event_type: input.event_type || "call",
+          candidate_id: candidateId,
+          contact_id: contactId,
+          job_id: input.job_id || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to book" }, entityType: "diary_events" };
+      return { result: { ...data, navigate_to: "/home" }, entityType: "diary_events", entityId: data.event?.id };
+    }
+    case "get_diary_events": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "diary_events" };
+      
+      const now = new Date();
+      let dateFrom: string;
+      let dateTo: string;
+      const period = (input.period as string) || "today";
+      
+      if (period === "today") {
+        dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+      } else if (period === "tomorrow") {
+        const tom = new Date(now);
+        tom.setDate(tom.getDate() + 1);
+        dateFrom = new Date(tom.getFullYear(), tom.getMonth(), tom.getDate()).toISOString();
+        dateTo = new Date(tom.getFullYear(), tom.getMonth(), tom.getDate(), 23, 59, 59).toISOString();
+      } else if (period === "this_week") {
+        dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        const endOfWeek = new Date(now);
+        endOfWeek.setDate(endOfWeek.getDate() + (5 - endOfWeek.getDay()));
+        dateTo = new Date(endOfWeek.getFullYear(), endOfWeek.getMonth(), endOfWeek.getDate(), 23, 59, 59).toISOString();
+      } else {
+        dateFrom = (input.date_from as string) || now.toISOString();
+        dateTo = (input.date_to as string) || new Date(now.getTime() + 7 * 86400000).toISOString();
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/diary-booking`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get_events", user_id: userId, workspace_id: teamId, date_from: dateFrom, date_to: dateTo }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to get events" }, entityType: "diary_events" };
+      return { result: data, entityType: "diary_events" };
+    }
+    case "cancel_diary_event": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "diary_events" };
+      
+      let eventId = input.event_id as string;
+      
+      // If candidate_name provided, find the event
+      if (!eventId && input.candidate_name) {
+        const { data: events } = await supabaseAdmin
+          .from("diary_events")
+          .select("id, title, start_time, candidate_id, candidates(name)")
+          .eq("user_id", userId)
+          .eq("status", "scheduled")
+          .order("start_time");
+        
+        const match = (events || []).find((e: any) =>
+          e.title?.toLowerCase().includes((input.candidate_name as string).toLowerCase()) ||
+          e.candidates?.name?.toLowerCase().includes((input.candidate_name as string).toLowerCase())
+        );
+        if (!match) return { result: { error: `No scheduled event found matching "${input.candidate_name}".` }, entityType: "diary_events" };
+        eventId = match.id;
+      }
+      
+      if (!eventId) return { result: { error: "event_id or candidate_name required" }, entityType: "diary_events" };
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/diary-booking`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel", user_id: userId, workspace_id: teamId, event_id: eventId }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to cancel" }, entityType: "diary_events" };
+      return { result: { ...data, navigate_to: "/home" }, entityType: "diary_events", entityId: eventId };
+    }
+    case "reschedule_diary_event": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "diary_events" };
+      
+      let eventId = input.event_id as string;
+      
+      if (!eventId && input.candidate_name) {
+        const { data: events } = await supabaseAdmin
+          .from("diary_events")
+          .select("id, title, candidate_id, candidates(name)")
+          .eq("user_id", userId)
+          .eq("status", "scheduled")
+          .order("start_time");
+        
+        const match = (events || []).find((e: any) =>
+          e.title?.toLowerCase().includes((input.candidate_name as string).toLowerCase()) ||
+          e.candidates?.name?.toLowerCase().includes((input.candidate_name as string).toLowerCase())
+        );
+        if (!match) return { result: { error: `No scheduled event found matching "${input.candidate_name}".` }, entityType: "diary_events" };
+        eventId = match.id;
+      }
+      
+      if (!eventId) return { result: { error: "event_id or candidate_name required" }, entityType: "diary_events" };
+      
+      // If no new time provided, find new slots first
+      if (!input.new_start_time) {
+        const slotsRes = await fetch(`${Deno.env.get("SUPABASE_URL")!}/functions/v1/diary-booking`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "find_slots", user_id: userId, workspace_id: teamId, max_slots: 3 }),
+        });
+        const slotsData = await slotsRes.json();
+        return { result: { needs_new_time: true, event_id: eventId, available_slots: slotsData.slots || [] }, entityType: "diary_events" };
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/diary-booking`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reschedule", user_id: userId, workspace_id: teamId, event_id: eventId, new_start_time: input.new_start_time, new_end_time: input.new_end_time }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to reschedule" }, entityType: "diary_events" };
+      return { result: { ...data, navigate_to: "/home" }, entityType: "diary_events", entityId: eventId };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }
@@ -2049,7 +2325,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 
     // Build invalidation list for frontend cache
     const invalidateQueries: string[] = [];
-    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate"]);
+    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate", "book_diary_event", "cancel_diary_event", "reschedule_diary_event"]);
     const entityQueryMap: Record<string, string[]> = {
       companies: ["companies", "canvas-companies"],
       crm_companies: ["crm_companies"],
@@ -2064,6 +2340,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       jobs: ["jobs"],
       job_adverts: ["job_adverts"],
       job_shortlist: ["job_shortlist"],
+      diary_events: ["diary_events"],
     };
 
     for (const action of actionsExecuted) {

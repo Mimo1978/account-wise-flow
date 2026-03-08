@@ -37,10 +37,12 @@ import {
   Phone,
   Users,
   Zap,
+  Video,
+  CheckSquare,
 } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 /* ─── Types ─── */
@@ -330,6 +332,93 @@ const STATUS_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructiv
   void: 'secondary',
 };
 
+/* ─── Diary Events Section (real diary_events + critical dates) ─── */
+function DiaryEventsSection({
+  workspaceId,
+  diaryItems,
+  onItemClick,
+}: {
+  workspaceId: string | undefined;
+  diaryItems: CriticalDateItem[];
+  onItemClick: (item: CriticalDateItem) => void;
+}) {
+  const { data: diaryEvents = [] } = useQuery({
+    queryKey: ['diary_events', workspaceId],
+    queryFn: async () => {
+      if (!workspaceId) return [];
+      const now = new Date();
+      const end = addDays(now, 7);
+      const { data, error } = await supabase
+        .from('diary_events')
+        .select('id, title, description, start_time, end_time, event_type, status, candidate_id, contact_id, job_id')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'scheduled')
+        .gte('start_time', now.toISOString())
+        .lte('start_time', end.toISOString())
+        .order('start_time');
+      if (error) { console.error('diary_events error:', error); return []; }
+      return data || [];
+    },
+    enabled: !!workspaceId,
+    refetchInterval: 30000,
+  });
+
+  const EVENT_ICONS: Record<string, React.ElementType> = {
+    call: Phone,
+    meeting: Video,
+    task: CheckSquare,
+  };
+
+  const hasAnyItems = diaryEvents.length > 0 || diaryItems.length > 0;
+
+  if (!hasAnyItems) {
+    return (
+      <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[180px]">
+        <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
+          <CalendarClock className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <h3 className="text-sm font-semibold text-foreground">No events this week</h3>
+        <p className="text-xs text-muted-foreground mt-1">Booked calls, meetings and critical dates will appear here.</p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="divide-y divide-border/50">
+      {/* Real diary events first */}
+      {diaryEvents.map((evt: any) => {
+        const Icon = EVENT_ICONS[evt.event_type] || CalendarClock;
+        const startDate = new Date(evt.start_time);
+        return (
+          <div key={evt.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors rounded-lg">
+            <div className="shrink-0 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Icon className="w-4 h-4 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground truncate">{evt.title}</p>
+              <p className="text-xs text-muted-foreground">
+                {format(startDate, 'EEEE')} · {format(startDate, 'HH:mm')}–{format(new Date(evt.end_time), 'HH:mm')}
+                {evt.description ? ` · ${evt.description}` : ''}
+              </p>
+            </div>
+            <span className="text-xs text-muted-foreground">{format(startDate, 'dd MMM')}</span>
+            <Badge variant="outline" className="text-[10px] capitalize">{evt.event_type}</Badge>
+          </div>
+        );
+      })}
+      {/* Critical date items */}
+      {diaryItems.slice(0, Math.max(0, 6 - diaryEvents.length)).map((item) => (
+        <CriticalDateRow key={item.id} item={item} onClick={() => onItemClick(item)} />
+      ))}
+      {(diaryEvents.length + diaryItems.length) > 6 && (
+        <div className="px-4 py-2 text-center">
+          <span className="text-xs text-muted-foreground">+{(diaryEvents.length + diaryItems.length) - 6} more</span>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 /* ─── Main Page ─── */
 const HomeCommandCenter = () => {
   const navigate = useNavigate();
@@ -612,37 +701,13 @@ const HomeCommandCenter = () => {
           )}
         </div>
 
-        {/* Diary: 7 day window */}
+        {/* Diary: Real diary_events + critical dates */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider" data-jarvis-id="home-diary">Diary</h2>
             <Badge variant="secondary" className="text-xs">Next 7 days</Badge>
           </div>
-          {diaryItems.length === 0 ? (
-            <EmptyPanel
-              title="No events this week"
-              description="Contract renewals, invoice due dates and end dates in the next 7 days will appear in your diary."
-              icon={CalendarClock}
-              ctas={[
-                { label: 'Add SOW', onClick: () => setSowOpen(true) },
-              ]}
-            />
-          ) : (
-            <Card className="divide-y divide-border/50">
-              {diaryItems.slice(0, 6).map((item) => (
-                <CriticalDateRow
-                  key={item.id}
-                  item={item}
-                  onClick={() => handleItemClick(item)}
-                />
-              ))}
-              {diaryItems.length > 6 && (
-                <div className="px-4 py-2 text-center">
-                  <span className="text-xs text-muted-foreground">+{diaryItems.length - 6} more</span>
-                </div>
-              )}
-            </Card>
-          )}
+          <DiaryEventsSection workspaceId={currentWorkspace?.id} diaryItems={diaryItems} onItemClick={handleItemClick} />
         </div>
       </div>
 

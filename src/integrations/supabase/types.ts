@@ -2067,6 +2067,89 @@ export type Database = {
           },
         ]
       }
+      diary_events: {
+        Row: {
+          candidate_id: string | null
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          description: string | null
+          end_time: string
+          event_type: string
+          id: string
+          job_id: string | null
+          start_time: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          candidate_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          end_time: string
+          event_type?: string
+          id?: string
+          job_id?: string | null
+          start_time: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          candidate_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          description?: string | null
+          end_time?: string
+          event_type?: string
+          id?: string
+          job_id?: string | null
+          start_time?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diary_events_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diary_events_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diary_events_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "diary_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           created_at: string

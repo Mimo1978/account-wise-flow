@@ -192,7 +192,7 @@ All colors MUST be HSL.
 
 /* ─── Jarvis Visual Effects System ─── */
 
-/* SCREEN BORDER GLOW — fixed overlay, fade in/out controlled via opacity */
+/* SCREEN BORDER GLOW — fixed overlay, pointer-events:none */
 .jarvis-screen-glow {
   position: fixed;
   inset: 0;
@@ -313,91 +313,6 @@ All colors MUST be HSL.
   font-size: 0.875rem;
   font-weight: 500;
   letter-spacing: 0.02em;
-}
-
-@keyframes jarvis-overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes jarvis-overlay-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-.jarvis-nav-spinner {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 3px solid hsl(24 95% 53% / 0.25);
-  border-top-color: hsl(24 95% 53%);
-  animation: jarvis-spin 0.6s linear infinite;
-}
-
-@keyframes jarvis-spin {
-  to { transform: rotate(360deg); }
-}
-
-
-    box-shadow: 0 0 0 3px hsl(24 95% 53%), 0 0 20px hsl(24 95% 53% / 0.4);
-  }
-  50% {
-    box-shadow: 0 0 0 4px hsl(24 95% 53%), 0 0 40px hsl(24 95% 53% / 0.7);
-  }
-}
-
-/* FLOATING LABEL TOOLTIP — Above highlighted element */
-.jarvis-nav-tooltip {
-  background: hsl(24 95% 53%);
-  color: hsl(0 0% 100%);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  padding: 6px 14px;
-  border-radius: 8px;
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: 0 4px 20px hsl(24 95% 53% / 0.35);
-  animation: jarvis-tooltip-in 0.2s ease-out;
-  letter-spacing: 0.01em;
-}
-
-.jarvis-nav-tooltip::after {
-  content: '';
-  position: absolute;
-  bottom: -5px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-top: 6px solid hsl(24 95% 53%);
-}
-
-@keyframes jarvis-tooltip-in {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-/* NAVIGATION TRANSITION OVERLAY */
-.jarvis-nav-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  background: hsl(222 47% 6% / 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: jarvis-overlay-in 0.15s ease-out;
-  backdrop-filter: blur(4px);
-}
-
-.jarvis-nav-overlay.removing {
-  animation: jarvis-overlay-out 0.2s ease-in forwards;
 }
 
 @keyframes jarvis-overlay-in {

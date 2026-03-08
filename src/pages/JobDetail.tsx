@@ -373,11 +373,11 @@ const JobDetail = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview"><OverviewTab job={job} onProjectLinked={handleProjectLinked} /></TabsContent>
-        <TabsContent value="adverts"><AdvertsTab jobId={job.id} jobTitle={job.title} /></TabsContent>
-        <TabsContent value="shortlist"><ShortlistTab jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} /></TabsContent>
+        <TabsContent value="overview" data-jarvis-section="job-brief-box"><OverviewTab job={job} onProjectLinked={handleProjectLinked} /></TabsContent>
+        <TabsContent value="adverts" data-jarvis-section="job-adverts-list"><AdvertsTab jobId={job.id} jobTitle={job.title} /></TabsContent>
+        <TabsContent value="shortlist" data-jarvis-section="job-shortlist-table"><ShortlistTab jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} /></TabsContent>
         <TabsContent value="outreach"><OutreachTab jobId={job.id} jobTitle={job.title} /></TabsContent>
-        <TabsContent value="applications"><ApplicationsTab jobId={job.id} /></TabsContent>
+        <TabsContent value="applications" data-jarvis-section="job-applications-table"><ApplicationsTab jobId={job.id} /></TabsContent>
         <TabsContent value="activity"><ActivityTab /></TabsContent>
       </Tabs>
     </div>

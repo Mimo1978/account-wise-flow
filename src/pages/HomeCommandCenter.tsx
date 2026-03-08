@@ -540,7 +540,7 @@ const HomeCommandCenter = () => {
         </div>
 
         {/* ═══ 1. KPI ROW ═══ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-jarvis-id="home-kpi-row">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-jarvis-id="home-kpi-row" data-jarvis-section="stat-cards">
           <KPICard title="Active Projects" value={activeCount > 0 ? String(activeCount) : '—'}
             subtitle={activeCount > 0 ? `${activeCount} active${activeJobCount > 0 ? ` · ${activeJobCount} open role${activeJobCount !== 1 ? 's' : ''}` : ''}` : 'No projects yet'}
             icon={Briefcase} accentClass="bg-primary" />
@@ -556,7 +556,7 @@ const HomeCommandCenter = () => {
         </div>
 
         {/* ═══ 2. PIPELINE SNAPSHOT (hero) ═══ */}
-        <section data-jarvis-id="home-pipeline-snapshot">
+        <section data-j data-jarvis-section="pipeline-snapshot"arvis-id="home-pipeline-snapshot">
           <SectionHeader title="Pipeline Snapshot" icon={TrendingUp} accentColor="bg-primary">
             <div className="text-xs text-muted-foreground">
               Total: £{totalPipelineValue.toLocaleString()} · Weighted: £{weightedPipelineValue.toLocaleString()} · 30d: £{next30Forecast.toLocaleString()}
@@ -608,7 +608,7 @@ const HomeCommandCenter = () => {
 
         {/* ═══ 3. MY WORK + DIARY (50/50) ═══ */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
+          <div data-jarvis-section="my-work">
             <SectionHeader title="My Work" icon={CheckSquare} accentColor="bg-[hsl(262,80%,55%)]" jarvisId="home-my-work">
               {scheduledTodayCount > 0 && (
                 <Badge variant="outline" className="text-xs gap-1"><Zap className="w-3 h-3" />{scheduledTodayCount} invoice{scheduledTodayCount !== 1 ? 's' : ''} scheduled today</Badge>
@@ -624,7 +624,7 @@ const HomeCommandCenter = () => {
               </Card>
             )}
           </div>
-          <div>
+          <div data-jarvis-section="diary">
             <SectionHeader title="Diary" icon={CalendarClock} accentColor="bg-primary" jarvisId="home-diary">
               <Badge variant="secondary" className="text-xs">Next 7 days</Badge>
             </SectionHeader>
@@ -633,7 +633,7 @@ const HomeCommandCenter = () => {
         </div>
 
         {/* ═══ 4. ACTIVE PROJECTS ═══ */}
-        <section data-jarvis-id="home-active-projects">
+        <section data-jarvis-id="home-active-projects" data-jarvis-section="active-projects">
           <SectionHeader title="Active Projects" icon={Briefcase} accentColor="bg-green-500">
             <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)} data-jarvis-id="home-create-project-button">
               <Plus className="w-3.5 h-3.5" /> Create Project
@@ -700,7 +700,7 @@ const HomeCommandCenter = () => {
 
         {/* ═══ 5. ALERTS STRIP ═══ */}
         {alerts.length > 0 && (
-          <section data-jarvis-id="home-alerts-strip">
+          <section data-jarvis-id="home-alerts-strip" data-jarvis-section="alerts-strip">
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-destructive/5 border border-destructive/10">
               <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
               <div className="flex flex-wrap items-center gap-2">
@@ -717,7 +717,7 @@ const HomeCommandCenter = () => {
 
         {/* ═══ 6. OUTREACH STATS ROW ═══ */}
         {outreachMetrics && outreachMetrics.totalTargets > 0 && (
-          <section>
+          <section data-jarvis-section="outreach-stats">
             <SectionHeader title="Outreach" icon={Send} accentColor="bg-primary" />
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
               {[
@@ -739,7 +739,7 @@ const HomeCommandCenter = () => {
         )}
 
         {/* ═══ 7. BILLING SNAPSHOT (collapsible) ═══ */}
-        <section>
+        <section data-jarvis-section="billing-snapshot">
           <SectionHeader title="Billing Snapshot" icon={Receipt} accentColor="bg-amber-500" jarvisId="home-billing-snapshot">
             {activePlansExist && <Badge variant="secondary" className="text-xs gap-1"><Zap className="w-3 h-3" />Auto-billing</Badge>}
             {(isAdmin || isManager) && activePlansExist && (
@@ -823,7 +823,7 @@ const HomeCommandCenter = () => {
         </section>
 
         {/* ═══ 8. SOWS & CONTRACTS (collapsible) ═══ */}
-        <section>
+        <section data-jarvis-section="sows-contracts">
           <SectionHeader title="SOWs & Contracts" icon={FileText} accentColor="bg-muted-foreground">
             <Button size="sm" className="gap-1.5" onClick={() => setSowOpen(true)} data-jarvis-id="home-add-sow-button">
               <Plus className="w-3.5 h-3.5" /> Add SOW

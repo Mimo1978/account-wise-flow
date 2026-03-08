@@ -2977,6 +2977,256 @@ export type Database = {
           },
         ]
       }
+      job_adverts: {
+        Row: {
+          board: string | null
+          board_job_id: string | null
+          character_count: number | null
+          content: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          job_id: string
+          published_at: string | null
+          status: string | null
+          word_count: number | null
+          workspace_id: string
+        }
+        Insert: {
+          board?: string | null
+          board_job_id?: string | null
+          character_count?: number | null
+          content?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          job_id: string
+          published_at?: string | null
+          status?: string | null
+          word_count?: number | null
+          workspace_id: string
+        }
+        Update: {
+          board?: string | null
+          board_job_id?: string | null
+          character_count?: number | null
+          content?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          job_id?: string
+          published_at?: string | null
+          status?: string | null
+          word_count?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_adverts_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_adverts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_applications: {
+        Row: {
+          ai_match_score: number | null
+          ai_summary: string | null
+          applicant_email: string | null
+          applicant_name: string | null
+          applicant_phone: string | null
+          candidate_id: string | null
+          cover_letter: string | null
+          created_at: string | null
+          cv_url: string | null
+          id: string
+          job_id: string
+          source: string | null
+          status: string | null
+          workspace_id: string
+        }
+        Insert: {
+          ai_match_score?: number | null
+          ai_summary?: string | null
+          applicant_email?: string | null
+          applicant_name?: string | null
+          applicant_phone?: string | null
+          candidate_id?: string | null
+          cover_letter?: string | null
+          created_at?: string | null
+          cv_url?: string | null
+          id?: string
+          job_id: string
+          source?: string | null
+          status?: string | null
+          workspace_id: string
+        }
+        Update: {
+          ai_match_score?: number | null
+          ai_summary?: string | null
+          applicant_email?: string | null
+          applicant_name?: string | null
+          applicant_phone?: string | null
+          candidate_id?: string | null
+          cover_letter?: string | null
+          created_at?: string | null
+          cv_url?: string | null
+          id?: string
+          job_id?: string
+          source?: string | null
+          status?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applications_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_board_formats: {
+        Row: {
+          board: string | null
+          created_at: string | null
+          id: string
+          max_characters: number | null
+          max_words: number | null
+          notes: string | null
+          required_sections: string[] | null
+          template: string | null
+          workspace_id: string
+        }
+        Insert: {
+          board?: string | null
+          created_at?: string | null
+          id?: string
+          max_characters?: number | null
+          max_words?: number | null
+          notes?: string | null
+          required_sections?: string[] | null
+          template?: string | null
+          workspace_id: string
+        }
+        Update: {
+          board?: string | null
+          created_at?: string | null
+          id?: string
+          max_characters?: number | null
+          max_words?: number | null
+          notes?: string | null
+          required_sections?: string[] | null
+          template?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_board_formats_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_shortlist: {
+        Row: {
+          availability_confirmed: string | null
+          candidate_id: string | null
+          candidate_interest: string | null
+          created_at: string | null
+          id: string
+          interview_booked_at: string | null
+          job_id: string
+          match_reasons: string[] | null
+          match_score: number | null
+          notes: string | null
+          outreach_sent_at: string | null
+          response_received_at: string | null
+          status: string | null
+          workspace_id: string
+        }
+        Insert: {
+          availability_confirmed?: string | null
+          candidate_id?: string | null
+          candidate_interest?: string | null
+          created_at?: string | null
+          id?: string
+          interview_booked_at?: string | null
+          job_id: string
+          match_reasons?: string[] | null
+          match_score?: number | null
+          notes?: string | null
+          outreach_sent_at?: string | null
+          response_received_at?: string | null
+          status?: string | null
+          workspace_id: string
+        }
+        Update: {
+          availability_confirmed?: string | null
+          candidate_id?: string | null
+          candidate_interest?: string | null
+          created_at?: string | null
+          id?: string
+          interview_booked_at?: string | null
+          job_id?: string
+          match_reasons?: string[] | null
+          match_score?: number | null
+          notes?: string | null
+          outreach_sent_at?: string | null
+          response_received_at?: string | null
+          status?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_shortlist_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_shortlist_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_shortlist_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_spec_matches: {
         Row: {
           created_at: string
@@ -3118,6 +3368,84 @@ export type Database = {
           },
           {
             foreignKeyName: "job_specs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          company_id: string | null
+          created_at: string | null
+          created_by: string
+          end_date: string | null
+          full_spec: string | null
+          id: string
+          job_type: string | null
+          location: string | null
+          raw_brief: string | null
+          remote_policy: string | null
+          salary_currency: string | null
+          salary_max: number | null
+          salary_min: number | null
+          start_date: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by: string
+          end_date?: string | null
+          full_spec?: string | null
+          id?: string
+          job_type?: string | null
+          location?: string | null
+          raw_brief?: string | null
+          remote_policy?: string | null
+          salary_currency?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
+          start_date?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string | null
+          created_by?: string
+          end_date?: string | null
+          full_spec?: string | null
+          id?: string
+          job_type?: string | null
+          location?: string | null
+          raw_brief?: string | null
+          remote_policy?: string | null
+          salary_currency?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
+          start_date?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -3646,6 +3974,76 @@ export type Database = {
           },
           {
             foreignKeyName: "outreach_inbound_responses_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outreach_messages: {
+        Row: {
+          body: string | null
+          channel: string | null
+          created_at: string | null
+          id: string
+          job_id: string | null
+          opened_at: string | null
+          replied_at: string | null
+          reply_content: string | null
+          sent_at: string | null
+          shortlist_id: string | null
+          status: string | null
+          subject: string | null
+          workspace_id: string
+        }
+        Insert: {
+          body?: string | null
+          channel?: string | null
+          created_at?: string | null
+          id?: string
+          job_id?: string | null
+          opened_at?: string | null
+          replied_at?: string | null
+          reply_content?: string | null
+          sent_at?: string | null
+          shortlist_id?: string | null
+          status?: string | null
+          subject?: string | null
+          workspace_id: string
+        }
+        Update: {
+          body?: string | null
+          channel?: string | null
+          created_at?: string | null
+          id?: string
+          job_id?: string | null
+          opened_at?: string | null
+          replied_at?: string | null
+          reply_content?: string | null
+          sent_at?: string | null
+          shortlist_id?: string | null
+          status?: string | null
+          subject?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outreach_messages_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_messages_shortlist_id_fkey"
+            columns: ["shortlist_id"]
+            isOneToOne: false
+            referencedRelation: "job_shortlist"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_messages_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "teams"

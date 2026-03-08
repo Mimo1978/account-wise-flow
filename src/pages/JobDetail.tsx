@@ -1425,7 +1425,7 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                       {a.status !== 'shortlisted' && a.status !== 'rejected' && (
                         <Button
                           variant="ghost" size="sm" className="h-7 text-xs text-emerald-600"
-                          onClick={() => updateStatus.mutate({ id: a.id, status: 'shortlisted' })}
+                          onClick={() => updateStatus.mutate({ id: a.id, status: 'shortlisted', oldStatus: a.status })}
                         >
                           <CheckCircle2 className="w-3 h-3 mr-1" /> Shortlist
                         </Button>
@@ -1433,7 +1433,7 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                       {a.status !== 'rejected' && (
                         <Button
                           variant="ghost" size="sm" className="h-7 text-xs text-destructive"
-                          onClick={() => updateStatus.mutate({ id: a.id, status: 'rejected' })}
+                          onClick={() => updateStatus.mutate({ id: a.id, status: 'rejected', oldStatus: a.status })}
                         >
                           <XCircle className="w-3 h-3 mr-1" /> Reject
                         </Button>

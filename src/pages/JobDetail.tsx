@@ -42,8 +42,13 @@ import {
   useUpdateOutreachMessage,
   useLogCandidateReply,
   useJobUnreviewedReplies,
+  useUpdateApplicationStatus,
+  useBulkUpdateApplicationStatus,
+  useConvertToCandidate,
+  useProcessApplication,
   type JobShortlistEntry,
   type OutreachMessage,
+  type JobApplication,
 } from '@/hooks/use-jobs';
 import {
   Dialog,

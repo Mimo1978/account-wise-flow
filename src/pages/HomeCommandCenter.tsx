@@ -39,6 +39,8 @@ import {
   Zap,
   Video,
   CheckSquare,
+  Inbox,
+  Send,
 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';
@@ -444,6 +446,145 @@ const HomeCommandCenter = () => {
   const updateInvoice = useUpdateInvoice();
   const updateDeal = useUpdateDeal();
 
+  // ── Jobs data for Command Centre connections ──
+  const { data: jobsSummary } = useQuery({
+    queryKey: ['jobs_command_centre', currentWorkspace?.id],
+    queryFn: async () => {
+      if (!currentWorkspace?.id) return { activeJobs: [], jobWorkItems: [] as CriticalDateItem[] };
+      
+      // Active jobs
+      const { data: jobs } = await supabase
+        .from('jobs')
+        .select('id, title, status, company_id')
+        .eq('workspace_id', currentWorkspace.id)
+        .in('status', ['active', 'draft']);
+
+      const activeJobs = jobs ?? [];
+      const activeJobIds = activeJobs.filter(j => j.status === 'active').map(j => j.id);
+      
+      if (activeJobIds.length === 0) return { activeJobs, jobWorkItems: [] as CriticalDateItem[] };
+
+      // Shortlists with unreviewed (pending) entries
+      const { data: shortlistData } = await supabase
+        .from('job_shortlist')
+        .select('job_id, status')
+        .in('job_id', activeJobIds);
+      
+      // Outreach messages with draft status
+      const { data: outreachData } = await supabase
+        .from('outreach_messages')
+        .select('job_id, status')
+        .in('job_id', activeJobIds)
+        .eq('status', 'draft');
+
+      // Applications with 'new' status
+      const { data: applicationsData } = await supabase
+        .from('job_applications')
+        .select('job_id, status')
+        .in('job_id', activeJobIds)
+        .eq('status', 'new');
+
+      // Jobs linked to projects
+      const { data: jobProjectLinks } = await supabase
+        .from('jobs_projects' as any)
+        .select('job_id, project_id')
+        .in('job_id', activeJobIds);
+
+      const today = startOfDay(new Date());
+      const workItems: CriticalDateItem[] = [];
+      const jobMap = new Map(activeJobs.map(j => [j.id, j]));
+
+      // Shortlist review items
+      const shortlistByJob = new Map<string, { pending: number; total: number }>();
+      for (const s of (shortlistData ?? [])) {
+        const entry = shortlistByJob.get(s.job_id) || { pending: 0, total: 0 };
+        entry.total++;
+        if (s.status === 'pending') entry.pending++;
+        shortlistByJob.set(s.job_id, entry);
+      }
+      for (const [jobId, counts] of shortlistByJob) {
+        if (counts.pending > 0) {
+          const job = jobMap.get(jobId);
+          if (job) {
+            workItems.push({
+              id: `shortlist-${jobId}`,
+              type: 'outreach_action',
+              date: today,
+              label: `Review shortlist for ${job.title}`,
+              companyName: '',
+              sowRef: null,
+              overdue: false,
+              daysUntil: 0,
+            });
+          }
+        }
+      }
+
+      // Outreach pending items
+      const outreachByJob = new Map<string, number>();
+      for (const o of (outreachData ?? [])) {
+        outreachByJob.set(o.job_id, (outreachByJob.get(o.job_id) || 0) + 1);
+      }
+      for (const [jobId, count] of outreachByJob) {
+        const job = jobMap.get(jobId);
+        if (job) {
+          workItems.push({
+            id: `outreach-pending-${jobId}`,
+            type: 'outreach_action',
+            date: today,
+            label: `Outreach pending for ${job.title}`,
+            companyName: '',
+            sowRef: null,
+            overdue: false,
+            daysUntil: 0,
+          });
+        }
+      }
+
+      // New applications
+      const appsByJob = new Map<string, number>();
+      for (const a of (applicationsData ?? [])) {
+        appsByJob.set(a.job_id, (appsByJob.get(a.job_id) || 0) + 1);
+      }
+      for (const [jobId, count] of appsByJob) {
+        const job = jobMap.get(jobId);
+        if (job) {
+          workItems.push({
+            id: `apps-${jobId}`,
+            type: 'outreach_action',
+            date: today,
+            label: `${count} new application${count !== 1 ? 's' : ''} for ${job.title}`,
+            companyName: '',
+            sowRef: null,
+            overdue: false,
+            daysUntil: 0,
+          });
+        }
+      }
+
+      return {
+        activeJobs,
+        jobWorkItems: workItems,
+        jobProjectLinks: jobProjectLinks ?? [],
+      };
+    },
+    enabled: !!currentWorkspace?.id,
+  });
+
+  const jobWorkItems = jobsSummary?.jobWorkItems ?? [];
+  const activeJobCount = (jobsSummary?.activeJobs ?? []).filter(j => j.status === 'active').length;
+  const jobProjectLinksMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const link of (jobsSummary?.jobProjectLinks ?? [])) {
+      const pid = (link as any).project_id;
+      map.set(pid, (map.get(pid) || 0) + 1);
+    }
+    return map;
+  }, [jobsSummary?.jobProjectLinks]);
+
+  // Check which deals are recruitment (name contains "Placement Fee")
+  const isRecruitmentDeal = (deal: Deal) => deal.name.includes('Placement Fee');
+
   const activePlansExist = invoicePlans.some(p => p.status === 'active');
   const todayStr = format(startOfDay(new Date()), 'yyyy-MM-dd');
   const scheduledTodayCount = invoicePlans.filter(p => p.status === 'active' && p.next_run_date === todayStr).length;
@@ -502,16 +643,16 @@ const HomeCommandCenter = () => {
     return items;
   }, [outreachMetrics]);
 
-  // Critical dates: My Work = 30 days, Diary = 7 days (includes invoices + deals + outreach)
+  // Critical dates: My Work = 30 days, Diary = 7 days (includes invoices + deals + outreach + jobs)
   const myWorkItems = useMemo(() => {
     const base = buildCriticalDates(sows, invoices, deals, 30);
-    const all = [...base, ...outreachWorkItems];
+    const all = [...base, ...outreachWorkItems, ...jobWorkItems];
     all.sort((a, b) => {
       if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
       return a.date.getTime() - b.date.getTime();
     });
     return all;
-  }, [sows, invoices, deals, outreachWorkItems]);
+  }, [sows, invoices, deals, outreachWorkItems, jobWorkItems]);
   const diaryItems = useMemo(() => {
     const base = buildCriticalDates(sows, invoices, deals, 7);
     const outreach7 = outreachWorkItems.filter(i => i.daysUntil <= 7);
@@ -598,7 +739,7 @@ const HomeCommandCenter = () => {
         <KPICard
           title="Active Projects"
           value={activeCount > 0 ? String(activeCount) : '—'}
-          subtitle={activeCount > 0 ? `${activeCount} active` : 'No projects yet'}
+          subtitle={activeCount > 0 ? `${activeCount} active${activeJobCount > 0 ? ` · ${activeJobCount} open role${activeJobCount !== 1 ? 's' : ''}` : ''}` : 'No projects yet'}
           icon={Briefcase}
           accentClass="bg-primary"
         />
@@ -1026,7 +1167,20 @@ const HomeCommandCenter = () => {
                 <tbody>
                   {engagements.map((eng) => (
                     <tr key={eng.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/projects/${eng.id}`)}>
-                      <td className="px-4 py-3 font-medium text-foreground">{eng.name}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        <span className="flex items-center gap-2">
+                          {eng.name}
+                          {(() => {
+                            const roleCount = jobProjectLinksMap.get(eng.id) || 0;
+                            return roleCount > 0 ? (
+                              <Badge variant="outline" className="text-[10px] gap-0.5 font-normal">
+                                <Users className="w-2.5 h-2.5" />
+                                {roleCount} open role{roleCount !== 1 ? 's' : ''}
+                              </Badge>
+                            ) : null;
+                          })()}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground">{eng.companies?.name ?? '—'}</td>
                       <td className="px-4 py-3">
                         <Badge variant="secondary" className="text-xs capitalize">{eng.engagement_type.replace('_', ' ')}</Badge>
@@ -1108,7 +1262,12 @@ const HomeCommandCenter = () => {
                         const nextStage = stageIdx >= 0 && stageIdx < DEAL_STAGES.length - 2 ? DEAL_STAGES[stageIdx + 1] : null;
                         return (
                           <Card key={deal.id} className="p-3 hover:shadow-sm transition-shadow">
-                            <p className="text-sm font-medium text-foreground truncate">{deal.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium text-foreground truncate flex-1">{deal.name}</p>
+                              {isRecruitmentDeal(deal) && (
+                                <Badge variant="secondary" className="text-[10px] shrink-0">Recruitment</Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.companies?.name ?? '—'}</p>
                             <div className="flex items-center justify-between mt-2">
                               <span className="text-xs font-medium text-foreground">£{deal.value.toLocaleString()}</span>

@@ -1262,7 +1262,12 @@ const HomeCommandCenter = () => {
                         const nextStage = stageIdx >= 0 && stageIdx < DEAL_STAGES.length - 2 ? DEAL_STAGES[stageIdx + 1] : null;
                         return (
                           <Card key={deal.id} className="p-3 hover:shadow-sm transition-shadow">
-                            <p className="text-sm font-medium text-foreground truncate">{deal.name}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium text-foreground truncate flex-1">{deal.name}</p>
+                              {isRecruitmentDeal(deal) && (
+                                <Badge variant="secondary" className="text-[10px] shrink-0">Recruitment</Badge>
+                              )}
+                            </div>
                             <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.companies?.name ?? '—'}</p>
                             <div className="flex items-center justify-between mt-2">
                               <span className="text-xs font-medium text-foreground">£{deal.value.toLocaleString()}</span>

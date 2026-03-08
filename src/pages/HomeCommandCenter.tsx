@@ -37,10 +37,12 @@ import {
   Phone,
   Users,
   Zap,
+  Video,
+  CheckSquare,
 } from 'lucide-react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 /* ─── Types ─── */

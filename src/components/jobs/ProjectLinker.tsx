@@ -144,7 +144,7 @@ export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss, onProje
         <span className="text-muted-foreground flex-1">
           Want to track this role in a project? Linking to a project connects it to your pipeline and Command Centre.
         </span>
-        <ProjectLinkerInline jobId={jobId} jobTitle={jobTitle} onLinked={dismiss} />
+        <ProjectLinkerInline jobId={jobId} jobTitle={jobTitle} onLinked={(projectId) => { onProjectLinked?.(projectId); dismiss(); }} />
         <Button variant="ghost" size="sm" onClick={dismiss} className="text-xs">
           Maybe Later
         </Button>

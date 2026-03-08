@@ -231,7 +231,7 @@ function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; job
 }
 
 // Modal version for the "Filled" celebration modal
-export function FilledModalLinker({ jobId, jobTitle, onLinked }: { jobId: string; jobTitle: string; onLinked: () => void }) {
+export function FilledModalLinker({ jobId, jobTitle, onLinked, onProjectLinked }: { jobId: string; jobTitle: string; onLinked: () => void; onProjectLinked?: (projectId: string) => void }) {
   const navigate = useNavigate();
   const { data: projects = [] } = useCrmProjects();
   const linkMutation = useLinkJobToProject();
@@ -241,6 +241,7 @@ export function FilledModalLinker({ jobId, jobTitle, onLinked }: { jobId: string
   const handleLink = (projectId: string) => {
     linkMutation.mutate({ jobId, projectId });
     setOpen(false);
+    onProjectLinked?.(projectId);
     onLinked();
   };
 

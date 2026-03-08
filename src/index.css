@@ -338,13 +338,6 @@ All colors MUST be HSL.
   to { transform: rotate(360deg); }
 }
 
-@keyframes jarvis-border-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
-
-/* ELEMENT SPOTLIGHT — Glowing ring on target element */
-.jarvis-highlight {
   position: relative;
   box-shadow: 0 0 0 3px hsl(24 95% 53%), 0 0 30px hsl(24 95% 53% / 0.6) !important;
   border-radius: inherit;

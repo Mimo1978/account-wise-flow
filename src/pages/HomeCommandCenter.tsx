@@ -739,7 +739,7 @@ const HomeCommandCenter = () => {
         <KPICard
           title="Active Projects"
           value={activeCount > 0 ? String(activeCount) : '—'}
-          subtitle={activeCount > 0 ? `${activeCount} active` : 'No projects yet'}
+          subtitle={activeCount > 0 ? `${activeCount} active${activeJobCount > 0 ? ` · ${activeJobCount} open role${activeJobCount !== 1 ? 's' : ''}` : ''}` : 'No projects yet'}
           icon={Briefcase}
           accentClass="bg-primary"
         />

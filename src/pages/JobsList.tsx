@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,9 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useJobs, useJobCounts, useCreateJob } from '@/hooks/use-jobs';
-import { Plus, Briefcase, Search, ExternalLink } from 'lucide-react';
+import { Plus, Briefcase, Search, ExternalLink, AlertTriangle, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 
 const STATUS_BADGE: Record<string, { variant: 'secondary' | 'default' | 'outline' | 'destructive'; className: string; label: string }> = {

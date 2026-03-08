@@ -913,37 +913,57 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
   return (
     <div
+      ref={panelRef}
       className={cn(
         "fixed z-[60] flex flex-col border border-border bg-background shadow-2xl overflow-hidden",
         isMobile
           ? "inset-0 rounded-none"
-          : "bottom-24 right-6 w-[420px] h-[580px] rounded-2xl"
+          : "w-[420px] h-[580px] rounded-2xl",
+        isDragging && "select-none"
       )}
+      style={isMobile ? undefined : { left: panelPos.x, top: panelPos.y }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center relative">
-            {visualState === "thinking" ? (
-              <Loader2 className="h-4 w-4 text-primary animate-spin" />
-            ) : visualState === "speaking" ? (
-              <Volume2 className="h-4 w-4 text-primary animate-pulse" />
-            ) : (
-              <Sparkles className="h-4 w-4 text-primary" />
-            )}
-            {visualState === "listening" && (
-              <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" />
+      {/* Drag handle + Header */}
+      <div className="shrink-0 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10">
+        {/* Drag handle bar (desktop only) */}
+        {!isMobile && (
+          <div
+            onMouseDown={handleDragStart}
+            className="h-8 flex items-center justify-center gap-2 relative"
+            style={{ cursor: isDragging ? "grabbing" : "grab" }}
+          >
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50" />
+            {dragHintVisible && (
+              <span className="absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2.5 py-1 rounded-full bg-primary text-primary-foreground text-[10px] font-medium whitespace-nowrap z-10 animate-fade-in shadow-md">
+                Drag me out of the way
+              </span>
             )}
           </div>
-          <div>
-            <p className="font-semibold text-sm text-foreground leading-none">
-              {assistantName}
-            </p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {statusText[visualState]}
-            </p>
+        )}
+        {/* Header content */}
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center relative">
+              {visualState === "thinking" ? (
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+              ) : visualState === "speaking" ? (
+                <Volume2 className="h-4 w-4 text-primary animate-pulse" />
+              ) : (
+                <Sparkles className="h-4 w-4 text-primary" />
+              )}
+              {visualState === "listening" && (
+                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" />
+              )}
+            </div>
+            <div>
+              <p className="font-semibold text-sm text-foreground leading-none">
+                {assistantName}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {statusText[visualState]}
+              </p>
+            </div>
           </div>
-        </div>
         <div className="flex items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>

@@ -1821,6 +1821,182 @@ Return ONLY valid JSON, no markdown fences.`,
         entityId: jobId,
       };
     }
+    // ─── Diary tools ───
+    case "find_diary_slots": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "diary_events" };
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/diary-booking`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "find_slots", user_id: userId, workspace_id: teamId, max_slots: input.max_slots || 3 }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to find slots" }, entityType: "diary_events" };
+      return { result: data, entityType: "diary_events" };
+    }
+    case "book_diary_event": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "diary_events" };
+      
+      // Resolve candidate_id if name provided
+      let candidateId: string | null = null;
+      if (input.candidate_name) {
+        const candidates = await lookupRecord("candidates", "name", input.candidate_name as string, teamId, supabaseAdmin, "tenant_id");
+        if (candidates.length > 0) candidateId = candidates[0].id;
+      }
+      
+      // Resolve contact_id if name provided
+      let contactId: string | null = null;
+      if (input.contact_name) {
+        const contacts = await lookupRecord("contacts", "name", input.contact_name as string, teamId, supabaseAdmin);
+        if (contacts.length > 0) contactId = contacts[0].id;
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/diary-booking`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "book",
+          user_id: userId,
+          workspace_id: teamId,
+          title: input.title,
+          description: input.description || null,
+          start_time: input.start_time,
+          end_time: input.end_time,
+          event_type: input.event_type || "call",
+          candidate_id: candidateId,
+          contact_id: contactId,
+          job_id: input.job_id || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to book" }, entityType: "diary_events" };
+      return { result: { ...data, navigate_to: "/home" }, entityType: "diary_events", entityId: data.event?.id };
+    }
+    case "get_diary_events": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "diary_events" };
+      
+      const now = new Date();
+      let dateFrom: string;
+      let dateTo: string;
+      const period = (input.period as string) || "today";
+      
+      if (period === "today") {
+        dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+      } else if (period === "tomorrow") {
+        const tom = new Date(now);
+        tom.setDate(tom.getDate() + 1);
+        dateFrom = new Date(tom.getFullYear(), tom.getMonth(), tom.getDate()).toISOString();
+        dateTo = new Date(tom.getFullYear(), tom.getMonth(), tom.getDate(), 23, 59, 59).toISOString();
+      } else if (period === "this_week") {
+        dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        const endOfWeek = new Date(now);
+        endOfWeek.setDate(endOfWeek.getDate() + (5 - endOfWeek.getDay()));
+        dateTo = new Date(endOfWeek.getFullYear(), endOfWeek.getMonth(), endOfWeek.getDate(), 23, 59, 59).toISOString();
+      } else {
+        dateFrom = (input.date_from as string) || now.toISOString();
+        dateTo = (input.date_to as string) || new Date(now.getTime() + 7 * 86400000).toISOString();
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/diary-booking`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "get_events", user_id: userId, workspace_id: teamId, date_from: dateFrom, date_to: dateTo }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to get events" }, entityType: "diary_events" };
+      return { result: data, entityType: "diary_events" };
+    }
+    case "cancel_diary_event": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "diary_events" };
+      
+      let eventId = input.event_id as string;
+      
+      // If candidate_name provided, find the event
+      if (!eventId && input.candidate_name) {
+        const { data: events } = await supabaseAdmin
+          .from("diary_events")
+          .select("id, title, start_time, candidate_id, candidates(name)")
+          .eq("user_id", userId)
+          .eq("status", "scheduled")
+          .order("start_time");
+        
+        const match = (events || []).find((e: any) =>
+          e.title?.toLowerCase().includes((input.candidate_name as string).toLowerCase()) ||
+          e.candidates?.name?.toLowerCase().includes((input.candidate_name as string).toLowerCase())
+        );
+        if (!match) return { result: { error: `No scheduled event found matching "${input.candidate_name}".` }, entityType: "diary_events" };
+        eventId = match.id;
+      }
+      
+      if (!eventId) return { result: { error: "event_id or candidate_name required" }, entityType: "diary_events" };
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/diary-booking`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel", user_id: userId, workspace_id: teamId, event_id: eventId }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to cancel" }, entityType: "diary_events" };
+      return { result: { ...data, navigate_to: "/home" }, entityType: "diary_events", entityId: eventId };
+    }
+    case "reschedule_diary_event": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "diary_events" };
+      
+      let eventId = input.event_id as string;
+      
+      if (!eventId && input.candidate_name) {
+        const { data: events } = await supabaseAdmin
+          .from("diary_events")
+          .select("id, title, candidate_id, candidates(name)")
+          .eq("user_id", userId)
+          .eq("status", "scheduled")
+          .order("start_time");
+        
+        const match = (events || []).find((e: any) =>
+          e.title?.toLowerCase().includes((input.candidate_name as string).toLowerCase()) ||
+          e.candidates?.name?.toLowerCase().includes((input.candidate_name as string).toLowerCase())
+        );
+        if (!match) return { result: { error: `No scheduled event found matching "${input.candidate_name}".` }, entityType: "diary_events" };
+        eventId = match.id;
+      }
+      
+      if (!eventId) return { result: { error: "event_id or candidate_name required" }, entityType: "diary_events" };
+      
+      // If no new time provided, find new slots first
+      if (!input.new_start_time) {
+        const slotsRes = await fetch(`${Deno.env.get("SUPABASE_URL")!}/functions/v1/diary-booking`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "find_slots", user_id: userId, workspace_id: teamId, max_slots: 3 }),
+        });
+        const slotsData = await slotsRes.json();
+        return { result: { needs_new_time: true, event_id: eventId, available_slots: slotsData.slots || [] }, entityType: "diary_events" };
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/diary-booking`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reschedule", user_id: userId, workspace_id: teamId, event_id: eventId, new_start_time: input.new_start_time, new_end_time: input.new_end_time }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to reschedule" }, entityType: "diary_events" };
+      return { result: { ...data, navigate_to: "/home" }, entityType: "diary_events", entityId: eventId };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }

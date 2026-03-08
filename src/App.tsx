@@ -166,6 +166,8 @@ const App = () => {
             <Route path="/insights" element={<ProtectedRoute><ProductLayout><ExecutiveInsights /></ProductLayout></ProtectedRoute>} />
             <Route path="/projects" element={<ProtectedRoute><ProductLayout><ProjectsList /></ProductLayout></ProtectedRoute>} />
             <Route path="/projects/:id" element={<ProtectedRoute><ProductLayout><ProjectDetail /></ProductLayout></ProtectedRoute>} />
+            <Route path="/jobs" element={<ProtectedRoute><ProductLayout><JobsList /></ProductLayout></ProtectedRoute>} />
+            <Route path="/jobs/:id" element={<ProtectedRoute><ProductLayout><JobDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/imports/:batchId/review" element={<ProtectedRoute><ProductLayout><ImportReview /></ProductLayout></ProtectedRoute>} />
             <Route path="/workspace-settings" element={<ProtectedRoute><ProductLayout><WorkspaceSettings /></ProductLayout></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProductLayout><UserProfile /></ProductLayout></ProtectedRoute>} />

@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageBackButton } from '@/components/ui/page-back-button';
 import {
   AlertDialog,
@@ -32,7 +34,12 @@ import {
   useUpdateShortlistStatus,
   useApproveAllShortlist,
   useUpdateShortlistPriority,
+  useOutreachMessages,
+  useDraftOutreach,
+  useSendOutreachBatch,
+  useUpdateOutreachMessage,
   type JobShortlistEntry,
+  type OutreachMessage,
 } from '@/hooks/use-jobs';
 import {
   useBoardFormats,

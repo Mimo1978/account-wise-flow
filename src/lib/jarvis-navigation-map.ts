@@ -2,7 +2,6 @@ export interface NavigationEntry {
   path: string;
   label: string;
   keywords: string[];
-  /** If set, after navigating Jarvis will try to click / highlight this element */
   action?: "click";
   targetId?: string;
 }
@@ -10,7 +9,7 @@ export interface NavigationEntry {
 export const navigationMap: Record<string, NavigationEntry> = {
   // ── Main pages ──────────────────────────────────────────────
   home: {
-    path: "/home",
+    path: "/",
     label: "Home Dashboard",
     keywords: ["home", "dashboard", "command center", "start", "overview"],
   },
@@ -18,6 +17,11 @@ export const navigationMap: Record<string, NavigationEntry> = {
     path: "/companies",
     label: "Companies",
     keywords: ["companies", "accounts", "clients", "firms", "company list"],
+  },
+  companyDetail: {
+    path: "/companies/:id",
+    label: "Company Detail",
+    keywords: ["company detail", "view company", "company page", "company profile"],
   },
   contacts: {
     path: "/contacts",
@@ -35,7 +39,7 @@ export const navigationMap: Record<string, NavigationEntry> = {
     keywords: ["outreach", "campaigns", "sequences", "email campaigns"],
   },
   insights: {
-    path: "/executive-insights",
+    path: "/insights",
     label: "Revenue Intelligence",
     keywords: ["insights", "analytics", "intelligence", "reports", "revenue", "executive insights"],
   },
@@ -43,48 +47,6 @@ export const navigationMap: Record<string, NavigationEntry> = {
     path: "/canvas",
     label: "Canvas Relationship Map",
     keywords: ["canvas", "org chart", "relationship map", "org tree", "visual", "organisation chart", "organization chart"],
-  },
-  canvasEdit: {
-    path: "/canvas",
-    label: "Edit Org Chart",
-    action: "click",
-    targetId: "canvas-edit-button",
-    keywords: ["edit org chart", "edit canvas", "edit structure", "change org chart", "manipulate org chart", "move nodes", "rearrange", "edit organisation"],
-  },
-  canvasAddNode: {
-    path: "/canvas",
-    label: "Add Person to Org Chart",
-    action: "click",
-    targetId: "canvas-add-node-button",
-    keywords: ["add person", "add node", "add to org chart", "new person on canvas", "add contact to chart"],
-  },
-  canvasConnect: {
-    path: "/canvas",
-    label: "Connect People on Org Chart",
-    action: "click",
-    targetId: "canvas-connect-tool",
-    keywords: ["connect", "draw connection", "link people", "reporting line", "add relationship"],
-  },
-  canvasFitView: {
-    path: "/canvas",
-    label: "Reset Canvas View",
-    action: "click",
-    targetId: "canvas-fit-view",
-    keywords: ["reset view", "fit to screen", "zoom out canvas", "see full chart"],
-  },
-  canvasBuildOrgChart: {
-    path: "/canvas",
-    label: "Build Org Chart",
-    action: "click",
-    targetId: "canvas-build-orgchart",
-    keywords: ["build org chart", "create org chart", "generate org chart", "build structure"],
-  },
-  canvasAIResearch: {
-    path: "/canvas",
-    label: "AI Research Company Structure",
-    action: "click",
-    targetId: "canvas-ai-research",
-    keywords: ["research company", "ai research", "find contacts", "research org", "look up structure"],
   },
   projects: {
     path: "/projects",
@@ -132,7 +94,7 @@ export const navigationMap: Record<string, NavigationEntry> = {
   },
   adminIntegrations: {
     path: "/admin/integrations",
-    label: "Integrations Settings",
+    label: "Integrations",
     keywords: ["integrations", "api keys", "resend", "twilio", "elevenlabs", "anthropic"],
   },
   adminBilling: {
@@ -150,6 +112,11 @@ export const navigationMap: Record<string, NavigationEntry> = {
     label: "Jarvis Settings",
     keywords: ["jarvis settings", "voice settings", "ai settings"],
   },
+  adminSchema: {
+    path: "/admin/schema",
+    label: "Schema Inventory",
+    keywords: ["schema", "database", "tables", "data model", "schema inventory"],
+  },
   adminBranding: {
     path: "/admin/branding",
     label: "Branding",
@@ -157,8 +124,8 @@ export const navigationMap: Record<string, NavigationEntry> = {
   },
   adminOutreach: {
     path: "/admin/outreach",
-    label: "Outreach Settings",
-    keywords: ["outreach settings", "campaign settings"],
+    label: "Outreach Defaults",
+    keywords: ["outreach settings", "campaign settings", "calling hours", "compliance"],
   },
   adminSignals: {
     path: "/admin/signals",
@@ -177,28 +144,28 @@ export const navigationMap: Record<string, NavigationEntry> = {
     label: "Add Company",
     action: "click",
     targetId: "add-company-button",
-    keywords: ["add company", "new company", "create company button"],
+    keywords: ["add company", "new company", "create company", "create company button"],
   },
   addContact: {
     path: "/contacts",
     label: "Add Contact",
     action: "click",
     targetId: "add-contact-button",
-    keywords: ["add contact", "new contact", "create contact button"],
+    keywords: ["add contact", "new contact", "create contact", "create contact button"],
   },
   addDeal: {
-    path: "/home",
+    path: "/companies",
     label: "Create Deal",
     action: "click",
-    targetId: "home-create-deal-button",
-    keywords: ["add deal", "new deal", "create deal button"],
+    targetId: "add-deal-button",
+    keywords: ["add deal", "new deal", "create deal", "create deal button"],
   },
   addCandidate: {
     path: "/talent",
     label: "Add Candidate",
     action: "click",
     targetId: "add-candidate-button",
-    keywords: ["add candidate", "new candidate", "create candidate button"],
+    keywords: ["add candidate", "new candidate", "create candidate", "create candidate button"],
   },
   importContacts: {
     path: "/contacts",
@@ -215,7 +182,7 @@ export const navigationMap: Record<string, NavigationEntry> = {
     keywords: ["new campaign", "create campaign", "outreach campaign"],
   },
   createInvoice: {
-    path: "/home",
+    path: "/",
     label: "Create Invoice",
     action: "click",
     targetId: "create-invoice-button",
@@ -229,7 +196,51 @@ export const navigationMap: Record<string, NavigationEntry> = {
     keywords: ["import companies", "upload companies", "bulk company import"],
   },
 
-  // ── In-page interactions: Outreach ──────────────────────────
+  // ── Canvas actions ──────────────────────────────────────────
+  canvasEdit: {
+    path: "/canvas",
+    label: "Edit Org Chart",
+    action: "click",
+    targetId: "canvas-edit-button",
+    keywords: ["edit org chart", "edit canvas", "edit structure", "change org chart", "manipulate org chart", "move nodes", "rearrange", "rearrange org chart", "edit organisation"],
+  },
+  canvasAddNode: {
+    path: "/canvas",
+    label: "Add Person to Org Chart",
+    action: "click",
+    targetId: "canvas-add-node-button",
+    keywords: ["add person", "add node", "add to org chart", "new person on canvas", "add contact to chart", "add person to chart"],
+  },
+  canvasConnect: {
+    path: "/canvas",
+    label: "Connect People",
+    action: "click",
+    targetId: "canvas-connect-tool",
+    keywords: ["connect", "draw connection", "link people", "reporting line", "add relationship", "connect people"],
+  },
+  canvasFitView: {
+    path: "/canvas",
+    label: "Reset Canvas View",
+    action: "click",
+    targetId: "canvas-fit-view",
+    keywords: ["reset view", "fit to screen", "zoom out canvas", "see full chart"],
+  },
+  canvasBuildOrgChart: {
+    path: "/canvas",
+    label: "Build Org Chart",
+    action: "click",
+    targetId: "canvas-build-orgchart",
+    keywords: ["build org chart", "create org chart", "generate org chart", "build structure"],
+  },
+  canvasAIResearch: {
+    path: "/canvas",
+    label: "AI Research Company Structure",
+    action: "click",
+    targetId: "canvas-ai-research",
+    keywords: ["research company", "ai research", "find contacts", "research org", "look up structure"],
+  },
+
+  // ── Outreach in-page actions ────────────────────────────────
   addTargets: {
     path: "/outreach",
     label: "Add Targets",
@@ -245,23 +256,23 @@ export const navigationMap: Record<string, NavigationEntry> = {
     keywords: ["new script", "create script", "call script"],
   },
 
-  // ── In-page interactions: Home ──────────────────────────────
+  // ── Home in-page actions ────────────────────────────────────
   addSow: {
-    path: "/home",
+    path: "/",
     label: "Add SOW",
     action: "click",
     targetId: "home-add-sow-button",
     keywords: ["add sow", "new sow", "statement of work", "create sow"],
   },
   createProject: {
-    path: "/home",
+    path: "/",
     label: "Create Project",
     action: "click",
     targetId: "home-create-project-button",
     keywords: ["create project", "new project", "add project"],
   },
 
-  // ── In-page interactions: Contacts ─────────────────────────
+  // ── Contacts in-page actions ────────────────────────────────
   viewOrgChart: {
     path: "/contacts",
     label: "View Org Chart",
@@ -275,7 +286,7 @@ export const navigationMap: Record<string, NavigationEntry> = {
  * Resolve a user query like "open companies" or "go to integrations" to a
  * NavigationEntry by fuzzy-matching against the keywords list.
  */
-export function resolveNavigation(query: string): NavigationEntry | null {
+export function findDestination(query: string): NavigationEntry | null {
   const q = query.toLowerCase().trim();
 
   // Exact key match
@@ -289,7 +300,6 @@ export function resolveNavigation(query: string): NavigationEntry | null {
     let score = 0;
     for (const kw of entry.keywords) {
       if (q.includes(kw) || kw.includes(q)) {
-        // Longer keyword matches = higher confidence
         score += kw.length;
       }
     }
@@ -301,3 +311,6 @@ export function resolveNavigation(query: string): NavigationEntry | null {
 
   return bestScore > 0 ? best : null;
 }
+
+/** @deprecated Use findDestination instead */
+export const resolveNavigation = findDestination;

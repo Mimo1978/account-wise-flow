@@ -643,16 +643,16 @@ const HomeCommandCenter = () => {
     return items;
   }, [outreachMetrics]);
 
-  // Critical dates: My Work = 30 days, Diary = 7 days (includes invoices + deals + outreach)
+  // Critical dates: My Work = 30 days, Diary = 7 days (includes invoices + deals + outreach + jobs)
   const myWorkItems = useMemo(() => {
     const base = buildCriticalDates(sows, invoices, deals, 30);
-    const all = [...base, ...outreachWorkItems];
+    const all = [...base, ...outreachWorkItems, ...jobWorkItems];
     all.sort((a, b) => {
       if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
       return a.date.getTime() - b.date.getTime();
     });
     return all;
-  }, [sows, invoices, deals, outreachWorkItems]);
+  }, [sows, invoices, deals, outreachWorkItems, jobWorkItems]);
   const diaryItems = useMemo(() => {
     const base = buildCriticalDates(sows, invoices, deals, 7);
     const outreach7 = outreachWorkItems.filter(i => i.daysUntil <= 7);

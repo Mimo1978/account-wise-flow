@@ -49,7 +49,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   Briefcase, FileText, Users, Inbox, Activity, Sparkles, Send, Play,
   Pause, CheckCircle2, XCircle, FileEdit, Copy, Globe, Loader2, Settings2,
-  Trash2, Mail, MessageSquare, AlertTriangle,
+  Trash2, Mail, MessageSquare, AlertTriangle, ChevronDown, ChevronUp, GripVertical,
+  ShieldCheck, Archive, ArrowUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 

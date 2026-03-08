@@ -385,7 +385,7 @@ const JobDetail = () => {
 };
 
 // ---------- Overview Tab ----------
-function OverviewTab({ job, onProjectLinked }: { job: any; onProjectLinked?: (projectId: string) => voidked }: { job: any; onProjectLinked?: (projectId: string) => void }) {
+function OverviewTab({ job, onProjectLinked }: { job: any; onProjectLinked?: (projectId: string) => voidked }: { job: any; onProjectLinked?: (projectId: string) => voidked }: { job: any; onProjectLinked?: (projectId: string) => void }) {
   const toggleConfidential = useToggleConfidential();
   const isConfidential = job.is_confidential ?? false;
 
@@ -631,10 +631,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
           board={boardFormatBoard}
           existingFormat={existingFormat}
           open={!!boardFormatBoard}
-          onOpenChange={(open) => { if (!open) setBoardFormatBoard(null); }}
-        />
-      )}
-    </>
+          onOpenChange={(open) => { if (!open) setBoardFormatBo, onProjectLinked }: { jobId: string; jobTitle: string; onProjectLinked?: (projectId: string) => void </>
   );
 }
 
@@ -725,7 +722,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
 
   return (
     <div className="space-y-4">
-      {/* Pause point 3: Project link prompt when candidates are in progress */}
+      {/* Pause point 3: Project link prompt when candidates are onProjectLinked={onProjectLinked} in progress */}
       {entries.length > 0 && (
         <ProjectLinkPrompt jobId={jobId} jobTitle={jobTitle} variant="shortlist" />
       )}

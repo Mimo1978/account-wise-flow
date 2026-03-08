@@ -683,6 +683,38 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  // ─── Golden Thread: Job-Project-Deal linkage tools ───
+  {
+    type: "function",
+    function: {
+      name: "get_unlinked_jobs",
+      description: "List all active jobs that are NOT linked to a project. Use when user asks 'what jobs aren't tracked', 'show me unlinked jobs', 'which jobs need a project'.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_recruitment_pipeline_value",
+      description: "Get total pipeline value from recruitment placement deals this month. Use when user asks 'recruitment pipeline value', 'placement fee total', 'how much is recruitment worth this month'.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "link_job_to_project",
+      description: "Link a job to a CRM project. Use when user says 'link this job to a project', 'connect job to project'. Requires job_id and project_id.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+          project_id: { type: "string", description: "The CRM project UUID" },
+        },
+        required: ["job_id", "project_id"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.

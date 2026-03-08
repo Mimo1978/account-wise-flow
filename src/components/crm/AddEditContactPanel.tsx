@@ -255,8 +255,8 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
           </div>
         </div>
 
-        <SheetF data-jarvis-id="cancel-button"ooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+        <SheetFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} data-jarvis-id="cancel-button">Cancel</Button>
           <Button onClick={handleSave} disabled={isPending} data-jarvis-id="save-button">
             {isPending ? "Saving…" : isEdit ? "Update" : "Create Contact"}
           </Button>

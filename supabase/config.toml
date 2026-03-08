@@ -85,3 +85,6 @@ verify_jwt = false
 
 [functions.jarvis-speak]
 verify_jwt = false
+
+[functions.process-application]
+verify_jwt = false

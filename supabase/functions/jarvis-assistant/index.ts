@@ -1839,6 +1839,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       sms: ["crm_activities"],
       jobs: ["jobs"],
       job_adverts: ["job_adverts"],
+      job_shortlist: ["job_shortlist"],
     };
 
     for (const action of actionsExecuted) {

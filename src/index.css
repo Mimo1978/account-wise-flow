@@ -264,7 +264,7 @@ All colors MUST be HSL.
 }
 @keyframes jarvis-nav-pulse {
   0%, 100% { background: rgba(249,115,22,0.15); }
-  50%       { background: rgba(249,115,22,0.28);
+  50%       { background: rgba(249,115,22,0.28); }
 }
 
 @keyframes jarvis-element-pulse {

@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,9 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useJobs, useJobCounts, useCreateJob } from '@/hooks/use-jobs';
-import { Plus, Briefcase, Search, ExternalLink } from 'lucide-react';
+import { Plus, Briefcase, Search, ExternalLink, AlertTriangle, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 
 const STATUS_BADGE: Record<string, { variant: 'secondary' | 'default' | 'outline' | 'destructive'; className: string; label: string }> = {
@@ -30,6 +33,53 @@ const JobsList = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [showUnlinked, setShowUnlinked] = useState(false);
+
+  // Fetch all job-project links with project names and deal values
+  const { data: jobLinks = [] } = useQuery({
+    queryKey: ['jobs_projects_list', currentWorkspace?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('jobs_projects' as any)
+        .select('job_id, crm_projects(id, name, status)')
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+    enabled: !!currentWorkspace?.id,
+  });
+
+  const { data: deals = [] } = useQuery({
+    queryKey: ['jobs_deals_list', currentWorkspace?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('crm_deals')
+        .select('id, title, value, currency, company_id')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!currentWorkspace?.id,
+  });
+
+  // Build lookup maps
+  const projectByJobId = useMemo(() => {
+    const map: Record<string, { id: string; name: string }> = {};
+    jobLinks.forEach((l: any) => {
+      if (l.crm_projects) map[l.job_id] = l.crm_projects;
+    });
+    return map;
+  }, [jobLinks]);
+
+  const dealByJobTitle = useMemo(() => {
+    const map: Record<string, { value: number; currency: string }> = {};
+    deals.forEach((d: any) => {
+      if (d.title?.includes('Placement Fee')) {
+        // Extract job title from deal name pattern "[Job Title] — Placement Fee"
+        map[d.title] = { value: d.value, currency: d.currency };
+      }
+    });
+    return map;
+  }, [deals]);
 
   const activeCount = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
 
@@ -37,6 +87,10 @@ const JobsList = () => {
     return jobs.filter(j => {
       if (statusFilter !== 'all' && j.status !== statusFilter) return false;
       if (typeFilter !== 'all' && j.job_type !== typeFilter) return false;
+      if (showUnlinked) {
+        if (j.status !== 'active') return false;
+        if (projectByJobId[j.id]) return false;
+      }
       if (search) {
         const q = search.toLowerCase();
         const companyName = (j as any).companies?.name || '';
@@ -44,7 +98,7 @@ const JobsList = () => {
       }
       return true;
     });
-  }, [jobs, statusFilter, typeFilter, search]);
+  }, [jobs, statusFilter, typeFilter, search, showUnlinked, projectByJobId]);
 
   const handleCreate = () => {
     createJob.mutate({ title: 'Untitled Job' }, {
@@ -107,6 +161,15 @@ const JobsList = () => {
             <SelectItem value="temp">Temp</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          size="sm"
+          variant={showUnlinked ? 'default' : 'outline'}
+          className="gap-1.5 h-9"
+          onClick={() => setShowUnlinked(v => !v)}
+        >
+          <Filter className="w-3.5 h-3.5" />
+          Unlinked Jobs
+        </Button>
       </div>
 
       {/* Table */}
@@ -144,6 +207,8 @@ const JobsList = () => {
                   <TableHead>Type</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Pipeline</TableHead>
                   <TableHead className="text-center">Applications</TableHead>
                   <TableHead className="text-center">Shortlisted</TableHead>
                   <TableHead>Created</TableHead>
@@ -154,6 +219,10 @@ const JobsList = () => {
                   const badge = STATUS_BADGE[job.status] || STATUS_BADGE.draft;
                   const appCount = counts?.appCounts?.[job.id] ?? 0;
                   const shortCount = counts?.shortCounts?.[job.id] ?? 0;
+                  const linkedProject = projectByJobId[job.id];
+                  const dealKey = `${job.title} — Placement Fee`;
+                  const linkedDeal = dealByJobTitle[dealKey];
+                  const isActiveUnlinked = job.status === 'active' && !linkedProject;
                   return (
                     <TableRow
                       key={job.id}
@@ -166,6 +235,38 @@ const JobsList = () => {
                       <TableCell className="text-muted-foreground">{job.location || '—'}</TableCell>
                       <TableCell>
                         <Badge variant={badge.variant} className={badge.className}>{badge.label}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {linkedProject ? (
+                          <span
+                            className="text-sm text-primary hover:underline cursor-pointer"
+                            onClick={e => { e.stopPropagation(); navigate(`/crm/projects/${linkedProject.id}`); }}
+                          >
+                            {linkedProject.name}
+                          </span>
+                        ) : isActiveUnlinked ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                                  — <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[220px] text-xs">
+                                This active job isn't linked to a project. Link it to track progress.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {linkedDeal ? (
+                          <span className="font-medium text-foreground">
+                            {linkedDeal.currency === 'GBP' ? '£' : linkedDeal.currency === 'USD' ? '$' : linkedDeal.currency === 'EUR' ? '€' : ''}{linkedDeal.value.toLocaleString()}
+                          </span>
+                        ) : '—'}
                       </TableCell>
                       <TableCell className="text-center">{appCount}</TableCell>
                       <TableCell className="text-center">{shortCount}</TableCell>

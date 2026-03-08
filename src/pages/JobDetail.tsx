@@ -77,6 +77,8 @@ import {
   ShieldCheck, Archive, ArrowUp, Phone, PhoneCall, Reply, Bell,
 } from 'lucide-react';
 import { JobBriefSection } from '@/components/jobs/JobBriefSection';
+import { ProjectLinker, ProjectLinkPrompt } from '@/components/jobs/ProjectLinker';
+import { useJobProjects } from '@/hooks/use-job-projects';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 

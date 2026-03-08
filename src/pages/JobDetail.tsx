@@ -29,6 +29,10 @@ import {
   useUpdateJobStatus,
   useRemoveFromShortlist,
   useRunShortlist,
+  useUpdateShortlistStatus,
+  useApproveAllShortlist,
+  useUpdateShortlistPriority,
+  type JobShortlistEntry,
 } from '@/hooks/use-jobs';
 import {
   useBoardFormats,
@@ -45,7 +49,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   Briefcase, FileText, Users, Inbox, Activity, Sparkles, Send, Play,
   Pause, CheckCircle2, XCircle, FileEdit, Copy, Globe, Loader2, Settings2,
-  Trash2, Mail, MessageSquare, AlertTriangle,
+  Trash2, Mail, MessageSquare, AlertTriangle, ChevronDown, ChevronUp, GripVertical,
+  ShieldCheck, Archive, ArrowUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -469,8 +474,20 @@ function ShortlistTab({ jobId }: { jobId: string }) {
   const { data: entries = [], isLoading } = useJobShortlist(jobId);
   const removeFromShortlist = useRemoveFromShortlist();
   const runShortlist = useRunShortlist();
+  const updateStatus = useUpdateShortlistStatus();
+  const approveAll = useApproveAllShortlist();
+  const updatePriority = useUpdateShortlistPriority();
+  const [reviewMode, setReviewMode] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
 
   if (isLoading) return <TableSkeleton />;
+
+  const pendingEntries = entries.filter(e => e.status === 'pending');
+  const approvedEntries = entries.filter(e => e.status === 'approved');
+  const reserveEntries = entries.filter(e => e.status === 'reserve');
+  const hasPending = pendingEntries.length > 0;
+  const allApproved = entries.length > 0 && pendingEntries.length === 0 && reserveEntries.length === 0;
 
   const scoreBadgeClass = (score: number) => {
     if (score >= 80) return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30';
@@ -478,11 +495,99 @@ function ShortlistTab({ jobId }: { jobId: string }) {
     return 'bg-muted text-muted-foreground';
   };
 
+  const statusBadge = (status: string) => {
+    switch (status) {
+      case 'approved': return <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">Approved</Badge>;
+      case 'reserve': return <Badge variant="outline" className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30">Reserve</Badge>;
+      case 'contacted': return <Badge variant="outline" className="bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-500/30">Contacted</Badge>;
+      default: return <Badge variant="outline" className="bg-muted text-muted-foreground">Pending Review</Badge>;
+    }
+  };
+
+  const handleDragStart = (id: string) => setDragId(id);
+  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+  const handleDrop = (targetId: string) => {
+    if (!dragId || dragId === targetId) return;
+    const ordered = [...entries];
+    const fromIdx = ordered.findIndex(e => e.id === dragId);
+    const toIdx = ordered.findIndex(e => e.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = ordered.splice(fromIdx, 1);
+    ordered.splice(toIdx, 0, moved);
+    const updates = ordered.map((e, i) => ({ id: e.id, priority: i + 1 }));
+    updatePriority.mutate(updates);
+    setDragId(null);
+  };
+
+  const handleMoveToTop = (id: string) => {
+    const ordered = [...entries];
+    const idx = ordered.findIndex(e => e.id === id);
+    if (idx <= 0) return;
+    const [moved] = ordered.splice(idx, 1);
+    ordered.unshift(moved);
+    const updates = ordered.map((e, i) => ({ id: e.id, priority: i + 1 }));
+    updatePriority.mutate(updates);
+    toast.success('Moved to top of shortlist');
+  };
+
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="text-sm">Shortlisted Candidates</CardTitle>
-        <div className="flex items-center gap-2">
+    <div className="space-y-4">
+      {/* Review Banner */}
+      {entries.length > 0 && hasPending && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Jarvis has shortlisted {entries.length} candidate{entries.length !== 1 ? 's' : ''}. Review and approve before sending outreach.
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {approvedEntries.length} approved · {pendingEntries.length} pending · {reserveEntries.length} reserve
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button
+                size="sm"
+                onClick={() => approveAll.mutate(jobId)}
+                disabled={approveAll.isPending}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                {approveAll.isPending ? 'Approving...' : 'Approve All & Proceed'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setReviewMode(!reviewMode)}
+              >
+                {reviewMode ? 'Compact View' : 'Review Individually'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Approved banner */}
+      {allApproved && entries.length > 0 && (
+        <Card className="border-emerald-500/30 bg-emerald-500/5">
+          <CardContent className="py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <p className="text-sm font-medium text-foreground">
+                Shortlist approved. {approvedEntries.length} candidate{approvedEntries.length !== 1 ? 's' : ''} ready for outreach.
+              </p>
+            </div>
+            <Button size="sm" data-jarvis-id="job-send-outreach-button">
+              <Send className="w-3.5 h-3.5 mr-1.5" /> Proceed to Outreach
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="text-sm">Shortlisted Candidates</CardTitle>
           <Button
             variant="outline"
             size="sm"
@@ -496,114 +601,211 @@ function ShortlistTab({ jobId }: { jobId: string }) {
               <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist</>
             )}
           </Button>
-          <Button variant="outline" size="sm" data-jarvis-id="job-send-outreach-button">
-            <Send className="w-3.5 h-3.5 mr-1.5" /> Send Outreach
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        {entries.length === 0 ? (
-          <div className="text-center py-8 space-y-3">
-            <Users className="w-8 h-8 text-muted-foreground mx-auto" />
-            <p className="text-sm text-muted-foreground">No candidates shortlisted yet.</p>
-            <p className="text-xs text-muted-foreground">Click "Run Shortlist" to match candidates from your talent database.</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => runShortlist.mutate(jobId)}
-              disabled={runShortlist.isPending}
-            >
-              {runShortlist.isPending ? (
-                <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Matching...</>
-              ) : (
-                <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist</>
-              )}
-            </Button>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Candidate</TableHead>
-                <TableHead className="w-20">Score</TableHead>
-                <TableHead>Match Reasons</TableHead>
-                <TableHead>Availability</TableHead>
-                <TableHead className="w-24">Status</TableHead>
-                <TableHead className="w-28 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {entries.map(e => (
-                <TableRow key={e.id}>
-                  <TableCell>
-                    <div className="space-y-0.5">
-                      <span className="font-medium text-sm">{(e as any).candidates?.name || '—'}</span>
-                      {(e as any).candidates?.current_title && (
-                        <p className="text-xs text-muted-foreground">{(e as any).candidates.current_title}</p>
-                      )}
-                      {(e as any).candidates?.location && (
-                        <p className="text-xs text-muted-foreground">{(e as any).candidates.location}</p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {e.match_score != null ? (
-                      <Badge variant="outline" className={scoreBadgeClass(e.match_score)}>
-                        {e.match_score}%
-                      </Badge>
-                    ) : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {(e.match_reasons || []).slice(0, 4).map((r, i) => (
-                        <span key={i} className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                          {r}
-                        </span>
-                      ))}
-                      {(e.concerns || []).length > 0 && (
-                        <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">
-                          {(e.concerns as string[])[0]}
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {e.availability_warning ? (
-                      <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
-                        <AlertTriangle className="w-3 h-3" />
-                        {e.availability_warning}
+        </CardHeader>
+        <CardContent className="p-0">
+          {entries.length === 0 ? (
+            <div className="text-center py-8 space-y-3">
+              <Users className="w-8 h-8 text-muted-foreground mx-auto" />
+              <p className="text-sm text-muted-foreground">No candidates shortlisted yet.</p>
+              <p className="text-xs text-muted-foreground">Click "Run Shortlist" to match candidates from your talent database.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => runShortlist.mutate(jobId)}
+                disabled={runShortlist.isPending}
+              >
+                {runShortlist.isPending ? (
+                  <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Matching...</>
+                ) : (
+                  <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist</>
+                )}
+              </Button>
+            </div>
+          ) : reviewMode ? (
+            /* ---- Review Individually Mode ---- */
+            <div className="divide-y divide-border">
+              {entries.map((e, idx) => {
+                const isExpanded = expandedId === e.id;
+                return (
+                  <div
+                    key={e.id}
+                    draggable
+                    onDragStart={() => handleDragStart(e.id)}
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDrop(e.id)}
+                    className="p-4 transition-colors hover:bg-muted/30"
+                  >
+                    <div className="flex items-center gap-3">
+                      <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab flex-shrink-0" />
+                      <span className="text-xs font-mono text-muted-foreground w-5">#{idx + 1}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{e.candidates?.name || '—'}</span>
+                          {e.match_score != null && (
+                            <Badge variant="outline" className={scoreBadgeClass(e.match_score)}>{e.match_score}%</Badge>
+                          )}
+                          {statusBadge(e.status)}
+                          {e.availability_warning && (
+                            <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                              <AlertTriangle className="w-3 h-3" /> {e.availability_warning}
+                            </span>
+                          )}
+                        </div>
+                        {e.candidates?.current_title && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{e.candidates.current_title}{e.candidates.location ? ` · ${e.candidates.location}` : ''}</p>
+                        )}
                       </div>
-                    ) : (
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400">Available</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm">{SHORTLIST_STATUS[e.status] || e.status}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1 justify-end">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Email">
-                        <Mail className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="SMS">
-                        <MessageSquare className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        title="Remove"
-                        onClick={() => removeFromShortlist.mutate(e.id)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {e.status === 'pending' && (
+                          <>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus.mutate({ id: e.id, status: 'approved' })}>
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> Approve
+                            </Button>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus.mutate({ id: e.id, status: 'reserve' })}>
+                              <Archive className="w-3 h-3 mr-1" /> Reserve
+                            </Button>
+                          </>
+                        )}
+                        {e.status === 'reserve' && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus.mutate({ id: e.id, status: 'approved' })}>
+                            <CheckCircle2 className="w-3 h-3 mr-1" /> Approve
+                          </Button>
+                        )}
+                        {e.status === 'approved' && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus.mutate({ id: e.id, status: 'pending' })}>
+                            Undo
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleMoveToTop(e.id)} title="Move to top">
+                          <ArrowUp className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => removeFromShortlist.mutate(e.id)} title="Remove">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setExpandedId(isExpanded ? null : e.id)}>
+                          {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        </Button>
+                      </div>
                     </div>
-                  </TableCell>
+
+                    {isExpanded && (
+                      <div className="mt-3 ml-12 space-y-3 text-sm">
+                        {(e.match_reasons || []).length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Match Reasons</p>
+                            <div className="flex flex-wrap gap-1">
+                              {(e.match_reasons || []).map((r, i) => (
+                                <span key={i} className="inline-block text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary">{r}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {(e.concerns || []).length > 0 && (
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Concerns</p>
+                            <div className="flex flex-wrap gap-1">
+                              {(e.concerns as string[] || []).map((c, i) => (
+                                <span key={i} className="inline-block text-[11px] px-2 py-0.5 rounded-full bg-destructive/10 text-destructive">{c}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-border">
+                          <span>Availability: {e.candidates?.availability_status || 'Unknown'}</span>
+                          <span>Location: {e.candidates?.location || 'Unknown'}</span>
+                        </div>
+                        <div className="flex items-center gap-1 pt-1">
+                          <Button variant="ghost" size="sm" className="h-7 text-xs"><Mail className="w-3 h-3 mr-1" /> Email</Button>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs"><MessageSquare className="w-3 h-3 mr-1" /> SMS</Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* ---- Compact Table Mode ---- */
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-8">#</TableHead>
+                  <TableHead>Candidate</TableHead>
+                  <TableHead className="w-20">Score</TableHead>
+                  <TableHead>Match Reasons</TableHead>
+                  <TableHead>Availability</TableHead>
+                  <TableHead className="w-28">Status</TableHead>
+                  <TableHead className="w-32 text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+              </TableHeader>
+              <TableBody>
+                {entries.map((e, idx) => (
+                  <TableRow key={e.id}>
+                    <TableCell className="text-xs text-muted-foreground font-mono">{idx + 1}</TableCell>
+                    <TableCell>
+                      <div className="space-y-0.5">
+                        <span className="font-medium text-sm">{e.candidates?.name || '—'}</span>
+                        {e.candidates?.current_title && (
+                          <p className="text-xs text-muted-foreground">{e.candidates.current_title}</p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {e.match_score != null ? (
+                        <Badge variant="outline" className={scoreBadgeClass(e.match_score)}>{e.match_score}%</Badge>
+                      ) : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {(e.match_reasons || []).slice(0, 3).map((r, i) => (
+                          <span key={i} className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">{r}</span>
+                        ))}
+                        {(e.concerns || []).length > 0 && (
+                          <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">
+                            {(e.concerns as string[])[0]}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {e.availability_warning ? (
+                        <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+                          <AlertTriangle className="w-3 h-3" />
+                          {e.availability_warning}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400">Available</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{statusBadge(e.status)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 justify-end">
+                        {e.status === 'pending' && (
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Approve" onClick={() => updateStatus.mutate({ id: e.id, status: 'approved' })}>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Email"><Mail className="w-3.5 h-3.5" /></Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="SMS"><MessageSquare className="w-3.5 h-3.5" /></Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          title="Remove"
+                          onClick={() => removeFromShortlist.mutate(e.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

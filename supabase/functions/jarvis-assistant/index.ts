@@ -410,6 +410,51 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "approve_all_shortlist",
+      description: "Approve all pending candidates on a job shortlist. Use when the user says 'approve everyone', 'approve all', 'approve the shortlist', 'proceed with everyone'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_shortlist_entry",
+      description: "Update a single shortlist entry status or remove it. Use for 'remove [name] from the list', 'move [name] to reserve', 'approve [name]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+          candidate_name: { type: "string", description: "Candidate name to find" },
+          action: { type: "string", description: "One of: approve, remove, reserve, move_to_top" },
+        },
+        required: ["job_id", "candidate_name", "action"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "describe_shortlist_candidate",
+      description: "Get detailed info about a shortlisted candidate including match reasons, concerns, and availability. Use when user says 'tell me about [name]', 'who is the best match', 'describe [name]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+          candidate_name: { type: "string", description: "Candidate name, or 'top' for highest scored" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "update_advert",
       description: "Update the content of an existing job advert. Use when the user asks to shorten, rephrase, or modify a specific advert.",
       parameters: {
@@ -702,7 +747,22 @@ SHORTLIST / CANDIDATE MATCHING — detect intents:
   "find candidates for [job]" / "shortlist for this job" / "who matches this role" / "run shortlist" / "match candidates" / "shortlist candidates":
   - If a job_id is available from context or the current page, call run_shortlist immediately.
   - After the shortlist runs, report: "I found [n] strong matches for [job title]. Top candidate is [name] with a score of [n]. Shall I draft outreach emails to the shortlist?"
-  - If the user is on a job detail page, use the job_id from the URL.`;
+  - If the user is on a job detail page, use the job_id from the URL.
+
+SHORTLIST REVIEW — detect intents:
+  "tell me about [name]" / "who is the best match" / "describe [name]":
+  - Call describe_shortlist_candidate with the name or "top" for highest scored.
+  - Read out their score, match reasons, concerns, and availability naturally.
+  "remove [name] from the list" / "take [name] off":
+  - Call update_shortlist_entry with action "remove".
+  "move [name] to the top" / "put [name] first":
+  - Call update_shortlist_entry with action "move_to_top".
+  "approve everyone" / "approve all" / "approve the shortlist" / "approve everyone and proceed":
+  - Call approve_all_shortlist. Then say: "Shortlist approved. [n] candidates ready for outreach. Want me to draft the emails now?"
+  "approve [name]":
+  - Call update_shortlist_entry with action "approve".
+  "move [name] to reserve" / "hold [name] back":
+  - Call update_shortlist_entry with action "reserve".`;
 
 
 // ---------- Universal record lookup helper ----------
@@ -1519,6 +1579,90 @@ Return ONLY valid JSON, no markdown fences.`,
         entityId: jobId,
       };
     }
+    case "approve_all_shortlist": {
+      const jobId = input.job_id as string;
+      const { data: updated, error } = await supabaseAdmin
+        .from("job_shortlist")
+        .update({ status: "approved" })
+        .eq("job_id", jobId)
+        .in("status", ["pending", "reserve"])
+        .select("id");
+      if (error) return { result: { error: error.message }, entityType: "job_shortlist" };
+      const count = updated?.length || 0;
+      return {
+        result: { success: true, approved_count: count, message: `${count} candidates approved for outreach.`, navigate_to: `/jobs/${jobId}` },
+        entityType: "job_shortlist",
+        entityId: jobId,
+      };
+    }
+    case "update_shortlist_entry": {
+      const jobId = input.job_id as string;
+      const candidateName = (input.candidate_name as string).toLowerCase();
+      const action = input.action as string;
+      
+      const { data: entries } = await supabaseAdmin
+        .from("job_shortlist")
+        .select("id, candidate_id, match_score, status, candidates(name)")
+        .eq("job_id", jobId);
+      
+      const match = (entries || []).find((e: any) => e.candidates?.name?.toLowerCase().includes(candidateName));
+      if (!match) return { result: { error: `No shortlisted candidate matching "${input.candidate_name}" found.` }, entityType: "job_shortlist" };
+      
+      if (action === "remove") {
+        await supabaseAdmin.from("job_shortlist").delete().eq("id", match.id);
+        return { result: { success: true, message: `Removed ${(match as any).candidates?.name} from the shortlist.`, navigate_to: `/jobs/${jobId}` }, entityType: "job_shortlist", entityId: jobId };
+      } else if (action === "approve") {
+        await supabaseAdmin.from("job_shortlist").update({ status: "approved" }).eq("id", match.id);
+        return { result: { success: true, message: `${(match as any).candidates?.name} approved.`, navigate_to: `/jobs/${jobId}` }, entityType: "job_shortlist", entityId: jobId };
+      } else if (action === "reserve") {
+        await supabaseAdmin.from("job_shortlist").update({ status: "reserve" }).eq("id", match.id);
+        return { result: { success: true, message: `${(match as any).candidates?.name} moved to reserve.`, navigate_to: `/jobs/${jobId}` }, entityType: "job_shortlist", entityId: jobId };
+      } else if (action === "move_to_top") {
+        await supabaseAdmin.from("job_shortlist").update({ priority: 0 }).eq("id", match.id);
+        const { data: others } = await supabaseAdmin.from("job_shortlist").select("id").eq("job_id", jobId).neq("id", match.id).order("priority");
+        for (let i = 0; i < (others || []).length; i++) {
+          await supabaseAdmin.from("job_shortlist").update({ priority: i + 1 }).eq("id", others![i].id);
+        }
+        return { result: { success: true, message: `${(match as any).candidates?.name} moved to position 1.`, navigate_to: `/jobs/${jobId}` }, entityType: "job_shortlist", entityId: jobId };
+      }
+      return { result: { error: `Unknown action: ${action}` }, entityType: "job_shortlist" };
+    }
+    case "describe_shortlist_candidate": {
+      const jobId = input.job_id as string;
+      const candidateName = ((input.candidate_name as string) || "top").toLowerCase();
+      
+      const { data: entries } = await supabaseAdmin
+        .from("job_shortlist")
+        .select("id, match_score, match_reasons, concerns, availability_warning, status, candidates(name, current_title, location, availability_status)")
+        .eq("job_id", jobId)
+        .order("match_score", { ascending: false });
+      
+      if (!entries || entries.length === 0) return { result: { error: "No candidates on this shortlist." }, entityType: "job_shortlist" };
+      
+      let candidate;
+      if (candidateName === "top" || candidateName === "best") {
+        candidate = entries[0];
+      } else {
+        candidate = entries.find((e: any) => e.candidates?.name?.toLowerCase().includes(candidateName));
+      }
+      if (!candidate) return { result: { error: `No candidate matching "${input.candidate_name}" found on the shortlist.` }, entityType: "job_shortlist" };
+      
+      return {
+        result: {
+          name: (candidate as any).candidates?.name,
+          title: (candidate as any).candidates?.current_title,
+          location: (candidate as any).candidates?.location,
+          availability: (candidate as any).candidates?.availability_status,
+          score: candidate.match_score,
+          match_reasons: candidate.match_reasons,
+          concerns: candidate.concerns,
+          availability_warning: candidate.availability_warning,
+          status: candidate.status,
+        },
+        entityType: "job_shortlist",
+        entityId: jobId,
+      };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }
@@ -1831,7 +1975,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 
     // Build invalidation list for frontend cache
     const invalidateQueries: string[] = [];
-    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist"]);
+    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate"]);
     const entityQueryMap: Record<string, string[]> = {
       companies: ["companies", "canvas-companies"],
       crm_companies: ["crm_companies"],

@@ -3220,6 +3220,7 @@ export type Database = {
           match_score: number | null
           notes: string | null
           outreach_sent_at: string | null
+          priority: number | null
           response_received_at: string | null
           status: string | null
           workspace_id: string
@@ -3238,6 +3239,7 @@ export type Database = {
           match_score?: number | null
           notes?: string | null
           outreach_sent_at?: string | null
+          priority?: number | null
           response_received_at?: string | null
           status?: string | null
           workspace_id: string
@@ -3256,6 +3258,7 @@ export type Database = {
           match_score?: number | null
           notes?: string | null
           outreach_sent_at?: string | null
+          priority?: number | null
           response_received_at?: string | null
           status?: string | null
           workspace_id?: string

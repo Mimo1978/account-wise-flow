@@ -994,12 +994,63 @@ DIARY / CALENDAR intents:
   "what's in my diary today" / "what calls do I have" / "my schedule":
    - Call get_diary_events with period=today (or tomorrow, this_week).
    - Read out events naturally: "You have [n] events today: [list with times]."
-  "cancel the call with [name]" / "remove that meeting":
+   "cancel the call with [name]" / "remove that meeting":
    - Call cancel_diary_event with candidate_name.
    - "Done. The call with [name] has been cancelled."
-  "reschedule [name] call" / "move the meeting with [name]":
+   "reschedule [name] call" / "move the meeting with [name]":
    - Call reschedule_diary_event with candidate_name (no new time → gets new slots).
-   - Present new options, then update when confirmed.`;
+   - Present new options, then update when confirmed.
+   "what recruitment calls do I have this week":
+   - Call get_diary_events with period=this_week, then filter to event_type=call in your response.
+
+RECRUITMENT WORKFLOW — full end-to-end intents:
+
+JOB LOOKUP — CRITICAL:
+  Before running any job-related action (shortlisting, scoring, outreach, applications) where the user says "[job title]" instead of providing an ID:
+  - Call lookup_job with the title to find the job_id.
+  - If 1 match: use it. If multiple: ask. If 0: say "I couldn't find a job matching that."
+
+JOB MANAGEMENT:
+  "show me all active jobs" / "what jobs are active":
+  - Navigate to /jobs and mention they can filter by status there.
+  "how many applications for [job]":
+  - Call lookup_job to get job_id, then call get_job_applications_summary.
+  - Report: "[job title] has [n] applications: [n] new, [n] reviewing, [n] shortlisted, [n] rejected."
+  "what's the status of the [job] shortlist" / "shortlist status":
+  - Call lookup_job, then get_shortlist_summary.
+  - Report counts by status and top 3 candidates with scores.
+  "who haven't we heard back from on [job]" / "unresponsive candidates":
+  - Call lookup_job, then get_unresponsive_candidates.
+  - List candidates with outreach sent but no response.
+
+SPEC AND ADVERTS:
+  "write a job spec" / "new job spec" → enter JOB SPEC WRITER FLOW above.
+  "generate adverts for [job]" / "create adverts":
+  - Call lookup_job to find the job, then call generate_adverts with desired boards.
+  "show me the LinkedIn advert for [job]":
+  - Navigate to /jobs/[job_id] with highlight on job-tab-adverts.
+
+SHORTLIST AND OUTREACH:
+  "shortlist candidates for [job]" → lookup_job then run_shortlist.
+  "send outreach for [job]" / "email the shortlist for [job]":
+  - lookup_job then draft_outreach_emails.
+  "how many candidates responded to [job] outreach":
+  - lookup_job then get_outreach_status. Report responded vs no response.
+
+APPLICATIONS:
+  "show me new applications for [job]":
+  - lookup_job, navigate to /jobs/[job_id] with highlight on job-tab-applications.
+  "score the applications for [job]" / "process applications":
+  - lookup_job then score_unprocessed_applications. Report how many were scored.
+  "reject all low-scoring applications for [job]":
+  - lookup_job then get_job_applications_summary to check counts.
+  - Ask: "I found [n] applications scoring below 50. Want me to reject them all?"
+  - After confirmation: call bulk_reject_low_scoring.
+
+DIARY CONTEXT:
+  "book a call with [candidate] about [job]" → lookup_job for job_id, then diary booking flow.`;
+
+
 
 
 

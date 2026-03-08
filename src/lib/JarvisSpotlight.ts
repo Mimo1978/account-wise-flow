@@ -1,15 +1,10 @@
 /**
  * JarvisSpotlightManager — singleton class (NOT a React hook)
  * Can be called from anywhere: components, edge-function handlers, callbacks.
- *
- * Reuses existing CSS classes from index.css:
- *   .jarvis-highlight   — orange pulsing ring on an element
- *   .jarvis-screen-glow — orange border glow on <body>
- *   .jarvis-nav-tooltip  — floating label above element
  */
 
 const HIGHLIGHT_CLASS = "jarvis-highlight";
-const GLOW_CLASS = "jarvis-screen-glow";
+const PAGE_GLOW_ID = "jarvis-page-glow-overlay";
 const TOOLTIP_ID = "jarvis-spotlight-tooltip";
 
 /* ------------------------------------------------------------------ */
@@ -66,19 +61,41 @@ function findEl(targetId: string): HTMLElement | null {
   );
 }
 
+/** Ensure the page-glow overlay div exists in the DOM */
+function ensurePageGlowDiv(): HTMLElement {
+  let div = document.getElementById(PAGE_GLOW_ID);
+  if (!div) {
+    div = document.createElement("div");
+    div.id = PAGE_GLOW_ID;
+    div.className = "jarvis-page-glow";
+    document.body.appendChild(div);
+  }
+  return div;
+}
+
 function showTooltipAbove(el: HTMLElement, label: string) {
   removeTooltip();
   const rect = el.getBoundingClientRect();
   const tip = document.createElement("div");
   tip.id = TOOLTIP_ID;
-  tip.className = "jarvis-nav-tooltip";
+  tip.className = "jarvis-spotlight-tooltip";
   tip.textContent = label;
-  tip.style.position = "fixed";
-  tip.style.top = `${rect.top - 10}px`;
+  // Position above the element, centered horizontally
   tip.style.left = `${rect.left + rect.width / 2}px`;
+  tip.style.top = `${rect.top - 10}px`;
   tip.style.transform = "translateX(-50%) translateY(-100%)";
-  tip.style.zIndex = "9999";
   document.body.appendChild(tip);
+
+  // Clamp: if tooltip goes off-screen top, move below element instead
+  requestAnimationFrame(() => {
+    const tipRect = tip.getBoundingClientRect();
+    if (tipRect.top < 4) {
+      tip.style.top = `${rect.bottom + 10}px`;
+      tip.style.transform = "translateX(-50%) translateY(0)";
+      // Flip arrow
+      tip.style.setProperty("--arrow-flip", "1");
+    }
+  });
 }
 
 function removeTooltip() {
@@ -104,7 +121,6 @@ class JarvisSpotlightManager {
 
     if (label) showTooltipAbove(el, label);
 
-    // Auto-clear after duration
     this._scheduleAutoClear(duration);
   }
 
@@ -125,14 +141,16 @@ class JarvisSpotlightManager {
     this.highlight(sectionName, label);
   }
 
-  /** Activate full page border glow */
+  /** Activate full page border glow — stays active until deactivatePageGlow() */
   activatePageGlow(): void {
-    document.body.classList.add(GLOW_CLASS);
+    const div = ensurePageGlowDiv();
+    div.classList.add("active");
   }
 
   /** Deactivate full page border glow */
   deactivatePageGlow(): void {
-    document.body.classList.remove(GLOW_CLASS);
+    const div = document.getElementById(PAGE_GLOW_ID);
+    if (div) div.classList.remove("active");
   }
 
   /** Highlight a nav item */
@@ -178,12 +196,10 @@ class JarvisSpotlightManager {
       }
     }
 
-    if (needsPageGlow) {
-      this.activatePageGlow();
-    }
+    // Page glow is always on while Jarvis speaks
+    this.activatePageGlow();
 
     if (matchedTargets.length > 0) {
-      // Deduplicate
       const unique = [...new Set(matchedTargets)];
       this.highlightMany(unique, 5000);
     }

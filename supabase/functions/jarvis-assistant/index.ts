@@ -696,7 +696,13 @@ Step 5 — Save:
 
 NAVIGATION — Jobs:
   "take me to jobs" / "show me my jobs" / "open jobs" / "jobs list" → navigate to /jobs
-  "open job [name]" → navigate to /jobs, search for the job`;
+  "open job [name]" → navigate to /jobs, search for the job
+
+SHORTLIST / CANDIDATE MATCHING — detect intents:
+  "find candidates for [job]" / "shortlist for this job" / "who matches this role" / "run shortlist" / "match candidates" / "shortlist candidates":
+  - If a job_id is available from context or the current page, call run_shortlist immediately.
+  - After the shortlist runs, report: "I found [n] strong matches for [job title]. Top candidate is [name] with a score of [n]. Shall I draft outreach emails to the shortlist?"
+  - If the user is on a job detail page, use the job_id from the URL.`;
 
 
 // ---------- Universal record lookup helper ----------

@@ -205,7 +205,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>End Date</Label>
-              <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} /ddata-jarvis-id="deal-close-date-input" ata-jarvis-id="deal-close-date-input" >
+              <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} data-jarvis-id="deal-close-date-input" />
             </div>
             <div>
               <Label>Payment Terms</Label>

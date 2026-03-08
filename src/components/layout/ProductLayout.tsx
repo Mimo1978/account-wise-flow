@@ -61,6 +61,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
     { path: '/companies', label: 'Companies', icon: Building2, jarvisId: 'nav-companies' },
     { path: '/contacts', label: 'Contacts', icon: Users, jarvisId: 'nav-contacts' },
     { path: '/talent', label: 'Talent', icon: Database, jarvisId: 'nav-talent' },
+    { path: '/jobs', label: 'Jobs', icon: BookOpen, jarvisId: 'nav-jobs' },
     { path: '/outreach', label: 'Outreach', icon: Megaphone, jarvisId: 'nav-outreach' },
     { path: '/insights', label: 'Insights', icon: BarChart3, jarvisId: 'nav-insights' },
   ];

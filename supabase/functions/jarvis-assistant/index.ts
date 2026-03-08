@@ -791,7 +791,14 @@ SHORTLIST REVIEW — detect intents:
   "approve [name]":
   - Call update_shortlist_entry with action "approve".
   "move [name] to reserve" / "hold [name] back":
-  - Call update_shortlist_entry with action "reserve".`;
+  - Call update_shortlist_entry with action "reserve".
+
+OUTREACH EMAIL intents:
+  "draft outreach for [job]" / "email the shortlist" / "send outreach" / "draft emails":
+  - Call draft_outreach_emails with the job_id. After drafting: "I've drafted [n] personalised emails for [job title]. Head to the Outreach tab to review and send them."
+  "how many candidates have we contacted for [job]" / "outreach status":
+  - Call get_outreach_status. Report naturally: "You've sent outreach to [n] candidates for [job title], with [n] still in draft."`;
+
 
 
 // ---------- Universal record lookup helper ----------

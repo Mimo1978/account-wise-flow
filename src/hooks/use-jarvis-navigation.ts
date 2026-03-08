@@ -488,10 +488,12 @@ export function useJarvisNavigation() {
               );
               document.getElementById(TOOLTIP_ID)?.remove();
 
-              // Use section glow for data-jarvis-section elements, highlight for others
+              // Scroll into view before applying glow
               const isSection = el.hasAttribute("data-jarvis-section");
+              scrollToElement(el, isSection);
+
+              // Use section glow for data-jarvis-section elements, highlight for others
               el.classList.add(isSection ? SECTION_GLOW_CLASS : HIGHLIGHT_CLASS);
-              el.scrollIntoView({ behavior: "smooth", block: "nearest" });
               resolve();
             });
             setTimeout(resolve, 3000);
@@ -507,8 +509,8 @@ export function useJarvisNavigation() {
               );
               document.getElementById(TOOLTIP_ID)?.remove();
 
+              scrollToElement(el);
               el.classList.add(HIGHLIGHT_CLASS);
-              el.scrollIntoView({ behavior: "smooth", block: "center" });
               if (step.speak) showTooltip(el, step.speak);
               setTimeout(() => {
                 el.click();

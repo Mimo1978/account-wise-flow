@@ -561,6 +561,44 @@ When creating a contact, deal, opportunity, project, or logging a call that refe
 
 CONFIRMATION: Always confirm before executing. State ALL collected fields clearly using names (never IDs). Only call the tool AFTER the user confirms.`;
 
+// ---------- Universal record lookup helper ----------
+async function lookupRecord(
+  table: string,
+  searchField: string,
+  query: string,
+  workspaceId: string | null,
+  supabase: ReturnType<typeof createClient>,
+  workspaceColumn = "team_id",
+  extraFilters?: (q: any) => any
+): Promise<any[]> {
+  let q = supabase
+    .from(table)
+    .select("id, " + searchField)
+    .ilike(searchField, `%${query}%`)
+    .limit(5);
+  if (workspaceId) {
+    q = q.eq(workspaceColumn, workspaceId);
+  }
+  if (extraFilters) {
+    q = extraFilters(q);
+  }
+  const { data, error } = await q;
+  if (error) console.error("[lookupRecord] Error:", table, error.message);
+  console.log("[lookupRecord]", table, searchField, query, "workspace:", workspaceId, "results:", (data || []).length);
+  return data || [];
+}
+
+// Helper to get user's workspace ID
+async function getUserTeamId(supabaseAdmin: ReturnType<typeof createClient>, userId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("user_roles")
+    .select("team_id")
+    .eq("user_id", userId)
+    .limit(1)
+    .single();
+  return data?.team_id || null;
+}
+
 // ---------- Tool executors ----------
 async function executeTool(
   toolName: string,

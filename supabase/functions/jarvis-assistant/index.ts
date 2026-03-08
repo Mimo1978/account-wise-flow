@@ -329,6 +329,51 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "generate_job_spec",
+      description: "Generate a full professional job specification from a raw brief using AI. Returns structured JSON with job_title, company_overview, role_summary, key_responsibilities, essential_skills, desirable_skills, what_we_offer, salary_range, location, job_type, start_date. Use after collecting the raw brief from the user.",
+      parameters: {
+        type: "object",
+        properties: {
+          raw_brief: { type: "string", description: "The recruiter's raw description of the role" },
+          job_title: { type: "string", description: "Extracted or clarified job title" },
+          company_name: { type: "string", description: "Client company name" },
+          job_type: { type: "string", description: "permanent, contract, or temp" },
+          location: { type: "string" },
+          salary_info: { type: "string", description: "Salary or rate info from the brief" },
+          start_date: { type: "string" },
+        },
+        required: ["raw_brief"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_job",
+      description: "Save a job specification to the jobs table. Call this ONLY after the user confirms the generated spec.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          company_id: { type: "string" },
+          raw_brief: { type: "string" },
+          full_spec: { type: "string", description: "JSON stringified full spec" },
+          job_type: { type: "string" },
+          location: { type: "string" },
+          remote_policy: { type: "string" },
+          salary_min: { type: "number" },
+          salary_max: { type: "number" },
+          salary_currency: { type: "string" },
+          start_date: { type: "string" },
+          end_date: { type: "string" },
+        },
+        required: ["title", "raw_brief", "full_spec"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.

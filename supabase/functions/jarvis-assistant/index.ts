@@ -747,7 +747,22 @@ SHORTLIST / CANDIDATE MATCHING — detect intents:
   "find candidates for [job]" / "shortlist for this job" / "who matches this role" / "run shortlist" / "match candidates" / "shortlist candidates":
   - If a job_id is available from context or the current page, call run_shortlist immediately.
   - After the shortlist runs, report: "I found [n] strong matches for [job title]. Top candidate is [name] with a score of [n]. Shall I draft outreach emails to the shortlist?"
-  - If the user is on a job detail page, use the job_id from the URL.`;
+  - If the user is on a job detail page, use the job_id from the URL.
+
+SHORTLIST REVIEW — detect intents:
+  "tell me about [name]" / "who is the best match" / "describe [name]":
+  - Call describe_shortlist_candidate with the name or "top" for highest scored.
+  - Read out their score, match reasons, concerns, and availability naturally.
+  "remove [name] from the list" / "take [name] off":
+  - Call update_shortlist_entry with action "remove".
+  "move [name] to the top" / "put [name] first":
+  - Call update_shortlist_entry with action "move_to_top".
+  "approve everyone" / "approve all" / "approve the shortlist" / "approve everyone and proceed":
+  - Call approve_all_shortlist. Then say: "Shortlist approved. [n] candidates ready for outreach. Want me to draft the emails now?"
+  "approve [name]":
+  - Call update_shortlist_entry with action "approve".
+  "move [name] to reserve" / "hold [name] back":
+  - Call update_shortlist_entry with action "reserve".`;
 
 
 // ---------- Universal record lookup helper ----------

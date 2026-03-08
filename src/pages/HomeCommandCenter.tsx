@@ -15,6 +15,7 @@ import { CreateSowModal } from '@/components/home/CreateSowModal';
 import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
 import { CreateDealModal } from '@/components/home/CreateDealModal';
 import { SowDetailSheet } from '@/components/home/SowDetailSheet';
+import { ReportBuilderPanel, type ReportType } from '@/components/home/ReportBuilderPanel';
 
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -41,6 +42,7 @@ import {
   CheckSquare,
   Inbox,
   Send,
+  FileBarChart,
 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';
@@ -524,6 +526,9 @@ const HomeCommandCenter = () => {
   const [sowSheetOpen, setSowSheetOpen] = useState(false);
   const [convertDeal, setConvertDeal] = useState<Deal | null>(null);
   const [pipelineFilter, setPipelineFilter] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportPreselect, setReportPreselect] = useState<ReportType | undefined>();
+  const [reportAutoDownload, setReportAutoDownload] = useState(false);
 
   const { data: engagements = [], isLoading: engLoading } = useEngagements(currentWorkspace?.id);
   const { data: sows = [], isLoading: sowsLoading } = useSows(currentWorkspace?.id);
@@ -807,16 +812,29 @@ const HomeCommandCenter = () => {
             {currentWorkspace?.name ?? 'Workspace'} &middot; Today&rsquo;s overview
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            data-jarvis-id="pull-report"
+            onClick={() => { setReportPreselect(undefined); setReportAutoDownload(false); setReportOpen(true); }}
+          >
+            <FileBarChart className="w-4 h-4" />
+            Pull Report
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            data-jarvis-id="refresh-command-centre"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* ── KPI Row ── */}
@@ -1421,6 +1439,12 @@ const HomeCommandCenter = () => {
       <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} />
       <CreateDealModal open={dealOpen} onOpenChange={setDealOpen} />
       <SowDetailSheet sow={selectedSow} open={sowSheetOpen} onOpenChange={setSowSheetOpen} />
+      <ReportBuilderPanel
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        preselectedType={reportPreselect}
+        autoDownload={reportAutoDownload}
+      />
     </div>
   );
 };

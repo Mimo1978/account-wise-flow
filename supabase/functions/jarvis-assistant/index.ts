@@ -1692,6 +1692,44 @@ Return ONLY valid JSON, no markdown fences.`,
         entityId: jobId,
       };
     }
+    case "draft_outreach_emails": {
+      const jobId = input.job_id as string;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/draft-outreach`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          job_id: jobId,
+          automation_level: (input.automation_level as string) || "draft",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Draft outreach failed" }, entityType: "outreach_messages" };
+      return {
+        result: { ...data, navigate_to: `/jobs/${jobId}` },
+        entityType: "outreach_messages",
+        entityId: jobId,
+      };
+    }
+    case "get_outreach_status": {
+      const jobId = input.job_id as string;
+      const { data: msgs } = await supabaseAdmin
+        .from("outreach_messages")
+        .select("status, candidate_name")
+        .eq("job_id", jobId);
+      const drafted = (msgs || []).filter((m: any) => m.status === "draft").length;
+      const sent = (msgs || []).filter((m: any) => m.status === "sent").length;
+      const failed = (msgs || []).filter((m: any) => m.status === "failed").length;
+      return {
+        result: { total: (msgs || []).length, drafted, sent, failed, message: `Outreach status: ${sent} sent, ${drafted} drafts, ${failed} failed.` },
+        entityType: "outreach_messages",
+        entityId: jobId,
+      };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }

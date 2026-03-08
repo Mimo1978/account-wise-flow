@@ -15,6 +15,7 @@ import { CreateSowModal } from '@/components/home/CreateSowModal';
 import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
 import { CreateDealModal } from '@/components/home/CreateDealModal';
 import { SowDetailSheet } from '@/components/home/SowDetailSheet';
+import { ReportBuilderPanel, type ReportType } from '@/components/home/ReportBuilderPanel';
 
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -41,6 +42,7 @@ import {
   CheckSquare,
   Inbox,
   Send,
+  FileBarChart,
 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';

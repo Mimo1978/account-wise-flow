@@ -94,12 +94,11 @@ export function ReportBuilderPanel({ open, onOpenChange, preselectedType, autoDo
         case 'projects': {
           const { data } = await supabase
             .from('engagements')
-            .select('id, name, status, health, forecast_value, forecast_currency, companies(name)')
+            .select('id, name, status, health, forecast_value, forecast_currency')
             .eq('workspace_id', wsId)
-            .eq('status', 'active');
-          rows = (data ?? []).map((d: any) => ({
+            .eq('status', 'active') as { data: any[] | null };
+          rows = (data ?? []).map((d) => ({
             Project: d.name,
-            Company: d.companies?.name ?? 'Independent',
             Health: d.health ?? '—',
             'Forecast Value': d.forecast_value ? `${d.forecast_currency ?? 'GBP'} ${Number(d.forecast_value).toLocaleString()}` : '—',
             Status: d.status,

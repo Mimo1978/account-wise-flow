@@ -6,6 +6,8 @@ import {
   Shield,
   Megaphone,
   Plug,
+  Bot,
+  Receipt,
 } from 'lucide-react';
 
 interface AdminCard {

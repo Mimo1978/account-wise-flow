@@ -225,3 +225,58 @@ function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; job
     </Popover>
   );
 }
+
+// Modal version for the "Filled" celebration modal
+export function FilledModalLinker({ jobId, jobTitle, onLinked }: { jobId: string; jobTitle: string; onLinked: () => void }) {
+  const navigate = useNavigate();
+  const { data: projects = [] } = useCrmProjects();
+  const linkMutation = useLinkJobToProject();
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const handleLink = (projectId: string) => {
+    linkMutation.mutate({ jobId, projectId });
+    setOpen(false);
+    onLinked();
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button className="gap-1.5">
+          <Link2 className="w-4 h-4" /> Link to Project
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-2" align="end">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search projects…"
+          className="h-8 text-sm mb-2"
+        />
+        <div className="max-h-48 overflow-y-auto space-y-0.5">
+          {projects
+            .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+            .slice(0, 10)
+            .map(p => (
+              <button
+                key={p.id}
+                onClick={() => handleLink(p.id)}
+                className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors truncate"
+              >
+                {p.name}
+              </button>
+            ))}
+        </div>
+        <div className="border-t border-border mt-1 pt-1">
+          <button
+            onClick={() => navigate(`/crm/projects?new=true&name=${encodeURIComponent(jobTitle)}&job_id=${encodeURIComponent(jobId)}`)}
+            className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors flex items-center gap-1.5 text-primary"
+          >
+            <Plus className="w-3.5 h-3.5" /> Create new project
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}

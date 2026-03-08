@@ -1035,6 +1035,112 @@ async function executeTool(
         entityId: companies[0].id,
       };
     }
+    case "lookup_company": {
+      const name = (input.name as string).trim();
+      // Get user's workspace
+      const { data: userRole } = await supabaseAdmin
+        .from("user_roles")
+        .select("team_id")
+        .eq("user_id", userId)
+        .limit(1)
+        .single();
+      const teamId = userRole?.team_id;
+
+      // Search both companies and crm_companies tables
+      const { data: companies } = await supabaseAdmin
+        .from("companies")
+        .select("id, name, industry")
+        .ilike("name", `%${name}%`)
+        .eq("team_id", teamId)
+        .limit(5);
+
+      const { data: crmCompanies } = await supabaseAdmin
+        .from("crm_companies")
+        .select("id, name, industry")
+        .ilike("name", `%${name}%`)
+        .is("deleted_at", null)
+        .limit(5);
+
+      const allMatches = [
+        ...(companies ?? []).map((c: any) => ({ ...c, source: "companies" })),
+        ...(crmCompanies ?? []).map((c: any) => ({ ...c, source: "crm_companies" })),
+      ];
+
+      if (allMatches.length === 0) {
+        return { result: { matches: [], message: `No company found matching "${name}"` }, entityType: "companies" };
+      }
+      if (allMatches.length === 1) {
+        return { result: { matches: allMatches, auto_selected: allMatches[0] }, entityType: "companies" };
+      }
+      return { result: { matches: allMatches, message: `Found ${allMatches.length} companies matching "${name}"` }, entityType: "companies" };
+    }
+    case "lookup_contact": {
+      const name = (input.name as string).trim();
+      const { data: userRole } = await supabaseAdmin
+        .from("user_roles")
+        .select("team_id")
+        .eq("user_id", userId)
+        .limit(1)
+        .single();
+      const teamId = userRole?.team_id;
+
+      // Search contacts table (workspace-scoped)
+      const { data: contacts } = await supabaseAdmin
+        .from("contacts")
+        .select("id, name, title, email, company_id, companies(name)")
+        .ilike("name", `%${name}%`)
+        .eq("team_id", teamId)
+        .is("deleted_at", null)
+        .limit(5);
+
+      // Search crm_contacts table
+      const { data: crmContacts } = await supabaseAdmin
+        .from("crm_contacts")
+        .select("id, first_name, last_name, email, job_title, company_id, crm_companies(name)")
+        .or(`first_name.ilike.%${name}%,last_name.ilike.%${name}%`)
+        .is("deleted_at", null)
+        .limit(5);
+
+      const allMatches = [
+        ...(contacts ?? []).map((c: any) => ({ id: c.id, name: c.name, title: c.title, email: c.email, company_name: c.companies?.name, source: "contacts" })),
+        ...(crmContacts ?? []).map((c: any) => ({ id: c.id, name: `${c.first_name} ${c.last_name}`, title: c.job_title, email: c.email, company_name: c.crm_companies?.name, source: "crm_contacts" })),
+      ];
+
+      if (allMatches.length === 0) {
+        return { result: { matches: [], message: `No contact found matching "${name}"` }, entityType: "contacts" };
+      }
+      if (allMatches.length === 1) {
+        return { result: { matches: allMatches, auto_selected: allMatches[0] }, entityType: "contacts" };
+      }
+      return { result: { matches: allMatches, message: `Found ${allMatches.length} contacts matching "${name}"` }, entityType: "contacts" };
+    }
+    case "lookup_candidate": {
+      const name = (input.name as string).trim();
+      const { data: userRole } = await supabaseAdmin
+        .from("user_roles")
+        .select("team_id")
+        .eq("user_id", userId)
+        .limit(1)
+        .single();
+      const teamId = userRole?.team_id;
+
+      const { data: candidates } = await supabaseAdmin
+        .from("candidates")
+        .select("id, name, current_title, email, current_company")
+        .ilike("name", `%${name}%`)
+        .eq("tenant_id", teamId)
+        .limit(5);
+
+      const allMatches = candidates ?? [];
+
+      if (allMatches.length === 0) {
+        return { result: { matches: [], message: `No candidate found matching "${name}"` }, entityType: "candidates" };
+      }
+      if (allMatches.length === 1) {
+        return { result: { matches: allMatches, auto_selected: allMatches[0] }, entityType: "candidates" };
+      }
+      return { result: { matches: allMatches, message: `Found ${allMatches.length} candidates matching "${name}"` }, entityType: "candidates" };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }

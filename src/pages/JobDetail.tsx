@@ -103,7 +103,7 @@ const JobDetail = () => {
 
   return (
     <div className="container mx-auto px-6 py-8 max-w-5xl space-y-6">
-      <PageBackButton fallbackPath="/jobs" />
+      <PageBackButton fallback="/jobs" />
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">

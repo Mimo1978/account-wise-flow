@@ -446,6 +446,145 @@ const HomeCommandCenter = () => {
   const updateInvoice = useUpdateInvoice();
   const updateDeal = useUpdateDeal();
 
+  // ── Jobs data for Command Centre connections ──
+  const { data: jobsSummary } = useQuery({
+    queryKey: ['jobs_command_centre', currentWorkspace?.id],
+    queryFn: async () => {
+      if (!currentWorkspace?.id) return { activeJobs: [], jobWorkItems: [] as CriticalDateItem[] };
+      
+      // Active jobs
+      const { data: jobs } = await supabase
+        .from('jobs')
+        .select('id, title, status, company_id')
+        .eq('workspace_id', currentWorkspace.id)
+        .in('status', ['active', 'draft']);
+
+      const activeJobs = jobs ?? [];
+      const activeJobIds = activeJobs.filter(j => j.status === 'active').map(j => j.id);
+      
+      if (activeJobIds.length === 0) return { activeJobs, jobWorkItems: [] as CriticalDateItem[] };
+
+      // Shortlists with unreviewed (pending) entries
+      const { data: shortlistData } = await supabase
+        .from('job_shortlist')
+        .select('job_id, status')
+        .in('job_id', activeJobIds);
+      
+      // Outreach messages with draft status
+      const { data: outreachData } = await supabase
+        .from('outreach_messages')
+        .select('job_id, status')
+        .in('job_id', activeJobIds)
+        .eq('status', 'draft');
+
+      // Applications with 'new' status
+      const { data: applicationsData } = await supabase
+        .from('job_applications')
+        .select('job_id, status')
+        .in('job_id', activeJobIds)
+        .eq('status', 'new');
+
+      // Jobs linked to projects
+      const { data: jobProjectLinks } = await supabase
+        .from('jobs_projects' as any)
+        .select('job_id, project_id')
+        .in('job_id', activeJobIds);
+
+      const today = startOfDay(new Date());
+      const workItems: CriticalDateItem[] = [];
+      const jobMap = new Map(activeJobs.map(j => [j.id, j]));
+
+      // Shortlist review items
+      const shortlistByJob = new Map<string, { pending: number; total: number }>();
+      for (const s of (shortlistData ?? [])) {
+        const entry = shortlistByJob.get(s.job_id) || { pending: 0, total: 0 };
+        entry.total++;
+        if (s.status === 'pending') entry.pending++;
+        shortlistByJob.set(s.job_id, entry);
+      }
+      for (const [jobId, counts] of shortlistByJob) {
+        if (counts.pending > 0) {
+          const job = jobMap.get(jobId);
+          if (job) {
+            workItems.push({
+              id: `shortlist-${jobId}`,
+              type: 'outreach_action',
+              date: today,
+              label: `Review shortlist for ${job.title}`,
+              companyName: '',
+              sowRef: null,
+              overdue: false,
+              daysUntil: 0,
+            });
+          }
+        }
+      }
+
+      // Outreach pending items
+      const outreachByJob = new Map<string, number>();
+      for (const o of (outreachData ?? [])) {
+        outreachByJob.set(o.job_id, (outreachByJob.get(o.job_id) || 0) + 1);
+      }
+      for (const [jobId, count] of outreachByJob) {
+        const job = jobMap.get(jobId);
+        if (job) {
+          workItems.push({
+            id: `outreach-pending-${jobId}`,
+            type: 'outreach_action',
+            date: today,
+            label: `Outreach pending for ${job.title}`,
+            companyName: '',
+            sowRef: null,
+            overdue: false,
+            daysUntil: 0,
+          });
+        }
+      }
+
+      // New applications
+      const appsByJob = new Map<string, number>();
+      for (const a of (applicationsData ?? [])) {
+        appsByJob.set(a.job_id, (appsByJob.get(a.job_id) || 0) + 1);
+      }
+      for (const [jobId, count] of appsByJob) {
+        const job = jobMap.get(jobId);
+        if (job) {
+          workItems.push({
+            id: `apps-${jobId}`,
+            type: 'outreach_action',
+            date: today,
+            label: `${count} new application${count !== 1 ? 's' : ''} for ${job.title}`,
+            companyName: '',
+            sowRef: null,
+            overdue: false,
+            daysUntil: 0,
+          });
+        }
+      }
+
+      return {
+        activeJobs,
+        jobWorkItems: workItems,
+        jobProjectLinks: jobProjectLinks ?? [],
+      };
+    },
+    enabled: !!currentWorkspace?.id,
+  });
+
+  const jobWorkItems = jobsSummary?.jobWorkItems ?? [];
+  const activeJobCount = (jobsSummary?.activeJobs ?? []).filter(j => j.status === 'active').length;
+  const jobProjectLinksMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const link of (jobsSummary?.jobProjectLinks ?? [])) {
+      const pid = (link as any).project_id;
+      map.set(pid, (map.get(pid) || 0) + 1);
+    }
+    return map;
+  }, [jobsSummary?.jobProjectLinks]);
+
+  // Check which deals are recruitment (name contains "Placement Fee")
+  const isRecruitmentDeal = (deal: Deal) => deal.name.includes('Placement Fee');
+
   const activePlansExist = invoicePlans.some(p => p.status === 'active');
   const todayStr = format(startOfDay(new Date()), 'yyyy-MM-dd');
   const scheduledTodayCount = invoicePlans.filter(p => p.status === 'active' && p.next_run_date === todayStr).length;

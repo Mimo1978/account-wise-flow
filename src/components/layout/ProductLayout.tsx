@@ -6,6 +6,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDemoIndicator } from '@/hooks/use-workspace-mode';
 import { DemoBanner } from '@/components/layout/DemoBanner';
 import { usePermissions } from '@/hooks/use-permissions';
+import { useNewApplicationsCount } from '@/hooks/use-jobs';
 import { 
   Sparkles, 
   LayoutDashboard, 
@@ -47,6 +48,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+  const { data: newAppCount = 0 } = useNewApplicationsCount();
 
   const handleSignOut = async () => {
     await signOut();
@@ -98,11 +100,16 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                   <Button
                     variant={isActive(item.path) ? 'secondary' : 'ghost'}
                     size="sm"
-                    className="gap-2"
+                    className="gap-2 relative"
                     data-jarvis-id={item.jarvisId}
                   >
                     <item.icon className="w-4 h-4" />
                     {item.label}
+                    {item.path === '/jobs' && newAppCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center px-1">
+                        {newAppCount > 99 ? '99+' : newAppCount}
+                      </span>
+                    )}
                   </Button>
                 </Link>
               ))}

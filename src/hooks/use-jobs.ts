@@ -232,3 +232,23 @@ export function useJobCounts(workspaceId: string | undefined) {
     enabled: !!workspaceId,
   });
 }
+
+// ---------- New (unreviewed) application count for nav badge ----------
+export function useNewApplicationsCount() {
+  const { currentWorkspace } = useWorkspace();
+  return useQuery({
+    queryKey: ['new_applications_count', currentWorkspace?.id],
+    queryFn: async () => {
+      if (!currentWorkspace?.id) return 0;
+      const { count, error } = await supabase
+        .from('job_applications')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', currentWorkspace.id)
+        .eq('status', 'new');
+      if (error) return 0;
+      return count ?? 0;
+    },
+    enabled: !!currentWorkspace?.id,
+    refetchInterval: 30000, // poll every 30s
+  });
+}

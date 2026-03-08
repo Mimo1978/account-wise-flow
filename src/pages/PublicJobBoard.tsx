@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { toast } from '@/components/ui/sonner';
 import { Search, MapPin, Briefcase, Calendar, Upload, CheckCircle2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -28,7 +29,7 @@ interface PublicJob {
   salary_currency: string | null;
   created_at: string | null;
   workspace_id: string;
-  companies: { name: string } | null;
+  companies: { name: string; logo_url: string | null } | null;
   job_adverts: { content: string | null }[];
 }
 
@@ -38,7 +39,7 @@ function usePublicJobs() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jobs')
-        .select('id, title, company_id, is_confidential, job_type, location, remote_policy, salary_min, salary_max, salary_currency, created_at, workspace_id, companies(name), job_adverts!inner(content)')
+        .select('id, title, company_id, is_confidential, job_type, location, remote_policy, salary_min, salary_max, salary_currency, created_at, workspace_id, companies(name, logo_url), job_adverts!inner(content)')
         .eq('status', 'active')
         .eq('job_adverts.board', 'internal')
         .eq('job_adverts.status', 'published')
@@ -69,6 +70,7 @@ export default function PublicJobBoard() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('');
+  const [companyFilter, setCompanyFilter] = useState('all');
   const [applyingTo, setApplyingTo] = useState<PublicJob | null>(null);
 
   const locations = useMemo(() => {
@@ -77,10 +79,22 @@ export default function PublicJobBoard() {
     return Array.from(locs).sort();
   }, [jobs]);
 
+  // Build company filter options (only non-confidential companies with active jobs)
+  const companyOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    jobs.forEach(j => {
+      if (!j.is_confidential && j.company_id && j.companies?.name) {
+        map.set(j.company_id, j.companies.name);
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+  }, [jobs]);
+
   const filtered = useMemo(() => {
     return jobs.filter(j => {
       if (typeFilter !== 'all' && j.job_type !== typeFilter) return false;
       if (locationFilter && j.location !== locationFilter) return false;
+      if (companyFilter !== 'all' && j.company_id !== companyFilter) return false;
       if (search) {
         const q = search.toLowerCase();
         const companyName = j.is_confidential ? '' : (j.companies?.name || '');
@@ -89,7 +103,7 @@ export default function PublicJobBoard() {
       }
       return true;
     });
-  }, [jobs, typeFilter, locationFilter, search]);
+  }, [jobs, typeFilter, locationFilter, companyFilter, search]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -144,6 +158,15 @@ export default function PublicJobBoard() {
               </SelectContent>
             </Select>
           )}
+          {companyOptions.length > 1 && (
+            <Select value={companyFilter} onValueChange={setCompanyFilter}>
+              <SelectTrigger className="w-[200px] h-9"><SelectValue placeholder="Company" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Companies</SelectItem>
+                {companyOptions.map(([id, name]) => <SelectItem key={id} value={id}>{name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
           <span className="text-sm text-muted-foreground ml-auto">
             {filtered.length} role{filtered.length !== 1 ? 's' : ''} found
           </span>
@@ -172,13 +195,25 @@ export default function PublicJobBoard() {
             {filtered.map(job => {
               const advert = job.job_adverts?.[0]?.content || '';
               const snippet = advert.length > 150 ? advert.slice(0, 150) + '…' : advert;
-              const companyDisplay = job.is_confidential ? 'Confidential' : (job.companies?.name || 'Company');
+              const isConfidential = job.is_confidential;
+              const companyDisplay = isConfidential ? 'Our Client' : (job.companies?.name || 'Company');
+              const logoUrl = isConfidential ? null : (job.companies as any)?.logo_url;
               return (
                 <Card key={job.id} className="flex flex-col hover:shadow-md transition-shadow">
                   <CardContent className="p-5 flex flex-col flex-1 gap-3">
-                    <div>
-                      <h3 className="font-bold text-foreground text-base leading-snug">{job.title}</h3>
-                      <p className="text-sm text-muted-foreground mt-0.5">{companyDisplay}</p>
+                    <div className="flex items-start gap-3">
+                      {!isConfidential && (
+                        <Avatar className="w-10 h-10 rounded-lg shrink-0">
+                          {logoUrl && <AvatarImage src={logoUrl} alt={companyDisplay} />}
+                          <AvatarFallback className="rounded-lg bg-muted text-xs font-semibold">
+                            {(job.companies?.name || 'C').slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-foreground text-base leading-snug">{job.title}</h3>
+                        <p className="text-sm text-muted-foreground mt-0.5">{companyDisplay}</p>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {job.job_type && (
@@ -275,6 +310,19 @@ function ApplicationSheet({ job, onClose }: { job: PublicJob | null; onClose: ()
         status: 'new',
       } as any);
       if (error) throw error;
+
+      // Fire-and-forget notification
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      fetch(`https://${projectId}.supabase.co/functions/v1/notify-new-application`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        body: JSON.stringify({
+          job_id: job.id,
+          applicant_name: form.name.trim(),
+          applicant_email: form.email.trim(),
+          applicant_phone: form.phone.trim() || null,
+        }),
+      }).catch(() => {});
     },
     onSuccess: () => setSubmitted(true),
     onError: (e: Error) => toast.error(e.message),

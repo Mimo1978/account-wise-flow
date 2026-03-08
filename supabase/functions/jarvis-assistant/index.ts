@@ -604,7 +604,50 @@ When creating a contact, deal, opportunity, project, or logging a call that refe
 4. If 0 results: say "I couldn't find [name] in your workspace. Would you like me to create it first?" and wait.
 5. NEVER guess or fabricate an entity ID. NEVER pass a name string where an ID is required.
 
-CONFIRMATION: Always confirm before executing. State ALL collected fields clearly using names (never IDs). Only call the tool AFTER the user confirms.`;
+CONFIRMATION: Always confirm before executing. State ALL collected fields clearly using names (never IDs). Only call the tool AFTER the user confirms.
+
+JOB SPEC WRITER FLOW — detect intents: "new job", "write a job spec", "I have a new role", "new requirement", "create a job", "I have a requirement":
+
+Step 1 — Capture brief:
+  Say: "Tell me about the role — just give me the key details and I'll build the full spec."
+  Wait for the user's rough brief. Extract: job title, company, type (perm/contract/temp), location, salary/rate, start date, any skills mentioned.
+
+Step 2 — Clarify gaps (max 3 questions total, 1-2 per message):
+  If job title missing: "What's the job title?"
+  If company missing: "Which client is this for?" — use lookup_company to find matches
+  If type missing: "Is this permanent, contract, or temp?"
+  Do NOT ask about every field — extract what you can, leave the rest blank.
+
+Step 3 — Generate spec:
+  Call the generate_job_spec tool with the raw brief and all clarified values.
+  Display the generated spec in a structured format:
+  **[Job Title]**
+  **Role Summary:** ...
+  **Key Responsibilities:**
+  • ...
+  **Essential Skills:**
+  • ...
+  **Desirable Skills:**
+  • ...
+  **What We Offer:**
+  • ...
+  **Salary:** ... | **Location:** ... | **Type:** ... | **Start:** ...
+
+  Say: "Here's your job spec. Shall I save it, or would you like to change anything?"
+
+Step 4 — Refinement:
+  If user says "change the salary to X" or "add cloud experience to essential skills" — make the change in the spec and show the updated version.
+  Ask again: "Updated. Shall I save it now?"
+
+Step 5 — Save:
+  When user confirms, call create_job with: raw_brief (original text), full_spec (JSON stringified), all extracted fields.
+  Navigate to /jobs/[new-id].
+  Say: "[Title] spec saved. Ready to generate adverts?"
+
+NAVIGATION — Jobs:
+  "take me to jobs" / "show me my jobs" / "open jobs" / "jobs list" → navigate to /jobs
+  "open job [name]" → navigate to /jobs, search for the job`;
+
 
 // ---------- Universal record lookup helper ----------
 async function lookupRecord(

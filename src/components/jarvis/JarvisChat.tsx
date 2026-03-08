@@ -52,6 +52,59 @@ function TypingDots() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Flow progress bar                                                   */
+/* ------------------------------------------------------------------ */
+const FLOW_LABELS: Record<string, string> = {
+  CREATE_COMPANY: 'Creating Company',
+  CREATE_CONTACT: 'Creating Contact',
+  LOG_CALL: 'Logging Call',
+  CREATE_DEAL: 'Creating Deal',
+};
+
+const FLOW_STEP_COUNTS: Record<string, number> = {
+  CREATE_COMPANY: 4,
+  CREATE_CONTACT: 7,
+  LOG_CALL: 4,
+  CREATE_DEAL: 5,
+};
+
+function FlowProgressBar({ flowState, onCancel }: { flowState: JarvisFlowState; onCancel: () => void }) {
+  const total = FLOW_STEP_COUNTS[flowState.flow!] || 4;
+  const current = Math.min(flowState.currentQuestion + 1, total);
+  const pct = (current / total) * 100;
+
+  return (
+    <div className="px-3 py-2 border-t border-border bg-primary/5 shrink-0">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium text-foreground">
+          {FLOW_LABELS[flowState.flow!] || 'Collecting data'}
+        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">
+            {flowState.awaitingConfirmation ? 'Confirm to save' : `Step ${current} of ${total}`}
+          </span>
+          <button
+            onClick={onCancel}
+            className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+      <div className="h-1 rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-500",
+            flowState.awaitingConfirmation ? "bg-amber-500" : "bg-primary"
+          )}
+          style={{ width: `${flowState.awaitingConfirmation ? 100 : pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Visual state type                                                  */
 /* ------------------------------------------------------------------ */
 type JarvisVisualState = "idle" | "listening" | "thinking" | "speaking";

@@ -1,0 +1,179 @@
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useJobs, useJobCounts, useCreateJob } from '@/hooks/use-jobs';
+import { Plus, Briefcase, Search } from 'lucide-react';
+import { format } from 'date-fns';
+
+const STATUS_BADGE: Record<string, { variant: 'secondary' | 'default' | 'outline' | 'destructive'; className: string; label: string }> = {
+  draft: { variant: 'secondary', className: 'bg-muted text-muted-foreground', label: 'Draft' },
+  active: { variant: 'default', className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', label: 'Active' },
+  paused: { variant: 'outline', className: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30', label: 'Paused' },
+  filled: { variant: 'outline', className: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30', label: 'Filled' },
+  cancelled: { variant: 'destructive', className: 'bg-destructive/15 text-destructive border-destructive/30', label: 'Cancelled' },
+};
+
+const JobsList = () => {
+  const navigate = useNavigate();
+  const { currentWorkspace } = useWorkspace();
+  const { data: jobs = [], isLoading } = useJobs();
+  const { data: counts } = useJobCounts(currentWorkspace?.id);
+  const createJob = useCreateJob();
+
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  const activeCount = useMemo(() => jobs.filter(j => j.status === 'active').length, [jobs]);
+
+  const filtered = useMemo(() => {
+    return jobs.filter(j => {
+      if (statusFilter !== 'all' && j.status !== statusFilter) return false;
+      if (typeFilter !== 'all' && j.job_type !== typeFilter) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        const companyName = (j as any).companies?.name || '';
+        if (!j.title.toLowerCase().includes(q) && !companyName.toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+  }, [jobs, statusFilter, typeFilter, search]);
+
+  const handleCreate = () => {
+    createJob.mutate({ title: 'Untitled Job' }, {
+      onSuccess: (data: any) => navigate(`/jobs/${data.id}`),
+    });
+  };
+
+  return (
+    <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Jobs</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {activeCount} active role{activeCount !== 1 ? 's' : ''} in workspace
+          </p>
+        </div>
+        <Button size="sm" className="gap-1.5" onClick={handleCreate} data-jarvis-id="add-job-button">
+          <Plus className="w-3.5 h-3.5" />
+          New Job
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search jobs or companies…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 h-9"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="paused">Paused</SelectItem>
+            <SelectItem value="filled">Filled</SelectItem>
+            <SelectItem value="cancelled">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Job type" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="permanent">Permanent</SelectItem>
+            <SelectItem value="contract">Contract</SelectItem>
+            <SelectItem value="temp">Temp</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Table */}
+      {isLoading ? (
+        <Card>
+          <CardContent className="p-0">
+            <div className="space-y-2 p-6">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : filtered.length === 0 ? (
+        <Card className="flex flex-col items-center justify-center text-center p-12">
+          <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
+            <Briefcase className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <h3 className="text-sm font-semibold text-foreground">No jobs yet</h3>
+          <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+            Create a job to start building specs, adverts, and shortlists.
+          </p>
+          <Button size="sm" className="mt-4 gap-1.5" onClick={handleCreate}>
+            <Plus className="w-3.5 h-3.5" /> New Job
+          </Button>
+        </Card>
+      ) : (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Job Title</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-center">Applications</TableHead>
+                  <TableHead className="text-center">Shortlisted</TableHead>
+                  <TableHead>Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(job => {
+                  const badge = STATUS_BADGE[job.status] || STATUS_BADGE.draft;
+                  const appCount = counts?.appCounts?.[job.id] ?? 0;
+                  const shortCount = counts?.shortCounts?.[job.id] ?? 0;
+                  return (
+                    <TableRow
+                      key={job.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => navigate(`/jobs/${job.id}`)}
+                    >
+                      <TableCell className="font-medium">{job.title}</TableCell>
+                      <TableCell className="text-muted-foreground">{(job as any).companies?.name || '—'}</TableCell>
+                      <TableCell className="capitalize text-muted-foreground">{job.job_type || '—'}</TableCell>
+                      <TableCell className="text-muted-foreground">{job.location || '—'}</TableCell>
+                      <TableCell>
+                        <Badge variant={badge.variant} className={badge.className}>{badge.label}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">{appCount}</TableCell>
+                      <TableCell className="text-center">{shortCount}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {format(new Date(job.created_at), 'dd MMM yyyy')}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
+export default JobsList;

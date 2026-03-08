@@ -387,17 +387,66 @@ export function useDraftOutreach() {
       from_name?: string;
       from_email?: string;
       campaign_name?: string;
+      channels?: string[];
+      recruiter_phone?: string;
+      agency_name?: string;
     }) => {
       const { data, error } = await supabase.functions.invoke('draft-outreach', {
         body: payload,
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      return data as { drafted: number; total_approved: number; skipped: number; job_title: string; campaign_name: string };
+      return data as { drafted: number; email_count: number; sms_count: number; ai_call_count: number; total_approved: number; channels_requested: string[]; job_title: string; campaign_name: string };
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['outreach_messages'] });
-      toast.success(`${data.drafted} emails drafted for ${data.job_title}`);
+      const parts = [];
+      if (data.email_count > 0) parts.push(`${data.email_count} email${data.email_count !== 1 ? 's' : ''}`);
+      if (data.sms_count > 0) parts.push(`${data.sms_count} SMS`);
+      if (data.ai_call_count > 0) parts.push(`${data.ai_call_count} AI call${data.ai_call_count !== 1 ? 's' : ''}`);
+      toast.success(`Drafted ${parts.join(', ')} for ${data.job_title}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSendOutreachSms() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (messageIds: string[]) => {
+      const { data, error } = await supabase.functions.invoke('send-outreach-sms', {
+        body: { message_ids: messageIds },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as { sent: number; failed: number; total: number; results: any[] };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['outreach_messages'] });
+      qc.invalidateQueries({ queryKey: ['job_shortlist'] });
+      if (data.sent > 0) toast.success(`${data.sent} SMS sent`);
+      if (data.failed > 0) toast.error(`${data.failed} SMS failed`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSendOutreachAiCall() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (messageIds: string[]) => {
+      const { data, error } = await supabase.functions.invoke('send-outreach-ai-call', {
+        body: { message_ids: messageIds },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as { sent: number; failed: number; total: number; results: any[] };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['outreach_messages'] });
+      qc.invalidateQueries({ queryKey: ['job_shortlist'] });
+      if (data.sent > 0) toast.success(`${data.sent} AI call${data.sent !== 1 ? 's' : ''} initiated`);
+      if (data.failed > 0) toast.error(`${data.failed} call${data.failed !== 1 ? 's' : ''} failed`);
     },
     onError: (e: Error) => toast.error(e.message),
   });

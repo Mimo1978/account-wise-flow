@@ -1696,7 +1696,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 
     // Build invalidation list for frontend cache
     const invalidateQueries: string[] = [];
-    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms"]);
+    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job"]);
     const entityQueryMap: Record<string, string[]> = {
       companies: ["companies", "canvas-companies"],
       crm_companies: ["crm_companies"],
@@ -1708,6 +1708,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       crm_activities: ["crm_activities"],
       email: ["crm_activities"],
       sms: ["crm_activities"],
+      jobs: ["jobs"],
     };
 
     for (const action of actionsExecuted) {

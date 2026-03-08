@@ -4064,6 +4064,12 @@ export type Database = {
           id: string
           job_id: string | null
           opened_at: string | null
+          parsed_availability_date: string | null
+          parsed_availability_text: string | null
+          parsed_interest: string | null
+          parsed_preferred_contact: string | null
+          parsed_questions: Json | null
+          parsed_sentiment: string | null
           replied_at: string | null
           reply_content: string | null
           sent_at: string | null
@@ -4094,6 +4100,12 @@ export type Database = {
           id?: string
           job_id?: string | null
           opened_at?: string | null
+          parsed_availability_date?: string | null
+          parsed_availability_text?: string | null
+          parsed_interest?: string | null
+          parsed_preferred_contact?: string | null
+          parsed_questions?: Json | null
+          parsed_sentiment?: string | null
           replied_at?: string | null
           reply_content?: string | null
           sent_at?: string | null
@@ -4124,6 +4136,12 @@ export type Database = {
           id?: string
           job_id?: string | null
           opened_at?: string | null
+          parsed_availability_date?: string | null
+          parsed_availability_text?: string | null
+          parsed_interest?: string | null
+          parsed_preferred_contact?: string | null
+          parsed_questions?: Json | null
+          parsed_sentiment?: string | null
           replied_at?: string | null
           reply_content?: string | null
           sent_at?: string | null

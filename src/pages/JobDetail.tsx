@@ -40,9 +40,19 @@ import {
   useSendOutreachSms,
   useSendOutreachAiCall,
   useUpdateOutreachMessage,
+  useLogCandidateReply,
+  useJobUnreviewedReplies,
   type JobShortlistEntry,
   type OutreachMessage,
 } from '@/hooks/use-jobs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   useBoardFormats,
   useUpdateAdvert,
@@ -59,7 +69,7 @@ import {
   Briefcase, FileText, Users, Inbox, Activity, Sparkles, Send, Play,
   Pause, CheckCircle2, XCircle, FileEdit, Copy, Globe, Loader2, Settings2,
   Trash2, Mail, MessageSquare, AlertTriangle, ChevronDown, ChevronUp, GripVertical,
-  ShieldCheck, Archive, ArrowUp, Phone, PhoneCall,
+  ShieldCheck, Archive, ArrowUp, Phone, PhoneCall, Reply, Bell,
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
@@ -75,7 +85,25 @@ const STATUS_BADGE: Record<string, { className: string; label: string }> = {
 const SHORTLIST_STATUS: Record<string, string> = {
   pending: 'Pending', contacted: 'Contacted', responded: 'Responded',
   interviewing: 'Interviewing', rejected: 'Rejected', placed: 'Placed',
+  approved: 'Approved', reserve: 'Reserve',
 };
+
+const INTEREST_BADGE: Record<string, { className: string; label: string }> = {
+  yes: { className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', label: 'Interested' },
+  no: { className: 'bg-destructive/15 text-destructive border-destructive/30', label: 'Not Interested' },
+  maybe: { className: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30', label: 'Maybe' },
+  unclear: { className: 'bg-muted text-muted-foreground', label: 'Unclear' },
+};
+
+function ShortlistReplyBadge({ jobId }: { jobId: string }) {
+  const { data: count = 0 } = useJobUnreviewedReplies(jobId);
+  if (count === 0) return null;
+  return (
+    <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+      {count}
+    </span>
+  );
+}
 
 const APP_STATUS: Record<string, string> = {
   new: 'New', reviewing: 'Reviewing', shortlisted: 'Shortlisted',
@@ -205,8 +233,9 @@ const JobDetail = () => {
           <TabsTrigger value="adverts" data-jarvis-id="job-tab-adverts">
             <FileText className="w-3.5 h-3.5 mr-1.5" /> Adverts
           </TabsTrigger>
-          <TabsTrigger value="shortlist" data-jarvis-id="job-tab-shortlist">
+          <TabsTrigger value="shortlist" data-jarvis-id="job-tab-shortlist" className="relative">
             <Users className="w-3.5 h-3.5 mr-1.5" /> Shortlist
+            <ShortlistReplyBadge jobId={job.id} />
           </TabsTrigger>
           <TabsTrigger value="outreach" data-jarvis-id="job-tab-outreach">
             <Send className="w-3.5 h-3.5 mr-1.5" /> Outreach
@@ -491,9 +520,13 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
   const updateStatus = useUpdateShortlistStatus();
   const approveAll = useApproveAllShortlist();
   const updatePriority = useUpdateShortlistPriority();
+  const logReply = useLogCandidateReply();
   const [reviewMode, setReviewMode] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [logReplyOpen, setLogReplyOpen] = useState(false);
+  const [logReplyEntryId, setLogReplyEntryId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   if (isLoading) return <TableSkeleton />;
 
@@ -509,13 +542,34 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
     return 'bg-muted text-muted-foreground';
   };
 
-  const statusBadge = (status: string) => {
+  const statusBadge = (status: string, entry?: JobShortlistEntry) => {
+    if (status === 'responded' && entry?.candidate_interest) {
+      const ib = INTEREST_BADGE[entry.candidate_interest] || INTEREST_BADGE.unclear;
+      return <Badge variant="outline" className={ib.className}>{ib.label}</Badge>;
+    }
+    if (status === 'rejected' && entry?.candidate_interest === 'no') {
+      return <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30">Declined</Badge>;
+    }
     switch (status) {
       case 'approved': return <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">Approved</Badge>;
       case 'reserve': return <Badge variant="outline" className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30">Reserve</Badge>;
       case 'contacted': return <Badge variant="outline" className="bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-500/30">Contacted</Badge>;
       default: return <Badge variant="outline" className="bg-muted text-muted-foreground">Pending Review</Badge>;
     }
+  };
+
+  const handleLogReply = (entryId: string) => {
+    setLogReplyEntryId(entryId);
+    setReplyText('');
+    setLogReplyOpen(true);
+  };
+
+  const handleSubmitReply = () => {
+    if (!logReplyEntryId || !replyText.trim()) return;
+    logReply.mutate({ shortlist_id: logReplyEntryId, reply_text: replyText.trim() });
+    setLogReplyOpen(false);
+    setLogReplyEntryId(null);
+    setReplyText('');
   };
 
   const handleDragStart = (id: string) => setDragId(id);
@@ -658,7 +712,7 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
                           {e.match_score != null && (
                             <Badge variant="outline" className={scoreBadgeClass(e.match_score)}>{e.match_score}%</Badge>
                           )}
-                          {statusBadge(e.status)}
+                          {statusBadge(e.status, e)}
                           {e.availability_warning && (
                             <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
                               <AlertTriangle className="w-3 h-3" /> {e.availability_warning}
@@ -728,9 +782,20 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
                           <span>Availability: {e.candidates?.availability_status || 'Unknown'}</span>
                           <span>Location: {e.candidates?.location || 'Unknown'}</span>
                         </div>
+                        {e.candidate_interest && (
+                          <div className="flex items-center gap-2 text-xs pt-1 border-t border-border">
+                            <Reply className="w-3 h-3 text-muted-foreground" />
+                            <span>Response: <strong className="capitalize">{e.candidate_interest}</strong></span>
+                            {e.availability_confirmed && <span className="text-muted-foreground">· {e.availability_confirmed}</span>}
+                            {e.response_received_at && <span className="text-muted-foreground">· {format(new Date(e.response_received_at), 'dd MMM HH:mm')}</span>}
+                          </div>
+                        )}
                         <div className="flex items-center gap-1 pt-1">
                           <Button variant="ghost" size="sm" className="h-7 text-xs"><Mail className="w-3 h-3 mr-1" /> Email</Button>
                           <Button variant="ghost" size="sm" className="h-7 text-xs"><MessageSquare className="w-3 h-3 mr-1" /> SMS</Button>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleLogReply(e.id)}>
+                            <Reply className="w-3 h-3 mr-1" /> Log Reply
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -791,7 +856,7 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
                         <span className="text-xs text-emerald-600 dark:text-emerald-400">Available</span>
                       )}
                     </TableCell>
-                    <TableCell>{statusBadge(e.status)}</TableCell>
+                    <TableCell>{statusBadge(e.status, e)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1 justify-end">
                         {e.status === 'pending' && (
@@ -799,6 +864,9 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                           </Button>
                         )}
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Log Reply" onClick={() => handleLogReply(e.id)}>
+                          <Reply className="w-3.5 h-3.5" />
+                        </Button>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Email"><Mail className="w-3.5 h-3.5" /></Button>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="SMS"><MessageSquare className="w-3.5 h-3.5" /></Button>
                         <Button
@@ -819,6 +887,39 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
           )}
         </CardContent>
       </Card>
+
+      {/* Log Reply Dialog */}
+      <Dialog open={logReplyOpen} onOpenChange={setLogReplyOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Log Candidate Reply</DialogTitle>
+            <DialogDescription>
+              Paste the candidate's reply or summarise their response. Jarvis will automatically parse their interest and availability.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={replyText}
+            onChange={e => setReplyText(e.target.value)}
+            placeholder="Paste candidate's reply here..."
+            rows={6}
+            className="text-sm"
+          />
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setLogReplyOpen(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              onClick={handleSubmitReply}
+              disabled={!replyText.trim() || logReply.isPending}
+            >
+              {logReply.isPending ? (
+                <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Parsing...</>
+              ) : (
+                <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Parse & Save</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

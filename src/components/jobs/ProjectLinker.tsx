@@ -11,6 +11,7 @@ import { Link2, ExternalLink, Plus, X, Loader2, FolderOpen } from 'lucide-react'
 interface ProjectLinkerProps {
   jobId: string;
   jobTitle: string;
+  onProjectLinked?: (projectId: string) => void;
 }
 
 export function ProjectLinker({ jobId, jobTitle }: ProjectLinkerProps) {

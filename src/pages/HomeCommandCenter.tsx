@@ -470,7 +470,7 @@ function DiaryEventsSection({
     task: CheckSquare,
   };
 
-  const hasAnyItems = diaryEvents.length > 0 || diaryItems.length > 0;
+  const hasAnyItems = diaryEvents.length > 0;
 
   if (!hasAnyItems) {
     return (
@@ -479,14 +479,13 @@ function DiaryEventsSection({
           <CalendarClock className="w-6 h-6 text-muted-foreground" />
         </div>
         <h3 className="text-sm font-semibold text-foreground">No events this week</h3>
-        <p className="text-xs text-muted-foreground mt-1">Booked calls, meetings and critical dates will appear here.</p>
+        <p className="text-xs text-muted-foreground mt-1">Booked calls, meetings and tasks will appear here.</p>
       </Card>
     );
   }
 
   return (
     <Card className="divide-y divide-border/50">
-      {/* Real diary events first */}
       {diaryEvents.map((evt: any) => {
         const Icon = EVENT_ICONS[evt.event_type] || CalendarClock;
         const startDate = new Date(evt.start_time);
@@ -507,13 +506,9 @@ function DiaryEventsSection({
           </div>
         );
       })}
-      {/* Critical date items */}
-      {diaryItems.slice(0, Math.max(0, 6 - diaryEvents.length)).map((item) => (
-        <CriticalDateRow key={item.id} item={item} onClick={() => onItemClick(item)} />
-      ))}
-      {(diaryEvents.length + diaryItems.length) > 6 && (
+      {diaryEvents.length > 6 && (
         <div className="px-4 py-2 text-center">
-          <span className="text-xs text-muted-foreground">+{(diaryEvents.length + diaryItems.length) - 6} more</span>
+          <span className="text-xs text-muted-foreground">+{diaryEvents.length - 6} more</span>
         </div>
       )}
     </Card>

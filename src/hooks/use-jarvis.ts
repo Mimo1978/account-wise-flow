@@ -37,7 +37,7 @@ export interface JarvisActionPayload {
   options?: string[];
 }
 
-export type JarvisFlowType = 'CREATE_COMPANY' | 'CREATE_CONTACT' | 'LOG_CALL' | 'CREATE_DEAL' | null;
+export type JarvisFlowType = 'CREATE_COMPANY' | 'CREATE_CONTACT' | 'LOG_CALL' | 'CREATE_DEAL' | 'CREATE_JOB_SPEC' | null;
 
 export interface JarvisFlowState {
   flow: JarvisFlowType;

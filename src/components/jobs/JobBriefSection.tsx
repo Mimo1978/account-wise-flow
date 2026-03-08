@@ -12,6 +12,7 @@ import {
   Sparkles, Paperclip, CheckCircle2, Loader2, ChevronRight,
   MessageSquare, FileText, Edit3,
 } from 'lucide-react';
+import { ProjectLinkPrompt } from './ProjectLinker';
 
 interface QA { question: string; answer: string; hint?: string }
 interface AIQuestion { id: string; question: string; hint: string }
@@ -150,6 +151,10 @@ export function JobBriefSection({ job }: JobBriefSectionProps) {
             <Edit3 className="w-3.5 h-3.5 mr-1.5" /> Edit
           </Button>
         </div>
+        
+        {/* Pause point 1: Suggest linking to a project after spec approval */}
+        <ProjectLinkPrompt jobId={job.id} jobTitle={job.title} variant="spec-approved" />
+        
         <Card>
           <CardHeader><CardTitle className="text-sm">Job Specification</CardTitle></CardHeader>
           <CardContent>

@@ -77,6 +77,8 @@ import {
   ShieldCheck, Archive, ArrowUp, Phone, PhoneCall, Reply, Bell,
 } from 'lucide-react';
 import { JobBriefSection } from '@/components/jobs/JobBriefSection';
+import { ProjectLinker, ProjectLinkPrompt, FilledModalLinker } from '@/components/jobs/ProjectLinker';
+import { useJobProjects } from '@/hooks/use-job-projects';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 
@@ -128,6 +130,8 @@ const JobDetail = () => {
   const navigate = useNavigate();
   const { data: job, isLoading } = useJob(id);
   const updateStatus = useUpdateJobStatus();
+  const { data: jobProjectLinks = [] } = useJobProjects(id);
+  const [showFilledModal, setShowFilledModal] = useState(false);
 
   if (isLoading) {
     return (
@@ -151,8 +155,13 @@ const JobDetail = () => {
   }
 
   const badge = STATUS_BADGE[job.status] || STATUS_BADGE.draft;
+  const hasLinkedProject = jobProjectLinks.length > 0;
   const handleStatusChange = (newStatus: string) => {
     updateStatus.mutate({ id: job.id, status: newStatus });
+    // Pause point 4: show modal when filled and no project linked
+    if (newStatus === 'filled' && !hasLinkedProject) {
+      setShowFilledModal(true);
+    }
   };
 
   return (
@@ -166,11 +175,13 @@ const JobDetail = () => {
             <h1 className="text-2xl font-bold text-foreground tracking-tight">{job.title}</h1>
             <Badge variant="outline" className={badge.className}>{badge.label}</Badge>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {(job as any).companies?.name || 'No company'}
-            {job.location ? ` · ${job.location}` : ''}
-            {job.job_type ? ` · ${job.job_type}` : ''}
-          </p>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+            <span>{(job as any).companies?.name || 'No company'}</span>
+            {job.location && <><span>·</span><span>{job.location}</span></>}
+            {job.job_type && <><span>·</span><span>{job.job_type}</span></>}
+            <span>·</span>
+            <ProjectLinker jobId={job.id} jobTitle={job.title} />
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button variant="outline" size="sm" data-jarvis-id="job-generate-spec-button">
@@ -181,6 +192,26 @@ const JobDetail = () => {
           </Button>
         </div>
       </div>
+
+      {/* Filled role celebration modal (Pause point 4) */}
+      <Dialog open={showFilledModal} onOpenChange={setShowFilledModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              🎉 Role filled!
+            </DialogTitle>
+            <DialogDescription>
+              Link this to a project to log it as a completed deliverable and update your pipeline.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setShowFilledModal(false)}>
+              Close
+            </Button>
+            <FilledModalLinker jobId={job.id} jobTitle={job.title} onLinked={() => setShowFilledModal(false)} />
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Status Controls */}
       <Card>
@@ -255,7 +286,7 @@ const JobDetail = () => {
         </TabsList>
 
         <TabsContent value="overview"><OverviewTab job={job} /></TabsContent>
-        <TabsContent value="adverts"><AdvertsTab jobId={job.id} /></TabsContent>
+        <TabsContent value="adverts"><AdvertsTab jobId={job.id} jobTitle={job.title} /></TabsContent>
         <TabsContent value="shortlist"><ShortlistTab jobId={job.id} jobTitle={job.title} /></TabsContent>
         <TabsContent value="outreach"><OutreachTab jobId={job.id} jobTitle={job.title} /></TabsContent>
         <TabsContent value="applications"><ApplicationsTab jobId={job.id} /></TabsContent>
@@ -316,9 +347,10 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 // ---------- Adverts Tab ----------
-function AdvertsTab({ jobId }: { jobId: string }) {
+function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const { data: adverts = [], isLoading } = useJobAdverts(jobId);
   const { data: boardFormats = [] } = useBoardFormats();
+  const { data: jobProjectLinks = [] } = useJobProjects(jobId);
   const updateAdvert = useUpdateAdvert();
   const publishAdvert = usePublishAdvert();
   const queryClient = useQueryClient();
@@ -360,6 +392,20 @@ function AdvertsTab({ jobId }: { jobId: string }) {
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
     toast.success('Advert text copied to clipboard');
+  };
+
+  // Custom publish handler with project link toast (Pause point 2)
+  const handlePublish = (advertId: string, board: string) => {
+    publishAdvert.mutate({ id: advertId, board }, {
+      onSuccess: () => {
+        if (jobProjectLinks.length === 0) {
+          // Show toast with link action for pause point 2
+          toast.info('This job is live. Link it to a project to track progress in your Command Centre.', {
+            duration: 5000,
+          });
+        }
+      },
+    });
   };
 
   if (isLoading) return <TableSkeleton />;
@@ -431,7 +477,7 @@ function AdvertsTab({ jobId }: { jobId: string }) {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => publishAdvert.mutate({ id: a.id, board: a.board || '' })}
+                                onClick={() => handlePublish(a.id, a.board || '')}
                                 data-jarvis-id="job-publish-button"
                               >
                                 {a.board === 'internal' ? (
@@ -592,6 +638,11 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
 
   return (
     <div className="space-y-4">
+      {/* Pause point 3: Project link prompt when candidates are in progress */}
+      {entries.length > 0 && (
+        <ProjectLinkPrompt jobId={jobId} jobTitle={jobTitle} variant="shortlist" />
+      )}
+
       {/* Review Banner */}
       {entries.length > 0 && hasPending && (
         <Card className="border-primary/30 bg-primary/5">

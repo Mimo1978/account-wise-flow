@@ -717,7 +717,7 @@ const HomeCommandCenter = () => {
 
         {/* ═══ 6. OUTREACH STATS ROW ═══ */}
         {outreachMetrics && outreachMetrics.totalTargets > 0 && (
-          <section>
+          <section data-jarvis-section="outreach-stats">
             <SectionHeader title="Outreach" icon={Send} accentColor="bg-primary" />
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
               {[

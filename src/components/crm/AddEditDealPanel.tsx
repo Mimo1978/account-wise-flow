@@ -147,7 +147,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         <div className="space-y-4 py-4">
           <div>
             <Label>Title *</Label>
-            <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} data-jarvis-id="deal-name-input" />
+            <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} data-jarvis-id="deal-nam-input" />
             {errors.title && <p className="text-xs text-destructive mt-1">{errors.title}</p>}
           </div>
 
@@ -205,7 +205,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>End Date</Label>
-              <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
+              <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} /data-jarvis-id="deal-close-date-input" >
             </div>
             <div>
               <Label>Payment Terms</Label>

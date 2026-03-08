@@ -3125,7 +3125,10 @@ export type Database = {
       }
       job_applications: {
         Row: {
+          ai_gaps: string[] | null
           ai_match_score: number | null
+          ai_recommended_action: string | null
+          ai_strengths: string[] | null
           ai_summary: string | null
           applicant_email: string | null
           applicant_name: string | null
@@ -3138,12 +3141,16 @@ export type Database = {
           id: string
           job_id: string
           linkedin_url: string | null
+          processed_at: string | null
           source: string | null
           status: string | null
           workspace_id: string
         }
         Insert: {
+          ai_gaps?: string[] | null
           ai_match_score?: number | null
+          ai_recommended_action?: string | null
+          ai_strengths?: string[] | null
           ai_summary?: string | null
           applicant_email?: string | null
           applicant_name?: string | null
@@ -3156,12 +3163,16 @@ export type Database = {
           id?: string
           job_id: string
           linkedin_url?: string | null
+          processed_at?: string | null
           source?: string | null
           status?: string | null
           workspace_id: string
         }
         Update: {
+          ai_gaps?: string[] | null
           ai_match_score?: number | null
+          ai_recommended_action?: string | null
+          ai_strengths?: string[] | null
           ai_summary?: string | null
           applicant_email?: string | null
           applicant_name?: string | null
@@ -3174,6 +3185,7 @@ export type Database = {
           id?: string
           job_id?: string
           linkedin_url?: string | null
+          processed_at?: string | null
           source?: string | null
           status?: string | null
           workspace_id?: string

@@ -581,6 +581,108 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  // ─── Recruitment workflow tools ───
+  {
+    type: "function",
+    function: {
+      name: "get_job_applications_summary",
+      description: "Get a summary of applications for a specific job — total count, status breakdown, and top-scored applicants. Use when user asks 'how many applications for [job]', 'show me applications for [job]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "score_unprocessed_applications",
+      description: "Trigger AI scoring for all unprocessed applications on a job. Use when user says 'score applications for [job]', 'process new applications'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "bulk_reject_low_scoring",
+      description: "Reject all applications scoring below a threshold (default 50). ALWAYS ask for confirmation first. Use when user says 'reject low-scoring applications', 'reject all bad applications'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+          threshold: { type: "number", description: "Score threshold below which to reject (default 50)" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_shortlist_summary",
+      description: "Get a summary of the shortlist for a job — counts by status, top candidates. Use when user asks 'shortlist status for [job]', 'how is the shortlist looking'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_unresponsive_candidates",
+      description: "List candidates who haven't responded to outreach for a job. Use when user says 'who haven't we heard from', 'unresponsive candidates for [job]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lookup_job",
+      description: "Look up a job by title within the user's workspace. Use this to find a job_id before running recruitment actions like shortlisting, scoring, or outreach.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Job title to search for" },
+        },
+        required: ["title"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "send_applicant_update",
+      description: "Send an automated status update email to an applicant when their application status changes. Use when updating application status.",
+      parameters: {
+        type: "object",
+        properties: {
+          application_id: { type: "string" },
+          new_status: { type: "string" },
+          old_status: { type: "string" },
+        },
+        required: ["application_id", "new_status"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.

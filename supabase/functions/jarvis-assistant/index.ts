@@ -374,6 +374,41 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "generate_adverts",
+      description: "Generate tailored job adverts for selected job boards from a job specification. Respects each board's word/character limits and format rules. Supports boards: internal, linkedin, jobserve, reed, own_site, indeed.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID to generate adverts for" },
+          boards: {
+            type: "array",
+            items: { type: "string" },
+            description: "Array of board names to generate for, e.g. ['linkedin', 'reed', 'indeed']",
+          },
+        },
+        required: ["job_id", "boards"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_advert",
+      description: "Update the content of an existing job advert. Use when the user asks to shorten, rephrase, or modify a specific advert.",
+      parameters: {
+        type: "object",
+        properties: {
+          advert_id: { type: "string" },
+          instruction: { type: "string", description: "What to change, e.g. 'shorten by 20%' or 'make more benefits-led'" },
+          job_id: { type: "string", description: "The parent job ID for context" },
+        },
+        required: ["advert_id", "instruction", "job_id"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.

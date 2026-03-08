@@ -455,6 +455,35 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "draft_outreach_emails",
+      description: "Draft personalised outreach emails for approved shortlisted candidates. Use when the user says 'draft outreach', 'email the shortlist', 'send outreach', 'draft emails for [job]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+          automation_level: { type: "string", description: "draft, approve_batch, or auto_send" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_outreach_status",
+      description: "Check how many candidates have been contacted for a job. Use when user asks 'how many have we contacted', 'outreach status for [job]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "update_advert",
       description: "Update the content of an existing job advert. Use when the user asks to shorten, rephrase, or modify a specific advert.",
       parameters: {

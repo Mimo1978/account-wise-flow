@@ -1306,7 +1306,7 @@ const HomeCommandCenter = () => {
         )}
       </section>
 
-      {/* ── Pipeline Snapshot (Deals Kanban) ── */}
+      {/* ── Pipeline Snapshot: Monday.com Chevron Flow ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider" data-jarvis-id="home-pipeline-snapshot">Pipeline Snapshot</h2>
@@ -1338,98 +1338,69 @@ const HomeCommandCenter = () => {
             ]}
           />
         ) : (
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {DEAL_STAGES.map((stage) => {
-              const stageDeals = deals.filter((d) => d.stage === stage);
-              const stageTotal = stageDeals.reduce((s, d) => s + d.value, 0);
-              return (
-                <div key={stage} className="min-w-[200px] flex-1">
-                  <div className="flex items-center justify-between mb-2 px-1">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{DEAL_STAGE_LABELS[stage]}</span>
-                    <Badge variant="secondary" className="text-xs">{stageDeals.length}</Badge>
-                  </div>
-                  {stageTotal > 0 && (
-                    <p className="text-xs text-muted-foreground px-1 mb-2">£{stageTotal.toLocaleString()}</p>
-                  )}
-                  <div className="space-y-2">
-                    {stageDeals.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-border p-4 text-center">
-                        <p className="text-xs text-muted-foreground">No deals</p>
-                      </div>
-                    ) : (
-                      stageDeals.map((deal) => {
-                        const stageIdx = DEAL_STAGES.indexOf(deal.stage as any);
-                        const nextStage = stageIdx >= 0 && stageIdx < DEAL_STAGES.length - 2 ? DEAL_STAGES[stageIdx + 1] : null;
-                        return (
-                          <Card key={deal.id} className="p-3 hover:shadow-sm transition-shadow">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-sm font-medium text-foreground truncate flex-1">{deal.name}</p>
-                              {isRecruitmentDeal(deal) && (
-                                <Badge variant="secondary" className="text-[10px] shrink-0">Recruitment</Badge>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.companies?.name ?? '—'}</p>
-                            <div className="flex items-center justify-between mt-2">
-                              <span className="text-xs font-medium text-foreground">£{deal.value.toLocaleString()}</span>
-                              <Badge variant="outline" className="text-xs">{deal.probability}%</Badge>
-                            </div>
-                            {deal.expected_close_date && (
-                              <p className="text-xs text-muted-foreground mt-1">Close: {format(new Date(deal.expected_close_date), 'dd MMM')}</p>
-                            )}
-                            {/* Deal actions */}
-                            <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/40">
-                              {nextStage && deal.stage !== 'won' && deal.stage !== 'lost' && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 text-[10px] px-2"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    updateDeal.mutateAsync({ id: deal.id, stage: nextStage });
-                                    toast.success(`Moved to ${DEAL_STAGE_LABELS[nextStage]}`);
-                                  }}
-                                >
-                                  → {DEAL_STAGE_LABELS[nextStage]}
-                                </Button>
-                              )}
-                              {deal.stage === 'won' && !deal.engagement_id && (
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  className="h-6 text-[10px] px-2 gap-1"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setConvertDeal(deal);
-                                    setCreateOpen(true);
-                                  }}
-                                >
-                                  <Briefcase className="w-3 h-3" />
-                                  Create Project
-                                </Button>
-                              )}
-                              {deal.stage === 'won' && deal.engagement_id && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 text-[10px] px-2 gap-1"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/projects/${deal.engagement_id}`);
-                                  }}
-                                >
-                                  <ArrowRight className="w-3 h-3" />
-                                  View Project
-                                </Button>
-                              )}
-                            </div>
-                          </Card>
-                        );
-                      })
-                    )}
-                  </div>
+          <div className="space-y-4">
+            {/* Chevron flow row */}
+            <div className="flex items-stretch -space-x-1 overflow-x-auto">
+              {DEAL_STAGES.map((stage, idx) => {
+                const stageDeals = deals.filter((d) => (d.stage || 'lead') === stage);
+                const stageTotal = stageDeals.reduce((s, d) => s + d.value, 0);
+                const isActive = pipelineFilter === null || pipelineFilter === stage;
+                return (
+                  <PipelineChevron
+                    key={stage}
+                    stage={stage}
+                    label={DEAL_STAGE_LABELS[stage]}
+                    count={stageDeals.length}
+                    total={stageTotal}
+                    isFirst={idx === 0}
+                    isLast={idx === DEAL_STAGES.length - 1}
+                    isActive={isActive}
+                    onClick={() => setPipelineFilter(prev => prev === stage ? null : stage)}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Filtered deal cards */}
+            {(() => {
+              const filteredDeals = pipelineFilter
+                ? deals.filter(d => (d.stage || 'lead') === pipelineFilter)
+                : deals;
+              if (filteredDeals.length === 0) return (
+                <div className="rounded-lg border border-dashed border-border p-6 text-center">
+                  <p className="text-sm text-muted-foreground">No deals in {DEAL_STAGE_LABELS[pipelineFilter!]}</p>
                 </div>
               );
-            })}
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-1">
+                  {filteredDeals.map(deal => (
+                    <PipelineDealCard
+                      key={deal.id}
+                      deal={deal}
+                      isRecruitment={isRecruitmentDeal(deal)}
+                      onAdvance={(nextStage) => {
+                        updateDeal.mutateAsync({ id: deal.id, stage: nextStage });
+                        toast.success(`Moved to ${DEAL_STAGE_LABELS[nextStage]}`);
+                      }}
+                      onCreateProject={deal.stage === 'won' && !deal.engagement_id ? () => {
+                        setConvertDeal(deal);
+                        setCreateOpen(true);
+                      } : undefined}
+                      onViewProject={deal.stage === 'won' && deal.engagement_id ? () => {
+                        navigate(`/projects/${deal.engagement_id}`);
+                      } : undefined}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* Click hint */}
+            {pipelineFilter && (
+              <p className="text-xs text-muted-foreground text-center">
+                Showing <strong>{DEAL_STAGE_LABELS[pipelineFilter]}</strong> deals · <button className="underline hover:text-foreground" onClick={() => setPipelineFilter(null)}>Show all</button>
+              </p>
+            )}
           </div>
         )}
       </section>

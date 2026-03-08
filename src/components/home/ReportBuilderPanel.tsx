@@ -79,16 +79,15 @@ export function ReportBuilderPanel({ open, onOpenChange, preselectedType, autoDo
         case 'pipeline': {
           const { data } = await supabase
             .from('deals')
-            .select('name, stage, value, currency, probability, expected_close_date, companies(name)')
+            .select('name, stage, value, currency, probability, expected_close_date')
             .eq('workspace_id', wsId)
-            .order('stage');
-          rows = (data ?? []).map((d: any) => ({
+            .order('stage') as { data: any[] | null };
+          rows = (data ?? []).map((d) => ({
             Deal: d.name,
             Stage: d.stage,
             Value: `${d.currency} ${Number(d.value).toLocaleString()}`,
             Probability: `${d.probability}%`,
             'Close Date': d.expected_close_date ? format(new Date(d.expected_close_date), 'dd MMM yyyy') : '—',
-            Company: d.companies?.name ?? '—',
           }));
           break;
         }

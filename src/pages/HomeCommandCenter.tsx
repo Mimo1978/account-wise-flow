@@ -812,16 +812,29 @@ const HomeCommandCenter = () => {
             {currentWorkspace?.name ?? 'Workspace'} &middot; Today&rsquo;s overview
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          onClick={handleRefresh}
-          disabled={refreshing}
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            data-jarvis-id="pull-report"
+            onClick={() => { setReportPreselect(undefined); setReportAutoDownload(false); setReportOpen(true); }}
+          >
+            <FileBarChart className="w-4 h-4" />
+            Pull Report
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            data-jarvis-id="refresh-command-centre"
+            onClick={handleRefresh}
+            disabled={refreshing}
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* ── KPI Row ── */}

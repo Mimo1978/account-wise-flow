@@ -51,6 +51,7 @@ export const DEFAULT_JARVIS_SETTINGS: JarvisSettings = {
   keep_listening_default: false,
   confirmation_mode: 'always',
   show_conversation_history: true,
+  spotlight_enabled: true,
 };
 
 export function useJarvisSettings() {

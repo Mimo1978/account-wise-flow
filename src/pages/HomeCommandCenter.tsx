@@ -739,7 +739,7 @@ const HomeCommandCenter = () => {
         )}
 
         {/* ═══ 7. BILLING SNAPSHOT (collapsible) ═══ */}
-        <section>
+        <section data-jarvis-section="billing-snapshot">
           <SectionHeader title="Billing Snapshot" icon={Receipt} accentColor="bg-amber-500" jarvisId="home-billing-snapshot">
             {activePlansExist && <Badge variant="secondary" className="text-xs gap-1"><Zap className="w-3 h-3" />Auto-billing</Badge>}
             {(isAdmin || isManager) && activePlansExist && (

@@ -262,7 +262,7 @@ const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "navigate",
-      description: "Navigate the user to a specific page or trigger a UI action. Destinations: home, dashboard, companies, contacts, talent, outreach, insights, canvas, projects, reports, deals, pipeline, invoices, documents, admin, integrations, billing settings, team management, jarvis settings, branding, outreach settings, signals, data quality. Actions: add company, add contact, add deal, add candidate, import contacts, create campaign, create invoice, import companies. Canvas actions: edit org chart, add person to org chart, build org chart, ai research, connect people, reset view.",
+      description: "Navigate the user to a specific page or trigger a UI action. Destinations: home, dashboard, companies, contacts, talent, outreach, insights, canvas, projects, reports, deals, pipeline, invoices, documents, admin, integrations, billing settings, team management, jarvis settings, branding, outreach settings, signals, data quality. Actions: add company, add contact, add deal, add candidate, import contacts, create campaign, create invoice, import companies. Canvas actions: edit org chart, add person to org chart, build org chart, ai research, connect people, reset view, save chart, zoom in, zoom out, fit view.",
       parameters: {
         type: "object",
         properties: {
@@ -270,6 +270,20 @@ const TOOL_DEFINITIONS = [
           entity_id: { type: "string", description: "Optional entity ID for detail pages" },
         },
         required: ["destination"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "navigate_to_canvas_for_company",
+      description: "Navigate to the Canvas org chart view for a specific company. Searches for the company by name first.",
+      parameters: {
+        type: "object",
+        properties: {
+          company_name: { type: "string", description: "The company name to search for and show on canvas" },
+        },
+        required: ["company_name"],
       },
     },
   },
@@ -347,9 +361,14 @@ CANVAS ORG CHART GUIDED TOURS — when user asks about editing, building, or man
 SMART INTENT MATCHING — map vague or natural language to the correct action. Use these examples as patterns:
 
 Canvas intents:
+- "show me the org chart for [company]" / "open canvas for [company]" / "take me to canvas for [company]" → use navigate_to_canvas_for_company tool with the company name. This searches the database and navigates to /canvas?company=[id].
 - "add someone to the org chart" / "add a person to the chart" → navigate to canvas, click canvas-add-node-button
 - "connect two people" / "link people" / "draw a reporting line" → navigate to canvas, click canvas-connect-tool
-- "I want to see the chart properly" / "zoom to fit" / "show the full chart" → navigate to canvas, click canvas-fit-view
+- "I want to see the chart properly" / "zoom to fit" / "show the full chart" / "I can't see the full chart" → navigate to canvas, click canvas-fit-view
+- "save the chart" / "save the layout" → navigate to canvas, click canvas-save-layout
+- "zoom in on the chart" → navigate to canvas, click canvas-zoom-in
+- "remove [name] from the chart" / "delete that node" → navigate to canvas, highlight canvas-delete-node, ask for confirmation before clicking
+- "move [person] to report to [person]" → navigate to canvas, highlight the relevant canvas-node-[slugified-name], explain they need to use Edit Structure mode and drag the node
 
 Company/Contact intents:
 - "filter my companies by industry" / "sort companies by sector" → navigate to /companies, highlight companies-filter-industry, explain it filters the list
@@ -876,6 +895,27 @@ async function executeTool(
         "create campaign": { path: "/outreach", action: "click", targetId: "new-campaign-button" },
         "create invoice": { path: "/home", action: "click", targetId: "create-invoice-button" },
         "import companies": { path: "/companies", action: "click", targetId: "import-companies-button" },
+        // Canvas actions
+        "save chart": { path: "/canvas", action: "click", targetId: "canvas-save-layout" },
+        "save the chart": { path: "/canvas", action: "click", targetId: "canvas-save-layout" },
+        "fit view": { path: "/canvas", action: "click", targetId: "canvas-fit-view" },
+        "fit the chart": { path: "/canvas", action: "click", targetId: "canvas-fit-view" },
+        "fit chart to screen": { path: "/canvas", action: "click", targetId: "canvas-fit-view" },
+        "zoom in": { path: "/canvas", action: "click", targetId: "canvas-zoom-in" },
+        "zoom in on the chart": { path: "/canvas", action: "click", targetId: "canvas-zoom-in" },
+        "zoom out": { path: "/canvas", action: "click", targetId: "canvas-zoom-out" },
+        "build org chart": { path: "/canvas", action: "click", targetId: "canvas-build-orgchart" },
+        "build the org chart": { path: "/canvas", action: "click", targetId: "canvas-build-orgchart" },
+        "research org": { path: "/canvas", action: "click", targetId: "canvas-ai-research" },
+        "research the org structure": { path: "/canvas", action: "click", targetId: "canvas-ai-research" },
+        "add to org chart": { path: "/canvas", action: "click", targetId: "canvas-add-node-button" },
+        "add person to org chart": { path: "/canvas", action: "click", targetId: "canvas-add-node-button" },
+        "add someone to the org chart": { path: "/canvas", action: "click", targetId: "canvas-add-node-button" },
+        "connect people": { path: "/canvas", action: "click", targetId: "canvas-connect-tool" },
+        "connect two people": { path: "/canvas", action: "click", targetId: "canvas-connect-tool" },
+        "draw reporting line": { path: "/canvas", action: "click", targetId: "canvas-connect-tool" },
+        "delete node": { path: "/canvas", action: "click", targetId: "canvas-delete-node" },
+        "remove from chart": { path: "/canvas", action: "click", targetId: "canvas-delete-node" },
       };
 
       // Try exact match first, then fuzzy keyword match
@@ -903,6 +943,40 @@ async function executeTool(
       if (entry?.targetId) result.target_id = entry.targetId;
 
       return { result, entityType: "navigation", entityId: path };
+    }
+    case "navigate_to_canvas_for_company": {
+      const companyName = (input.company_name as string).trim();
+      // Look up company by name
+      const { data: companies } = await supabaseAdmin
+        .from("companies")
+        .select("id, name")
+        .ilike("name", `%${companyName}%`)
+        .limit(5);
+      
+      if (!companies || companies.length === 0) {
+        // Try CRM companies as fallback
+        const { data: crmCompanies } = await supabaseAdmin
+          .from("crm_companies")
+          .select("id, name")
+          .ilike("name", `%${companyName}%`)
+          .is("deleted_at", null)
+          .limit(5);
+        
+        if (!crmCompanies || crmCompanies.length === 0) {
+          return { result: { error: `No company found matching "${companyName}"` }, entityType: "companies" };
+        }
+        return {
+          result: { navigate_to: `/canvas?company=${crmCompanies[0].id}`, matched_company: crmCompanies[0].name },
+          entityType: "navigation",
+          entityId: crmCompanies[0].id,
+        };
+      }
+
+      return {
+        result: { navigate_to: `/canvas?company=${companies[0].id}`, matched_company: companies[0].name },
+        entityType: "navigation",
+        entityId: companies[0].id,
+      };
     }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };

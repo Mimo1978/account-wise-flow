@@ -566,18 +566,18 @@ const Canvas = () => {
   // No company state — blank canvas with prompt
   if (!account) {
     return (
-      <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center gap-6">
+      <div className="flex flex-col h-[calc(100vh-65px)] items-center justify-center gap-6" data-jarvis-id="canvas-page">
         <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
           <Network className="w-10 h-10 text-primary" />
         </div>
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-semibold text-foreground">Select a company to explore their relationship map</h2>
+          <h2 className="text-2xl font-semibold text-foreground">Search for a company to view their org chart</h2>
           <p className="text-muted-foreground max-w-md">
-            Navigate to a company from the Companies page and click "View on Canvas" to visualise their org chart and contacts here.
+            Use the search below, navigate from the Companies page, or ask Jarvis to show a company's org chart.
           </p>
         </div>
         <div className="flex gap-3">
-          <Button onClick={handleBackToCompanies} className="gap-2">
+          <Button onClick={handleBackToCompanies} variant="outline" className="gap-2">
             <Building2 className="w-4 h-4" />
             Browse Companies
           </Button>
@@ -613,6 +613,10 @@ const Canvas = () => {
             <CanvasModeToggle
               mode={canvasMode}
               onModeChange={setCanvasMode}
+              onSaveLayout={() => {
+                toast.success("Layout saved");
+                setHasPendingStructuralChanges(false);
+              }}
             />
           </>
         )}

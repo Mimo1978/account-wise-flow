@@ -343,16 +343,21 @@ export interface OutreachMessage {
   candidate_id: string | null;
   candidate_name: string | null;
   candidate_email: string | null;
+  candidate_phone: string | null;
   subject: string;
   body: string | null;
   body_html: string | null;
+  sms_body: string | null;
+  ai_call_script: string | null;
   from_name: string | null;
   from_email: string | null;
   automation_level: string;
   campaign_name: string | null;
+  channel: string;
   status: string;
   sent_at: string | null;
   error_message: string | null;
+  twilio_sid: string | null;
   created_at: string;
 }
 

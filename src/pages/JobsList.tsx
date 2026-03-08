@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ const STATUS_BADGE: Record<string, { variant: 'secondary' | 'default' | 'outline
 
 const JobsList = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { currentWorkspace } = useWorkspace();
   const { data: jobs = [], isLoading } = useJobs();
   const { data: counts } = useJobCounts(currentWorkspace?.id);
@@ -33,7 +34,7 @@ const JobsList = () => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
-  const [showUnlinked, setShowUnlinked] = useState(false);
+  const [showUnlinked, setShowUnlinked] = useState(searchParams.get('filter') === 'unlinked');
 
   // Fetch all job-project links with project names and deal values
   const { data: jobLinks = [] } = useQuery({

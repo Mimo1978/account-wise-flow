@@ -683,6 +683,38 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  // ─── Golden Thread: Job-Project-Deal linkage tools ───
+  {
+    type: "function",
+    function: {
+      name: "get_unlinked_jobs",
+      description: "List all active jobs that are NOT linked to a project. Use when user asks 'what jobs aren't tracked', 'show me unlinked jobs', 'which jobs need a project'.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_recruitment_pipeline_value",
+      description: "Get total pipeline value from recruitment placement deals this month. Use when user asks 'recruitment pipeline value', 'placement fee total', 'how much is recruitment worth this month'.",
+      parameters: { type: "object", properties: {}, required: [] },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "link_job_to_project",
+      description: "Link a job to a CRM project. Use when user says 'link this job to a project', 'connect job to project'. Requires job_id and project_id.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+          project_id: { type: "string", description: "The CRM project UUID" },
+        },
+        required: ["job_id", "project_id"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.
@@ -1048,7 +1080,33 @@ APPLICATIONS:
   - After confirmation: call bulk_reject_low_scoring.
 
 DIARY CONTEXT:
-  "book a call with [candidate] about [job]" → lookup_job for job_id, then diary booking flow.`;
+  "book a call with [candidate] about [job]" → lookup_job for job_id, then diary booking flow.
+
+GOLDEN THREAD — Job-Project-Deal Linkage intents:
+
+"link this job to a project" / "connect this job to a project":
+  - If on a job detail page, use the job_id from context.
+  - Navigate to the job detail page and say: "Use the Project linker in the header to search for or create a project."
+  - <action>{"type":"NAVIGATE","destination":"jobs","highlight":"job-project-linker","label":"Link to Project"}</action>
+
+"create a project for this job" / "make a project for this role":
+  - Navigate to project creation with the job title pre-filled.
+  - <action>{"type":"NAVIGATE","destination":"/projects/new"}</action>
+  - Say: "I'll take you to create a new project — the job title will be pre-filled."
+
+"show me unlinked jobs" / "unlinked jobs" / "jobs without a project":
+  - Navigate to /jobs with the unlinked filter active.
+  - <action>{"type":"NAVIGATE","destination":"/jobs?filter=unlinked"}</action>
+  - Say: "Taking you to Jobs with the Unlinked filter active."
+
+"what jobs aren't tracked in a project" / "which jobs need a project" / "jobs not linked":
+  - Call get_unlinked_jobs. Read out the list naturally.
+  - Say: "You have [n] active jobs without a project: [list]. Want me to take you there to link them?"
+
+"what's the pipeline value from recruitment this month" / "recruitment pipeline value" / "placement fee total":
+  - Call get_recruitment_pipeline_value. Report the total.
+  - Say: "Your recruitment pipeline this month is worth [£X] across [n] placement deals."`;
+
 
 
 
@@ -2355,6 +2413,84 @@ Return ONLY valid JSON, no markdown fences.`,
       const data = await res.json();
       if (!res.ok) return { result: { error: data.error || "Failed to send update" }, entityType: "job_applications" };
       return { result: data, entityType: "job_applications", entityId: input.application_id as string };
+    }
+    // ─── Golden Thread tools ───
+    case "get_unlinked_jobs": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      const { data: allJobs } = await supabaseAdmin
+        .from("jobs")
+        .select("id, title, status, companies(name)")
+        .eq("workspace_id", teamId)
+        .eq("status", "active");
+      
+      const { data: links } = await supabaseAdmin
+        .from("jobs_projects")
+        .select("job_id");
+      
+      const linkedJobIds = new Set((links ?? []).map((l: any) => l.job_id));
+      const unlinked = (allJobs ?? []).filter((j: any) => !linkedJobIds.has(j.id));
+      
+      return {
+        result: {
+          count: unlinked.length,
+          jobs: unlinked.map((j: any) => ({
+            id: j.id,
+            title: j.title,
+            company: j.companies?.name || "No company",
+          })),
+          message: unlinked.length === 0
+            ? "All active jobs are linked to projects."
+            : `${unlinked.length} active job${unlinked.length > 1 ? "s" : ""} not linked to a project: ${unlinked.map((j: any) => j.title).join(", ")}.`,
+        },
+        entityType: "jobs",
+      };
+    }
+    case "get_recruitment_pipeline_value": {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      
+      const { data: deals } = await supabaseAdmin
+        .from("crm_deals")
+        .select("id, title, value, currency")
+        .ilike("title", "%Placement Fee%")
+        .gte("created_at", startOfMonth);
+      
+      const total = (deals ?? []).reduce((s: number, d: any) => s + (d.value || 0), 0);
+      const currency = deals?.[0]?.currency || "GBP";
+      
+      return {
+        result: {
+          total,
+          currency,
+          deal_count: (deals ?? []).length,
+          deals: (deals ?? []).map((d: any) => ({ title: d.title, value: d.value, currency: d.currency })),
+          message: (deals ?? []).length === 0
+            ? "No recruitment placement deals created this month yet."
+            : `Recruitment pipeline this month: ${currency === "GBP" ? "£" : currency === "USD" ? "$" : "€"}${total.toLocaleString()} across ${(deals ?? []).length} placement deal${(deals ?? []).length > 1 ? "s" : ""}.`,
+        },
+        entityType: "crm_deals",
+      };
+    }
+    case "link_job_to_project": {
+      const jobId = input.job_id as string;
+      const projectId = input.project_id as string;
+      
+      const { error } = await supabaseAdmin
+        .from("jobs_projects")
+        .insert({ job_id: jobId, project_id: projectId, created_by: userId });
+      
+      if (error) {
+        if (error.code === "23505") {
+          return { result: { message: "This job is already linked to that project." }, entityType: "jobs_projects" };
+        }
+        return { result: { error: error.message }, entityType: "jobs_projects" };
+      }
+      
+      return {
+        result: { success: true, message: "Job linked to project successfully." },
+        entityType: "jobs_projects",
+        invalidate_queries: ["jobs_projects", "jobs_projects_list"],
+      };
     }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };

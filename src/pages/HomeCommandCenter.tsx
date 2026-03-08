@@ -624,7 +624,7 @@ const HomeCommandCenter = () => {
               </Card>
             )}
           </div>
-          <div>
+          <div data-jarvis-section="diary">
             <SectionHeader title="Diary" icon={CalendarClock} accentColor="bg-primary" jarvisId="home-diary">
               <Badge variant="secondary" className="text-xs">Next 7 days</Badge>
             </SectionHeader>

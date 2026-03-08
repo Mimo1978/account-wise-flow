@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { resolveNavigation, type NavigationEntry } from "@/lib/jarvis-navigation-map";
+import { resolveNavigation, findDestination, type NavigationEntry } from "@/lib/jarvis-navigation-map";
 import type { GuidedTourStep } from "@/hooks/use-jarvis";
 import type { TourState } from "@/components/jarvis/GuidedTourPlayer";
 

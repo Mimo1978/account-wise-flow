@@ -578,6 +578,48 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     });
   }, [jarvisSettings.spotlight_enabled, jarvisSettings.page_glow_enabled, jarvisSettings.tooltip_labels_enabled]);
 
+  // Drag handlers (desktop only)
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    if (isMobile || !panelRef.current) return;
+    e.preventDefault();
+    const rect = panelRef.current.getBoundingClientRect();
+    dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setIsDragging(true);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMove = (e: MouseEvent) => {
+      let nx = e.clientX - dragOffsetRef.current.x;
+      let ny = e.clientY - dragOffsetRef.current.y;
+      nx = Math.max(0, Math.min(window.innerWidth - PANEL_W, nx));
+      ny = Math.max(0, Math.min(window.innerHeight - PANEL_H, ny));
+      setPanelPos({ x: nx, y: ny });
+    };
+    const handleUp = () => setIsDragging(false);
+    document.addEventListener("mousemove", handleMove);
+    document.addEventListener("mouseup", handleUp);
+    return () => { document.removeEventListener("mousemove", handleMove); document.removeEventListener("mouseup", handleUp); };
+  }, [isDragging]);
+
+  // Persist position to sessionStorage
+  useEffect(() => {
+    if (!isDragging && !isMobile) {
+      try { sessionStorage.setItem("jarvis_panel_position", JSON.stringify(panelPos)); } catch {}
+    }
+  }, [panelPos, isDragging, isMobile]);
+
+  // Show drag hint during tours
+  useEffect(() => {
+    if (jarvisNav.tourState.status === "running" && !isMobile) {
+      setDragHintVisible(true);
+      const t = setTimeout(() => setDragHintVisible(false), 4000);
+      return () => clearTimeout(t);
+    } else {
+      setDragHintVisible(false);
+    }
+  }, [jarvisNav.tourState.status, isMobile]);
+
   const greetingDoneRef = useRef(false);
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInteractionRef = useRef(Date.now());

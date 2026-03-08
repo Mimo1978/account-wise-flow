@@ -608,7 +608,7 @@ const HomeCommandCenter = () => {
 
         {/* ═══ 3. MY WORK + DIARY (50/50) ═══ */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
+          <div data-jarvis-section="my-work">
             <SectionHeader title="My Work" icon={CheckSquare} accentColor="bg-[hsl(262,80%,55%)]" jarvisId="home-my-work">
               {scheduledTodayCount > 0 && (
                 <Badge variant="outline" className="text-xs gap-1"><Zap className="w-3 h-3" />{scheduledTodayCount} invoice{scheduledTodayCount !== 1 ? 's' : ''} scheduled today</Badge>

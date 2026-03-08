@@ -911,18 +911,13 @@ const HomeCommandCenter = () => {
             />
           ) : (
             <Card className="divide-y divide-border/50">
-              {myWorkItems.slice(0, 8).map((item) => (
+              {myWorkItems.map((item) => (
                 <CriticalDateRow
                   key={item.id}
                   item={item}
                   onClick={() => handleItemClick(item)}
                 />
               ))}
-              {myWorkItems.length > 8 && (
-                <div className="px-4 py-2 text-center">
-                  <span className="text-xs text-muted-foreground">+{myWorkItems.length - 8} more items</span>
-                </div>
-              )}
             </Card>
           )}
         </div>

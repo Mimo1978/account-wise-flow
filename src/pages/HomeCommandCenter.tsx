@@ -39,6 +39,8 @@ import {
   Zap,
   Video,
   CheckSquare,
+  Inbox,
+  Send,
 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';

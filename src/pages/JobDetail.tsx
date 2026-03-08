@@ -385,7 +385,7 @@ const JobDetail = () => {
 };
 
 // ---------- Overview Tab ----------
-function OverviewTab({ job, onProjectLinked }: { job: any; onProjectLinked?: (projectId: string) => void }) {
+function OverviewTab({ job, onProjectLinked }: { job: any; onProjectLinked?: (projectId: string) => voidked }: { job: any; onProjectLinked?: (projectId: string) => void }) {
   const toggleConfidential = useToggleConfidential();
   const isConfidential = job.is_confidential ?? false;
 
@@ -638,8 +638,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   );
 }
 
-// ---------- Shortlist Tab ----------
-function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
+// ---------- , onProjectLinked }: { jobId: string; jobTitle: string; onProjectLinked?: (projectId: string) => voidrtlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const { data: entries = [], isLoading } = useJobShortlist(jobId);
   const removeFromShortlist = useRemoveFromShortlist();
   const runShortlist = useRunShortlist();

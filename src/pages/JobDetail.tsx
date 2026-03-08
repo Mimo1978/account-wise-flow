@@ -1283,40 +1283,171 @@ function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
 // ---------- Applications Tab ----------
 function ApplicationsTab({ jobId }: { jobId: string }) {
   const { data: apps = [], isLoading } = useJobApplications(jobId);
+  const updateStatus = useUpdateApplicationStatus();
+  const bulkUpdate = useBulkUpdateApplicationStatus();
+  const convertToCandidate = useConvertToCandidate();
+  const processApp = useProcessApplication();
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  const filtered = statusFilter === 'all' ? apps : apps.filter(a => a.status === statusFilter);
+  const allSelected = filtered.length > 0 && filtered.every(a => selected.has(a.id));
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map(a => a.id)));
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelected(next);
+  };
+
+  const scoreBadge = (score: number | null) => {
+    if (score == null) return <span className="text-muted-foreground text-xs">Pending</span>;
+    const cls = score >= 80
+      ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+      : score >= 60
+        ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30'
+        : 'bg-muted text-muted-foreground';
+    return <Badge variant="outline" className={cls}>{score}/100</Badge>;
+  };
+
   if (isLoading) return <TableSkeleton />;
 
   return (
     <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <CardTitle className="text-base">Applications ({apps.length})</CardTitle>
+          <div className="flex items-center gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="new">New</SelectItem>
+                <SelectItem value="reviewing">Reviewing</SelectItem>
+                <SelectItem value="shortlisted">Shortlisted</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+            {selected.size > 0 && (
+              <div className="flex items-center gap-1.5">
+                <Badge variant="secondary" className="text-xs">{selected.size} selected</Badge>
+                <Button
+                  variant="outline" size="sm" className="text-xs h-7"
+                  onClick={() => bulkUpdate.mutate({ ids: Array.from(selected), status: 'rejected' })}
+                >
+                  <XCircle className="w-3 h-3 mr-1" /> Reject
+                </Button>
+                <Button
+                  variant="outline" size="sm" className="text-xs h-7"
+                  onClick={() => bulkUpdate.mutate({ ids: Array.from(selected), status: 'shortlisted' })}
+                >
+                  <CheckCircle2 className="w-3 h-3 mr-1" /> Shortlist
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </CardHeader>
       <CardContent className="p-0">
-        {apps.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">No applications received yet.</p>
+        {filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            {statusFilter === 'all' ? 'No applications received yet.' : `No ${statusFilter} applications.`}
+          </p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+                </TableHead>
                 <TableHead>Applicant</TableHead>
                 <TableHead>Source</TableHead>
+                <TableHead>Applied</TableHead>
                 <TableHead>AI Score</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Applied</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {apps.map(a => (
-                <TableRow key={a.id}>
+              {filtered.map(a => (
+                <TableRow key={a.id} className={a.status === 'new' ? 'bg-primary/5' : ''}>
                   <TableCell>
-                    <div>
-                      <span className="font-medium">{a.applicant_name || '—'}</span>
-                      {a.applicant_email && <span className="text-xs text-muted-foreground ml-1.5">{a.applicant_email}</span>}
+                    <Checkbox checked={selected.has(a.id)} onCheckedChange={() => toggleOne(a.id)} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-0.5">
+                      <span className="font-medium text-foreground">{a.applicant_name || '—'}</span>
+                      {a.applicant_email && (
+                        <p className="text-xs text-muted-foreground">{a.applicant_email}</p>
+                      )}
+                      {a.ai_summary && (
+                        <p className="text-xs text-muted-foreground line-clamp-1 max-w-xs">{a.ai_summary}</p>
+                      )}
                     </div>
                   </TableCell>
-                  <TableCell className="capitalize text-muted-foreground">{a.source || '—'}</TableCell>
-                  <TableCell>
-                    {a.ai_match_score != null ? <Badge variant="outline">{a.ai_match_score}%</Badge> : '—'}
-                  </TableCell>
-                  <TableCell className="text-sm">{APP_STATUS[a.status] || a.status}</TableCell>
+                  <TableCell className="capitalize text-sm text-muted-foreground">{a.source?.replace('_', ' ') || '—'}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(a.created_at), 'dd MMM yyyy')}
+                    {a.created_at ? format(new Date(a.created_at), 'dd MMM yyyy') : '—'}
+                  </TableCell>
+                  <TableCell>{scoreBadge(a.ai_match_score)}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs capitalize">
+                      {APP_STATUS[a.status] || a.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      {a.cv_url && (
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
+                          <a href={a.cv_url} target="_blank" rel="noopener noreferrer">
+                            <FileText className="w-3 h-3 mr-1" /> CV
+                          </a>
+                        </Button>
+                      )}
+                      {!a.processed_at && (
+                        <Button
+                          variant="ghost" size="sm" className="h-7 text-xs"
+                          disabled={processApp.isPending}
+                          onClick={() => processApp.mutate(a.id)}
+                        >
+                          <Sparkles className="w-3 h-3 mr-1" /> Score
+                        </Button>
+                      )}
+                      {a.status !== 'shortlisted' && a.status !== 'rejected' && (
+                        <Button
+                          variant="ghost" size="sm" className="h-7 text-xs text-emerald-600"
+                          onClick={() => updateStatus.mutate({ id: a.id, status: 'shortlisted' })}
+                        >
+                          <CheckCircle2 className="w-3 h-3 mr-1" /> Shortlist
+                        </Button>
+                      )}
+                      {a.status !== 'rejected' && (
+                        <Button
+                          variant="ghost" size="sm" className="h-7 text-xs text-destructive"
+                          onClick={() => updateStatus.mutate({ id: a.id, status: 'rejected' })}
+                        >
+                          <XCircle className="w-3 h-3 mr-1" /> Reject
+                        </Button>
+                      )}
+                      {!a.candidate_id && (
+                        <Button
+                          variant="ghost" size="sm" className="h-7 text-xs"
+                          disabled={convertToCandidate.isPending}
+                          onClick={() => convertToCandidate.mutate(a)}
+                        >
+                          <Users className="w-3 h-3 mr-1" /> Convert
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

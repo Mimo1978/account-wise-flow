@@ -262,6 +262,17 @@ export default function AdminJarvisSettings() {
         </div>
       </Section>
 
+      {/* ==================== VISUAL EFFECTS ==================== */}
+      <Section icon={Eye} title="Visual Effects" description="Control the Jarvis spotlight and navigation effects">
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Spotlight Mode</Label>
+            <p className="text-xs text-muted-foreground mt-0.5">Show orange glow and element highlights when Jarvis navigates or guides</p>
+          </div>
+          <Switch checked={draft.spotlight_enabled} onCheckedChange={(v) => update('spotlight_enabled', v)} />
+        </div>
+      </Section>
+
       {/* ==================== ACTIONS ==================== */}
       <Separator />
       <div className="flex items-center justify-between">

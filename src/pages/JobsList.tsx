@@ -207,6 +207,8 @@ const JobsList = () => {
                   <TableHead>Type</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Pipeline</TableHead>
                   <TableHead className="text-center">Applications</TableHead>
                   <TableHead className="text-center">Shortlisted</TableHead>
                   <TableHead>Created</TableHead>
@@ -217,6 +219,10 @@ const JobsList = () => {
                   const badge = STATUS_BADGE[job.status] || STATUS_BADGE.draft;
                   const appCount = counts?.appCounts?.[job.id] ?? 0;
                   const shortCount = counts?.shortCounts?.[job.id] ?? 0;
+                  const linkedProject = projectByJobId[job.id];
+                  const dealKey = `${job.title} — Placement Fee`;
+                  const linkedDeal = dealByJobTitle[dealKey];
+                  const isActiveUnlinked = job.status === 'active' && !linkedProject;
                   return (
                     <TableRow
                       key={job.id}
@@ -229,6 +235,38 @@ const JobsList = () => {
                       <TableCell className="text-muted-foreground">{job.location || '—'}</TableCell>
                       <TableCell>
                         <Badge variant={badge.variant} className={badge.className}>{badge.label}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        {linkedProject ? (
+                          <span
+                            className="text-sm text-primary hover:underline cursor-pointer"
+                            onClick={e => { e.stopPropagation(); navigate(`/crm/projects/${linkedProject.id}`); }}
+                          >
+                            {linkedProject.name}
+                          </span>
+                        ) : isActiveUnlinked ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">
+                                  — <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[220px] text-xs">
+                                This active job isn't linked to a project. Link it to track progress.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {linkedDeal ? (
+                          <span className="font-medium text-foreground">
+                            {linkedDeal.currency === 'GBP' ? '£' : linkedDeal.currency === 'USD' ? '$' : linkedDeal.currency === 'EUR' ? '€' : ''}{linkedDeal.value.toLocaleString()}
+                          </span>
+                        ) : '—'}
                       </TableCell>
                       <TableCell className="text-center">{appCount}</TableCell>
                       <TableCell className="text-center">{shortCount}</TableCell>

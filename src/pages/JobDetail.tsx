@@ -205,6 +205,9 @@ const JobDetail = () => {
           <TabsTrigger value="shortlist" data-jarvis-id="job-tab-shortlist">
             <Users className="w-3.5 h-3.5 mr-1.5" /> Shortlist
           </TabsTrigger>
+          <TabsTrigger value="outreach" data-jarvis-id="job-tab-outreach">
+            <Send className="w-3.5 h-3.5 mr-1.5" /> Outreach
+          </TabsTrigger>
           <TabsTrigger value="applications" data-jarvis-id="job-tab-applications">
             <Inbox className="w-3.5 h-3.5 mr-1.5" /> Applications
           </TabsTrigger>
@@ -215,7 +218,8 @@ const JobDetail = () => {
 
         <TabsContent value="overview"><OverviewTab job={job} /></TabsContent>
         <TabsContent value="adverts"><AdvertsTab jobId={job.id} /></TabsContent>
-        <TabsContent value="shortlist"><ShortlistTab jobId={job.id} /></TabsContent>
+        <TabsContent value="shortlist"><ShortlistTab jobId={job.id} jobTitle={job.title} /></TabsContent>
+        <TabsContent value="outreach"><OutreachTab jobId={job.id} jobTitle={job.title} /></TabsContent>
         <TabsContent value="applications"><ApplicationsTab jobId={job.id} /></TabsContent>
         <TabsContent value="activity"><ActivityTab /></TabsContent>
       </Tabs>

@@ -91,3 +91,6 @@ verify_jwt = false
 
 [functions.send-applicant-update]
 verify_jwt = false
+
+[functions.ai-refine-spec]
+verify_jwt = false

@@ -1154,11 +1154,26 @@ serve(async (req) => {
       }
     }
 
-    // Extract navigation + target action from executed actions
+    // Extract navigation + target action from action payload or executed tool results
     let navigationPath: string | null = null;
     let targetAction: string | null = null;
     let targetId: string | null = null;
 
+    // First check structured action payload
+    if (actionPayload) {
+      const aType = actionPayload.type as string;
+      if (aType === 'NAVIGATE' && actionPayload.destination) {
+        navigationPath = actionPayload.destination as string;
+        if (actionPayload.highlight) targetId = actionPayload.highlight as string;
+      } else if (aType === 'HIGHLIGHT' && actionPayload.highlight) {
+        targetId = actionPayload.highlight as string;
+      } else if (aType === 'CLICK' && actionPayload.highlight) {
+        targetId = actionPayload.highlight as string;
+        targetAction = 'click';
+      }
+    }
+
+    // Then check tool results (may override or supplement)
     for (const msg of currentMessages) {
       if ((msg as any).role === "tool" && typeof (msg as any).content === "string") {
         try {

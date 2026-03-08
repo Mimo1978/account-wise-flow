@@ -582,7 +582,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInteractionRef = useRef(Date.now());
   const assistantName = jarvisSettings.assistant_name || 'Jarvis';
-  const prevLocatjarvisLonRef = useRef(location.pathname);
+  const prevLocationRef = useRef(jarvisLocation.pathname);
   const conversationActiveRef = useRef(false); // Track if user started a conversation
   const pausedRef = useRef(false); // Track if auto-paused by modal/focus
 

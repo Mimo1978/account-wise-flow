@@ -58,6 +58,11 @@ export const navigationMap: Record<string, NavigationEntry> = {
     label: "Jobs",
     keywords: ["jobs", "job list", "roles", "vacancies", "job specs", "requirements", "open roles"],
   },
+  jobsUnlinked: {
+    path: "/jobs?filter=unlinked",
+    label: "Unlinked Jobs",
+    keywords: ["unlinked jobs", "jobs without project", "jobs not linked", "jobs not tracked", "loose jobs"],
+  },
   jobDetail: {
     path: "/jobs/:id",
     label: "Job Detail",

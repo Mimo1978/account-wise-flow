@@ -455,6 +455,35 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "draft_outreach_emails",
+      description: "Draft personalised outreach emails for approved shortlisted candidates. Use when the user says 'draft outreach', 'email the shortlist', 'send outreach', 'draft emails for [job]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+          automation_level: { type: "string", description: "draft, approve_batch, or auto_send" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_outreach_status",
+      description: "Check how many candidates have been contacted for a job. Use when user asks 'how many have we contacted', 'outreach status for [job]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "update_advert",
       description: "Update the content of an existing job advert. Use when the user asks to shorten, rephrase, or modify a specific advert.",
       parameters: {
@@ -762,7 +791,14 @@ SHORTLIST REVIEW — detect intents:
   "approve [name]":
   - Call update_shortlist_entry with action "approve".
   "move [name] to reserve" / "hold [name] back":
-  - Call update_shortlist_entry with action "reserve".`;
+  - Call update_shortlist_entry with action "reserve".
+
+OUTREACH EMAIL intents:
+  "draft outreach for [job]" / "email the shortlist" / "send outreach" / "draft emails":
+  - Call draft_outreach_emails with the job_id. After drafting: "I've drafted [n] personalised emails for [job title]. Head to the Outreach tab to review and send them."
+  "how many candidates have we contacted for [job]" / "outreach status":
+  - Call get_outreach_status. Report naturally: "You've sent outreach to [n] candidates for [job title], with [n] still in draft."`;
+
 
 
 // ---------- Universal record lookup helper ----------
@@ -1660,6 +1696,44 @@ Return ONLY valid JSON, no markdown fences.`,
           status: candidate.status,
         },
         entityType: "job_shortlist",
+        entityId: jobId,
+      };
+    }
+    case "draft_outreach_emails": {
+      const jobId = input.job_id as string;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/draft-outreach`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          job_id: jobId,
+          automation_level: (input.automation_level as string) || "draft",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Draft outreach failed" }, entityType: "outreach_messages" };
+      return {
+        result: { ...data, navigate_to: `/jobs/${jobId}` },
+        entityType: "outreach_messages",
+        entityId: jobId,
+      };
+    }
+    case "get_outreach_status": {
+      const jobId = input.job_id as string;
+      const { data: msgs } = await supabaseAdmin
+        .from("outreach_messages")
+        .select("status, candidate_name")
+        .eq("job_id", jobId);
+      const drafted = (msgs || []).filter((m: any) => m.status === "draft").length;
+      const sent = (msgs || []).filter((m: any) => m.status === "sent").length;
+      const failed = (msgs || []).filter((m: any) => m.status === "failed").length;
+      return {
+        result: { total: (msgs || []).length, drafted, sent, failed, message: `Outreach status: ${sent} sent, ${drafted} drafts, ${failed} failed.` },
+        entityType: "outreach_messages",
         entityId: jobId,
       };
     }

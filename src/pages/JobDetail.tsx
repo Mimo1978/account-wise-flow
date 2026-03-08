@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageBackButton } from '@/components/ui/page-back-button';
 import {
   AlertDialog,
@@ -32,7 +34,12 @@ import {
   useUpdateShortlistStatus,
   useApproveAllShortlist,
   useUpdateShortlistPriority,
+  useOutreachMessages,
+  useDraftOutreach,
+  useSendOutreachBatch,
+  useUpdateOutreachMessage,
   type JobShortlistEntry,
+  type OutreachMessage,
 } from '@/hooks/use-jobs';
 import {
   useBoardFormats,
@@ -198,6 +205,9 @@ const JobDetail = () => {
           <TabsTrigger value="shortlist" data-jarvis-id="job-tab-shortlist">
             <Users className="w-3.5 h-3.5 mr-1.5" /> Shortlist
           </TabsTrigger>
+          <TabsTrigger value="outreach" data-jarvis-id="job-tab-outreach">
+            <Send className="w-3.5 h-3.5 mr-1.5" /> Outreach
+          </TabsTrigger>
           <TabsTrigger value="applications" data-jarvis-id="job-tab-applications">
             <Inbox className="w-3.5 h-3.5 mr-1.5" /> Applications
           </TabsTrigger>
@@ -208,7 +218,8 @@ const JobDetail = () => {
 
         <TabsContent value="overview"><OverviewTab job={job} /></TabsContent>
         <TabsContent value="adverts"><AdvertsTab jobId={job.id} /></TabsContent>
-        <TabsContent value="shortlist"><ShortlistTab jobId={job.id} /></TabsContent>
+        <TabsContent value="shortlist"><ShortlistTab jobId={job.id} jobTitle={job.title} /></TabsContent>
+        <TabsContent value="outreach"><OutreachTab jobId={job.id} jobTitle={job.title} /></TabsContent>
         <TabsContent value="applications"><ApplicationsTab jobId={job.id} /></TabsContent>
         <TabsContent value="activity"><ActivityTab /></TabsContent>
       </Tabs>
@@ -470,7 +481,7 @@ function AdvertsTab({ jobId }: { jobId: string }) {
 }
 
 // ---------- Shortlist Tab ----------
-function ShortlistTab({ jobId }: { jobId: string }) {
+function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const { data: entries = [], isLoading } = useJobShortlist(jobId);
   const removeFromShortlist = useRemoveFromShortlist();
   const runShortlist = useRunShortlist();
@@ -805,6 +816,243 @@ function ShortlistTab({ jobId }: { jobId: string }) {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ---------- Outreach Tab ----------
+function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
+  const { data: messages = [], isLoading } = useOutreachMessages(jobId);
+  const { data: shortlist = [] } = useJobShortlist(jobId);
+  const draftOutreach = useDraftOutreach();
+  const sendBatch = useSendOutreachBatch();
+  const updateMessage = useUpdateOutreachMessage();
+
+  const [showSetup, setShowSetup] = useState(false);
+  const [automationLevel, setAutomationLevel] = useState('draft');
+  const [fromName, setFromName] = useState('');
+  const [fromEmail, setFromEmail] = useState('');
+  const [campaignName, setCampaignName] = useState(`${jobTitle} Outreach - ${format(new Date(), 'dd MMM yyyy')}`);
+  const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [editSubject, setEditSubject] = useState('');
+  const [editBody, setEditBody] = useState('');
+
+  const approvedCount = shortlist.filter(e => e.status === 'approved').length;
+  const drafts = messages.filter(m => m.status === 'draft');
+  const sent = messages.filter(m => m.status === 'sent');
+  const failed = messages.filter(m => m.status === 'failed');
+
+  const handleDraft = () => {
+    draftOutreach.mutate({
+      job_id: jobId,
+      automation_level: automationLevel,
+      from_name: fromName || undefined,
+      from_email: fromEmail || undefined,
+      campaign_name: campaignName || undefined,
+    });
+    setShowSetup(false);
+  };
+
+  const handleSendAll = () => {
+    const ids = drafts.map(m => m.id);
+    if (ids.length > 0) sendBatch.mutate(ids);
+  };
+
+  const handleSendOne = (id: string) => {
+    sendBatch.mutate([id]);
+  };
+
+  const handleSaveEdit = (id: string) => {
+    updateMessage.mutate({ id, subject: editSubject, body: editBody });
+    setEditingMsgId(null);
+  };
+
+  if (isLoading) return <TableSkeleton />;
+
+  return (
+    <div className="space-y-4">
+      {/* Setup / Draft Panel */}
+      {messages.length === 0 && !showSetup && (
+        <Card>
+          <CardContent className="py-8 text-center space-y-3">
+            <Mail className="w-8 h-8 text-muted-foreground mx-auto" />
+            <p className="text-sm text-muted-foreground">
+              {approvedCount > 0
+                ? `${approvedCount} approved candidate${approvedCount !== 1 ? 's' : ''} ready for outreach.`
+                : 'Approve candidates on the Shortlist tab first.'}
+            </p>
+            <Button
+              size="sm"
+              onClick={() => setShowSetup(true)}
+              disabled={approvedCount === 0}
+              data-jarvis-id="job-draft-outreach-button"
+            >
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Draft Outreach Emails
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {showSetup && (
+        <Card className="border-primary/30">
+          <CardHeader>
+            <CardTitle className="text-sm">Outreach Setup</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Automation Level</Label>
+                <Select value={automationLevel} onValueChange={setAutomationLevel}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft only — review before sending</SelectItem>
+                    <SelectItem value="approve_batch">Approve batch — review then send all</SelectItem>
+                    <SelectItem value="auto_send">Auto-send — generate & send immediately</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Campaign Name</Label>
+                <Input value={campaignName} onChange={e => setCampaignName(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">From Name</Label>
+                <Input value={fromName} onChange={e => setFromName(e.target.value)} placeholder="Your name (from profile)" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">From Email</Label>
+                <Input value={fromEmail} onChange={e => setFromEmail(e.target.value)} placeholder="Resend verified sender" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setShowSetup(false)}>Cancel</Button>
+              <Button size="sm" onClick={handleDraft} disabled={draftOutreach.isPending}>
+                {draftOutreach.isPending ? (
+                  <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Drafting...</>
+                ) : (
+                  <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate {approvedCount} Email{approvedCount !== 1 ? 's' : ''}</>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Batch Actions */}
+      {drafts.length > 0 && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="py-3 flex items-center justify-between">
+            <p className="text-sm font-medium text-foreground">
+              {drafts.length} email{drafts.length !== 1 ? 's' : ''} ready for review.
+              {sent.length > 0 && ` ${sent.length} already sent.`}
+              {failed.length > 0 && ` ${failed.length} failed.`}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => setShowSetup(true)} variant="outline">
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Draft More
+              </Button>
+              <Button size="sm" onClick={handleSendAll} disabled={sendBatch.isPending}>
+                {sendBatch.isPending ? (
+                  <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Sending...</>
+                ) : (
+                  <><Send className="w-3.5 h-3.5 mr-1.5" /> Approve All & Send</>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Sent summary */}
+      {sent.length > 0 && drafts.length === 0 && (
+        <Card className="border-emerald-500/30 bg-emerald-500/5">
+          <CardContent className="py-3 flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            <p className="text-sm font-medium text-foreground">
+              Outreach sent to {sent.length} candidate{sent.length !== 1 ? 's' : ''} for {jobTitle}.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Email List */}
+      {messages.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Outreach Emails</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0 divide-y divide-border">
+            {messages.map(msg => {
+              const isEditing = editingMsgId === msg.id;
+              const statusColor = msg.status === 'sent'
+                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+                : msg.status === 'failed'
+                  ? 'bg-destructive/15 text-destructive border-destructive/30'
+                  : 'bg-muted text-muted-foreground';
+
+              return (
+                <div key={msg.id} className="p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{msg.candidate_name || '—'}</span>
+                      <span className="text-xs text-muted-foreground">{msg.candidate_email}</span>
+                      <Badge variant="outline" className={statusColor}>{msg.status}</Badge>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {msg.status === 'draft' && !isEditing && (
+                        <>
+                          <Button variant="ghost" size="sm" onClick={() => {
+                            setEditingMsgId(msg.id);
+                            setEditSubject(msg.subject);
+                            setEditBody(msg.body || '');
+                          }}>
+                            <FileEdit className="w-3.5 h-3.5 mr-1" /> Edit
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleSendOne(msg.id)} disabled={sendBatch.isPending}>
+                            <Send className="w-3.5 h-3.5 mr-1" /> Send
+                          </Button>
+                        </>
+                      )}
+                      {msg.status === 'failed' && (
+                        <Button variant="outline" size="sm" onClick={() => handleSendOne(msg.id)} disabled={sendBatch.isPending}>
+                          <Send className="w-3.5 h-3.5 mr-1" /> Retry
+                        </Button>
+                      )}
+                      {msg.sent_at && (
+                        <span className="text-xs text-muted-foreground">Sent {format(new Date(msg.sent_at), 'dd MMM HH:mm')}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <Input value={editSubject} onChange={e => setEditSubject(e.target.value)} placeholder="Subject" className="text-sm" />
+                      <Textarea value={editBody} onChange={e => setEditBody(e.target.value)} rows={8} className="text-sm font-mono" />
+                      <div className="flex gap-2 justify-end">
+                        <Button variant="outline" size="sm" onClick={() => setEditingMsgId(null)}>Cancel</Button>
+                        <Button size="sm" onClick={() => handleSaveEdit(msg.id)}>Save</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-foreground">Subject: {msg.subject}</p>
+                      <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/30 rounded-md p-3 max-h-40 overflow-y-auto">
+                        {msg.body || ''}
+                      </div>
+                    </div>
+                  )}
+
+                  {msg.error_message && (
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> {msg.error_message}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

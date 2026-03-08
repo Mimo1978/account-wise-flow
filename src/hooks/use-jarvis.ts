@@ -87,6 +87,9 @@ function detectFlowFromResponse(text: string, currentFlow: JarvisFlowState): Jar
     if (/which company is this deal|let('s| me) create a deal/i.test(text)) {
       return { flow: 'CREATE_DEAL', collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
     }
+    if (/tell me about the role|i'll build the full spec|let('s| me) (write|create|build) a job spec|new (job|role|requirement)/i.test(text)) {
+      return { flow: 'CREATE_JOB_SPEC', collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
+    }
   }
 
   if (!currentFlow.flow) return currentFlow;

@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useJobs, useJobCounts, useCreateJob } from '@/hooks/use-jobs';
-import { Plus, Briefcase, Search } from 'lucide-react';
+import { Plus, Briefcase, Search, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 
 const STATUS_BADGE: Record<string, { variant: 'secondary' | 'default' | 'outline' | 'destructive'; className: string; label: string }> = {
@@ -62,10 +62,18 @@ const JobsList = () => {
             {activeCount} active role{activeCount !== 1 ? 's' : ''} in workspace
           </p>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={handleCreate} data-jarvis-id="add-job-button">
-          <Plus className="w-3.5 h-3.5" />
-          New Job
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="gap-1.5" asChild>
+            <a href="/jobs/board" target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="w-3.5 h-3.5" />
+              View Public Board
+            </a>
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={handleCreate} data-jarvis-id="add-job-button">
+            <Plus className="w-3.5 h-3.5" />
+            New Job
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

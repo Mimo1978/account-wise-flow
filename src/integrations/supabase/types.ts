@@ -3048,8 +3048,10 @@ export type Database = {
           cover_letter: string | null
           created_at: string | null
           cv_url: string | null
+          gdpr_consent: boolean
           id: string
           job_id: string
+          linkedin_url: string | null
           source: string | null
           status: string | null
           workspace_id: string
@@ -3064,8 +3066,10 @@ export type Database = {
           cover_letter?: string | null
           created_at?: string | null
           cv_url?: string | null
+          gdpr_consent?: boolean
           id?: string
           job_id: string
+          linkedin_url?: string | null
           source?: string | null
           status?: string | null
           workspace_id: string
@@ -3080,8 +3084,10 @@ export type Database = {
           cover_letter?: string | null
           created_at?: string | null
           cv_url?: string | null
+          gdpr_consent?: boolean
           id?: string
           job_id?: string
+          linkedin_url?: string | null
           source?: string | null
           status?: string | null
           workspace_id?: string

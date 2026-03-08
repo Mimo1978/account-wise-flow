@@ -41,6 +41,7 @@ import SchemaInventory from "./pages/SchemaInventory";
 import ProjectsList from "./pages/ProjectsList";
 import JobsList from "./pages/JobsList";
 import JobDetail from "./pages/JobDetail";
+import PublicJobBoard from "./pages/PublicJobBoard";
 import ProjectDetail from "./pages/ProjectDetail";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminAccess from "./pages/admin/AdminAccess";
@@ -148,6 +149,7 @@ const App = () => {
             <Route path="/auth/sign-in" element={<Navigate to="/auth?tab=signin" replace />} />
             <Route path="/auth/sign-up" element={<Navigate to="/auth?tab=signup" replace />} />
             <Route path="/demo" element={<Demo />} />
+            <Route path="/jobs/board" element={<PublicJobBoard />} />
 
             {/* PROTECTED ROUTES */}
             <Route path="/home" element={<ProtectedRoute><ProductLayout><HomeCommandCenter /></ProductLayout></ProtectedRoute>} />

@@ -287,6 +287,48 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "lookup_company",
+      description: "Look up a company by name within the user's workspace. Use this BEFORE creating contacts, deals, opportunities, or projects that need a company_id. Returns up to 5 matches. If 1 match: use it. If multiple: ask user to pick. If 0: offer to create it.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Company name to search for" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lookup_contact",
+      description: "Look up a contact by name within the user's workspace. Use this BEFORE logging calls or linking activities to a contact. Returns up to 5 matches with company name.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Contact name to search for" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "lookup_candidate",
+      description: "Look up a candidate by name within the user's workspace. Use this BEFORE linking candidates to opportunities or projects. Returns up to 5 matches.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Candidate name to search for" },
+        },
+        required: ["name"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.

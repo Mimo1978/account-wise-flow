@@ -467,6 +467,7 @@ function useElevenLabsTTS(
     }
     window.speechSynthesis?.cancel();
     setIsSpeaking(false);
+    jarvisSpotlight.clearAll();
     onDoneRef.current = null;
   }, []);
 

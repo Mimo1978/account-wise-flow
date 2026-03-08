@@ -286,7 +286,7 @@ const JobDetail = () => {
         </TabsList>
 
         <TabsContent value="overview"><OverviewTab job={job} /></TabsContent>
-        <TabsContent value="adverts"><AdvertsTab jobId={job.id} /></TabsContent>
+        <TabsContent value="adverts"><AdvertsTab jobId={job.id} jobTitle={job.title} /></TabsContent>
         <TabsContent value="shortlist"><ShortlistTab jobId={job.id} jobTitle={job.title} /></TabsContent>
         <TabsContent value="outreach"><OutreachTab jobId={job.id} jobTitle={job.title} /></TabsContent>
         <TabsContent value="applications"><ApplicationsTab jobId={job.id} /></TabsContent>

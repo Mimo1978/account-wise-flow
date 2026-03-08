@@ -159,7 +159,7 @@ export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss, onProje
         <span className="text-muted-foreground flex-1">
           You have candidates in progress. Assign this job to a project to see it in your pipeline.
         </span>
-        <ProjectLinkerInline jobId={jobId} jobTitle={jobTitle} onLinked={dismiss} />
+        <ProjectLinkerInline jobId={jobId} jobTitle={jobTitle} onLinked={(projectId) => { onProjectLinked?.(projectId); dismiss(); }} />
         <Button variant="ghost" size="sm" onClick={dismiss} className="text-xs">
           Dismiss
         </Button>

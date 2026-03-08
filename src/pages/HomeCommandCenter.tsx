@@ -532,6 +532,7 @@ const HomeCommandCenter = () => {
   const [selectedSow, setSelectedSow] = useState<Sow | null>(null);
   const [sowSheetOpen, setSowSheetOpen] = useState(false);
   const [convertDeal, setConvertDeal] = useState<Deal | null>(null);
+  const [pipelineFilter, setPipelineFilter] = useState<string | null>(null);
 
   const { data: engagements = [], isLoading: engLoading } = useEngagements(currentWorkspace?.id);
   const { data: sows = [], isLoading: sowsLoading } = useSows(currentWorkspace?.id);

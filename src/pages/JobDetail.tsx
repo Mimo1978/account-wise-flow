@@ -175,11 +175,13 @@ const JobDetail = () => {
             <h1 className="text-2xl font-bold text-foreground tracking-tight">{job.title}</h1>
             <Badge variant="outline" className={badge.className}>{badge.label}</Badge>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {(job as any).companies?.name || 'No company'}
-            {job.location ? ` · ${job.location}` : ''}
-            {job.job_type ? ` · ${job.job_type}` : ''}
-          </p>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+            <span>{(job as any).companies?.name || 'No company'}</span>
+            {job.location && <><span>·</span><span>{job.location}</span></>}
+            {job.job_type && <><span>·</span><span>{job.job_type}</span></>}
+            <span>·</span>
+            <ProjectLinker jobId={job.id} jobTitle={job.title} />
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button variant="outline" size="sm" data-jarvis-id="job-generate-spec-button">
@@ -190,6 +192,26 @@ const JobDetail = () => {
           </Button>
         </div>
       </div>
+
+      {/* Filled role celebration modal (Pause point 4) */}
+      <Dialog open={showFilledModal} onOpenChange={setShowFilledModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              🎉 Role filled!
+            </DialogTitle>
+            <DialogDescription>
+              Link this to a project to log it as a completed deliverable and update your pipeline.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setShowFilledModal(false)}>
+              Close
+            </Button>
+            <FilledModalLinker jobId={job.id} jobTitle={job.title} onLinked={() => setShowFilledModal(false)} />
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Status Controls */}
       <Card>

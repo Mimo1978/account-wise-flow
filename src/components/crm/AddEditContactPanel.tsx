@@ -137,7 +137,7 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
             </div>
             <div>
               <Label>Last Name *</Label>
-              <Input value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} data-jarvis-id="contact-last-name-input" />
+              <Input value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} data-jarvis-id="contact-last-name-input" data-jarvis-id="contact-last-name-input" />
               {errors.last_name && <p className="text-xs text-destructive mt-1">{errors.last_name}</p>}
             </div>
           </div>
@@ -180,7 +180,7 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Phone</Label>
-              <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+              <Input value={form.phone} onChange={e => setForm(data-jarvis-id="contact-phone-input" f => ({ ...f, phone: e.target.value }))} />
             </div>
             <div>
               <Label>Mobile</Label>

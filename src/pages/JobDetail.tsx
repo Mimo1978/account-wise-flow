@@ -220,10 +220,7 @@ const JobDetail = () => {
             {job.location && <><span>·</span><span>{job.location}</span></>}
             {job.job_type && <><span>·</span><span>{job.job_type}</span></>}
             <span>·</span>
-            <ProjectLinker jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} />
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+            <ProjectLinker jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked}      <div className="flex items-center gap-2 flex-shrink-0">
           <Button variant="outline" size="sm" data-jarvis-id="job-generate-spec-button">
             <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Spec
           </Button>
@@ -248,9 +245,7 @@ const JobDetail = () => {
             <Button variant="outline" onClick={() => setShowFilledModal(false)}>
               Close
             </Button>
-            <FilledModalLinker jobId={job.id} jobTitle={job.title} onLinonProjectLinked={handleProjectLinked} ked={() => setShowFilledModal(false)} />
-          </DialogFooter>
-        </DialogContent>
+            <FilledModalLinker jobId={job.id} jobTitle={job.title} onLinonProjectLinked={handleProjectLinked} ked={() => setShowFilledModal(false)} onProjectLinked={handleProjectLinked </DialogContent>
       </Dialog>
 
       {/* Status Controls */}

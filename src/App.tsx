@@ -205,6 +205,7 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
           <JarvisFloatingButton />
+          </JarvisSpotlightProvider>
         </BrowserRouter>
       </TooltipProvider>
       </SearchContextProvider>

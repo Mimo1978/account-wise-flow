@@ -10,22 +10,38 @@ const PAGE_GLOW_ID = "jarvis-page-glow-overlay";
 const TOOLTIP_ID = "jarvis-spotlight-tooltip";
 
 /* ------------------------------------------------------------------ */
+/*  Settings interface (mirrors relevant JarvisSettings fields)        */
+/* ------------------------------------------------------------------ */
+
+interface SpotlightSettings {
+  spotlight_enabled: boolean;
+  page_glow_enabled: boolean;
+  tooltip_labels_enabled: boolean;
+}
+
+const DEFAULT_SETTINGS: SpotlightSettings = {
+  spotlight_enabled: true,
+  page_glow_enabled: true,
+  tooltip_labels_enabled: true,
+};
+
+/* ------------------------------------------------------------------ */
 /*  Keyword → target map                                               */
 /* ------------------------------------------------------------------ */
 
 interface SpotlightMapping {
   keywords: string[];
-  targets: string[];          // data-jarvis-id targets
-  sections?: string[];        // data-jarvis-section targets (gentler glow)
-  navTargets?: string[];      // nav items to highlight (background glow)
-  section?: "page";           // triggers page border glow
+  targets: string[];
+  sections?: string[];
+  navTargets?: string[];
+  section?: "page";
 }
 
 const autoSpotlightMap: SpotlightMapping[] = [
-  { keywords: ["home page", "command centre", "command center"], targets: [], navTargets: ["nav-home"], section: "page" },
+  { keywords: ["home page", "command centre", "command center", "heartbeat"], targets: [], navTargets: ["nav-home"], section: "page" },
   { keywords: ["pipeline", "deal pipeline", "pipeline snapshot"], targets: ["home-pipeline-snapshot"], sections: ["pipeline-snapshot"] },
-  { keywords: ["my work"], targets: ["home-my-work"], sections: ["my-work"] },
-  { keywords: ["diary"], targets: ["home-diary"], sections: ["diary"] },
+  { keywords: ["my work", "attention today"], targets: ["home-my-work"], sections: ["my-work"] },
+  { keywords: ["diary", "seven days", "next 7 days"], targets: ["home-diary"], sections: ["diary"] },
   { keywords: ["add company", "new company"], targets: ["add-company-button"] },
   { keywords: ["companies", "accounts"], targets: [], navTargets: ["nav-companies"] },
   { keywords: ["contacts"], targets: [], navTargets: ["nav-contacts"] },
@@ -36,7 +52,7 @@ const autoSpotlightMap: SpotlightMapping[] = [
   { keywords: ["insights", "revenue intelligence"], targets: [], navTargets: ["nav-insights"] },
   { keywords: ["admin", "settings"], targets: [], navTargets: ["nav-admin"] },
   { keywords: ["billing", "invoices", "outstanding"], targets: ["home-billing-snapshot"], sections: ["billing-snapshot"] },
-  { keywords: ["active projects", "projects"], targets: ["home-active-projects"], sections: ["active-projects"], navTargets: ["nav-projects"] },
+  { keywords: ["active projects", "live engagements"], targets: ["home-active-projects"], sections: ["active-projects"], navTargets: ["nav-projects"] },
   { keywords: ["shortlist"], targets: ["job-tab-shortlist"], sections: ["job-shortlist-table"] },
   { keywords: ["adverts", "job adverts"], targets: ["job-tab-adverts"], sections: ["job-adverts-list"] },
   { keywords: ["applications"], targets: ["job-tab-applications"], sections: ["job-applications-table"] },
@@ -46,8 +62,8 @@ const autoSpotlightMap: SpotlightMapping[] = [
   { keywords: ["add candidate"], targets: ["add-candidate-button"] },
   { keywords: ["refresh"], targets: ["home-refresh-button"] },
   { keywords: ["create invoice"], targets: ["home-create-invoice-button"] },
-  { keywords: ["stat cards", "top cards", "overview cards", "top-line"], targets: ["home-kpi-row"], sections: ["stat-cards"] },
-  { keywords: ["alerts", "billing alerts"], targets: ["home-alerts-strip"], sections: ["alerts-strip"] },
+  { keywords: ["stat cards", "top cards", "overview cards", "top-line", "headline numbers", "four cards"], targets: ["home-kpi-row"], sections: ["stat-cards"] },
+  { keywords: ["alerts", "billing alerts", "overdue or expiring"], targets: ["home-alerts-strip"], sections: ["alerts-strip"] },
   { keywords: ["sows", "contracts", "statements of work"], targets: [], sections: ["sows-contracts"] },
   { keywords: ["outreach stats", "queued", "contacted", "responded", "booked"], targets: [], sections: ["outreach-stats"] },
   { keywords: ["pull report", "report builder"], targets: ["pull-report"] },
@@ -115,20 +131,28 @@ class JarvisSpotlightManager {
   private _activeElements: HTMLElement[] = [];
   private _activeSections: HTMLElement[] = [];
   private _activeNavItems: HTMLElement[] = [];
+  private _settings: SpotlightSettings = { ...DEFAULT_SETTINGS };
+
+  /** Update settings — called from React when workspace settings load */
+  configure(settings: Partial<SpotlightSettings>): void {
+    this._settings = { ...DEFAULT_SETTINGS, ...settings };
+  }
 
   /** Highlight a single element by its data-jarvis-id */
   highlight(id: string, label?: string, duration = 4000): void {
+    if (!this._settings.spotlight_enabled) return;
     const el = findEl(id);
     if (!el) return;
     el.classList.add(HIGHLIGHT_CLASS);
     el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     this._activeElements.push(el);
-    if (label) showTooltipAbove(el, label);
+    if (label && this._settings.tooltip_labels_enabled) showTooltipAbove(el, label);
     this._scheduleAutoClear(duration);
   }
 
   /** Highlight multiple targets at once */
   highlightMany(ids: string[], duration = 4000): void {
+    if (!this._settings.spotlight_enabled) return;
     for (const id of ids) {
       const el = findEl(id);
       if (!el) continue;
@@ -141,6 +165,7 @@ class JarvisSpotlightManager {
 
   /** Highlight a section (gentler glow, no tooltip) */
   highlightSection(sectionName: string, _label?: string): void {
+    if (!this._settings.spotlight_enabled) return;
     const el = findSection(sectionName);
     if (!el) return;
     el.classList.add(SECTION_GLOW_CLASS);
@@ -148,8 +173,9 @@ class JarvisSpotlightManager {
     this._activeSections.push(el);
   }
 
-  /** Highlight a nav item with background glow for 3s */
+  /** Highlight a nav item with background glow */
   highlightNav(navId: string): void {
+    if (!this._settings.spotlight_enabled) return;
     const el = findEl(navId);
     if (!el) return;
     el.classList.add(NAV_HIGHLIGHT_CLASS);
@@ -158,6 +184,7 @@ class JarvisSpotlightManager {
 
   /** Activate full page border glow */
   activatePageGlow(): void {
+    if (!this._settings.spotlight_enabled || !this._settings.page_glow_enabled) return;
     const div = ensurePageGlowDiv();
     div.classList.add("active");
   }
@@ -189,7 +216,7 @@ class JarvisSpotlightManager {
    * Page glow stays active for the entire duration Jarvis speaks.
    */
   autoSpotlight(speechText: string): void {
-    if (!speechText) return;
+    if (!speechText || !this._settings.spotlight_enabled) return;
     this.clearAll();
 
     const lower = speechText.toLowerCase();
@@ -223,7 +250,7 @@ class JarvisSpotlightManager {
       this.highlightMany([...new Set(matchedTargets)], 5000);
     }
 
-    // Auto-clear after 5s (except page glow which clears on speech end)
+    // Auto-clear after 5s (page glow also clears on speech end via clearAll)
     this._scheduleAutoClear(5000);
   }
 

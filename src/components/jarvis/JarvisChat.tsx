@@ -542,6 +542,16 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     jarvisSettings.mute_by_default,
     jarvisSettings.elevenlabs_voice_id
   );
+
+  // Sync spotlight settings to the singleton manager
+  useEffect(() => {
+    jarvisSpotlight.configure({
+      spotlight_enabled: jarvisSettings.spotlight_enabled,
+      page_glow_enabled: jarvisSettings.page_glow_enabled ?? true,
+      tooltip_labels_enabled: jarvisSettings.tooltip_labels_enabled ?? true,
+    });
+  }, [jarvisSettings.spotlight_enabled, jarvisSettings.page_glow_enabled, jarvisSettings.tooltip_labels_enabled]);
+
   const greetingDoneRef = useRef(false);
   const sleepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastInteractionRef = useRef(Date.now());

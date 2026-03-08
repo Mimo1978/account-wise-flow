@@ -28,6 +28,8 @@ export interface JarvisSettings {
 
   // Visual effects
   spotlight_enabled: boolean;
+  page_glow_enabled: boolean;
+  tooltip_labels_enabled: boolean;
 }
 
 export const ELEVENLABS_VOICES = [
@@ -52,6 +54,8 @@ export const DEFAULT_JARVIS_SETTINGS: JarvisSettings = {
   confirmation_mode: 'always',
   show_conversation_history: true,
   spotlight_enabled: true,
+  page_glow_enabled: true,
+  tooltip_labels_enabled: true,
 };
 
 export function useJarvisSettings() {

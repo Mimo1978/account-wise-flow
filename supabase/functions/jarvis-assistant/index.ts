@@ -262,7 +262,7 @@ const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "navigate",
-      description: "Navigate the user to a specific page or trigger a UI action. Destinations: home, dashboard, companies, contacts, talent, outreach, insights, canvas, projects, reports, deals, pipeline, invoices, documents, admin, integrations, billing settings, team management, jarvis settings, branding, outreach settings, signals, data quality. Actions: add company, add contact, add deal, add candidate, import contacts, create campaign, create invoice, import companies. Canvas actions: edit org chart, add person to org chart, build org chart, ai research, connect people, reset view.",
+      description: "Navigate the user to a specific page or trigger a UI action. Destinations: home, dashboard, companies, contacts, talent, outreach, insights, canvas, projects, reports, deals, pipeline, invoices, documents, admin, integrations, billing settings, team management, jarvis settings, branding, outreach settings, signals, data quality. Actions: add company, add contact, add deal, add candidate, import contacts, create campaign, create invoice, import companies. Canvas actions: edit org chart, add person to org chart, build org chart, ai research, connect people, reset view, save chart, zoom in, zoom out, fit view.",
       parameters: {
         type: "object",
         properties: {
@@ -270,6 +270,20 @@ const TOOL_DEFINITIONS = [
           entity_id: { type: "string", description: "Optional entity ID for detail pages" },
         },
         required: ["destination"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "navigate_to_canvas_for_company",
+      description: "Navigate to the Canvas org chart view for a specific company. Searches for the company by name first.",
+      parameters: {
+        type: "object",
+        properties: {
+          company_name: { type: "string", description: "The company name to search for and show on canvas" },
+        },
+        required: ["company_name"],
       },
     },
   },

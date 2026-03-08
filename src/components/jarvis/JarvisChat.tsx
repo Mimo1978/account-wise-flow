@@ -28,6 +28,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useJarvisNavigation } from "@/hooks/use-jarvis-navigation";
 import { GuidedTourPlayer } from "@/components/jarvis/GuidedTourPlayer";
+import { jarvisSpotlight } from "@/lib/JarvisSpotlight";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                   */
@@ -411,6 +412,9 @@ function useElevenLabsTTS(
 
       onDoneRef.current = onDone || null;
       setIsSpeaking(true);
+
+      // Auto-spotlight any elements mentioned in the speech
+      jarvisSpotlight.autoSpotlight(text);
 
       try {
         // Try ElevenLabs first

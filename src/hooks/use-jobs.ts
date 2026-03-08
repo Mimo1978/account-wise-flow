@@ -593,6 +593,121 @@ export function useNewApplicationsCount() {
       return count ?? 0;
     },
     enabled: !!currentWorkspace?.id,
-    refetchInterval: 30000, // poll every 30s
+    refetchInterval: 30000,
+  });
+}
+
+// ---------- Update application status ----------
+export function useUpdateApplicationStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase
+        .from('job_applications')
+        .update({ status } as any)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['job_applications'] });
+      qc.invalidateQueries({ queryKey: ['new_applications_count'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ---------- Bulk update application status ----------
+export function useBulkUpdateApplicationStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ ids, status }: { ids: string[]; status: string }) => {
+      const { error } = await supabase
+        .from('job_applications')
+        .update({ status } as any)
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: (_, { status }) => {
+      qc.invalidateQueries({ queryKey: ['job_applications'] });
+      qc.invalidateQueries({ queryKey: ['new_applications_count'] });
+      toast.success(`Applications updated to ${status}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ---------- Convert application to candidate ----------
+export function useConvertToCandidate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (app: JobApplication) => {
+      // Check if candidate already exists
+      if (app.candidate_id) throw new Error('Already converted to candidate');
+      
+      let candidateId: string | null = null;
+      if (app.applicant_email) {
+        const { data: existing } = await supabase
+          .from('candidates')
+          .select('id')
+          .eq('email', app.applicant_email)
+          .limit(1)
+          .maybeSingle();
+        if (existing) candidateId = existing.id;
+      }
+
+      if (!candidateId) {
+        const { data: newCand, error: candErr } = await supabase
+          .from('candidates')
+          .insert({
+            name: app.applicant_name || 'Unknown',
+            email: app.applicant_email,
+            phone: app.applicant_phone,
+            linkedin_url: app.linkedin_url,
+            tenant_id: app.workspace_id,
+            source: 'application',
+          } as any)
+          .select('id')
+          .single();
+        if (candErr) throw candErr;
+        candidateId = newCand.id;
+      }
+
+      // Link application to candidate
+      const { error: linkErr } = await supabase
+        .from('job_applications')
+        .update({ candidate_id: candidateId, status: 'shortlisted' } as any)
+        .eq('id', app.id);
+      if (linkErr) throw linkErr;
+
+      return candidateId;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['job_applications'] });
+      qc.invalidateQueries({ queryKey: ['candidates'] });
+      toast.success('Candidate added to talent database');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ---------- Process application (trigger AI scoring) ----------
+export function useProcessApplication() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (applicationId: string) => {
+      const { data, error } = await supabase.functions.invoke('process-application', {
+        body: { application_id: applicationId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['job_applications'] });
+      if (data?.score != null) {
+        toast.success(`AI scored: ${data.score}/100 — ${data.recommended_action}`);
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }

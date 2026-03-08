@@ -125,7 +125,7 @@ export function AddEditCompanyPanel({ open, onOpenChange, company }: Props) {
             <div>
               <Label>Industry</Label>
               <Select value={form.industry} onValueChange={v => setForm(f => ({ ...f, industry: v }))}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <SelectTrigger data-jarvis-id="company-industry-select"><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent className="bg-popover z-[9999]">
                   {INDUSTRIES.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
                 </SelectContent>

@@ -361,9 +361,14 @@ CANVAS ORG CHART GUIDED TOURS — when user asks about editing, building, or man
 SMART INTENT MATCHING — map vague or natural language to the correct action. Use these examples as patterns:
 
 Canvas intents:
+- "show me the org chart for [company]" / "open canvas for [company]" / "take me to canvas for [company]" → use navigate_to_canvas_for_company tool with the company name. This searches the database and navigates to /canvas?company=[id].
 - "add someone to the org chart" / "add a person to the chart" → navigate to canvas, click canvas-add-node-button
 - "connect two people" / "link people" / "draw a reporting line" → navigate to canvas, click canvas-connect-tool
-- "I want to see the chart properly" / "zoom to fit" / "show the full chart" → navigate to canvas, click canvas-fit-view
+- "I want to see the chart properly" / "zoom to fit" / "show the full chart" / "I can't see the full chart" → navigate to canvas, click canvas-fit-view
+- "save the chart" / "save the layout" → navigate to canvas, click canvas-save-layout
+- "zoom in on the chart" → navigate to canvas, click canvas-zoom-in
+- "remove [name] from the chart" / "delete that node" → navigate to canvas, highlight canvas-delete-node, ask for confirmation before clicking
+- "move [person] to report to [person]" → navigate to canvas, highlight the relevant canvas-node-[slugified-name], explain they need to use Edit Structure mode and drag the node
 
 Company/Contact intents:
 - "filter my companies by industry" / "sort companies by sector" → navigate to /companies, highlight companies-filter-industry, explain it filters the list

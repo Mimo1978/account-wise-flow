@@ -559,7 +559,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     } catch {}
     return getDefaultPos();
   });
-  const location = useLocation();
+  const jarvisLocation = useLocation();
   const jarvisNav = useJarvisNavigation();
   const tts = useElevenLabsTTS(
     jarvisSettings.voice_gender,

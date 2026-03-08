@@ -147,7 +147,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         <div className="space-y-4 py-4">
           <div>
             <Label>Title *</Label>
-            <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} data-jarvis-id="deal-title-input" />
+            <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} data-jarvis-id="deal-name-input" />
             {errors.title && <p className="text-xs text-destructive mt-1">{errors.title}</p>}
           </div>
 

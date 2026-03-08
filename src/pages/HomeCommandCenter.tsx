@@ -436,12 +436,8 @@ const STATUS_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructiv
 /* ─── Diary Events Section (real diary_events + critical dates) ─── */
 function DiaryEventsSection({
   workspaceId,
-  diaryItems,
-  onItemClick,
 }: {
   workspaceId: string | undefined;
-  diaryItems: CriticalDateItem[];
-  onItemClick: (item: CriticalDateItem) => void;
 }) {
   const { data: diaryEvents = [] } = useQuery({
     queryKey: ['diary_events', workspaceId],
@@ -470,7 +466,7 @@ function DiaryEventsSection({
     task: CheckSquare,
   };
 
-  const hasAnyItems = diaryEvents.length > 0 || diaryItems.length > 0;
+  const hasAnyItems = diaryEvents.length > 0;
 
   if (!hasAnyItems) {
     return (
@@ -479,14 +475,13 @@ function DiaryEventsSection({
           <CalendarClock className="w-6 h-6 text-muted-foreground" />
         </div>
         <h3 className="text-sm font-semibold text-foreground">No events this week</h3>
-        <p className="text-xs text-muted-foreground mt-1">Booked calls, meetings and critical dates will appear here.</p>
+        <p className="text-xs text-muted-foreground mt-1">Booked calls, meetings and tasks will appear here.</p>
       </Card>
     );
   }
 
   return (
     <Card className="divide-y divide-border/50">
-      {/* Real diary events first */}
       {diaryEvents.map((evt: any) => {
         const Icon = EVENT_ICONS[evt.event_type] || CalendarClock;
         const startDate = new Date(evt.start_time);
@@ -507,13 +502,9 @@ function DiaryEventsSection({
           </div>
         );
       })}
-      {/* Critical date items */}
-      {diaryItems.slice(0, Math.max(0, 6 - diaryEvents.length)).map((item) => (
-        <CriticalDateRow key={item.id} item={item} onClick={() => onItemClick(item)} />
-      ))}
-      {(diaryEvents.length + diaryItems.length) > 6 && (
+      {diaryEvents.length > 6 && (
         <div className="px-4 py-2 text-center">
-          <span className="text-xs text-muted-foreground">+{(diaryEvents.length + diaryItems.length) - 6} more</span>
+          <span className="text-xs text-muted-foreground">+{diaryEvents.length - 6} more</span>
         </div>
       )}
     </Card>
@@ -743,7 +734,7 @@ const HomeCommandCenter = () => {
     return items;
   }, [outreachMetrics]);
 
-  // Critical dates: My Work = 30 days, Diary = 7 days (includes invoices + deals + outreach + jobs)
+  // Critical dates: My Work = 30 days (capped at 6, overdue first)
   const myWorkItems = useMemo(() => {
     const base = buildCriticalDates(sows, invoices, deals, 30);
     const all = [...base, ...outreachWorkItems, ...jobWorkItems];
@@ -751,21 +742,15 @@ const HomeCommandCenter = () => {
       if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
       return a.date.getTime() - b.date.getTime();
     });
-    return all;
+    return all.slice(0, 6);
   }, [sows, invoices, deals, outreachWorkItems, jobWorkItems]);
-  const diaryItems = useMemo(() => {
-    const base = buildCriticalDates(sows, invoices, deals, 7);
-    const outreach7 = outreachWorkItems.filter(i => i.daysUntil <= 7);
-    const all = [...base, ...outreach7];
-    all.sort((a, b) => {
-      if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
-      return a.date.getTime() - b.date.getTime();
-    });
-    return all;
-  }, [sows, invoices, deals, outreachWorkItems]);
 
-  const renewalCount = myWorkItems.length;
-  const overdueCount = myWorkItems.filter((i) => i.overdue).length;
+  // Renewals & Key Dates KPI: SOW renewals/end dates within 60 days
+  const renewalItems = useMemo(() => {
+    return buildCriticalDates(sows, [], [], 60);
+  }, [sows]);
+  const renewalCount = renewalItems.length;
+  const overdueCount = renewalItems.filter((i) => i.overdue).length;
 
   const billing = useMemo(() => computeBillingSnapshot(invoices), [invoices]);
 
@@ -926,29 +911,24 @@ const HomeCommandCenter = () => {
             />
           ) : (
             <Card className="divide-y divide-border/50">
-              {myWorkItems.slice(0, 8).map((item) => (
+              {myWorkItems.map((item) => (
                 <CriticalDateRow
                   key={item.id}
                   item={item}
                   onClick={() => handleItemClick(item)}
                 />
               ))}
-              {myWorkItems.length > 8 && (
-                <div className="px-4 py-2 text-center">
-                  <span className="text-xs text-muted-foreground">+{myWorkItems.length - 8} more items</span>
-                </div>
-              )}
             </Card>
           )}
         </div>
 
-        {/* Diary: Real diary_events + critical dates */}
+        {/* Diary: Calendar events only (calls, meetings, tasks) */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider" data-jarvis-id="home-diary">Diary</h2>
             <Badge variant="secondary" className="text-xs">Next 7 days</Badge>
           </div>
-          <DiaryEventsSection workspaceId={currentWorkspace?.id} diaryItems={diaryItems} onItemClick={handleItemClick} />
+          <DiaryEventsSection workspaceId={currentWorkspace?.id} />
         </div>
       </div>
 

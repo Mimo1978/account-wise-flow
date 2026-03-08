@@ -174,9 +174,12 @@ const ENTITY_QUERY_KEY_MAP: Record<string, string[]> = {
   crm_activities: ['crm_activities'],
 };
 
+const INITIAL_FLOW_STATE: JarvisFlowState = { flow: null, collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
+
 export function useJarvis() {
   const [messages, setMessages] = useState<JarvisMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [flowState, setFlowState] = useState<JarvisFlowState>(INITIAL_FLOW_STATE);
   const abortRef = useRef<AbortController | null>(null);
   const { user } = useAuth();
   const [userFirstName, setUserFirstName] = useState("");

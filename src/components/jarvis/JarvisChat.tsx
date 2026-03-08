@@ -105,6 +105,39 @@ function FlowProgressBar({ flowState, onCancel }: { flowState: JarvisFlowState; 
 }
 
 /* ------------------------------------------------------------------ */
+/*  Help menu for SHOW_MENU / fallback                                 */
+/* ------------------------------------------------------------------ */
+const HELP_MENU_ITEMS = [
+  { label: 'Companies', destination: 'companies' },
+  { label: 'Contacts', destination: 'contacts' },
+  { label: 'Talent', destination: 'talent' },
+  { label: 'Canvas', destination: 'canvas' },
+  { label: 'Outreach', destination: 'outreach' },
+  { label: 'Insights', destination: 'insights' },
+  { label: 'Projects', destination: 'projects' },
+  { label: 'Admin', destination: 'admin' },
+];
+
+function HelpMenuGrid({ onNavigate }: { onNavigate: (dest: string) => void }) {
+  return (
+    <div className="mt-2 space-y-2">
+      <p className="text-xs font-semibold text-orange-500">Here's what I can help with:</p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {HELP_MENU_ITEMS.map((item) => (
+          <button
+            key={item.destination}
+            onClick={() => onNavigate(item.destination)}
+            className="text-xs px-3 py-2 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors text-center"
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Visual state type                                                  */
 /* ------------------------------------------------------------------ */
 type JarvisVisualState = "idle" | "listening" | "thinking" | "speaking";
@@ -118,12 +151,14 @@ function MessageBubble({
   onCancel,
   onReplay,
   onSuggestionClick,
+  onNavigate,
 }: {
   message: JarvisMessage;
   onConfirm?: () => void;
   onCancel?: () => void;
   onReplay?: () => void;
   onSuggestionClick?: (suggestion: JarvisSuggestion) => void;
+  onNavigate?: (dest: string) => void;
 }) {
   const isUser = message.role === "user";
 
@@ -152,8 +187,13 @@ function MessageBubble({
           {message.content}
         </div>
 
+        {/* Help menu grid for SHOW_MENU */}
+        {!isUser && message.actionPayload?.type === 'SHOW_MENU' && onNavigate && (
+          <HelpMenuGrid onNavigate={onNavigate} />
+        )}
+
         {/* Suggestion chips / SHOW_MENU buttons */}
-        {!isUser && message.suggestions && message.suggestions.length > 0 && (
+        {!isUser && message.suggestions && message.suggestions.length > 0 && message.actionPayload?.type !== 'SHOW_MENU' && (
           <div className="flex flex-wrap gap-1.5 mt-1">
             {message.suggestions.map((s) => {
               const isMenu = (s as any).isMenu || message.actionPayload?.type === 'SHOW_MENU';
@@ -904,6 +944,9 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
                 onReplay={msg.role === "assistant" ? () => handleReplay(msg.content) : undefined}
                 onSuggestionClick={(suggestion) => {
                   jarvisNav.navigateTo(suggestion.destination);
+                }}
+                onNavigate={(dest) => {
+                  jarvisNav.navigateTo(dest);
                 }}
               />
             );

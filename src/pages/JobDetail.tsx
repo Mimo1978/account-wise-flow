@@ -631,7 +631,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
           board={boardFormatBoard}
           existingFormat={existingFormat}
           open={!!boardFormatBoard}
-          onOpenChange={(open) => { if (!open) setBoardFormatBo, onProjectLinked }: { jobId: string; jobTitle: string; onProjectLinked?: (projectId: string) => void </>
+          onOpenChange={(open) => { if (!open) setBoardFormatBoard(null); }}
   );
 }
 

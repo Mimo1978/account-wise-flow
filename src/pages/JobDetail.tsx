@@ -220,7 +220,10 @@ const JobDetail = () => {
             {job.location && <><span>·</span><span>{job.location}</span></>}
             {job.job_type && <><span>·</span><span>{job.job_type}</span></>}
             <span>·</span>
-            <ProjectLinker jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked}      <div className="flex items-center gap-2 flex-shrink-0">
+            <ProjectLinker jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
           <Button variant="outline" size="sm" data-jarvis-id="job-generate-spec-button">
             <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Spec
           </Button>
@@ -229,6 +232,54 @@ const JobDetail = () => {
           </Button>
         </div>
       </div>
+
+      {/* Deal creation prompt after project linking */}
+      <Dialog open={showDealPrompt} onOpenChange={setShowDealPrompt}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg">Track a placement fee?</DialogTitle>
+            <DialogDescription>
+              Is there a deal associated with this placement? This lets you track the fee in your pipeline.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-sm">Deal Name</Label>
+              <Input value={dealName} onChange={(e) => setDealName(e.target.value)} className="mt-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-sm">Stage</Label>
+                <Select value={dealStage} onValueChange={setDealStage}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DEAL_STAGES.map(s => (
+                      <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm">Value</Label>
+                <Input type="number" value={dealValue} onChange={(e) => setDealValue(Number(e.target.value))} className="mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm">Expected Close Date</Label>
+              <Input type="date" value={dealCloseDate} onChange={(e) => setDealCloseDate(e.target.value)} className="mt-1" />
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setShowDealPrompt(false)}>
+              No thanks
+            </Button>
+            <Button onClick={handleCreateDeal} disabled={createDeal.isPending || !dealName.trim()}>
+              {createDeal.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
+              Yes — create a deal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Filled role celebration modal (Pause point 4) */}
       <Dialog open={showFilledModal} onOpenChange={setShowFilledModal}>
@@ -245,7 +296,9 @@ const JobDetail = () => {
             <Button variant="outline" onClick={() => setShowFilledModal(false)}>
               Close
             </Button>
-            <FilledModalLinker jobId={job.id} jobTitle={job.title} onLinonProjectLinked={handleProjectLinked} ked={() => setShowFilledModal(false)} onProjectLinked={handleProjectLinked </DialogContent>
+            <FilledModalLinker jobId={job.id} jobTitle={job.title} onLinked={() => setShowFilledModal(false)} onProjectLinked={handleProjectLinked} />
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
 
       {/* Status Controls */}

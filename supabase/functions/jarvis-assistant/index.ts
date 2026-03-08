@@ -1420,6 +1420,65 @@ Return ONLY valid JSON, no markdown fences.`,
         entityId: data?.id,
       };
     }
+    case "generate_adverts": {
+      // Delegate to the generate-adverts edge function via internal fetch
+      const jobId = input.job_id as string;
+      const boards = input.boards as string[];
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/generate-adverts`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ job_id: jobId, boards }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Advert generation failed" }, entityType: "job_adverts" };
+      const successCount = (data.results || []).filter((r: any) => r.advert).length;
+      return {
+        result: { ...data, message: `Generated ${successCount} advert(s) successfully.`, navigate_to: `/jobs/${jobId}` },
+        entityType: "job_adverts",
+        entityId: jobId,
+      };
+    }
+    case "update_advert": {
+      const advertId = input.advert_id as string;
+      const instruction = input.instruction as string;
+      const jobId = input.job_id as string;
+
+      // Fetch current advert
+      const { data: advert } = await supabaseAdmin
+        .from("job_adverts")
+        .select("content, board")
+        .eq("id", advertId)
+        .single();
+      if (!advert?.content) return { result: { error: "Advert not found" }, entityType: "job_adverts" };
+
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) return { result: { error: "AI not configured" }, entityType: "job_adverts" };
+
+      const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: "You are an expert recruitment copywriter. Modify the job advert as instructed. Return only the updated plain text, no markdown." },
+            { role: "user", content: `Current advert for ${advert.board}:\n\n${advert.content}\n\nInstruction: ${instruction}` },
+          ],
+        }),
+      });
+      if (!aiRes.ok) return { result: { error: "AI rewrite failed" }, entityType: "job_adverts" };
+      const aiData = await aiRes.json();
+      const newContent = aiData.choices?.[0]?.message?.content || "";
+      const wordCount = newContent.trim().split(/\s+/).filter(Boolean).length;
+      const charCount = newContent.length;
+
+      await supabaseAdmin.from("job_adverts").update({ content: newContent, word_count: wordCount, character_count: charCount }).eq("id", advertId);
+      return { result: { success: true, board: advert.board, word_count: wordCount }, entityType: "job_adverts", entityId: advertId };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }

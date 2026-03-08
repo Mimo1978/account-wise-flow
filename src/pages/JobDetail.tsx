@@ -864,6 +864,9 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                           </Button>
                         )}
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Log Reply" onClick={() => handleLogReply(e.id)}>
+                          <Reply className="w-3.5 h-3.5" />
+                        </Button>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Email"><Mail className="w-3.5 h-3.5" /></Button>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="SMS"><MessageSquare className="w-3.5 h-3.5" /></Button>
                         <Button

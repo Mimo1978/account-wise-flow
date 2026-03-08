@@ -6,6 +6,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDemoIndicator } from '@/hooks/use-workspace-mode';
 import { DemoBanner } from '@/components/layout/DemoBanner';
 import { usePermissions } from '@/hooks/use-permissions';
+import { useNewApplicationsCount } from '@/hooks/use-jobs';
 import { 
   Sparkles, 
   LayoutDashboard, 

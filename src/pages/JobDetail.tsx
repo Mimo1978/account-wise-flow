@@ -542,13 +542,34 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
     return 'bg-muted text-muted-foreground';
   };
 
-  const statusBadge = (status: string) => {
+  const statusBadge = (status: string, entry?: JobShortlistEntry) => {
+    if (status === 'responded' && entry?.candidate_interest) {
+      const ib = INTEREST_BADGE[entry.candidate_interest] || INTEREST_BADGE.unclear;
+      return <Badge variant="outline" className={ib.className}>{ib.label}</Badge>;
+    }
+    if (status === 'rejected' && entry?.candidate_interest === 'no') {
+      return <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30">Declined</Badge>;
+    }
     switch (status) {
       case 'approved': return <Badge variant="outline" className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30">Approved</Badge>;
       case 'reserve': return <Badge variant="outline" className="bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30">Reserve</Badge>;
       case 'contacted': return <Badge variant="outline" className="bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-500/30">Contacted</Badge>;
       default: return <Badge variant="outline" className="bg-muted text-muted-foreground">Pending Review</Badge>;
     }
+  };
+
+  const handleLogReply = (entryId: string) => {
+    setLogReplyEntryId(entryId);
+    setReplyText('');
+    setLogReplyOpen(true);
+  };
+
+  const handleSubmitReply = () => {
+    if (!logReplyEntryId || !replyText.trim()) return;
+    logReply.mutate({ shortlist_id: logReplyEntryId, reply_text: replyText.trim() });
+    setLogReplyOpen(false);
+    setLogReplyEntryId(null);
+    setReplyText('');
   };
 
   const handleDragStart = (id: string) => setDragId(id);

@@ -612,37 +612,13 @@ const HomeCommandCenter = () => {
           )}
         </div>
 
-        {/* Diary: 7 day window */}
+        {/* Diary: Real diary_events + critical dates */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider" data-jarvis-id="home-diary">Diary</h2>
             <Badge variant="secondary" className="text-xs">Next 7 days</Badge>
           </div>
-          {diaryItems.length === 0 ? (
-            <EmptyPanel
-              title="No events this week"
-              description="Contract renewals, invoice due dates and end dates in the next 7 days will appear in your diary."
-              icon={CalendarClock}
-              ctas={[
-                { label: 'Add SOW', onClick: () => setSowOpen(true) },
-              ]}
-            />
-          ) : (
-            <Card className="divide-y divide-border/50">
-              {diaryItems.slice(0, 6).map((item) => (
-                <CriticalDateRow
-                  key={item.id}
-                  item={item}
-                  onClick={() => handleItemClick(item)}
-                />
-              ))}
-              {diaryItems.length > 6 && (
-                <div className="px-4 py-2 text-center">
-                  <span className="text-xs text-muted-foreground">+{diaryItems.length - 6} more</span>
-                </div>
-              )}
-            </Card>
-          )}
+          <DiaryEventsSection workspaceId={currentWorkspace?.id} diaryItems={diaryItems} onItemClick={handleItemClick} />
         </div>
       </div>
 

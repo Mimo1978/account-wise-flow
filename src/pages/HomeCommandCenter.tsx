@@ -526,6 +526,9 @@ const HomeCommandCenter = () => {
   const [sowSheetOpen, setSowSheetOpen] = useState(false);
   const [convertDeal, setConvertDeal] = useState<Deal | null>(null);
   const [pipelineFilter, setPipelineFilter] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportPreselect, setReportPreselect] = useState<ReportType | undefined>();
+  const [reportAutoDownload, setReportAutoDownload] = useState(false);
 
   const { data: engagements = [], isLoading: engLoading } = useEngagements(currentWorkspace?.id);
   const { data: sows = [], isLoading: sowsLoading } = useSows(currentWorkspace?.id);

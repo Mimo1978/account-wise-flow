@@ -347,9 +347,10 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 // ---------- Adverts Tab ----------
-function AdvertsTab({ jobId }: { jobId: string }) {
+function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const { data: adverts = [], isLoading } = useJobAdverts(jobId);
   const { data: boardFormats = [] } = useBoardFormats();
+  const { data: jobProjectLinks = [] } = useJobProjects(jobId);
   const updateAdvert = useUpdateAdvert();
   const publishAdvert = usePublishAdvert();
   const queryClient = useQueryClient();
@@ -391,6 +392,20 @@ function AdvertsTab({ jobId }: { jobId: string }) {
   const handleCopy = (content: string) => {
     navigator.clipboard.writeText(content);
     toast.success('Advert text copied to clipboard');
+  };
+
+  // Custom publish handler with project link toast (Pause point 2)
+  const handlePublish = (advertId: string, board: string) => {
+    publishAdvert.mutate({ id: advertId, board }, {
+      onSuccess: () => {
+        if (jobProjectLinks.length === 0) {
+          // Show toast with link action for pause point 2
+          toast.info('This job is live. Link it to a project to track progress in your Command Centre.', {
+            duration: 5000,
+          });
+        }
+      },
+    });
   };
 
   if (isLoading) return <TableSkeleton />;

@@ -21,7 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useJarvis, JarvisMessage, JarvisSuggestion, JarvisActionPayload } from "@/hooks/use-jarvis";
+import { useJarvis, JarvisMessage, JarvisSuggestion, JarvisActionPayload, JarvisFlowState, getFlowHighlightId } from "@/hooks/use-jarvis";
 import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";

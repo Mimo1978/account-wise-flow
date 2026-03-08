@@ -220,7 +220,7 @@ const JobDetail = () => {
             {job.location && <><span>·</span><span>{job.location}</span></>}
             {job.job_type && <><span>·</span><span>{job.job_type}</span></>}
             <span>·</span>
-            <ProjectLinker jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} />
+            <ProjectLinker jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} onProjectLinked={handleProjectLinked} />
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -248,7 +248,7 @@ const JobDetail = () => {
             <Button variant="outline" onClick={() => setShowFilledModal(false)}>
               Close
             </Button>
-            <FilledModalLinker jobId={job.id} jobTitle={job.title} onLinked={() => setShowFilledModal(false)} />
+            <FilledModalLinker jobId={job.id} jobTitle={job.title} onLinonProjectLinked={handleProjectLinked} ked={() => setShowFilledModal(false)} />
           </DialogFooter>
         </DialogContent>
       </Dialog>

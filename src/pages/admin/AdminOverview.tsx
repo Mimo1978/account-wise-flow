@@ -56,6 +56,20 @@ const ADMIN_CARDS: AdminCard[] = [
     path: '/admin/schema',
     jarvisId: 'admin-schema-inventory',
   },
+  {
+    title: 'Jarvis Settings',
+    description: 'Configure voice, spotlight and AI assistant behaviour.',
+    icon: Bot,
+    path: '/admin/jarvis',
+    jarvisId: 'admin-jarvis-settings',
+  },
+  {
+    title: 'Billing & Invoices',
+    description: 'Invoice settings, templates and billing configuration.',
+    icon: Receipt,
+    path: '/admin/billing',
+    jarvisId: 'admin-billing-invoices',
+  },
 ];
 
 export default function AdminOverview() {

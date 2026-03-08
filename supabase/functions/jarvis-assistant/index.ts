@@ -396,6 +396,20 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "run_shortlist",
+      description: "Run AI candidate matching against a job specification. Searches the talent database and produces a ranked shortlist of best matches. Use when the user says 'find candidates for this job', 'shortlist for this job', 'who matches this role', 'run shortlist'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID to run matching for" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "update_advert",
       description: "Update the content of an existing job advert. Use when the user asks to shorten, rephrase, or modify a specific advert.",
       parameters: {
@@ -682,7 +696,13 @@ Step 5 — Save:
 
 NAVIGATION — Jobs:
   "take me to jobs" / "show me my jobs" / "open jobs" / "jobs list" → navigate to /jobs
-  "open job [name]" → navigate to /jobs, search for the job`;
+  "open job [name]" → navigate to /jobs, search for the job
+
+SHORTLIST / CANDIDATE MATCHING — detect intents:
+  "find candidates for [job]" / "shortlist for this job" / "who matches this role" / "run shortlist" / "match candidates" / "shortlist candidates":
+  - If a job_id is available from context or the current page, call run_shortlist immediately.
+  - After the shortlist runs, report: "I found [n] strong matches for [job title]. Top candidate is [name] with a score of [n]. Shall I draft outreach emails to the shortlist?"
+  - If the user is on a job detail page, use the job_id from the URL.`;
 
 
 // ---------- Universal record lookup helper ----------
@@ -1479,6 +1499,26 @@ Return ONLY valid JSON, no markdown fences.`,
       await supabaseAdmin.from("job_adverts").update({ content: newContent, word_count: wordCount, character_count: charCount }).eq("id", advertId);
       return { result: { success: true, board: advert.board, word_count: wordCount }, entityType: "job_adverts", entityId: advertId };
     }
+    case "run_shortlist": {
+      const jobId = input.job_id as string;
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/run-shortlist`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ job_id: jobId }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Shortlist generation failed" }, entityType: "job_shortlist" };
+      return {
+        result: { ...data, navigate_to: `/jobs/${jobId}` },
+        entityType: "job_shortlist",
+        entityId: jobId,
+      };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }
@@ -1791,7 +1831,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 
     // Build invalidation list for frontend cache
     const invalidateQueries: string[] = [];
-    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert"]);
+    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist"]);
     const entityQueryMap: Record<string, string[]> = {
       companies: ["companies", "canvas-companies"],
       crm_companies: ["crm_companies"],
@@ -1805,6 +1845,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       sms: ["crm_activities"],
       jobs: ["jobs"],
       job_adverts: ["job_adverts"],
+      job_shortlist: ["job_shortlist"],
     };
 
     for (const action of actionsExecuted) {

@@ -47,6 +47,8 @@ export interface JobShortlistEntry {
   candidate_id: string | null;
   match_score: number | null;
   match_reasons: string[] | null;
+  concerns: string[] | null;
+  availability_warning: string | null;
   status: string;
   outreach_sent_at: string | null;
   response_received_at: string | null;
@@ -55,7 +57,7 @@ export interface JobShortlistEntry {
   interview_booked_at: string | null;
   notes: string | null;
   created_at: string;
-  candidates?: { name: string; current_title: string | null } | null;
+  candidates?: { name: string; current_title: string | null; availability_status: string | null; location: string | null } | null;
 }
 
 export interface JobApplication {
@@ -138,13 +140,62 @@ export function useJobShortlist(jobId: string | undefined) {
       if (!jobId) return [];
       const { data, error } = await supabase
         .from('job_shortlist')
-        .select('*, candidates(name, current_title)')
+        .select('*, candidates(name, current_title, availability_status, location)')
         .eq('job_id', jobId)
         .order('match_score', { ascending: false });
       if (error) throw error;
       return (data ?? []) as JobShortlistEntry[];
     },
     enabled: !!jobId,
+  });
+}
+
+// ---------- Remove from shortlist ----------
+export function useRemoveFromShortlist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('job_shortlist').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['job_shortlist'] });
+      toast.success('Removed from shortlist');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ---------- Run shortlist (AI matching) ----------
+export function useRunShortlist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (jobId: string) => {
+      const { data, error } = await supabase.functions.invoke('run-shortlist', {
+        body: { job_id: jobId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as {
+        shortlisted: number;
+        total_scored: number;
+        below_threshold: number;
+        top_candidate: { name: string; score: number } | null;
+        job_title: string;
+      };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['job_shortlist'] });
+      if (data.shortlisted > 0) {
+        const topMsg = data.top_candidate
+          ? ` Top match: ${data.top_candidate.name} (${data.top_candidate.score}%)`
+          : '';
+        toast.success(`${data.shortlisted} candidates shortlisted.${topMsg}`);
+      } else {
+        toast.info('No candidates scored above the threshold (50%)');
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 

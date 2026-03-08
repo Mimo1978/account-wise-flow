@@ -6,6 +6,8 @@ import {
   Shield,
   Megaphone,
   Plug,
+  Bot,
+  Receipt,
 } from 'lucide-react';
 
 interface AdminCard {
@@ -53,6 +55,20 @@ const ADMIN_CARDS: AdminCard[] = [
     icon: Database,
     path: '/admin/schema',
     jarvisId: 'admin-schema-inventory',
+  },
+  {
+    title: 'Jarvis Settings',
+    description: 'Configure voice, spotlight and AI assistant behaviour.',
+    icon: Bot,
+    path: '/admin/jarvis',
+    jarvisId: 'admin-jarvis-settings',
+  },
+  {
+    title: 'Billing & Invoices',
+    description: 'Invoice settings, templates and billing configuration.',
+    icon: Receipt,
+    path: '/admin/billing',
+    jarvisId: 'admin-billing-invoices',
   },
 ];
 

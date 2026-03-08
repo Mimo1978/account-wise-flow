@@ -137,7 +137,7 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
             </div>
             <div>
               <Label>Last Name *</Label>
-              <Input value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} />
+              <Input value={form.last_name} onChange={e => setForm(f => ({ ...f, last_name: e.target.value }))} data-jarvis-id="contact-last-name-input" />
               {errors.last_name && <p className="text-xs text-destructive mt-1">{errors.last_name}</p>}
             </div>
           </div>
@@ -180,7 +180,7 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Phone</Label>
-              <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+              <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} data-jarvis-id="contact-phone-input" />
             </div>
             <div>
               <Label>Mobile</Label>
@@ -256,7 +256,7 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
         </div>
 
         <SheetFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} data-jarvis-id="cancel-button">Cancel</Button>
           <Button onClick={handleSave} disabled={isPending} data-jarvis-id="save-button">
             {isPending ? "Saving…" : isEdit ? "Update" : "Create Contact"}
           </Button>

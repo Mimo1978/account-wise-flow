@@ -65,20 +65,45 @@ export function getLastCompanyPage(): JarvisNavHistoryEntry | null {
 
 const TOOLTIP_ID = "jarvis-nav-tooltip";
 const OVERLAY_ID = "jarvis-nav-overlay";
+const GLOW_DIV_ID = "jarvis-screen-glow-div";
 const HIGHLIGHT_CLASS = "jarvis-highlight";
-const GLOW_CLASS = "jarvis-screen-glow";
+const SECTION_GLOW_CLASS = "jarvis-section-glow";
 
 /* ------------------------------------------------------------------ */
 /*  DOM helpers                                                        */
 /* ------------------------------------------------------------------ */
 
+function getOrCreateGlowDiv(): HTMLElement {
+  let div = document.getElementById(GLOW_DIV_ID);
+  if (!div) {
+    div = document.createElement("div");
+    div.id = GLOW_DIV_ID;
+    div.className = "jarvis-screen-glow";
+    div.setAttribute("aria-hidden", "true");
+    document.body.appendChild(div);
+  }
+  return div;
+}
+
+function activatePageGlow() {
+  getOrCreateGlowDiv().classList.add("active");
+}
+
+function deactivatePageGlow() {
+  const div = document.getElementById(GLOW_DIV_ID);
+  div?.classList.remove("active");
+}
+
 function clearVisuals() {
   document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((el) => {
     el.classList.remove(HIGHLIGHT_CLASS);
   });
+  document.querySelectorAll(`.${SECTION_GLOW_CLASS}`).forEach((el) => {
+    el.classList.remove(SECTION_GLOW_CLASS);
+  });
   document.getElementById(TOOLTIP_ID)?.remove();
   removeOverlay();
-  document.body.classList.remove(GLOW_CLASS);
+  deactivatePageGlow();
 }
 
 function showOverlay() {

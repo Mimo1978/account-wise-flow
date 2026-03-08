@@ -179,6 +179,7 @@ const ENTITY_QUERY_KEY_MAP: Record<string, string[]> = {
   crm_projects: ['crm_projects'],
   crm_invoices: ['crm_invoices'],
   crm_activities: ['crm_activities'],
+  jobs: ['jobs'],
 };
 
 const INITIAL_FLOW_STATE: JarvisFlowState = { flow: null, collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };

@@ -491,6 +491,86 @@ export function useUpdateOutreachMessage() {
   });
 }
 
+// ---------- Log candidate reply (parse with AI) ----------
+export function useLogCandidateReply() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { shortlist_id?: string; message_id?: string; reply_text: string }) => {
+      const { data, error } = await supabase.functions.invoke('parse-candidate-reply', {
+        body: payload,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as {
+        success: boolean;
+        parsed: {
+          interest: string;
+          availability_text: string;
+          availability_date: string | null;
+          preferred_contact: string;
+          questions: string[];
+          sentiment: string;
+        };
+        candidate_name: string;
+        job_title: string;
+        job_id: string;
+        notification: {
+          message: string;
+          should_book_call: boolean;
+          was_rejected: boolean;
+        };
+      };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['job_shortlist'] });
+      qc.invalidateQueries({ queryKey: ['outreach_messages'] });
+      qc.invalidateQueries({ queryKey: ['unreviewed_replies_count'] });
+      toast.success(data.notification.message);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ---------- Unreviewed replies count for notification badges ----------
+export function useUnreviewedRepliesCount(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: ['unreviewed_replies_count', workspaceId],
+    queryFn: async () => {
+      if (!workspaceId) return 0;
+      const { count, error } = await supabase
+        .from('job_shortlist')
+        .select('id', { count: 'exact', head: true })
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'responded')
+        .not('response_received_at', 'is', null);
+      if (error) return 0;
+      return count ?? 0;
+    },
+    enabled: !!workspaceId,
+    refetchInterval: 30000,
+  });
+}
+
+// ---------- Job-level unreviewed replies count ----------
+export function useJobUnreviewedReplies(jobId: string | undefined) {
+  return useQuery({
+    queryKey: ['job_unreviewed_replies', jobId],
+    queryFn: async () => {
+      if (!jobId) return 0;
+      const { count, error } = await supabase
+        .from('job_shortlist')
+        .select('id', { count: 'exact', head: true })
+        .eq('job_id', jobId)
+        .eq('status', 'responded')
+        .not('response_received_at', 'is', null);
+      if (error) return 0;
+      return count ?? 0;
+    },
+    enabled: !!jobId,
+    refetchInterval: 30000,
+  });
+}
+
 // ---------- New (unreviewed) application count for nav badge ----------
 export function useNewApplicationsCount() {
   const { currentWorkspace } = useWorkspace();

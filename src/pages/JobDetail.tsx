@@ -220,7 +220,7 @@ const JobDetail = () => {
             {job.location && <><span>·</span><span>{job.location}</span></>}
             {job.job_type && <><span>·</span><span>{job.job_type}</span></>}
             <span>·</span>
-            <ProjectLinker jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} onProjectLinked={handleProjectLinked} />
+            <ProjectLinker jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} />
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">

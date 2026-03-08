@@ -85,7 +85,25 @@ const STATUS_BADGE: Record<string, { className: string; label: string }> = {
 const SHORTLIST_STATUS: Record<string, string> = {
   pending: 'Pending', contacted: 'Contacted', responded: 'Responded',
   interviewing: 'Interviewing', rejected: 'Rejected', placed: 'Placed',
+  approved: 'Approved', reserve: 'Reserve',
 };
+
+const INTEREST_BADGE: Record<string, { className: string; label: string }> = {
+  yes: { className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', label: 'Interested' },
+  no: { className: 'bg-destructive/15 text-destructive border-destructive/30', label: 'Not Interested' },
+  maybe: { className: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30', label: 'Maybe' },
+  unclear: { className: 'bg-muted text-muted-foreground', label: 'Unclear' },
+};
+
+function ShortlistReplyBadge({ jobId }: { jobId: string }) {
+  const { data: count = 0 } = useJobUnreviewedReplies(jobId);
+  if (count === 0) return null;
+  return (
+    <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+      {count}
+    </span>
+  );
+}
 
 const APP_STATUS: Record<string, string> = {
   new: 'New', reviewing: 'Reviewing', shortlisted: 'Shortlisted',

@@ -192,16 +192,150 @@ All colors MUST be HSL.
 
 /* ─── Jarvis Visual Effects System ─── */
 
-/* SCREEN BORDER GLOW — Applied to body when Jarvis navigation is active */
-.jarvis-screen-glow::after {
-  content: '';
+/* SCREEN BORDER GLOW — fixed overlay, fade in/out controlled via opacity */
+.jarvis-screen-glow {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  box-shadow: inset 0 0 0 3px hsl(24 95% 53%), inset 0 0 60px hsl(24 95% 53% / 0.15);
-  animation: jarvis-border-pulse 2s ease-in-out infinite;
   z-index: 9999;
-  border-radius: 0;
+  box-shadow: inset 0 0 0 3px hsl(24 95% 53%), inset 0 0 60px hsl(24 95% 53% / 0.12);
+  animation: jarvis-pulse 2s ease-in-out infinite;
+  transition: opacity 0.4s ease-out;
+  opacity: 1;
+}
+
+.jarvis-screen-glow.jarvis-glow-out {
+  opacity: 0;
+  transition: opacity 1s ease-in;
+}
+
+@keyframes jarvis-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* ELEMENT SPOTLIGHT — Glowing ring on target element */
+.jarvis-spotlight {
+  position: relative;
+  box-shadow: 0 0 0 3px hsl(24 95% 53%), 0 0 30px hsl(24 95% 53% / 0.5) !important;
+  border-radius: inherit;
+  z-index: 1000;
+  animation: jarvis-element-pulse 1.5s ease-in-out infinite;
+}
+
+.jarvis-highlight {
+  position: relative;
+  box-shadow: 0 0 0 3px hsl(24 95% 53%), 0 0 30px hsl(24 95% 53% / 0.6) !important;
+  border-radius: inherit;
+  z-index: 1000;
+  animation: jarvis-element-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes jarvis-element-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px hsl(24 95% 53%), 0 0 20px hsl(24 95% 53% / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 4px hsl(24 95% 53%), 0 0 40px hsl(24 95% 53% / 0.7);
+  }
+}
+
+/* FLOATING LABEL TOOLTIP — Above highlighted element */
+.jarvis-tooltip {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10001;
+  background: hsl(24 95% 53%);
+  color: hsl(0 0% 100%);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0 4px 20px hsl(24 95% 53% / 0.35);
+  animation: jarvis-tooltip-in 0.2s ease-out;
+  letter-spacing: 0.01em;
+  transform: translateX(-50%);
+}
+
+.jarvis-nav-tooltip {
+  background: hsl(24 95% 53%);
+  color: hsl(0 0% 100%);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 20px hsl(24 95% 53% / 0.35);
+  animation: jarvis-tooltip-in 0.2s ease-out;
+  letter-spacing: 0.01em;
+}
+
+.jarvis-tooltip::after,
+.jarvis-nav-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid hsl(24 95% 53%);
+}
+
+@keyframes jarvis-tooltip-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* NAVIGATION TRANSITION OVERLAY */
+.jarvis-nav-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: hsl(235 28% 14% / 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  pointer-events: none;
+  animation: jarvis-overlay-in 0.15s ease-out;
+}
+
+.jarvis-nav-overlay.removing {
+  animation: jarvis-overlay-out 0.2s ease-in forwards;
+}
+
+.jarvis-nav-overlay-text {
+  color: hsl(0 0% 100%);
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+@keyframes jarvis-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes jarvis-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.jarvis-nav-spinner {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 3px solid hsl(24 95% 53% / 0.25);
+  border-top-color: hsl(24 95% 53%);
+  animation: jarvis-spin 0.6s linear infinite;
+}
+
+@keyframes jarvis-spin {
+  to { transform: rotate(360deg); }
 }
 
 @keyframes jarvis-border-pulse {

@@ -4046,6 +4046,7 @@ export type Database = {
       }
       outreach_messages: {
         Row: {
+          ai_call_script: string | null
           automation_level: string
           body: string | null
           body_html: string | null
@@ -4053,6 +4054,7 @@ export type Database = {
           candidate_email: string | null
           candidate_id: string | null
           candidate_name: string | null
+          candidate_phone: string | null
           channel: string | null
           created_at: string | null
           created_by: string | null
@@ -4066,12 +4068,15 @@ export type Database = {
           reply_content: string | null
           sent_at: string | null
           shortlist_id: string | null
+          sms_body: string | null
           status: string | null
           subject: string | null
+          twilio_sid: string | null
           updated_at: string
           workspace_id: string
         }
         Insert: {
+          ai_call_script?: string | null
           automation_level?: string
           body?: string | null
           body_html?: string | null
@@ -4079,6 +4084,7 @@ export type Database = {
           candidate_email?: string | null
           candidate_id?: string | null
           candidate_name?: string | null
+          candidate_phone?: string | null
           channel?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -4092,12 +4098,15 @@ export type Database = {
           reply_content?: string | null
           sent_at?: string | null
           shortlist_id?: string | null
+          sms_body?: string | null
           status?: string | null
           subject?: string | null
+          twilio_sid?: string | null
           updated_at?: string
           workspace_id: string
         }
         Update: {
+          ai_call_script?: string | null
           automation_level?: string
           body?: string | null
           body_html?: string | null
@@ -4105,6 +4114,7 @@ export type Database = {
           candidate_email?: string | null
           candidate_id?: string | null
           candidate_name?: string | null
+          candidate_phone?: string | null
           channel?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -4118,8 +4128,10 @@ export type Database = {
           reply_content?: string | null
           sent_at?: string | null
           shortlist_id?: string | null
+          sms_body?: string | null
           status?: string | null
           subject?: string | null
+          twilio_sid?: string | null
           updated_at?: string
           workspace_id?: string
         }

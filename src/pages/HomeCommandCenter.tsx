@@ -133,13 +133,112 @@ function EmptyPanel({
   );
 }
 
-/* ─── Pipeline Stage ─── */
-function PipelineStage({ label, count }: { label: string; count: number }) {
+/* ─── Pipeline Chevron Stage ─── */
+const CHEVRON_COLORS: Record<string, string> = {
+  lead: '#3B82F6',
+  qualified: '#6366F1',
+  proposal: '#F59E0B',
+  negotiation: '#F97316',
+  won: '#22C55E',
+  lost: '#EF4444',
+};
+
+function PipelineChevron({
+  stage,
+  label,
+  count,
+  total,
+  isFirst,
+  isLast,
+  isActive,
+  onClick,
+}: {
+  stage: string;
+  label: string;
+  count: number;
+  total: number;
+  isFirst: boolean;
+  isLast: boolean;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const color = CHEVRON_COLORS[stage] ?? '#6B7280';
   return (
-    <div className="flex-1 min-w-[120px] bg-muted/50 rounded-lg p-4 text-center">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-      <p className="text-xl font-bold text-foreground mt-1">{count}</p>
-    </div>
+    <button
+      onClick={onClick}
+      className="relative flex-1 min-w-[130px] transition-all duration-200 group"
+      style={{ filter: isActive ? 'brightness(1)' : 'brightness(0.85)', opacity: isActive ? 1 : 0.75 }}
+    >
+      <svg viewBox="0 0 200 80" preserveAspectRatio="none" className="w-full h-[80px]" aria-hidden>
+        <polygon
+          points={isFirst ? '0,0 180,0 200,40 180,80 0,80' : isLast ? '0,0 180,0 200,0 200,80 180,80 0,80 20,40' : '0,0 180,0 200,40 180,80 0,80 20,40'}
+          fill={color}
+          className="transition-all duration-200 group-hover:brightness-110"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2">
+        <span className="text-[10px] font-semibold text-white uppercase tracking-wider leading-none">{label}</span>
+        <span className="text-xl font-bold text-white leading-tight mt-0.5">{count}</span>
+        <span className="text-[10px] text-white/80 leading-none">£{total.toLocaleString()}</span>
+      </div>
+    </button>
+  );
+}
+
+/* ─── Deal Card for Pipeline ─── */
+function PipelineDealCard({
+  deal,
+  onAdvance,
+  onCreateProject,
+  onViewProject,
+  isRecruitment,
+}: {
+  deal: Deal;
+  onAdvance?: (nextStage: string) => void;
+  onCreateProject?: () => void;
+  onViewProject?: () => void;
+  isRecruitment: boolean;
+}) {
+  const today = startOfDay(new Date());
+  const createdDate = startOfDay(new Date(deal.updated_at));
+  const daysInStage = Math.max(0, differenceInDays(today, createdDate));
+  const stageIdx = DEAL_STAGES.indexOf(deal.stage as any);
+  const nextStage = stageIdx >= 0 && stageIdx < DEAL_STAGES.length - 2 ? DEAL_STAGES[stageIdx + 1] : null;
+
+  return (
+    <Card className="p-4 hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-semibold text-foreground truncate flex-1">{deal.name}</p>
+        {isRecruitment && (
+          <span className="shrink-0 w-5 h-5 rounded-full bg-purple-500 text-white text-[10px] font-bold flex items-center justify-center">R</span>
+        )}
+      </div>
+      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{deal.companies?.name ?? '—'}</span>
+        <span className="font-medium text-foreground">£{deal.value.toLocaleString()}</span>
+        {deal.expected_close_date && (
+          <span>{format(new Date(deal.expected_close_date), 'dd MMM')}</span>
+        )}
+        <span className="ml-auto tabular-nums">{daysInStage}d in stage</span>
+      </div>
+      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/40">
+        {nextStage && deal.stage !== 'won' && deal.stage !== 'lost' && onAdvance && (
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={() => onAdvance(nextStage)}>
+            → {DEAL_STAGE_LABELS[nextStage]}
+          </Button>
+        )}
+        {deal.stage === 'won' && !deal.engagement_id && onCreateProject && (
+          <Button size="sm" variant="default" className="h-6 text-[10px] px-2 gap-1" onClick={onCreateProject}>
+            <Briefcase className="w-3 h-3" /> Create Project
+          </Button>
+        )}
+        {deal.stage === 'won' && deal.engagement_id && onViewProject && (
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 gap-1" onClick={onViewProject}>
+            <ArrowRight className="w-3 h-3" /> View Project
+          </Button>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -433,6 +532,7 @@ const HomeCommandCenter = () => {
   const [selectedSow, setSelectedSow] = useState<Sow | null>(null);
   const [sowSheetOpen, setSowSheetOpen] = useState(false);
   const [convertDeal, setConvertDeal] = useState<Deal | null>(null);
+  const [pipelineFilter, setPipelineFilter] = useState<string | null>(null);
 
   const { data: engagements = [], isLoading: engLoading } = useEngagements(currentWorkspace?.id);
   const { data: sows = [], isLoading: sowsLoading } = useSows(currentWorkspace?.id);
@@ -1206,7 +1306,7 @@ const HomeCommandCenter = () => {
         )}
       </section>
 
-      {/* ── Pipeline Snapshot (Deals Kanban) ── */}
+      {/* ── Pipeline Snapshot: Monday.com Chevron Flow ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider" data-jarvis-id="home-pipeline-snapshot">Pipeline Snapshot</h2>
@@ -1238,98 +1338,69 @@ const HomeCommandCenter = () => {
             ]}
           />
         ) : (
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {DEAL_STAGES.map((stage) => {
-              const stageDeals = deals.filter((d) => d.stage === stage);
-              const stageTotal = stageDeals.reduce((s, d) => s + d.value, 0);
-              return (
-                <div key={stage} className="min-w-[200px] flex-1">
-                  <div className="flex items-center justify-between mb-2 px-1">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{DEAL_STAGE_LABELS[stage]}</span>
-                    <Badge variant="secondary" className="text-xs">{stageDeals.length}</Badge>
-                  </div>
-                  {stageTotal > 0 && (
-                    <p className="text-xs text-muted-foreground px-1 mb-2">£{stageTotal.toLocaleString()}</p>
-                  )}
-                  <div className="space-y-2">
-                    {stageDeals.length === 0 ? (
-                      <div className="rounded-lg border border-dashed border-border p-4 text-center">
-                        <p className="text-xs text-muted-foreground">No deals</p>
-                      </div>
-                    ) : (
-                      stageDeals.map((deal) => {
-                        const stageIdx = DEAL_STAGES.indexOf(deal.stage as any);
-                        const nextStage = stageIdx >= 0 && stageIdx < DEAL_STAGES.length - 2 ? DEAL_STAGES[stageIdx + 1] : null;
-                        return (
-                          <Card key={deal.id} className="p-3 hover:shadow-sm transition-shadow">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-sm font-medium text-foreground truncate flex-1">{deal.name}</p>
-                              {isRecruitmentDeal(deal) && (
-                                <Badge variant="secondary" className="text-[10px] shrink-0">Recruitment</Badge>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.companies?.name ?? '—'}</p>
-                            <div className="flex items-center justify-between mt-2">
-                              <span className="text-xs font-medium text-foreground">£{deal.value.toLocaleString()}</span>
-                              <Badge variant="outline" className="text-xs">{deal.probability}%</Badge>
-                            </div>
-                            {deal.expected_close_date && (
-                              <p className="text-xs text-muted-foreground mt-1">Close: {format(new Date(deal.expected_close_date), 'dd MMM')}</p>
-                            )}
-                            {/* Deal actions */}
-                            <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/40">
-                              {nextStage && deal.stage !== 'won' && deal.stage !== 'lost' && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 text-[10px] px-2"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    updateDeal.mutateAsync({ id: deal.id, stage: nextStage });
-                                    toast.success(`Moved to ${DEAL_STAGE_LABELS[nextStage]}`);
-                                  }}
-                                >
-                                  → {DEAL_STAGE_LABELS[nextStage]}
-                                </Button>
-                              )}
-                              {deal.stage === 'won' && !deal.engagement_id && (
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  className="h-6 text-[10px] px-2 gap-1"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setConvertDeal(deal);
-                                    setCreateOpen(true);
-                                  }}
-                                >
-                                  <Briefcase className="w-3 h-3" />
-                                  Create Project
-                                </Button>
-                              )}
-                              {deal.stage === 'won' && deal.engagement_id && (
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 text-[10px] px-2 gap-1"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    navigate(`/projects/${deal.engagement_id}`);
-                                  }}
-                                >
-                                  <ArrowRight className="w-3 h-3" />
-                                  View Project
-                                </Button>
-                              )}
-                            </div>
-                          </Card>
-                        );
-                      })
-                    )}
-                  </div>
+          <div className="space-y-4">
+            {/* Chevron flow row */}
+            <div className="flex items-stretch -space-x-1 overflow-x-auto">
+              {DEAL_STAGES.map((stage, idx) => {
+                const stageDeals = deals.filter((d) => (d.stage || 'lead') === stage);
+                const stageTotal = stageDeals.reduce((s, d) => s + d.value, 0);
+                const isActive = pipelineFilter === null || pipelineFilter === stage;
+                return (
+                  <PipelineChevron
+                    key={stage}
+                    stage={stage}
+                    label={DEAL_STAGE_LABELS[stage]}
+                    count={stageDeals.length}
+                    total={stageTotal}
+                    isFirst={idx === 0}
+                    isLast={idx === DEAL_STAGES.length - 1}
+                    isActive={isActive}
+                    onClick={() => setPipelineFilter(prev => prev === stage ? null : stage)}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Filtered deal cards */}
+            {(() => {
+              const filteredDeals = pipelineFilter
+                ? deals.filter(d => (d.stage || 'lead') === pipelineFilter)
+                : deals;
+              if (filteredDeals.length === 0) return (
+                <div className="rounded-lg border border-dashed border-border p-6 text-center">
+                  <p className="text-sm text-muted-foreground">No deals in {DEAL_STAGE_LABELS[pipelineFilter!]}</p>
                 </div>
               );
-            })}
+              return (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-1">
+                  {filteredDeals.map(deal => (
+                    <PipelineDealCard
+                      key={deal.id}
+                      deal={deal}
+                      isRecruitment={isRecruitmentDeal(deal)}
+                      onAdvance={(nextStage) => {
+                        updateDeal.mutateAsync({ id: deal.id, stage: nextStage });
+                        toast.success(`Moved to ${DEAL_STAGE_LABELS[nextStage]}`);
+                      }}
+                      onCreateProject={deal.stage === 'won' && !deal.engagement_id ? () => {
+                        setConvertDeal(deal);
+                        setCreateOpen(true);
+                      } : undefined}
+                      onViewProject={deal.stage === 'won' && deal.engagement_id ? () => {
+                        navigate(`/projects/${deal.engagement_id}`);
+                      } : undefined}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* Click hint */}
+            {pipelineFilter && (
+              <p className="text-xs text-muted-foreground text-center">
+                Showing <strong>{DEAL_STAGE_LABELS[pipelineFilter]}</strong> deals · <button className="underline hover:text-foreground" onClick={() => setPipelineFilter(null)}>Show all</button>
+              </p>
+            )}
           </div>
         )}
       </section>

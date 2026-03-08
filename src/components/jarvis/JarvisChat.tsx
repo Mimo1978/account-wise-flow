@@ -535,6 +535,31 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Draggable panel logic
+  const PANEL_W = 420;
+  const PANEL_H = 580;
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragHintVisible, setDragHintVisible] = useState(false);
+
+  const getDefaultPos = useCallback(() => ({
+    x: window.innerWidth - PANEL_W - 24,
+    y: window.innerHeight - PANEL_H - 96,
+  }), []);
+
+  const [panelPos, setPanelPos] = useState<{ x: number; y: number }>(() => {
+    try {
+      const saved = sessionStorage.getItem("jarvis_panel_position");
+      if (saved) {
+        const p = JSON.parse(saved);
+        if (typeof p.x === "number" && typeof p.y === "number") return p;
+      }
+    } catch {}
+    return getDefaultPos();
+  });
+  const location = useLocation();
   const jarvisNav = useJarvisNavigation();
   const tts = useElevenLabsTTS(
     jarvisSettings.voice_gender,

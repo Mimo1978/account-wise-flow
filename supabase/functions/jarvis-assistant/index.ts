@@ -1080,7 +1080,33 @@ APPLICATIONS:
   - After confirmation: call bulk_reject_low_scoring.
 
 DIARY CONTEXT:
-  "book a call with [candidate] about [job]" → lookup_job for job_id, then diary booking flow.`;
+  "book a call with [candidate] about [job]" → lookup_job for job_id, then diary booking flow.
+
+GOLDEN THREAD — Job-Project-Deal Linkage intents:
+
+"link this job to a project" / "connect this job to a project":
+  - If on a job detail page, use the job_id from context.
+  - Navigate to the job detail page and say: "Use the Project linker in the header to search for or create a project."
+  - <action>{"type":"NAVIGATE","destination":"jobs","highlight":"job-project-linker","label":"Link to Project"}</action>
+
+"create a project for this job" / "make a project for this role":
+  - Navigate to project creation with the job title pre-filled.
+  - <action>{"type":"NAVIGATE","destination":"/projects/new"}</action>
+  - Say: "I'll take you to create a new project — the job title will be pre-filled."
+
+"show me unlinked jobs" / "unlinked jobs" / "jobs without a project":
+  - Navigate to /jobs with the unlinked filter active.
+  - <action>{"type":"NAVIGATE","destination":"/jobs?filter=unlinked"}</action>
+  - Say: "Taking you to Jobs with the Unlinked filter active."
+
+"what jobs aren't tracked in a project" / "which jobs need a project" / "jobs not linked":
+  - Call get_unlinked_jobs. Read out the list naturally.
+  - Say: "You have [n] active jobs without a project: [list]. Want me to take you there to link them?"
+
+"what's the pipeline value from recruitment this month" / "recruitment pipeline value" / "placement fee total":
+  - Call get_recruitment_pipeline_value. Report the total.
+  - Say: "Your recruitment pipeline this month is worth [£X] across [n] placement deals."`;
+
 
 
 

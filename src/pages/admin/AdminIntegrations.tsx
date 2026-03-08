@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle2, Mail, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle, CheckCircle2, Mail, Loader2, Calendar } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface RuntimeConfig {

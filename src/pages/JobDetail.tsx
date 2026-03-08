@@ -37,6 +37,8 @@ import {
   useOutreachMessages,
   useDraftOutreach,
   useSendOutreachBatch,
+  useSendOutreachSms,
+  useSendOutreachAiCall,
   useUpdateOutreachMessage,
   type JobShortlistEntry,
   type OutreachMessage,
@@ -57,8 +59,9 @@ import {
   Briefcase, FileText, Users, Inbox, Activity, Sparkles, Send, Play,
   Pause, CheckCircle2, XCircle, FileEdit, Copy, Globe, Loader2, Settings2,
   Trash2, Mail, MessageSquare, AlertTriangle, ChevronDown, ChevronUp, GripVertical,
-  ShieldCheck, Archive, ArrowUp,
+  ShieldCheck, Archive, ArrowUp, Phone, PhoneCall,
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 
 const STATUS_BADGE: Record<string, { className: string; label: string }> = {
@@ -821,26 +824,43 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
 }
 
 // ---------- Outreach Tab ----------
+const CHANNEL_ICON: Record<string, typeof Mail> = { email: Mail, sms: MessageSquare, ai_call: PhoneCall };
+const CHANNEL_LABEL: Record<string, string> = { email: 'Email', sms: 'SMS', ai_call: 'AI Call' };
+
 function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const { data: messages = [], isLoading } = useOutreachMessages(jobId);
   const { data: shortlist = [] } = useJobShortlist(jobId);
   const draftOutreach = useDraftOutreach();
   const sendBatch = useSendOutreachBatch();
+  const sendSms = useSendOutreachSms();
+  const sendAiCall = useSendOutreachAiCall();
   const updateMessage = useUpdateOutreachMessage();
 
   const [showSetup, setShowSetup] = useState(false);
   const [automationLevel, setAutomationLevel] = useState('draft');
   const [fromName, setFromName] = useState('');
   const [fromEmail, setFromEmail] = useState('');
+  const [recruiterPhone, setRecruiterPhone] = useState('');
+  const [agencyName, setAgencyName] = useState('');
   const [campaignName, setCampaignName] = useState(`${jobTitle} Outreach - ${format(new Date(), 'dd MMM yyyy')}`);
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(['email']);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [editSubject, setEditSubject] = useState('');
   const [editBody, setEditBody] = useState('');
+  const [channelFilter, setChannelFilter] = useState<string>('all');
 
   const approvedCount = shortlist.filter(e => e.status === 'approved').length;
-  const drafts = messages.filter(m => m.status === 'draft');
-  const sent = messages.filter(m => m.status === 'sent');
-  const failed = messages.filter(m => m.status === 'failed');
+
+  const filteredMessages = channelFilter === 'all' ? messages : messages.filter(m => (m as any).channel === channelFilter);
+  const drafts = filteredMessages.filter(m => m.status === 'draft');
+  const sent = filteredMessages.filter(m => m.status === 'sent');
+  const failed = filteredMessages.filter(m => m.status === 'failed');
+
+  const toggleChannel = (ch: string) => {
+    setSelectedChannels(prev =>
+      prev.includes(ch) ? prev.filter(c => c !== ch) : [...prev, ch]
+    );
+  };
 
   const handleDraft = () => {
     draftOutreach.mutate({
@@ -849,17 +869,29 @@ function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
       from_name: fromName || undefined,
       from_email: fromEmail || undefined,
       campaign_name: campaignName || undefined,
+      channels: selectedChannels,
+      recruiter_phone: recruiterPhone || undefined,
+      agency_name: agencyName || undefined,
     });
     setShowSetup(false);
   };
 
   const handleSendAll = () => {
-    const ids = drafts.map(m => m.id);
-    if (ids.length > 0) sendBatch.mutate(ids);
+    // Send by channel type
+    const emailDrafts = drafts.filter(m => (m as any).channel === 'email').map(m => m.id);
+    const smsDrafts = drafts.filter(m => (m as any).channel === 'sms').map(m => m.id);
+    const aiCallDrafts = drafts.filter(m => (m as any).channel === 'ai_call').map(m => m.id);
+
+    if (emailDrafts.length > 0) sendBatch.mutate(emailDrafts);
+    if (smsDrafts.length > 0) sendSms.mutate(smsDrafts);
+    if (aiCallDrafts.length > 0) sendAiCall.mutate(aiCallDrafts);
   };
 
-  const handleSendOne = (id: string) => {
-    sendBatch.mutate([id]);
+  const handleSendOne = (msg: OutreachMessage) => {
+    const ch = (msg as any).channel || 'email';
+    if (ch === 'sms') sendSms.mutate([msg.id]);
+    else if (ch === 'ai_call') sendAiCall.mutate([msg.id]);
+    else sendBatch.mutate([msg.id]);
   };
 
   const handleSaveEdit = (id: string) => {
@@ -867,10 +899,30 @@ function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
     setEditingMsgId(null);
   };
 
+  const isSending = sendBatch.isPending || sendSms.isPending || sendAiCall.isPending;
+
   if (isLoading) return <TableSkeleton />;
+
+  // Count channels
+  const emailMsgCount = messages.filter(m => (m as any).channel === 'email').length;
+  const smsMsgCount = messages.filter(m => (m as any).channel === 'sms').length;
+  const aiCallMsgCount = messages.filter(m => (m as any).channel === 'ai_call').length;
 
   return (
     <div className="space-y-4">
+      {/* AI Call Compliance Banner */}
+      {(selectedChannels.includes('ai_call') || aiCallMsgCount > 0) && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="py-3 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+            <div className="text-xs text-amber-800 dark:text-amber-300 space-y-1">
+              <p className="font-medium">AI Call Compliance Reminder</p>
+              <p>Ensure you have a legitimate interest basis under UK GDPR to contact candidates by phone. AI-generated calls must comply with Ofcom guidelines. Calls are logged for audit purposes.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Setup / Draft Panel */}
       {messages.length === 0 && !showSetup && (
         <Card>
@@ -887,7 +939,7 @@ function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
               disabled={approvedCount === 0}
               data-jarvis-id="job-draft-outreach-button"
             >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Draft Outreach Emails
+              <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Draft Outreach
             </Button>
           </CardContent>
         </Card>
@@ -899,6 +951,27 @@ function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
             <CardTitle className="text-sm">Outreach Setup</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Channel Selection */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Channels</Label>
+              <div className="flex items-center gap-4">
+                {(['email', 'sms', 'ai_call'] as const).map(ch => {
+                  const Icon = CHANNEL_ICON[ch];
+                  return (
+                    <label key={ch} className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={selectedChannels.includes(ch)}
+                        onCheckedChange={() => toggleChannel(ch)}
+                      />
+                      <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-sm">{CHANNEL_LABEL[ch]}</span>
+                      {ch === 'ai_call' && <Badge variant="outline" className="text-[10px] ml-1">Automated voice</Badge>}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label className="text-xs">Automation Level</Label>
@@ -923,14 +996,26 @@ function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
                 <Label className="text-xs">From Email</Label>
                 <Input value={fromEmail} onChange={e => setFromEmail(e.target.value)} placeholder="Resend verified sender" />
               </div>
+              {(selectedChannels.includes('sms') || selectedChannels.includes('ai_call')) && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Recruiter Phone</Label>
+                    <Input value={recruiterPhone} onChange={e => setRecruiterPhone(e.target.value)} placeholder="+44 7XXX XXXXXX" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Agency Name</Label>
+                    <Input value={agencyName} onChange={e => setAgencyName(e.target.value)} placeholder="Your agency" />
+                  </div>
+                </>
+              )}
             </div>
             <div className="flex items-center gap-2 justify-end">
               <Button variant="outline" size="sm" onClick={() => setShowSetup(false)}>Cancel</Button>
-              <Button size="sm" onClick={handleDraft} disabled={draftOutreach.isPending}>
+              <Button size="sm" onClick={handleDraft} disabled={draftOutreach.isPending || selectedChannels.length === 0}>
                 {draftOutreach.isPending ? (
                   <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Drafting...</>
                 ) : (
-                  <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate {approvedCount} Email{approvedCount !== 1 ? 's' : ''}</>
+                  <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate for {approvedCount} Candidate{approvedCount !== 1 ? 's' : ''}</>
                 )}
               </Button>
             </div>
@@ -938,12 +1023,35 @@ function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
         </Card>
       )}
 
+      {/* Channel filter tabs */}
+      {messages.length > 0 && (
+        <div className="flex items-center gap-1 border-b border-border">
+          {['all', 'email', 'sms', 'ai_call'].map(f => {
+            const count = f === 'all' ? messages.length : messages.filter(m => (m as any).channel === f).length;
+            if (f !== 'all' && count === 0) return null;
+            return (
+              <button
+                key={f}
+                onClick={() => setChannelFilter(f)}
+                className={`px-3 py-1.5 text-xs font-medium border-b-2 -mb-px transition-colors ${
+                  channelFilter === f
+                    ? 'border-primary text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {f === 'all' ? 'All' : CHANNEL_LABEL[f]} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Batch Actions */}
       {drafts.length > 0 && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="py-3 flex items-center justify-between">
             <p className="text-sm font-medium text-foreground">
-              {drafts.length} email{drafts.length !== 1 ? 's' : ''} ready for review.
+              {drafts.length} draft{drafts.length !== 1 ? 's' : ''} ready for review.
               {sent.length > 0 && ` ${sent.length} already sent.`}
               {failed.length > 0 && ` ${failed.length} failed.`}
             </p>
@@ -951,8 +1059,8 @@ function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
               <Button size="sm" onClick={() => setShowSetup(true)} variant="outline">
                 <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Draft More
               </Button>
-              <Button size="sm" onClick={handleSendAll} disabled={sendBatch.isPending}>
-                {sendBatch.isPending ? (
+              <Button size="sm" onClick={handleSendAll} disabled={isSending}>
+                {isSending ? (
                   <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Sending...</>
                 ) : (
                   <><Send className="w-3.5 h-3.5 mr-1.5" /> Approve All & Send</>
@@ -975,46 +1083,55 @@ function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
         </Card>
       )}
 
-      {/* Email List */}
-      {messages.length > 0 && (
+      {/* Message List */}
+      {filteredMessages.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm">Outreach Emails</CardTitle>
+            <CardTitle className="text-sm">Outreach Messages</CardTitle>
           </CardHeader>
           <CardContent className="p-0 divide-y divide-border">
-            {messages.map(msg => {
+            {filteredMessages.map(msg => {
               const isEditing = editingMsgId === msg.id;
+              const ch = (msg as any).channel || 'email';
+              const ChIcon = CHANNEL_ICON[ch] || Mail;
               const statusColor = msg.status === 'sent'
                 ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
                 : msg.status === 'failed'
                   ? 'bg-destructive/15 text-destructive border-destructive/30'
                   : 'bg-muted text-muted-foreground';
 
+              // Get display content based on channel
+              const displayBody = ch === 'sms' ? (msg as any).sms_body : ch === 'ai_call' ? (msg as any).ai_call_script : msg.body;
+
               return (
                 <div key={msg.id} className="p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
+                      <ChIcon className="w-3.5 h-3.5 text-muted-foreground" />
                       <span className="font-medium text-sm">{msg.candidate_name || '—'}</span>
-                      <span className="text-xs text-muted-foreground">{msg.candidate_email}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {ch === 'email' ? msg.candidate_email : (msg as any).candidate_phone || ''}
+                      </span>
                       <Badge variant="outline" className={statusColor}>{msg.status}</Badge>
+                      <Badge variant="outline" className="text-[10px]">{CHANNEL_LABEL[ch]}</Badge>
                     </div>
                     <div className="flex items-center gap-1">
-                      {msg.status === 'draft' && !isEditing && (
-                        <>
-                          <Button variant="ghost" size="sm" onClick={() => {
-                            setEditingMsgId(msg.id);
-                            setEditSubject(msg.subject);
-                            setEditBody(msg.body || '');
-                          }}>
-                            <FileEdit className="w-3.5 h-3.5 mr-1" /> Edit
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleSendOne(msg.id)} disabled={sendBatch.isPending}>
-                            <Send className="w-3.5 h-3.5 mr-1" /> Send
-                          </Button>
-                        </>
+                      {msg.status === 'draft' && !isEditing && ch === 'email' && (
+                        <Button variant="ghost" size="sm" onClick={() => {
+                          setEditingMsgId(msg.id);
+                          setEditSubject(msg.subject);
+                          setEditBody(msg.body || '');
+                        }}>
+                          <FileEdit className="w-3.5 h-3.5 mr-1" /> Edit
+                        </Button>
+                      )}
+                      {msg.status === 'draft' && (
+                        <Button variant="outline" size="sm" onClick={() => handleSendOne(msg)} disabled={isSending}>
+                          <Send className="w-3.5 h-3.5 mr-1" /> Send
+                        </Button>
                       )}
                       {msg.status === 'failed' && (
-                        <Button variant="outline" size="sm" onClick={() => handleSendOne(msg.id)} disabled={sendBatch.isPending}>
+                        <Button variant="outline" size="sm" onClick={() => handleSendOne(msg)} disabled={isSending}>
                           <Send className="w-3.5 h-3.5 mr-1" /> Retry
                         </Button>
                       )}
@@ -1035,9 +1152,9 @@ function OutreachTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
                     </div>
                   ) : (
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-foreground">Subject: {msg.subject}</p>
+                      {ch === 'email' && <p className="text-sm font-medium text-foreground">Subject: {msg.subject}</p>}
                       <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-muted/30 rounded-md p-3 max-h-40 overflow-y-auto">
-                        {msg.body || ''}
+                        {displayBody || ''}
                       </div>
                     </div>
                   )}

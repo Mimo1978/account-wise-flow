@@ -42,7 +42,17 @@ serve(async (req) => {
     }
     const userId = claimsData.claims.sub as string;
 
-    const { job_id, automation_level, from_name, from_email, campaign_name } = await req.json();
+    const { 
+      job_id, 
+      automation_level, 
+      from_name, 
+      from_email, 
+      campaign_name,
+      channels = ['email'], // Array of channels: 'email', 'sms', 'ai_call'
+      recruiter_phone,
+      agency_name,
+    } = await req.json();
+
     if (!job_id) {
       return new Response(JSON.stringify({ error: "job_id is required" }), {
         status: 400,
@@ -66,7 +76,7 @@ serve(async (req) => {
     // Get approved shortlist entries with candidate details
     const { data: shortlist } = await supabaseAdmin
       .from("job_shortlist")
-      .select("id, candidate_id, match_score, match_reasons, candidates(name, email, current_title, headline, skills, location, availability_status)")
+      .select("id, candidate_id, match_score, match_reasons, priority, candidates(name, email, phone, current_title, headline, skills, location, availability_status)")
       .eq("job_id", job_id)
       .eq("status", "approved")
       .order("priority", { ascending: true });
@@ -89,6 +99,8 @@ serve(async (req) => {
     const isConfidential = job.is_confidential ?? false;
     const companyName = (job as any).companies?.name || "our client";
     const companyIndustry = (job as any).companies?.industry || "";
+    const recruiterName = from_name || "Your Recruiter";
+    const agencyDisplay = agency_name || "our agency";
 
     // Parse spec for details
     let specDetails: any = {};
@@ -112,6 +124,13 @@ serve(async (req) => {
       key_responsibilities: (specDetails.key_responsibilities || []).slice(0, 4),
     };
 
+    // Format salary range
+    const salaryDisplay = job.salary_min && job.salary_max 
+      ? `${job.salary_currency || 'GBP'} ${job.salary_min.toLocaleString()}-${job.salary_max.toLocaleString()}`
+      : job.salary_min 
+        ? `${job.salary_currency || 'GBP'} ${job.salary_min.toLocaleString()}+`
+        : "Competitive";
+
     const drafts: any[] = [];
 
     // Process in batches of 5
@@ -119,112 +138,196 @@ serve(async (req) => {
     for (let i = 0; i < shortlist.length; i += batchSize) {
       const batch = shortlist.slice(i, i + batchSize);
 
-      const promises = batch.map(async (entry: any) => {
+      const promises = batch.flatMap((entry: any) => {
         const candidate = entry.candidates;
-        if (!candidate?.name || !candidate?.email) {
-          console.log(`Skipping candidate ${entry.candidate_id} — missing name or email`);
-          return null;
+        if (!candidate?.name) {
+          console.log(`Skipping candidate ${entry.candidate_id} — missing name`);
+          return [];
         }
 
         const candidateContext = {
           name: candidate.name,
+          firstName: candidate.name.split(' ')[0],
           title: candidate.current_title || "",
           skills_summary: candidate.headline || "",
           location: candidate.location || "",
         };
 
-        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              {
-                role: "system",
-                content: `You are a professional recruiter writing to a candidate about a new role.
+        // Generate messages for each requested channel
+        return channels.map(async (channel: string) => {
+          // For email, require email; for sms/ai_call, prefer phone
+          if (channel === 'email' && !candidate.email) {
+            console.log(`Skipping email for ${candidate.name} — no email`);
+            return null;
+          }
+          if ((channel === 'sms' || channel === 'ai_call') && !candidate.phone) {
+            console.log(`Skipping ${channel} for ${candidate.name} — no phone`);
+            return null;
+          }
+
+          let systemPrompt: string;
+          let toolName: string;
+          let toolParams: any;
+
+          if (channel === 'email') {
+            systemPrompt = `You are a professional recruiter writing to a candidate about a new role.
 Write a concise, warm, professional email. NEVER reveal the end client company name if confidential=true — use 'one of our clients' or 'a leading ${companyIndustry || "industry"} business'.
 Include: job title, job type, location, salary/rate range, start date, short role description.
 Do NOT include: company name (if confidential), internal job ID, or match score.
 End with: a question asking if they are available and interested, and a request to confirm their current availability dates.
 Keep under 200 words. Warm but professional tone.
 Return JSON with exactly: { "subject": "...", "body": "..." }
-The body should be plain text with \\n for line breaks. Do NOT use HTML.
-Return ONLY valid JSON, no markdown fences.`,
+The body should be plain text with \\n for line breaks. Do NOT use HTML.`;
+            toolName = "return_email";
+            toolParams = {
+              type: "object",
+              properties: {
+                subject: { type: "string" },
+                body: { type: "string" },
               },
-              {
-                role: "user",
-                content: JSON.stringify({
-                  candidate: candidateContext,
-                  job: jobContext,
-                  from_name: from_name || "Your Recruiter",
-                }),
+              required: ["subject", "body"],
+            };
+          } else if (channel === 'sms') {
+            systemPrompt = `You are a professional recruiter sending an SMS to a candidate about a new role.
+Write a SHORT SMS message (max 160 characters total).
+Format: "[Recruiter name] at [Agency]: new [job type] role in [location]. [salary]. Interested? Reply YES or call [phone]."
+Be concise and professional. Include the key details only.
+Return JSON with exactly: { "sms_body": "..." }`;
+            toolName = "return_sms";
+            toolParams = {
+              type: "object",
+              properties: {
+                sms_body: { type: "string", maxLength: 160 },
               },
-            ],
-            tools: [{
-              type: "function",
-              function: {
-                name: "return_email",
-                description: "Return the generated email",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    subject: { type: "string" },
-                    body: { type: "string" },
-                  },
-                  required: ["subject", "body"],
-                },
+              required: ["sms_body"],
+            };
+          } else if (channel === 'ai_call') {
+            systemPrompt = `You are a professional recruiter creating a voice script for an automated call to a candidate.
+Write a 30-second spoken script (about 75 words). The script will be read by a text-to-speech system.
+Format:
+"Hi [candidate first name], this is [recruiter name] from [agency].
+I'm calling about an exciting [job type] opportunity in [location].
+The role pays [salary] and starts [start date or 'as soon as possible'].
+If you're interested and available, please reply to my email or call me back.
+My number is [phone]. Thanks, and I hope to speak with you soon."
+Keep it natural and conversational. Do not use abbreviations.
+Return JSON with exactly: { "ai_call_script": "..." }`;
+            toolName = "return_call_script";
+            toolParams = {
+              type: "object",
+              properties: {
+                ai_call_script: { type: "string" },
               },
-            }],
-            tool_choice: { type: "function", function: { name: "return_email" } },
-          }),
-        });
-
-        if (!aiRes.ok) {
-          console.error(`AI error for ${candidate.name}:`, aiRes.status);
-          return null;
-        }
-
-        const aiData = await aiRes.json();
-        let email = { subject: "", body: "" };
-        const toolCalls = aiData.choices?.[0]?.message?.tool_calls;
-        if (toolCalls && toolCalls.length > 0) {
-          try {
-            email = JSON.parse(toolCalls[0].function.arguments);
-          } catch {
-            const content = aiData.choices?.[0]?.message?.content || "";
-            try { email = JSON.parse(content); } catch {}
+              required: ["ai_call_script"],
+            };
+          } else {
+            return null;
           }
-        }
 
-        if (!email.subject || !email.body) {
-          console.error(`Empty email for ${candidate.name}`);
+          const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${lovableKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              messages: [
+                { role: "system", content: systemPrompt },
+                {
+                  role: "user",
+                  content: JSON.stringify({
+                    candidate: candidateContext,
+                    job: jobContext,
+                    from_name: recruiterName,
+                    recruiter_phone: recruiter_phone || "",
+                    agency_name: agencyDisplay,
+                    salary_display: salaryDisplay,
+                  }),
+                },
+              ],
+              tools: [{
+                type: "function",
+                function: {
+                  name: toolName,
+                  description: `Return the generated ${channel} content`,
+                  parameters: toolParams,
+                },
+              }],
+              tool_choice: { type: "function", function: { name: toolName } },
+            }),
+          });
+
+          if (!aiRes.ok) {
+            console.error(`AI error for ${candidate.name} (${channel}):`, aiRes.status);
+            return null;
+          }
+
+          const aiData = await aiRes.json();
+          let content: any = {};
+          const toolCalls = aiData.choices?.[0]?.message?.tool_calls;
+          if (toolCalls && toolCalls.length > 0) {
+            try {
+              content = JSON.parse(toolCalls[0].function.arguments);
+            } catch {
+              const msgContent = aiData.choices?.[0]?.message?.content || "";
+              try { content = JSON.parse(msgContent); } catch {}
+            }
+          }
+
+          // Build the message record
+          const baseRecord = {
+            job_id,
+            workspace_id: job.workspace_id,
+            shortlist_id: entry.id,
+            candidate_id: entry.candidate_id,
+            candidate_name: candidate.name,
+            candidate_email: candidate.email || null,
+            candidate_phone: candidate.phone || null,
+            from_name: from_name || null,
+            from_email: from_email || null,
+            automation_level: automation_level || "draft",
+            campaign_name: campaign_name || `${job.title} Outreach`,
+            channel,
+            status: "draft",
+            created_by: userId,
+          };
+
+          if (channel === 'email') {
+            if (!content.subject || !content.body) {
+              console.error(`Empty email for ${candidate.name}`);
+              return null;
+            }
+            return {
+              ...baseRecord,
+              subject: content.subject,
+              body: content.body,
+              body_html: content.body.replace(/\n/g, "<br>"),
+            };
+          } else if (channel === 'sms') {
+            if (!content.sms_body) {
+              console.error(`Empty SMS for ${candidate.name}`);
+              return null;
+            }
+            return {
+              ...baseRecord,
+              subject: `SMS to ${candidate.name}`,
+              sms_body: content.sms_body,
+            };
+          } else if (channel === 'ai_call') {
+            if (!content.ai_call_script) {
+              console.error(`Empty call script for ${candidate.name}`);
+              return null;
+            }
+            return {
+              ...baseRecord,
+              subject: `AI Call to ${candidate.name}`,
+              ai_call_script: content.ai_call_script,
+            };
+          }
+
           return null;
-        }
-
-        // Convert plain text body to simple HTML
-        const bodyHtml = email.body.replace(/\n/g, "<br>");
-
-        return {
-          job_id,
-          workspace_id: job.workspace_id,
-          shortlist_id: entry.id,
-          candidate_id: entry.candidate_id,
-          candidate_name: candidate.name,
-          candidate_email: candidate.email,
-          subject: email.subject,
-          body: email.body,
-          body_html: bodyHtml,
-          from_name: from_name || null,
-          from_email: from_email || null,
-          automation_level: automation_level || "draft",
-          campaign_name: campaign_name || `${job.title} Outreach`,
-          channel: "email",
-          status: "draft",
-          created_by: userId,
-        };
+        });
       });
 
       const results = await Promise.all(promises);
@@ -245,11 +348,19 @@ Return ONLY valid JSON, no markdown fences.`,
       }
     }
 
+    // Count by channel
+    const emailCount = drafts.filter(d => d.channel === 'email').length;
+    const smsCount = drafts.filter(d => d.channel === 'sms').length;
+    const aiCallCount = drafts.filter(d => d.channel === 'ai_call').length;
+
     return new Response(
       JSON.stringify({
         drafted: drafts.length,
+        email_count: emailCount,
+        sms_count: smsCount,
+        ai_call_count: aiCallCount,
         total_approved: shortlist.length,
-        skipped: shortlist.length - drafts.length,
+        channels_requested: channels,
         job_title: job.title,
         campaign_name: campaign_name || `${job.title} Outreach`,
       }),

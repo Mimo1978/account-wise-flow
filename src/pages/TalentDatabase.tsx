@@ -813,7 +813,7 @@ export default function TalentDatabase() {
                   <span className="inline-flex">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm" disabled={!canInsert}>
+                        <Button variant="outline" size="sm" disabled={!canInsert} data-jarvis-id="talent-import-button">
                           <Upload className="h-4 w-4 mr-2" />
                           Import
                           <ChevronDown className="h-4 w-4 ml-2" />

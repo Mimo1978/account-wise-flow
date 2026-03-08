@@ -183,7 +183,7 @@ export function AddEditCompanyPanel({ open, onOpenChange, company }: Props) {
         </div>
 
         <SheetFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} data-jarvis-id="cancel-button">Cancel</Button>
           <Button onClick={handleSave} disabled={isPending} data-jarvis-id="save-button">
             {isPending ? "Saving…" : isEdit ? "Update" : "Create Company"}
           </Button>

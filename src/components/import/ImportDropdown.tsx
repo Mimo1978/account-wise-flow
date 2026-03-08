@@ -38,7 +38,7 @@ export function ImportDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2" disabled={disabled}>
+        <Button variant="outline" size="sm" className="gap-2" disabled={disabled} data-jarvis-id={`${entityType}-import-button`}>
           <Upload className="h-4 w-4" />
           Import
           <ChevronDown className="h-3 w-3" />

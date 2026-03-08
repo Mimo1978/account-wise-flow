@@ -719,7 +719,7 @@ const HomeCommandCenter = () => {
                 Run due invoices
               </Button>
             )}
-            <Button size="sm" className="gap-1.5" onClick={() => setInvoiceOpen(true)} data-jarvis-id="create-invoice-button">
+            <Button size="sm" className="gap-1.5" onClick={() => setInvoiceOpen(true)} data-jarvis-id="home-create-invoice-button">
               <Plus className="w-3.5 h-3.5" />
               Create Invoice
             </Button>

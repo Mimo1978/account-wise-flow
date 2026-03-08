@@ -122,6 +122,7 @@ interface ProjectLinkPromptProps {
   jobTitle: string;
   variant: 'spec-approved' | 'advert-published' | 'shortlist' | 'filled';
   onDismiss?: () => void;
+  onProjectLinked?: (projectId: string) => void;
 }
 
 export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss }: ProjectLinkPromptProps) {

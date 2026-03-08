@@ -2166,6 +2166,196 @@ Return ONLY valid JSON, no markdown fences.`,
       if (!res.ok) return { result: { error: data.error || "Failed to reschedule" }, entityType: "diary_events" };
       return { result: { ...data, navigate_to: "/home" }, entityType: "diary_events", entityId: eventId };
     }
+    // ─── Recruitment workflow tools ───
+    case "lookup_job": {
+      const title = (input.title as string).trim();
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      const { data: jobs } = await supabaseAdmin
+        .from("jobs")
+        .select("id, title, status, company_id, companies(name)")
+        .ilike("title", `%${title}%`)
+        .eq("workspace_id", teamId)
+        .limit(5);
+      
+      if (!jobs || jobs.length === 0) {
+        return { result: { matches: [], message: `No job found matching "${title}".` }, entityType: "jobs" };
+      }
+      if (jobs.length === 1) {
+        return { result: { matches: jobs, auto_selected: jobs[0], message: `Found "${jobs[0].title}" — using this job.` }, entityType: "jobs" };
+      }
+      return { result: { matches: jobs, message: `Found ${jobs.length} jobs matching "${title}". Did you mean ${jobs.slice(0, 3).map((j: any) => j.title).join(", or ")}?` }, entityType: "jobs" };
+    }
+    case "get_job_applications_summary": {
+      const jobId = input.job_id as string;
+      const { data: job } = await supabaseAdmin.from("jobs").select("title").eq("id", jobId).single();
+      const { data: apps } = await supabaseAdmin
+        .from("job_applications")
+        .select("id, status, ai_match_score, applicant_name")
+        .eq("job_id", jobId);
+      
+      const total = (apps || []).length;
+      const byStatus: Record<string, number> = {};
+      for (const app of apps || []) {
+        byStatus[app.status || "new"] = (byStatus[app.status || "new"] || 0) + 1;
+      }
+      const topScored = (apps || [])
+        .filter((a: any) => a.ai_match_score != null)
+        .sort((a: any, b: any) => (b.ai_match_score || 0) - (a.ai_match_score || 0))
+        .slice(0, 3)
+        .map((a: any) => ({ name: a.applicant_name, score: a.ai_match_score }));
+      const unscored = (apps || []).filter((a: any) => a.ai_match_score == null).length;
+      
+      return {
+        result: {
+          job_title: job?.title,
+          total,
+          by_status: byStatus,
+          top_scored: topScored,
+          unscored,
+          message: `${job?.title || "Job"} has ${total} applications: ${Object.entries(byStatus).map(([s, c]) => `${c} ${s}`).join(", ")}.${unscored > 0 ? ` ${unscored} still need scoring.` : ""}`,
+        },
+        entityType: "job_applications",
+        entityId: jobId,
+      };
+    }
+    case "score_unprocessed_applications": {
+      const jobId = input.job_id as string;
+      const { data: apps } = await supabaseAdmin
+        .from("job_applications")
+        .select("id")
+        .eq("job_id", jobId)
+        .is("processed_at", null);
+      
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      let scored = 0;
+      for (const app of apps || []) {
+        const res = await fetch(`${supabaseUrl}/functions/v1/process-application`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ application_id: app.id }),
+        });
+        if (res.ok) scored++;
+      }
+      return {
+        result: { scored, total: (apps || []).length, message: `Scored ${scored} applications.`, navigate_to: `/jobs/${jobId}` },
+        entityType: "job_applications",
+        entityId: jobId,
+      };
+    }
+    case "bulk_reject_low_scoring": {
+      const jobId = input.job_id as string;
+      const threshold = (input.threshold as number) || 50;
+      const { data: apps } = await supabaseAdmin
+        .from("job_applications")
+        .select("id, applicant_name, ai_match_score")
+        .eq("job_id", jobId)
+        .lt("ai_match_score", threshold)
+        .neq("status", "rejected");
+      
+      const ids = (apps || []).map((a: any) => a.id);
+      if (ids.length === 0) {
+        return { result: { rejected: 0, message: `No applications scoring below ${threshold} to reject.` }, entityType: "job_applications" };
+      }
+      
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      
+      // Update status
+      await supabaseAdmin.from("job_applications").update({ status: "rejected" }).in("id", ids);
+      
+      // Send rejection emails
+      for (const app of apps || []) {
+        await fetch(`${supabaseUrl}/functions/v1/send-applicant-update`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ application_id: app.id, new_status: "rejected", old_status: "new" }),
+        }).catch(() => {});
+      }
+      
+      return {
+        result: { rejected: ids.length, threshold, message: `Rejected ${ids.length} applications scoring below ${threshold}.`, navigate_to: `/jobs/${jobId}` },
+        entityType: "job_applications",
+        entityId: jobId,
+      };
+    }
+    case "get_shortlist_summary": {
+      const jobId = input.job_id as string;
+      const { data: job } = await supabaseAdmin.from("jobs").select("title").eq("id", jobId).single();
+      const { data: entries } = await supabaseAdmin
+        .from("job_shortlist")
+        .select("id, status, match_score, candidates(name)")
+        .eq("job_id", jobId)
+        .order("match_score", { ascending: false });
+      
+      const total = (entries || []).length;
+      const byStatus: Record<string, number> = {};
+      for (const e of entries || []) {
+        byStatus[e.status || "pending"] = (byStatus[e.status || "pending"] || 0) + 1;
+      }
+      const topCandidates = (entries || []).slice(0, 3).map((e: any) => ({
+        name: e.candidates?.name,
+        score: e.match_score,
+        status: e.status,
+      }));
+      
+      return {
+        result: {
+          job_title: job?.title,
+          total,
+          by_status: byStatus,
+          top_candidates: topCandidates,
+          message: `${job?.title || "Job"} shortlist has ${total} candidates: ${Object.entries(byStatus).map(([s, c]) => `${c} ${s}`).join(", ")}.`,
+        },
+        entityType: "job_shortlist",
+        entityId: jobId,
+      };
+    }
+    case "get_unresponsive_candidates": {
+      const jobId = input.job_id as string;
+      const { data: job } = await supabaseAdmin.from("jobs").select("title").eq("id", jobId).single();
+      const { data: entries } = await supabaseAdmin
+        .from("job_shortlist")
+        .select("id, candidate_id, outreach_sent_at, response_received_at, candidates(name, email)")
+        .eq("job_id", jobId)
+        .not("outreach_sent_at", "is", null)
+        .is("response_received_at", null);
+      
+      const unresponsive = (entries || []).map((e: any) => ({
+        name: e.candidates?.name,
+        email: e.candidates?.email,
+        sent_at: e.outreach_sent_at,
+      }));
+      
+      return {
+        result: {
+          job_title: job?.title,
+          count: unresponsive.length,
+          candidates: unresponsive,
+          message: unresponsive.length > 0
+            ? `${unresponsive.length} candidates haven't responded: ${unresponsive.map((c: any) => c.name).join(", ")}.`
+            : "Everyone has responded!",
+        },
+        entityType: "job_shortlist",
+        entityId: jobId,
+      };
+    }
+    case "send_applicant_update": {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/send-applicant-update`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          application_id: input.application_id,
+          new_status: input.new_status,
+          old_status: input.old_status || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to send update" }, entityType: "job_applications" };
+      return { result: data, entityType: "job_applications", entityId: input.application_id as string };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }

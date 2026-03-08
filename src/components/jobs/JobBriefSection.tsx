@@ -24,9 +24,10 @@ interface JobBriefSectionProps {
     full_spec: string | null;
     title: string;
   };
+  onProjectLinked?: (projectId: string) => void;
 }
 
-export function JobBriefSection({ job }: JobBriefSectionProps) {
+export function JobBriefSection({ job, onProjectLinked }: JobBriefSectionProps) {
   const qc = useQueryClient();
   const [brief, setBrief] = useState(job.raw_brief || '');
   const [spec, setSpec] = useState(job.full_spec || '');

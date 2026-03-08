@@ -70,11 +70,17 @@ export interface JobApplication {
   applicant_phone: string | null;
   cv_url: string | null;
   cover_letter: string | null;
+  linkedin_url: string | null;
   source: string | null;
   ai_match_score: number | null;
   ai_summary: string | null;
+  ai_strengths: string[] | null;
+  ai_gaps: string[] | null;
+  ai_recommended_action: string | null;
+  processed_at: string | null;
   status: string;
   candidate_id: string | null;
+  gdpr_consent: boolean;
   created_at: string;
 }
 

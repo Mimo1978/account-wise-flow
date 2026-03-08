@@ -12,6 +12,7 @@ import {
   Sparkles, Paperclip, CheckCircle2, Loader2, ChevronRight,
   MessageSquare, FileText, Edit3,
 } from 'lucide-react';
+import { ProjectLinkPrompt } from './ProjectLinker';
 
 interface QA { question: string; answer: string; hint?: string }
 interface AIQuestion { id: string; question: string; hint: string }

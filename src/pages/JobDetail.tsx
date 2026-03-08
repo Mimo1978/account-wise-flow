@@ -635,7 +635,8 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   );
 }
 
-// ---------- , onProjectLinked }: { jobId: string; jobTitle: string; onProjectLinked?: (projectId: string) => voidrtlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
+// ---------- Shortlist Tab ----------
+function ShortlistTab({ jobId, jobTitle, onProjectLinked }: { jobId: string; jobTitle: string; onProjectLinked?: (projectId: string) => void }) {
   const { data: entries = [], isLoading } = useJobShortlist(jobId);
   const removeFromShortlist = useRemoveFromShortlist();
   const runShortlist = useRunShortlist();

@@ -1,5 +1,13 @@
 import { Contact } from "@/lib/types";
 
+/** Slugify a name for use as a data-jarvis-id */
+function slugifyName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 interface ContactNodeProps {
   contact: Contact;
   x: number;
@@ -26,6 +34,7 @@ export const ContactNode = ({ contact, x, y }: ContactNodeProps) => {
         top: `${y}px`,
         transform: "translate(-50%, -50%)",
       }}
+      data-jarvis-id={`canvas-node-${slugifyName(contact.name)}`}
     >
       <div
         className={`

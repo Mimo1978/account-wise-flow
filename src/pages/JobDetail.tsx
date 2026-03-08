@@ -520,9 +520,13 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
   const updateStatus = useUpdateShortlistStatus();
   const approveAll = useApproveAllShortlist();
   const updatePriority = useUpdateShortlistPriority();
+  const logReply = useLogCandidateReply();
   const [reviewMode, setReviewMode] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [logReplyOpen, setLogReplyOpen] = useState(false);
+  const [logReplyEntryId, setLogReplyEntryId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   if (isLoading) return <TableSkeleton />;
 

@@ -62,10 +62,18 @@ const JobsList = () => {
             {activeCount} active role{activeCount !== 1 ? 's' : ''} in workspace
           </p>
         </div>
-        <Button size="sm" className="gap-1.5" onClick={handleCreate} data-jarvis-id="add-job-button">
-          <Plus className="w-3.5 h-3.5" />
-          New Job
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="gap-1.5" asChild>
+            <a href="/jobs/board" target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="w-3.5 h-3.5" />
+              View Public Board
+            </a>
+          </Button>
+          <Button size="sm" className="gap-1.5" onClick={handleCreate} data-jarvis-id="add-job-button">
+            <Plus className="w-3.5 h-3.5" />
+            New Job
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}

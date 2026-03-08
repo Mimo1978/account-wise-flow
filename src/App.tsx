@@ -149,6 +149,7 @@ const App = () => {
             <Route path="/auth/sign-in" element={<Navigate to="/auth?tab=signin" replace />} />
             <Route path="/auth/sign-up" element={<Navigate to="/auth?tab=signup" replace />} />
             <Route path="/demo" element={<Demo />} />
+            <Route path="/jobs/board" element={<PublicJobBoard />} />
 
             {/* PROTECTED ROUTES */}
             <Route path="/home" element={<ProtectedRoute><ProductLayout><HomeCommandCenter /></ProductLayout></ProtectedRoute>} />

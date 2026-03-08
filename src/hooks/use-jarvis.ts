@@ -198,6 +198,7 @@ export function useJarvis() {
             invalidateQueries: invalidateQueryKeys,
             guidedTour: data.guided_tour || undefined,
             suggestions: data.suggestions || undefined,
+            actionPayload: data.action || undefined,
           },
         ]);
 

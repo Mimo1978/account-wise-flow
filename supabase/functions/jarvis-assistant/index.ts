@@ -561,6 +561,44 @@ When creating a contact, deal, opportunity, project, or logging a call that refe
 
 CONFIRMATION: Always confirm before executing. State ALL collected fields clearly using names (never IDs). Only call the tool AFTER the user confirms.`;
 
+// ---------- Universal record lookup helper ----------
+async function lookupRecord(
+  table: string,
+  searchField: string,
+  query: string,
+  workspaceId: string | null,
+  supabase: ReturnType<typeof createClient>,
+  workspaceColumn = "team_id",
+  extraFilters?: (q: any) => any
+): Promise<any[]> {
+  let q = supabase
+    .from(table)
+    .select("id, " + searchField)
+    .ilike(searchField, `%${query}%`)
+    .limit(5);
+  if (workspaceId) {
+    q = q.eq(workspaceColumn, workspaceId);
+  }
+  if (extraFilters) {
+    q = extraFilters(q);
+  }
+  const { data, error } = await q;
+  if (error) console.error("[lookupRecord] Error:", table, error.message);
+  console.log("[lookupRecord]", table, searchField, query, "workspace:", workspaceId, "results:", (data || []).length);
+  return data || [];
+}
+
+// Helper to get user's workspace ID
+async function getUserTeamId(supabaseAdmin: ReturnType<typeof createClient>, userId: string): Promise<string | null> {
+  const { data } = await supabaseAdmin
+    .from("user_roles")
+    .select("team_id")
+    .eq("user_id", userId)
+    .limit(1)
+    .single();
+  return data?.team_id || null;
+}
+
 // ---------- Tool executors ----------
 async function executeTool(
   toolName: string,
@@ -1037,54 +1075,31 @@ async function executeTool(
     }
     case "lookup_company": {
       const name = (input.name as string).trim();
-      // Get user's workspace
-      const { data: userRole } = await supabaseAdmin
-        .from("user_roles")
-        .select("team_id")
-        .eq("user_id", userId)
-        .limit(1)
-        .single();
-      const teamId = userRole?.team_id;
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
 
-      // Search both companies and crm_companies tables
-      const { data: companies } = await supabaseAdmin
-        .from("companies")
-        .select("id, name, industry")
-        .ilike("name", `%${name}%`)
-        .eq("team_id", teamId)
-        .limit(5);
-
-      const { data: crmCompanies } = await supabaseAdmin
-        .from("crm_companies")
-        .select("id, name, industry")
-        .ilike("name", `%${name}%`)
-        .is("deleted_at", null)
-        .limit(5);
+      // Search both tables using universal helper
+      const companies = await lookupRecord("companies", "name", name, teamId, supabaseAdmin, "team_id");
+      const crmCompanies = await lookupRecord("crm_companies", "name", name, null, supabaseAdmin, "created_by", (q: any) => q.is("deleted_at", null));
 
       const allMatches = [
-        ...(companies ?? []).map((c: any) => ({ ...c, source: "companies" })),
-        ...(crmCompanies ?? []).map((c: any) => ({ ...c, source: "crm_companies" })),
+        ...companies.map((c: any) => ({ id: c.id, name: c.name, source: "companies" })),
+        ...crmCompanies.map((c: any) => ({ id: c.id, name: c.name, source: "crm_companies" })),
       ];
+      console.log("[lookup_company] query:", name, "workspace:", teamId, "total_matches:", allMatches.length);
 
       if (allMatches.length === 0) {
-        return { result: { matches: [], message: `No company found matching "${name}"` }, entityType: "companies" };
+        return { result: { matches: [], message: `No company found matching "${name}". Would you like me to create it?` }, entityType: "companies" };
       }
       if (allMatches.length === 1) {
-        return { result: { matches: allMatches, auto_selected: allMatches[0] }, entityType: "companies" };
+        return { result: { matches: allMatches, auto_selected: allMatches[0], message: `Found "${allMatches[0].name}" — using this company.` }, entityType: "companies" };
       }
-      return { result: { matches: allMatches, message: `Found ${allMatches.length} companies matching "${name}"` }, entityType: "companies" };
+      return { result: { matches: allMatches, message: `Found ${allMatches.length} companies matching "${name}". Did you mean ${allMatches.slice(0, 3).map((c: any) => c.name).join(", or ")}?` }, entityType: "companies" };
     }
     case "lookup_contact": {
       const name = (input.name as string).trim();
-      const { data: userRole } = await supabaseAdmin
-        .from("user_roles")
-        .select("team_id")
-        .eq("user_id", userId)
-        .limit(1)
-        .single();
-      const teamId = userRole?.team_id;
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
 
-      // Search contacts table (workspace-scoped)
+      // Search contacts table (workspace-scoped) with joined company name
       const { data: contacts } = await supabaseAdmin
         .from("contacts")
         .select("id, name, title, email, company_id, companies(name)")
@@ -1092,6 +1107,7 @@ async function executeTool(
         .eq("team_id", teamId)
         .is("deleted_at", null)
         .limit(5);
+      console.log("[lookup_contact] contacts table:", name, "workspace:", teamId, "results:", (contacts || []).length);
 
       // Search crm_contacts table
       const { data: crmContacts } = await supabaseAdmin
@@ -1100,6 +1116,7 @@ async function executeTool(
         .or(`first_name.ilike.%${name}%,last_name.ilike.%${name}%`)
         .is("deleted_at", null)
         .limit(5);
+      console.log("[lookup_contact] crm_contacts table:", name, "results:", (crmContacts || []).length);
 
       const allMatches = [
         ...(contacts ?? []).map((c: any) => ({ id: c.id, name: c.name, title: c.title, email: c.email, company_name: c.companies?.name, source: "contacts" })),
@@ -1107,39 +1124,27 @@ async function executeTool(
       ];
 
       if (allMatches.length === 0) {
-        return { result: { matches: [], message: `No contact found matching "${name}"` }, entityType: "contacts" };
+        return { result: { matches: [], message: `No contact found matching "${name}".` }, entityType: "contacts" };
       }
       if (allMatches.length === 1) {
-        return { result: { matches: allMatches, auto_selected: allMatches[0] }, entityType: "contacts" };
+        return { result: { matches: allMatches, auto_selected: allMatches[0], message: `Found "${allMatches[0].name}" — using this contact.` }, entityType: "contacts" };
       }
-      return { result: { matches: allMatches, message: `Found ${allMatches.length} contacts matching "${name}"` }, entityType: "contacts" };
+      return { result: { matches: allMatches, message: `Found ${allMatches.length} contacts matching "${name}". Did you mean ${allMatches.slice(0, 3).map((c: any) => c.name).join(", or ")}?` }, entityType: "contacts" };
     }
     case "lookup_candidate": {
       const name = (input.name as string).trim();
-      const { data: userRole } = await supabaseAdmin
-        .from("user_roles")
-        .select("team_id")
-        .eq("user_id", userId)
-        .limit(1)
-        .single();
-      const teamId = userRole?.team_id;
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
 
-      const { data: candidates } = await supabaseAdmin
-        .from("candidates")
-        .select("id, name, current_title, email, current_company")
-        .ilike("name", `%${name}%`)
-        .eq("tenant_id", teamId)
-        .limit(5);
-
-      const allMatches = candidates ?? [];
+      const allMatches = await lookupRecord("candidates", "name", name, teamId, supabaseAdmin, "tenant_id");
+      console.log("[lookup_candidate] query:", name, "workspace:", teamId, "total_matches:", allMatches.length);
 
       if (allMatches.length === 0) {
-        return { result: { matches: [], message: `No candidate found matching "${name}"` }, entityType: "candidates" };
+        return { result: { matches: [], message: `No candidate found matching "${name}".` }, entityType: "candidates" };
       }
       if (allMatches.length === 1) {
-        return { result: { matches: allMatches, auto_selected: allMatches[0] }, entityType: "candidates" };
+        return { result: { matches: allMatches, auto_selected: allMatches[0], message: `Found "${allMatches[0].name}" — using this candidate.` }, entityType: "candidates" };
       }
-      return { result: { matches: allMatches, message: `Found ${allMatches.length} candidates matching "${name}"` }, entityType: "candidates" };
+      return { result: { matches: allMatches, message: `Found ${allMatches.length} candidates matching "${name}". Did you mean ${allMatches.slice(0, 3).map((c: any) => c.name).join(", or ")}?` }, entityType: "candidates" };
     }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };

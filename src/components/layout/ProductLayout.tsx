@@ -95,7 +95,24 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
 
             {/* Main Navigation */}
             <nav className="hidden md:flex items-center gap-1">
-              <NavItemsWithBadges navItems={navItems} isActive={isActive} />
+              {navItems.map((item) => (
+                <Link key={item.path} to={item.path}>
+                  <Button
+                    variant={isActive(item.path) ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="gap-2 relative"
+                    data-jarvis-id={item.jarvisId}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                    {item.path === '/jobs' && newAppCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center px-1">
+                        {newAppCount > 99 ? '99+' : newAppCount}
+                      </span>
+                    )}
+                  </Button>
+                </Link>
+              ))}
 
               
               {/* AI Tools - visual separator */}

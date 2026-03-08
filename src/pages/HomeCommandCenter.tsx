@@ -1439,6 +1439,12 @@ const HomeCommandCenter = () => {
       <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} />
       <CreateDealModal open={dealOpen} onOpenChange={setDealOpen} />
       <SowDetailSheet sow={selectedSow} open={sowSheetOpen} onOpenChange={setSowSheetOpen} />
+      <ReportBuilderPanel
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        preselectedType={reportPreselect}
+        autoDownload={reportAutoDownload}
+      />
     </div>
   );
 };

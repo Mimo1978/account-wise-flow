@@ -1167,7 +1167,20 @@ const HomeCommandCenter = () => {
                 <tbody>
                   {engagements.map((eng) => (
                     <tr key={eng.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/projects/${eng.id}`)}>
-                      <td className="px-4 py-3 font-medium text-foreground">{eng.name}</td>
+                      <td className="px-4 py-3 font-medium text-foreground">
+                        <span className="flex items-center gap-2">
+                          {eng.name}
+                          {(() => {
+                            const roleCount = jobProjectLinksMap.get(eng.id) || 0;
+                            return roleCount > 0 ? (
+                              <Badge variant="outline" className="text-[10px] gap-0.5 font-normal">
+                                <Users className="w-2.5 h-2.5" />
+                                {roleCount} open role{roleCount !== 1 ? 's' : ''}
+                              </Badge>
+                            ) : null;
+                          })()}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground">{eng.companies?.name ?? '—'}</td>
                       <td className="px-4 py-3">
                         <Badge variant="secondary" className="text-xs capitalize">{eng.engagement_type.replace('_', ' ')}</Badge>

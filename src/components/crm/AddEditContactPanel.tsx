@@ -180,7 +180,7 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Phone</Label>
-              <Input vdata-jarvis-id="contact-phone-input" alue={form.phone} onChange={e => setForm(data-jarvis-id="contact-phone-input" f => ({ ...f, phone: e.target.value }))} />
+              <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} data-jarvis-id="contact-phone-input" />
             </div>
             <div>
               <Label>Mobile</Label>

@@ -205,10 +205,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>End Date</Label>
-              <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} data-jarvis-id="deal-close-date-input" />
-            </div>
-            <div>
-              <Label>Payment Terms</Label>
+              <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} data-jarvis-id="deal-close-date-input" /              <Label>Payment Terms</Label>
               <Select value={form.payment_terms} onValueChange={v => setForm(f => ({ ...f, payment_terms: v === "_none" ? "" : v }))}>
                 <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent className="bg-popover z-[9999]">
@@ -236,8 +233,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         </div>
 
         <SheetFooter>
-          <Button variant="outlin data-jarvis-id="cancel-button"e" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={isPending} data-jarvis-id="save-button">
+          <Button variant="outlin data-jarvis-id="cancel-button"e" onClie" onClick={() => onOpenChange(false)} data-jarvis-id="cancel-button"ick={handleSave} disabled={isPending} data-jarvis-id="save-button">
             {isPending ? "Saving…" : isEdit ? "Update" : "Create Deal"}
           </Button>
         </SheetFooter>

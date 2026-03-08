@@ -937,7 +937,7 @@ const HomeCommandCenter = () => {
             <h2 className="text-sm font-semibold text-foreground uppercase tracking-wider" data-jarvis-id="home-diary">Diary</h2>
             <Badge variant="secondary" className="text-xs">Next 7 days</Badge>
           </div>
-          <DiaryEventsSection workspaceId={currentWorkspace?.id} diaryItems={diaryItems} onItemClick={handleItemClick} />
+          <DiaryEventsSection workspaceId={currentWorkspace?.id} />
         </div>
       </div>
 

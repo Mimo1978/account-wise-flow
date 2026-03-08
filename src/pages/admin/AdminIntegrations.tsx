@@ -109,6 +109,40 @@ export default function AdminIntegrations() {
           ) : null}
         </CardContent>
       </Card>
+
+      {/* Google Calendar Integration - Coming Soon */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Calendar className="w-5 h-5" />
+            Google Calendar Sync
+            <Badge variant="secondary" className="text-[10px] ml-2">Coming Soon</Badge>
+          </CardTitle>
+          <CardDescription>
+            Sync your CRM diary events bidirectionally with Google Calendar.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Connection Status</span>
+              <Badge variant="secondary" className="gap-1">
+                Not Connected
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              When connected, diary events (calls, meetings, tasks) will automatically sync to your Google Calendar and vice versa.
+            </p>
+            <Button variant="outline" size="sm" disabled className="gap-2">
+              <Calendar className="w-4 h-4" />
+              Connect Google Calendar
+            </Button>
+            <p className="text-xs text-muted-foreground italic">
+              Google Calendar sync is under development. You can book and manage diary events through Jarvis and the Home diary section today.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

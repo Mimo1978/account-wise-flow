@@ -275,7 +275,11 @@ function OverviewTab({ job }: { job: any }) {
     : '—';
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="space-y-6">
+      {/* Job Brief Section — the primary workflow entry point */}
+      <JobBriefSection job={job} />
+
+      {/* Details card */}
       <Card>
         <CardHeader><CardTitle className="text-sm">Details</CardTitle></CardHeader>
         <CardContent className="space-y-3 text-sm">
@@ -296,24 +300,6 @@ function OverviewTab({ job }: { job: any }) {
               onCheckedChange={(checked) => toggleConfidential.mutate({ jobId: job.id, isConfidential: checked })}
             />
           </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader><CardTitle className="text-sm">Full Specification</CardTitle></CardHeader>
-        <CardContent>
-          {job.full_spec ? (
-            <div className="text-sm text-foreground whitespace-pre-wrap">{job.full_spec}</div>
-          ) : job.raw_brief ? (
-            <div className="space-y-3">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Raw Brief</p>
-              <div className="text-sm text-foreground whitespace-pre-wrap">{job.raw_brief}</div>
-              <Button variant="outline" size="sm" data-jarvis-id="job-generate-spec-button">
-                <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Full Spec
-              </Button>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">No specification yet. Add a raw brief or generate one with AI.</p>
-          )}
         </CardContent>
       </Card>
     </div>

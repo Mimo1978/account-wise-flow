@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -81,6 +81,8 @@ import { ProjectLinker, ProjectLinkPrompt, FilledModalLinker } from '@/component
 import { useJobProjects } from '@/hooks/use-job-projects';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
+import { useCreateDeal, DEAL_STAGES } from '@/hooks/use-deals';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 const STATUS_BADGE: Record<string, { className: string; label: string }> = {
   draft: { className: 'bg-muted text-muted-foreground', label: 'Draft' },
@@ -132,6 +134,44 @@ const JobDetail = () => {
   const updateStatus = useUpdateJobStatus();
   const { data: jobProjectLinks = [] } = useJobProjects(id);
   const [showFilledModal, setShowFilledModal] = useState(false);
+  const { currentWorkspace } = useWorkspace();
+
+  // Deal creation prompt state
+  const [showDealPrompt, setShowDealPrompt] = useState(false);
+  const [linkedProjectId, setLinkedProjectId] = useState<string | null>(null);
+  const [dealName, setDealName] = useState('');
+  const [dealStage, setDealStage] = useState('lead');
+  const [dealCloseDate, setDealCloseDate] = useState('');
+  const [dealValue, setDealValue] = useState(0);
+  const createDeal = useCreateDeal();
+
+  const handleProjectLinked = useCallback((projectId: string) => {
+    if (!job) return;
+    setLinkedProjectId(projectId);
+    setDealName(`${job.title} — Placement Fee`);
+    setDealStage('lead');
+    setDealCloseDate(job.start_date || '');
+    setDealValue(0);
+    setShowDealPrompt(true);
+  }, [job]);
+
+  const handleCreateDeal = () => {
+    if (!job || !currentWorkspace?.id || !job.company_id) return;
+    createDeal.mutate({
+      workspace_id: currentWorkspace.id,
+      company_id: job.company_id,
+      name: dealName,
+      stage: dealStage,
+      value: dealValue,
+      expected_close_date: dealCloseDate || null,
+    }, {
+      onSuccess: () => {
+        toast.success('Deal created and linked to pipeline');
+        setShowDealPrompt(false);
+      },
+      onError: (e: Error) => toast.error(e.message),
+    });
+  };
 
   if (isLoading) {
     return (
@@ -180,7 +220,7 @@ const JobDetail = () => {
             {job.location && <><span>·</span><span>{job.location}</span></>}
             {job.job_type && <><span>·</span><span>{job.job_type}</span></>}
             <span>·</span>
-            <ProjectLinker jobId={job.id} jobTitle={job.title} />
+            <ProjectLinker jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} />
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -192,6 +232,54 @@ const JobDetail = () => {
           </Button>
         </div>
       </div>
+
+      {/* Deal creation prompt after project linking */}
+      <Dialog open={showDealPrompt} onOpenChange={setShowDealPrompt}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg">Track a placement fee?</DialogTitle>
+            <DialogDescription>
+              Is there a deal associated with this placement? This lets you track the fee in your pipeline.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-sm">Deal Name</Label>
+              <Input value={dealName} onChange={(e) => setDealName(e.target.value)} className="mt-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-sm">Stage</Label>
+                <Select value={dealStage} onValueChange={setDealStage}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DEAL_STAGES.map(s => (
+                      <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm">Value</Label>
+                <Input type="number" value={dealValue} onChange={(e) => setDealValue(Number(e.target.value))} className="mt-1" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm">Expected Close Date</Label>
+              <Input type="date" value={dealCloseDate} onChange={(e) => setDealCloseDate(e.target.value)} className="mt-1" />
+            </div>
+          </div>
+          <DialogFooter className="flex gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setShowDealPrompt(false)}>
+              No thanks
+            </Button>
+            <Button onClick={handleCreateDeal} disabled={createDeal.isPending || !dealName.trim()}>
+              {createDeal.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
+              Yes — create a deal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Filled role celebration modal (Pause point 4) */}
       <Dialog open={showFilledModal} onOpenChange={setShowFilledModal}>
@@ -208,7 +296,7 @@ const JobDetail = () => {
             <Button variant="outline" onClick={() => setShowFilledModal(false)}>
               Close
             </Button>
-            <FilledModalLinker jobId={job.id} jobTitle={job.title} onLinked={() => setShowFilledModal(false)} />
+            <FilledModalLinker jobId={job.id} jobTitle={job.title} onLinked={() => setShowFilledModal(false)} onProjectLinked={handleProjectLinked} />
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -285,9 +373,9 @@ const JobDetail = () => {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview"><OverviewTab job={job} /></TabsContent>
+        <TabsContent value="overview"><OverviewTab job={job} onProjectLinked={handleProjectLinked} /></TabsContent>
         <TabsContent value="adverts"><AdvertsTab jobId={job.id} jobTitle={job.title} /></TabsContent>
-        <TabsContent value="shortlist"><ShortlistTab jobId={job.id} jobTitle={job.title} /></TabsContent>
+        <TabsContent value="shortlist"><ShortlistTab jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} /></TabsContent>
         <TabsContent value="outreach"><OutreachTab jobId={job.id} jobTitle={job.title} /></TabsContent>
         <TabsContent value="applications"><ApplicationsTab jobId={job.id} /></TabsContent>
         <TabsContent value="activity"><ActivityTab /></TabsContent>
@@ -297,7 +385,7 @@ const JobDetail = () => {
 };
 
 // ---------- Overview Tab ----------
-function OverviewTab({ job }: { job: any }) {
+function OverviewTab({ job, onProjectLinked }: { job: any; onProjectLinked?: (projectId: string) => void }) {
   const toggleConfidential = useToggleConfidential();
   const isConfidential = job.is_confidential ?? false;
 
@@ -308,7 +396,7 @@ function OverviewTab({ job }: { job: any }) {
   return (
     <div className="space-y-6">
       {/* Job Brief Section — the primary workflow entry point */}
-      <JobBriefSection job={job} />
+      <JobBriefSection job={job} onProjectLinked={onProjectLinked} />
 
       {/* Details card */}
       <Card>
@@ -551,7 +639,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
 }
 
 // ---------- Shortlist Tab ----------
-function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
+function ShortlistTab({ jobId, jobTitle, onProjectLinked }: { jobId: string; jobTitle: string; onProjectLinked?: (projectId: string) => void }) {
   const { data: entries = [], isLoading } = useJobShortlist(jobId);
   const removeFromShortlist = useRemoveFromShortlist();
   const runShortlist = useRunShortlist();
@@ -638,7 +726,7 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
 
   return (
     <div className="space-y-4">
-      {/* Pause point 3: Project link prompt when candidates are in progress */}
+      {/* Pause point 3: Project link prompt when candidates are onProjectLinked={onProjectLinked} in progress */}
       {entries.length > 0 && (
         <ProjectLinkPrompt jobId={jobId} jobTitle={jobTitle} variant="shortlist" />
       )}

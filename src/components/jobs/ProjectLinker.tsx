@@ -11,9 +11,10 @@ import { Link2, ExternalLink, Plus, X, Loader2, FolderOpen } from 'lucide-react'
 interface ProjectLinkerProps {
   jobId: string;
   jobTitle: string;
+  onProjectLinked?: (projectId: string) => void;
 }
 
-export function ProjectLinker({ jobId, jobTitle }: ProjectLinkerProps) {
+export function ProjectLinker({ jobId, jobTitle, onProjectLinked }: ProjectLinkerProps) {
   const navigate = useNavigate();
   const { data: links = [], isLoading } = useJobProjects(jobId);
   const { data: projects = [] } = useCrmProjects();
@@ -33,7 +34,9 @@ export function ProjectLinker({ jobId, jobTitle }: ProjectLinkerProps) {
   );
 
   const handleLink = (projectId: string) => {
-    linkMutation.mutate({ jobId, projectId });
+    linkMutation.mutate({ jobId, projectId }, {
+      onSuccess: () => onProjectLinked?.(projectId),
+    });
     setOpen(false);
     setSearch('');
   };
@@ -119,9 +122,10 @@ interface ProjectLinkPromptProps {
   jobTitle: string;
   variant: 'spec-approved' | 'advert-published' | 'shortlist' | 'filled';
   onDismiss?: () => void;
+  onProjectLinked?: (projectId: string) => void;
 }
 
-export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss }: ProjectLinkPromptProps) {
+export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss, onProjectLinked }: ProjectLinkPromptProps) {
   const { data: links = [] } = useJobProjects(jobId);
   const [dismissed, setDismissed] = useState(false);
 
@@ -140,7 +144,7 @@ export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss }: Proje
         <span className="text-muted-foreground flex-1">
           Want to track this role in a project? Linking to a project connects it to your pipeline and Command Centre.
         </span>
-        <ProjectLinkerInline jobId={jobId} jobTitle={jobTitle} onLinked={dismiss} />
+        <ProjectLinkerInline jobId={jobId} jobTitle={jobTitle} onLinked={(projectId) => { onProjectLinked?.(projectId); dismiss(); }} />
         <Button variant="ghost" size="sm" onClick={dismiss} className="text-xs">
           Maybe Later
         </Button>
@@ -155,7 +159,7 @@ export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss }: Proje
         <span className="text-muted-foreground flex-1">
           You have candidates in progress. Assign this job to a project to see it in your pipeline.
         </span>
-        <ProjectLinkerInline jobId={jobId} jobTitle={jobTitle} onLinked={dismiss} />
+        <ProjectLinkerInline jobId={jobId} jobTitle={jobTitle} onLinked={(projectId) => { onProjectLinked?.(projectId); dismiss(); }} />
         <Button variant="ghost" size="sm" onClick={dismiss} className="text-xs">
           Dismiss
         </Button>
@@ -172,7 +176,7 @@ export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss }: Proje
 }
 
 // Inline mini-linker for banners
-function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; jobTitle: string; onLinked: () => void }) {
+function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; jobTitle: string; onLinked: (projectId: string) => void }) {
   const navigate = useNavigate();
   const { data: projects = [] } = useCrmProjects();
   const linkMutation = useLinkJobToProject();
@@ -182,7 +186,7 @@ function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; job
   const handleLink = (projectId: string) => {
     linkMutation.mutate({ jobId, projectId });
     setOpen(false);
-    onLinked();
+    onLinked(projectId);
   };
 
   return (
@@ -227,7 +231,7 @@ function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; job
 }
 
 // Modal version for the "Filled" celebration modal
-export function FilledModalLinker({ jobId, jobTitle, onLinked }: { jobId: string; jobTitle: string; onLinked: () => void }) {
+export function FilledModalLinker({ jobId, jobTitle, onLinked, onProjectLinked }: { jobId: string; jobTitle: string; onLinked: () => void; onProjectLinked?: (projectId: string) => void }) {
   const navigate = useNavigate();
   const { data: projects = [] } = useCrmProjects();
   const linkMutation = useLinkJobToProject();
@@ -237,6 +241,7 @@ export function FilledModalLinker({ jobId, jobTitle, onLinked }: { jobId: string
   const handleLink = (projectId: string) => {
     linkMutation.mutate({ jobId, projectId });
     setOpen(false);
+    onProjectLinked?.(projectId);
     onLinked();
   };
 

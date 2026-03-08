@@ -623,6 +623,11 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
 
   return (
     <div className="space-y-4">
+      {/* Pause point 3: Project link prompt when candidates are in progress */}
+      {entries.length > 0 && (
+        <ProjectLinkPrompt jobId={jobId} jobTitle={jobTitle} variant="shortlist" />
+      )}
+
       {/* Review Banner */}
       {entries.length > 0 && hasPending && (
         <Card className="border-primary/30 bg-primary/5">

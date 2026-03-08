@@ -295,6 +295,35 @@ export const navigationMap: Record<string, NavigationEntry> = {
     targetId: "contacts-view-orgchart-button",
     keywords: ["view org chart from contacts", "contacts org chart"],
   },
+  // ── Report Builder ────────────────────────────────
+  pullPipelineReport: {
+    path: "/home",
+    label: "Pull Pipeline Report",
+    action: "click",
+    targetId: "pull-report",
+    keywords: ["pull pipeline report", "pipeline report", "deals report", "show pipeline"],
+  },
+  pullRecruitmentReport: {
+    path: "/home",
+    label: "Pull Recruitment Report",
+    action: "click",
+    targetId: "pull-report",
+    keywords: ["recruitment report", "jobs report", "hiring report", "show recruitment report"],
+  },
+  pullBillingReport: {
+    path: "/home",
+    label: "Pull Billing Report",
+    action: "click",
+    targetId: "pull-report",
+    keywords: ["billing report", "invoice report", "download billing report"],
+  },
+  refreshCommandCentre: {
+    path: "/home",
+    label: "Refresh Command Centre",
+    action: "click",
+    targetId: "refresh-command-centre",
+    keywords: ["refresh command centre", "refresh command center", "refresh home", "reload dashboard"],
+  },
 };
 
 /**

@@ -866,6 +866,7 @@ export type Database = {
           headquarters: string | null
           id: string
           industry: string | null
+          logo_url: string | null
           name: string
           notes: string | null
           owner_id: string | null
@@ -885,6 +886,7 @@ export type Database = {
           headquarters?: string | null
           id?: string
           industry?: string | null
+          logo_url?: string | null
           name: string
           notes?: string | null
           owner_id?: string | null
@@ -904,6 +906,7 @@ export type Database = {
           headquarters?: string | null
           id?: string
           industry?: string | null
+          logo_url?: string | null
           name?: string
           notes?: string | null
           owner_id?: string | null
@@ -3153,6 +3156,48 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "job_board_formats_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_board_subscriptions: {
+        Row: {
+          active: boolean
+          company_id: string
+          created_at: string
+          id: string
+          plan: string
+          workspace_id: string
+        }
+        Insert: {
+          active?: boolean
+          company_id: string
+          created_at?: string
+          id?: string
+          plan?: string
+          workspace_id: string
+        }
+        Update: {
+          active?: boolean
+          company_id?: string
+          created_at?: string
+          id?: string
+          plan?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_board_subscriptions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_board_subscriptions_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "teams"

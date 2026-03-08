@@ -227,6 +227,7 @@ export function useJarvis() {
               conversation_history: contextMessages.slice(0, -1),
               user_first_name: userFirstName,
               nav_history: navHistory.slice(-20).map(e => ({ path: e.path, label: e.label })),
+              flow_state: flowState.flow ? flowState : undefined,
             },
           }
         );

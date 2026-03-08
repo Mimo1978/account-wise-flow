@@ -81,6 +81,8 @@ import { ProjectLinker, ProjectLinkPrompt, FilledModalLinker } from '@/component
 import { useJobProjects } from '@/hooks/use-job-projects';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
+import { useCreateDeal, DEAL_STAGES } from '@/hooks/use-deals';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 const STATUS_BADGE: Record<string, { className: string; label: string }> = {
   draft: { className: 'bg-muted text-muted-foreground', label: 'Draft' },

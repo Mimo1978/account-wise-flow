@@ -4046,9 +4046,19 @@ export type Database = {
       }
       outreach_messages: {
         Row: {
+          automation_level: string
           body: string | null
+          body_html: string | null
+          campaign_name: string | null
+          candidate_email: string | null
+          candidate_id: string | null
+          candidate_name: string | null
           channel: string | null
           created_at: string | null
+          created_by: string | null
+          error_message: string | null
+          from_email: string | null
+          from_name: string | null
           id: string
           job_id: string | null
           opened_at: string | null
@@ -4058,12 +4068,23 @@ export type Database = {
           shortlist_id: string | null
           status: string | null
           subject: string | null
+          updated_at: string
           workspace_id: string
         }
         Insert: {
+          automation_level?: string
           body?: string | null
+          body_html?: string | null
+          campaign_name?: string | null
+          candidate_email?: string | null
+          candidate_id?: string | null
+          candidate_name?: string | null
           channel?: string | null
           created_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          from_email?: string | null
+          from_name?: string | null
           id?: string
           job_id?: string | null
           opened_at?: string | null
@@ -4073,12 +4094,23 @@ export type Database = {
           shortlist_id?: string | null
           status?: string | null
           subject?: string | null
+          updated_at?: string
           workspace_id: string
         }
         Update: {
+          automation_level?: string
           body?: string | null
+          body_html?: string | null
+          campaign_name?: string | null
+          candidate_email?: string | null
+          candidate_id?: string | null
+          candidate_name?: string | null
           channel?: string | null
           created_at?: string | null
+          created_by?: string | null
+          error_message?: string | null
+          from_email?: string | null
+          from_name?: string | null
           id?: string
           job_id?: string | null
           opened_at?: string | null
@@ -4088,9 +4120,17 @@ export type Database = {
           shortlist_id?: string | null
           status?: string | null
           subject?: string | null
+          updated_at?: string
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "outreach_messages_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "outreach_messages_job_id_fkey"
             columns: ["job_id"]

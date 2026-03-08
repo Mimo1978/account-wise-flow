@@ -37,6 +37,8 @@ import {
   useOutreachMessages,
   useDraftOutreach,
   useSendOutreachBatch,
+  useSendOutreachSms,
+  useSendOutreachAiCall,
   useUpdateOutreachMessage,
   type JobShortlistEntry,
   type OutreachMessage,

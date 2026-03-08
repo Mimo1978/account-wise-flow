@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useJobs, useJobCounts, useCreateJob } from '@/hooks/use-jobs';
-import { Plus, Briefcase, Search } from 'lucide-react';
+import { Plus, Briefcase, Search, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 
 const STATUS_BADGE: Record<string, { variant: 'secondary' | 'default' | 'outline' | 'destructive'; className: string; label: string }> = {

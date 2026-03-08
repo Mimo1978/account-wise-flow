@@ -92,12 +92,12 @@ export function ReportBuilderPanel({ open, onOpenChange, preselectedType, autoDo
           break;
         }
         case 'projects': {
-          const { data } = await (supabase
+          const query = supabase
             .from('engagements')
             .select('id, name, status, health, forecast_value, forecast_currency')
-            .eq('workspace_id', wsId)
-            .eq('status', 'active') as any);
-          rows = (data ?? []).map((d) => ({
+            .eq('workspace_id', wsId);
+          const { data } = await (query as any).eq('status', 'active');
+          rows = ((data as any[]) ?? []).map((d) => ({
             Project: d.name,
             Health: d.health ?? '—',
             'Forecast Value': d.forecast_value ? `${d.forecast_currency ?? 'GBP'} ${Number(d.forecast_value).toLocaleString()}` : '—',

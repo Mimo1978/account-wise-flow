@@ -14,7 +14,7 @@ interface ProjectLinkerProps {
   onProjectLinked?: (projectId: string) => void;
 }
 
-export function ProjectLinker({ jobId, jobTitle }: ProjectLinkerProps) {
+export function ProjectLinker({ jobId, jobTitle, onProjectLinked }: ProjectLinkerProps) {
   const navigate = useNavigate();
   const { data: links = [], isLoading } = useJobProjects(jobId);
   const { data: projects = [] } = useCrmProjects();

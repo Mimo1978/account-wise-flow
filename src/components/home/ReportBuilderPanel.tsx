@@ -110,8 +110,8 @@ export function ReportBuilderPanel({ open, onOpenChange, preselectedType, autoDo
             .from('jobs')
             .select('id, title, status, company, location')
             .eq('workspace_id', wsId)
-            .eq('status', 'active');
-          rows = (data ?? []).map((d: any) => ({
+            .eq('status', 'active') as { data: any[] | null };
+          rows = (data ?? []).map((d) => ({
             'Job Title': d.title,
             Company: d.company ?? '—',
             Location: d.location ?? '—',

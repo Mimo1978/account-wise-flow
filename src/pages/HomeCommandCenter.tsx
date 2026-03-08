@@ -823,7 +823,7 @@ const HomeCommandCenter = () => {
         </section>
 
         {/* ═══ 8. SOWS & CONTRACTS (collapsible) ═══ */}
-        <section>
+        <section data-jarvis-section="sows-contracts">
           <SectionHeader title="SOWs & Contracts" icon={FileText} accentColor="bg-muted-foreground">
             <Button size="sm" className="gap-1.5" onClick={() => setSowOpen(true)} data-jarvis-id="home-add-sow-button">
               <Plus className="w-3.5 h-3.5" /> Add SOW

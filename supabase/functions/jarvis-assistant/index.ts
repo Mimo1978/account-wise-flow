@@ -1191,6 +1191,148 @@ async function executeTool(
       }
       return { result: { matches: allMatches, message: `Found ${allMatches.length} candidates matching "${name}". Did you mean ${allMatches.slice(0, 3).map((c: any) => c.name).join(", or ")}?` }, entityType: "candidates" };
     }
+    case "generate_job_spec": {
+      const rawBrief = input.raw_brief as string;
+      const jobTitle = (input.job_title as string) || "";
+      const companyName = (input.company_name as string) || "";
+      const jobType = (input.job_type as string) || "";
+      const location = (input.location as string) || "";
+      const salaryInfo = (input.salary_info as string) || "";
+      const startDate = (input.start_date as string) || "";
+
+      const specPrompt = `Raw brief: ${rawBrief}
+${jobTitle ? `Job title: ${jobTitle}` : ""}
+${companyName ? `Company: ${companyName}` : ""}
+${jobType ? `Type: ${jobType}` : ""}
+${location ? `Location: ${location}` : ""}
+${salaryInfo ? `Salary/Rate: ${salaryInfo}` : ""}
+${startDate ? `Start date: ${startDate}` : ""}`;
+
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) {
+        return { result: { error: "AI service not configured" }, entityType: "jobs" };
+      }
+
+      const specResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert recruitment consultant. Generate a professional job specification from the brief provided. Return JSON with these exact fields:
+  job_title (string), company_overview (2 sentences string), role_summary (3-4 sentences string),
+  key_responsibilities (array of 6-10 bullet strings),
+  essential_skills (array of 5-8 bullet strings),
+  desirable_skills (array of 3-5 bullet strings),
+  what_we_offer (array of 4-6 bullet strings),
+  salary_range (string), location (string), job_type (string - permanent/contract/temp), start_date (string),
+  about_the_recruiter (2 sentences string).
+Return ONLY valid JSON, no markdown fences.`,
+            },
+            { role: "user", content: specPrompt },
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "return_job_spec",
+              description: "Return the generated job specification",
+              parameters: {
+                type: "object",
+                properties: {
+                  job_title: { type: "string" },
+                  company_overview: { type: "string" },
+                  role_summary: { type: "string" },
+                  key_responsibilities: { type: "array", items: { type: "string" } },
+                  essential_skills: { type: "array", items: { type: "string" } },
+                  desirable_skills: { type: "array", items: { type: "string" } },
+                  what_we_offer: { type: "array", items: { type: "string" } },
+                  salary_range: { type: "string" },
+                  location: { type: "string" },
+                  job_type: { type: "string" },
+                  start_date: { type: "string" },
+                  about_the_recruiter: { type: "string" },
+                },
+                required: ["job_title", "role_summary", "key_responsibilities", "essential_skills"],
+              },
+            },
+          }],
+          tool_choice: { type: "function", function: { name: "return_job_spec" } },
+        }),
+      });
+
+      if (!specResponse.ok) {
+        console.error("[generate_job_spec] AI error:", specResponse.status);
+        return { result: { error: "Failed to generate job spec" }, entityType: "jobs" };
+      }
+
+      const specData = await specResponse.json();
+      let generatedSpec: any = {};
+      const toolCalls = specData.choices?.[0]?.message?.tool_calls;
+      if (toolCalls && toolCalls.length > 0) {
+        try {
+          generatedSpec = JSON.parse(toolCalls[0].function.arguments);
+        } catch (e) {
+          console.error("[generate_job_spec] Parse error:", e);
+        }
+      } else {
+        // Fallback: try parsing content directly
+        const content = specData.choices?.[0]?.message?.content || "";
+        try {
+          generatedSpec = JSON.parse(content.replace(/```json?\n?/g, "").replace(/```/g, "").trim());
+        } catch (e) {
+          console.error("[generate_job_spec] Content parse error:", e);
+          return { result: { error: "Failed to parse generated spec" }, entityType: "jobs" };
+        }
+      }
+
+      console.log("[generate_job_spec] Generated spec for:", generatedSpec.job_title);
+      return { result: { spec: generatedSpec }, entityType: "jobs" };
+    }
+    case "create_job": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "jobs" };
+
+      const insertPayload: Record<string, unknown> = {
+        title: input.title as string,
+        workspace_id: teamId,
+        raw_brief: (input.raw_brief as string) || null,
+        full_spec: (input.full_spec as string) || null,
+        job_type: (input.job_type as string) || null,
+        location: (input.location as string) || null,
+        remote_policy: (input.remote_policy as string) || null,
+        salary_min: (input.salary_min as number) || null,
+        salary_max: (input.salary_max as number) || null,
+        salary_currency: (input.salary_currency as string) || "GBP",
+        start_date: (input.start_date as string) || null,
+        end_date: (input.end_date as string) || null,
+        company_id: (input.company_id as string) || null,
+        status: "draft",
+        created_by: userId,
+      };
+
+      const { data, error } = await supabaseAdmin
+        .from("jobs")
+        .insert(insertPayload)
+        .select("id, title")
+        .single();
+
+      if (error) {
+        console.error("[create_job] Error:", error.message);
+        return { result: { error: error.message }, entityType: "jobs" };
+      }
+
+      console.log("[create_job] Created job:", data?.id, data?.title);
+      return {
+        result: { ...data, navigate_to: `/jobs/${data?.id}` },
+        entityType: "jobs",
+        entityId: data?.id,
+      };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }

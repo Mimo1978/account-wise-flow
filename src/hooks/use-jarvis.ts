@@ -63,6 +63,10 @@ const FLOW_FIELD_MAP: Record<string, { fields: string[]; highlightIds: string[] 
     fields: ['company', 'name', 'value', 'stage', 'close_date'],
     highlightIds: ['', 'deal-name-input', 'deal-value-input', 'deal-stage-select', 'deal-close-date-input'],
   },
+  CREATE_JOB_SPEC: {
+    fields: ['brief', 'title', 'company', 'type'],
+    highlightIds: ['', '', '', ''],
+  },
 };
 
 /** Detect if the AI response indicates a guided collection flow */

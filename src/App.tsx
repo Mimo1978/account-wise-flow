@@ -41,6 +41,7 @@ import SchemaInventory from "./pages/SchemaInventory";
 import ProjectsList from "./pages/ProjectsList";
 import JobsList from "./pages/JobsList";
 import JobDetail from "./pages/JobDetail";
+import PublicJobBoard from "./pages/PublicJobBoard";
 import ProjectDetail from "./pages/ProjectDetail";
 import AdminOverview from "./pages/admin/AdminOverview";
 import AdminAccess from "./pages/admin/AdminAccess";

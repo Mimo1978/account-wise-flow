@@ -477,7 +477,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => publishAdvert.mutate({ id: a.id, board: a.board || '' })}
+                                onClick={() => handlePublish(a.id, a.board || '')}
                                 data-jarvis-id="job-publish-button"
                               >
                                 {a.board === 'internal' ? (

@@ -134,6 +134,44 @@ const JobDetail = () => {
   const updateStatus = useUpdateJobStatus();
   const { data: jobProjectLinks = [] } = useJobProjects(id);
   const [showFilledModal, setShowFilledModal] = useState(false);
+  const { currentWorkspace } = useWorkspace();
+
+  // Deal creation prompt state
+  const [showDealPrompt, setShowDealPrompt] = useState(false);
+  const [linkedProjectId, setLinkedProjectId] = useState<string | null>(null);
+  const [dealName, setDealName] = useState('');
+  const [dealStage, setDealStage] = useState('lead');
+  const [dealCloseDate, setDealCloseDate] = useState('');
+  const [dealValue, setDealValue] = useState(0);
+  const createDeal = useCreateDeal();
+
+  const handleProjectLinked = useCallback((projectId: string) => {
+    if (!job) return;
+    setLinkedProjectId(projectId);
+    setDealName(`${job.title} — Placement Fee`);
+    setDealStage('lead');
+    setDealCloseDate(job.start_date || '');
+    setDealValue(0);
+    setShowDealPrompt(true);
+  }, [job]);
+
+  const handleCreateDeal = () => {
+    if (!job || !currentWorkspace?.id || !job.company_id) return;
+    createDeal.mutate({
+      workspace_id: currentWorkspace.id,
+      company_id: job.company_id,
+      name: dealName,
+      stage: dealStage,
+      value: dealValue,
+      expected_close_date: dealCloseDate || null,
+    }, {
+      onSuccess: () => {
+        toast.success('Deal created and linked to pipeline');
+        setShowDealPrompt(false);
+      },
+      onError: (e: Error) => toast.error(e.message),
+    });
+  };
 
   if (isLoading) {
     return (

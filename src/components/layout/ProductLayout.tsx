@@ -94,19 +94,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
 
             {/* Main Navigation */}
             <nav className="hidden md:flex items-center gap-1">
-              {navItems.map((item) => (
-                <Link key={item.path} to={item.path}>
-                  <Button
-                    variant={isActive(item.path) ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="gap-2"
-                    data-jarvis-id={item.jarvisId}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    {item.label}
-                  </Button>
-                </Link>
-              ))}
+              <NavItemsWithBadges navItems={navItems} isActive={isActive} />
 
               
               {/* AI Tools - visual separator */}

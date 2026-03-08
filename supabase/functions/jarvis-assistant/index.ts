@@ -396,6 +396,20 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "run_shortlist",
+      description: "Run AI candidate matching against a job specification. Searches the talent database and produces a ranked shortlist of best matches. Use when the user says 'find candidates for this job', 'shortlist for this job', 'who matches this role', 'run shortlist'.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID to run matching for" },
+        },
+        required: ["job_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "update_advert",
       description: "Update the content of an existing job advert. Use when the user asks to shorten, rephrase, or modify a specific advert.",
       parameters: {

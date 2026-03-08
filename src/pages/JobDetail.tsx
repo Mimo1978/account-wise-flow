@@ -887,6 +887,39 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
           )}
         </CardContent>
       </Card>
+
+      {/* Log Reply Dialog */}
+      <Dialog open={logReplyOpen} onOpenChange={setLogReplyOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Log Candidate Reply</DialogTitle>
+            <DialogDescription>
+              Paste the candidate's reply or summarise their response. Jarvis will automatically parse their interest and availability.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={replyText}
+            onChange={e => setReplyText(e.target.value)}
+            placeholder="Paste candidate's reply here..."
+            rows={6}
+            className="text-sm"
+          />
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setLogReplyOpen(false)}>Cancel</Button>
+            <Button
+              size="sm"
+              onClick={handleSubmitReply}
+              disabled={!replyText.trim() || logReply.isPending}
+            >
+              {logReply.isPending ? (
+                <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Parsing...</>
+              ) : (
+                <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Parse & Save</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

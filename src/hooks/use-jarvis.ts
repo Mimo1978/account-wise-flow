@@ -37,6 +37,102 @@ export interface JarvisActionPayload {
   options?: string[];
 }
 
+export type JarvisFlowType = 'CREATE_COMPANY' | 'CREATE_CONTACT' | 'LOG_CALL' | 'CREATE_DEAL' | null;
+
+export interface JarvisFlowState {
+  flow: JarvisFlowType;
+  collectedFields: Record<string, any>;
+  currentQuestion: number;
+  awaitingConfirmation: boolean;
+}
+
+const FLOW_FIELD_MAP: Record<string, { fields: string[]; highlightIds: string[] }> = {
+  CREATE_COMPANY: {
+    fields: ['name', 'industry', 'relationship_status', 'notes'],
+    highlightIds: ['company-name-input', 'company-industry-select', 'company-status-select', 'notes-input'],
+  },
+  CREATE_CONTACT: {
+    fields: ['name', 'company', 'job_title', 'email', 'phone', 'gdpr_consent', 'notes'],
+    highlightIds: ['contact-first-name-input', 'contact-company-select', '', 'contact-email-input', 'contact-phone-input', '', 'notes-input'],
+  },
+  LOG_CALL: {
+    fields: ['contact', 'outcome', 'notes', 'follow_up'],
+    highlightIds: ['', '', 'notes-input', ''],
+  },
+  CREATE_DEAL: {
+    fields: ['company', 'name', 'value', 'stage', 'close_date'],
+    highlightIds: ['', 'deal-name-input', 'deal-value-input', 'deal-stage-select', 'deal-close-date-input'],
+  },
+};
+
+/** Detect if the AI response indicates a guided collection flow */
+function detectFlowFromResponse(text: string, currentFlow: JarvisFlowState): JarvisFlowState {
+  const lower = text.toLowerCase();
+
+  // Detect new flow starting
+  if (!currentFlow.flow) {
+    if (/what('s| is) the company name|let('s| me) create a company|i'll add .* company/i.test(text)) {
+      return { flow: 'CREATE_COMPANY', collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
+    }
+    if (/what('s| is) their (full |first )?name|let('s| me) create a contact|i'll add .* contact/i.test(text)) {
+      return { flow: 'CREATE_CONTACT', collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
+    }
+    if (/who did you speak with|let('s| me) log (a |that )?call/i.test(text)) {
+      return { flow: 'LOG_CALL', collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
+    }
+    if (/which company is this deal|let('s| me) create a deal/i.test(text)) {
+      return { flow: 'CREATE_DEAL', collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
+    }
+  }
+
+  if (!currentFlow.flow) return currentFlow;
+
+  // Detect confirmation prompt
+  const isConfirmation = /shall I (save|go ahead|create|proceed)|is that correct|confirm|ready to save/i.test(text);
+  if (isConfirmation) {
+    return { ...currentFlow, awaitingConfirmation: true };
+  }
+
+  // Detect flow completion (successful creation)
+  const isComplete = /has been (added|created|saved|logged)|successfully (created|added|logged|saved)/i.test(text);
+  if (isComplete) {
+    return { flow: null, collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
+  }
+
+  // Detect cancellation
+  if (/cancelled|aborted|let me know if you'd like to start over/i.test(text)) {
+    return { flow: null, collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
+  }
+
+  // Advance question counter by detecting what Jarvis is asking about
+  const flowConfig = FLOW_FIELD_MAP[currentFlow.flow];
+  if (flowConfig) {
+    const fields = flowConfig.fields;
+    let maxQ = currentFlow.currentQuestion;
+    for (let i = 0; i < fields.length; i++) {
+      const field = fields[i];
+      // If the response mentions collecting this field, we're at least at this step
+      if (lower.includes(field) || (field === 'name' && /what('s| is).*name/i.test(text))) {
+        maxQ = Math.max(maxQ, i);
+      }
+    }
+    if (maxQ !== currentFlow.currentQuestion) {
+      return { ...currentFlow, currentQuestion: maxQ };
+    }
+  }
+
+  return currentFlow;
+}
+
+/** Get the data-jarvis-id to highlight for the current flow step */
+export function getFlowHighlightId(flowState: JarvisFlowState): string | null {
+  if (!flowState.flow) return null;
+  const config = FLOW_FIELD_MAP[flowState.flow];
+  if (!config) return null;
+  const id = config.highlightIds[flowState.currentQuestion];
+  return id || null;
+}
+
 export interface JarvisMessage {
   role: "user" | "assistant";
   content: string;
@@ -78,9 +174,12 @@ const ENTITY_QUERY_KEY_MAP: Record<string, string[]> = {
   crm_activities: ['crm_activities'],
 };
 
+const INITIAL_FLOW_STATE: JarvisFlowState = { flow: null, collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
+
 export function useJarvis() {
   const [messages, setMessages] = useState<JarvisMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [flowState, setFlowState] = useState<JarvisFlowState>(INITIAL_FLOW_STATE);
   const abortRef = useRef<AbortController | null>(null);
   const { user } = useAuth();
   const [userFirstName, setUserFirstName] = useState("");
@@ -128,6 +227,7 @@ export function useJarvis() {
               conversation_history: contextMessages.slice(0, -1),
               user_first_name: userFirstName,
               nav_history: navHistory.slice(-20).map(e => ({ path: e.path, label: e.label })),
+              flow_state: flowState.flow ? flowState : undefined,
             },
           }
         );
@@ -184,12 +284,16 @@ export function useJarvis() {
             responseText
           );
 
+        // Update flow state based on response
+        const newFlowState = detectFlowFromResponse(responseText, flowState);
+        setFlowState(newFlowState);
+
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
             content: responseText,
-            awaitingConfirmation: isConfirmation,
+            awaitingConfirmation: isConfirmation || newFlowState.awaitingConfirmation,
             isSuccess,
             navigateTo: data.navigate_to || undefined,
             targetAction: data.target_action || undefined,
@@ -227,10 +331,17 @@ export function useJarvis() {
         setIsLoading(false);
       }
     },
-    [messages, userFirstName, queryClient]
+    [messages, userFirstName, queryClient, flowState]
   );
 
-  const clearHistory = useCallback(() => setMessages([]), []);
+  const clearHistory = useCallback(() => {
+    setMessages([]);
+    setFlowState(INITIAL_FLOW_STATE);
+  }, []);
 
-  return { messages, isLoading, sendMessage, clearHistory, userFirstName };
+  const cancelFlow = useCallback(() => {
+    setFlowState(INITIAL_FLOW_STATE);
+  }, []);
+
+  return { messages, isLoading, sendMessage, clearHistory, userFirstName, flowState, cancelFlow };
 }

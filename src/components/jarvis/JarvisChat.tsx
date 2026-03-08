@@ -21,7 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useJarvis, JarvisMessage, JarvisSuggestion, JarvisActionPayload } from "@/hooks/use-jarvis";
+import { useJarvis, JarvisMessage, JarvisSuggestion, JarvisActionPayload, JarvisFlowState, getFlowHighlightId } from "@/hooks/use-jarvis";
 import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -46,6 +46,59 @@ function TypingDots() {
             />
           ))}
         </span>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Flow progress bar                                                   */
+/* ------------------------------------------------------------------ */
+const FLOW_LABELS: Record<string, string> = {
+  CREATE_COMPANY: 'Creating Company',
+  CREATE_CONTACT: 'Creating Contact',
+  LOG_CALL: 'Logging Call',
+  CREATE_DEAL: 'Creating Deal',
+};
+
+const FLOW_STEP_COUNTS: Record<string, number> = {
+  CREATE_COMPANY: 4,
+  CREATE_CONTACT: 7,
+  LOG_CALL: 4,
+  CREATE_DEAL: 5,
+};
+
+function FlowProgressBar({ flowState, onCancel }: { flowState: JarvisFlowState; onCancel: () => void }) {
+  const total = FLOW_STEP_COUNTS[flowState.flow!] || 4;
+  const current = Math.min(flowState.currentQuestion + 1, total);
+  const pct = (current / total) * 100;
+
+  return (
+    <div className="px-3 py-2 border-t border-border bg-primary/5 shrink-0">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-medium text-foreground">
+          {FLOW_LABELS[flowState.flow!] || 'Collecting data'}
+        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">
+            {flowState.awaitingConfirmation ? 'Confirm to save' : `Step ${current} of ${total}`}
+          </span>
+          <button
+            onClick={onCancel}
+            className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+      <div className="h-1 rounded-full bg-muted overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-500",
+            flowState.awaitingConfirmation ? "bg-amber-500" : "bg-primary"
+          )}
+          style={{ width: `${flowState.awaitingConfirmation ? 100 : pct}%` }}
+        />
       </div>
     </div>
   );
@@ -427,7 +480,7 @@ function useJarvisPauseDetection(onPause: () => void) {
 /*  Chat panel                                                         */
 /* ------------------------------------------------------------------ */
 function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onActiveChange?: (active: boolean) => void }) {
-  const { messages, isLoading, sendMessage, clearHistory, userFirstName } = useJarvis();
+  const { messages, isLoading, sendMessage, clearHistory, userFirstName, flowState, cancelFlow } = useJarvis();
   const { settings: jarvisSettings } = useJarvisSettings();
   const [input, setInput] = useState("");
   const [keepListening, setKeepListening] = useState(false);
@@ -585,6 +638,14 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
+
+  // Highlight the relevant form field when flow state changes
+  useEffect(() => {
+    const highlightId = getFlowHighlightId(flowState);
+    if (highlightId) {
+      jarvisNav.highlightElement(highlightId);
+    }
+  }, [flowState.flow, flowState.currentQuestion]);
 
   // One-time greeting per session
   useEffect(() => {
@@ -867,6 +928,11 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
           )}
         </div>
       </ScrollArea>
+
+      {/* Active Flow Indicator */}
+      {flowState.flow && (
+        <FlowProgressBar flowState={flowState} onCancel={cancelFlow} />
+      )}
 
       {/* Guided Tour Player */}
       <GuidedTourPlayer

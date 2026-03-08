@@ -540,7 +540,7 @@ const HomeCommandCenter = () => {
         </div>
 
         {/* ═══ 1. KPI ROW ═══ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-jarvis-id="home-kpi-row">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-jarvis-id="home-kpi-row" data-jarvis-section="stat-cards">
           <KPICard title="Active Projects" value={activeCount > 0 ? String(activeCount) : '—'}
             subtitle={activeCount > 0 ? `${activeCount} active${activeJobCount > 0 ? ` · ${activeJobCount} open role${activeJobCount !== 1 ? 's' : ''}` : ''}` : 'No projects yet'}
             icon={Briefcase} accentClass="bg-primary" />

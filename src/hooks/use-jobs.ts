@@ -47,6 +47,8 @@ export interface JobShortlistEntry {
   candidate_id: string | null;
   match_score: number | null;
   match_reasons: string[] | null;
+  concerns: string[] | null;
+  availability_warning: string | null;
   status: string;
   outreach_sent_at: string | null;
   response_received_at: string | null;
@@ -55,7 +57,7 @@ export interface JobShortlistEntry {
   interview_booked_at: string | null;
   notes: string | null;
   created_at: string;
-  candidates?: { name: string; current_title: string | null } | null;
+  candidates?: { name: string; current_title: string | null; availability_status: string | null; location: string | null } | null;
 }
 
 export interface JobApplication {

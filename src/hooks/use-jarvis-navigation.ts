@@ -261,8 +261,8 @@ export function useJarvisNavigation() {
     (targetId: string, label?: string) => {
       findElement(targetId, 8, (el) => {
         clearVisuals();
+        scrollToElement(el);
         el.classList.add(HIGHLIGHT_CLASS);
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
         if (label) showTooltip(el, label);
         track(
           setTimeout(() => {
@@ -279,8 +279,8 @@ export function useJarvisNavigation() {
     (targetId: string, label?: string) => {
       findElement(targetId, 8, (el) => {
         clearVisuals();
+        scrollToElement(el);
         el.classList.add(HIGHLIGHT_CLASS);
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
         if (label) showTooltip(el, label);
         track(
           setTimeout(() => {

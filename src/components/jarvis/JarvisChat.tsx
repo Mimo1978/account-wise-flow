@@ -868,6 +868,11 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
         </div>
       </ScrollArea>
 
+      {/* Active Flow Indicator */}
+      {flowState.flow && (
+        <FlowProgressBar flowState={flowState} onCancel={cancelFlow} />
+      )}
+
       {/* Guided Tour Player */}
       <GuidedTourPlayer
         tour={jarvisNav.tourState}

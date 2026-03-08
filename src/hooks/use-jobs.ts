@@ -334,6 +334,109 @@ export function useJobCounts(workspaceId: string | undefined) {
   });
 }
 
+// ---------- Outreach messages for a job ----------
+export interface OutreachMessage {
+  id: string;
+  job_id: string;
+  workspace_id: string;
+  shortlist_id: string | null;
+  candidate_id: string | null;
+  candidate_name: string | null;
+  candidate_email: string | null;
+  subject: string;
+  body: string | null;
+  body_html: string | null;
+  from_name: string | null;
+  from_email: string | null;
+  automation_level: string;
+  campaign_name: string | null;
+  status: string;
+  sent_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export function useOutreachMessages(jobId: string | undefined) {
+  return useQuery({
+    queryKey: ['outreach_messages', jobId],
+    queryFn: async () => {
+      if (!jobId) return [];
+      const { data, error } = await supabase
+        .from('outreach_messages')
+        .select('*')
+        .eq('job_id', jobId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as OutreachMessage[];
+    },
+    enabled: !!jobId,
+  });
+}
+
+export function useDraftOutreach() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      job_id: string;
+      automation_level: string;
+      from_name?: string;
+      from_email?: string;
+      campaign_name?: string;
+    }) => {
+      const { data, error } = await supabase.functions.invoke('draft-outreach', {
+        body: payload,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as { drafted: number; total_approved: number; skipped: number; job_title: string; campaign_name: string };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['outreach_messages'] });
+      toast.success(`${data.drafted} emails drafted for ${data.job_title}`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useSendOutreachBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (messageIds: string[]) => {
+      const { data, error } = await supabase.functions.invoke('send-outreach-batch', {
+        body: { message_ids: messageIds },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as { sent: number; failed: number; total: number; results: any[] };
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['outreach_messages'] });
+      qc.invalidateQueries({ queryKey: ['job_shortlist'] });
+      if (data.sent > 0) toast.success(`${data.sent} email${data.sent !== 1 ? 's' : ''} sent successfully`);
+      if (data.failed > 0) toast.error(`${data.failed} email${data.failed !== 1 ? 's' : ''} failed to send`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+export function useUpdateOutreachMessage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, subject, body }: { id: string; subject?: string; body?: string }) => {
+      const update: any = {};
+      if (subject !== undefined) update.subject = subject;
+      if (body !== undefined) {
+        update.body = body;
+        update.body_html = body.replace(/\n/g, '<br>');
+      }
+      const { error } = await supabase.from('outreach_messages').update(update).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['outreach_messages'] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 // ---------- New (unreviewed) application count for nav badge ----------
 export function useNewApplicationsCount() {
   const { currentWorkspace } = useWorkspace();

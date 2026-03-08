@@ -23,6 +23,18 @@ export interface GuidedTourStep {
 export interface JarvisSuggestion {
   label: string;
   destination: string;
+  isMenu?: boolean;
+}
+
+export interface JarvisActionPayload {
+  type: 'NAVIGATE' | 'GUIDED_TOUR' | 'HIGHLIGHT' | 'CLICK' | 'CREATE' | 'SHOW_MENU' | 'NONE';
+  destination?: string;
+  highlight?: string;
+  label?: string;
+  steps?: GuidedTourStep[];
+  intent?: string;
+  fields?: Record<string, unknown>;
+  options?: string[];
 }
 
 export interface JarvisMessage {
@@ -37,6 +49,7 @@ export interface JarvisMessage {
   invalidateQueries?: string[];
   guidedTour?: GuidedTourStep[];
   suggestions?: JarvisSuggestion[];
+  actionPayload?: JarvisActionPayload;
 }
 
 const TIMEOUT_MS = 30_000;

@@ -76,6 +76,7 @@ import {
   Trash2, Mail, MessageSquare, AlertTriangle, ChevronDown, ChevronUp, GripVertical,
   ShieldCheck, Archive, ArrowUp, Phone, PhoneCall, Reply, Bell,
 } from 'lucide-react';
+import { JobBriefSection } from '@/components/jobs/JobBriefSection';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 

@@ -425,12 +425,12 @@ function computeBillingSnapshot(invoices: Invoice[]) {
   return { outstandingAmount, outstandingCount, overdueAmount, overdueCount, due7Amount, due7Count };
 }
 
-const STATUS_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  draft: 'secondary',
-  sent: 'default',
-  paid: 'outline',
-  overdue: 'destructive',
-  void: 'secondary',
+const STATUS_BADGE_STYLES: Record<string, string> = {
+  draft: 'bg-muted text-muted-foreground border-transparent',
+  sent: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-transparent',
+  paid: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border-transparent',
+  overdue: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border-transparent',
+  void: 'bg-muted text-muted-foreground border-transparent',
 };
 
 /* ─── Diary Events Section (real diary_events + critical dates) ─── */
@@ -1075,12 +1075,19 @@ const HomeCommandCenter = () => {
                       const isComputedOverdue = inv.status === 'sent' && inv.due_date && isBefore(startOfDay(new Date(inv.due_date)), today) && !inv.paid_date;
                       return (
                         <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                          <td className="px-4 py-3 font-medium text-foreground">{inv.invoice_number || '#' + inv.id.slice(0, 6)}</td>
+                          <td className="px-4 py-3 font-medium text-foreground">
+                            {inv.invoice_number || '#' + inv.id.slice(0, 6)}
+                          </td>
                           <td className="px-4 py-3 text-muted-foreground">{inv.companies?.name ?? '—'}</td>
                           <td className="px-4 py-3">
-                            <Badge variant={STATUS_BADGE_VARIANT[inv.status] ?? 'secondary'} className="text-xs capitalize">
-                              {isComputedOverdue && inv.status !== 'overdue' ? 'overdue' : inv.status}
-                            </Badge>
+                            {(() => {
+                              const displayStatus = isComputedOverdue && inv.status !== 'overdue' ? 'overdue' : inv.status;
+                              return (
+                                <Badge className={`text-xs capitalize ${STATUS_BADGE_STYLES[displayStatus] ?? STATUS_BADGE_STYLES.draft}`}>
+                                  {displayStatus}
+                                </Badge>
+                              );
+                            })()}
                           </td>
                           <td className="px-4 py-3 text-muted-foreground">
                             {inv.currency} {inv.amount.toLocaleString()}

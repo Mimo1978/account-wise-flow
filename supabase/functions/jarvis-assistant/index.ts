@@ -262,7 +262,7 @@ const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "navigate",
-      description: "Navigate the user to a specific page or trigger a UI action. Destinations: home, dashboard, companies, contacts, talent, outreach, insights, canvas, projects, reports, deals, pipeline, invoices, documents, admin, integrations, billing settings, team management, jarvis settings, branding, outreach settings, signals, data quality. Actions: add company, add contact, add deal, add candidate, import contacts, create campaign, create invoice, import companies. Canvas actions: edit org chart, add person to org chart, build org chart, ai research, connect people, reset view, save chart, zoom in, zoom out, fit view.",
+      description: "Navigate the user to a specific page or trigger a UI action. Destinations: home, dashboard, companies, contacts, talent, outreach, insights, canvas, projects, jobs, reports, deals, pipeline, invoices, documents, admin, integrations, billing settings, team management, jarvis settings, branding, outreach settings, signals, data quality. Actions: add company, add contact, add deal, add candidate, import contacts, create campaign, create invoice, import companies, add job, new job. Canvas actions: edit org chart, add person to org chart, build org chart, ai research, connect people, reset view, save chart, zoom in, zoom out, fit view.",
       parameters: {
         type: "object",
         properties: {
@@ -329,6 +329,51 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "generate_job_spec",
+      description: "Generate a full professional job specification from a raw brief using AI. Returns structured JSON with job_title, company_overview, role_summary, key_responsibilities, essential_skills, desirable_skills, what_we_offer, salary_range, location, job_type, start_date. Use after collecting the raw brief from the user.",
+      parameters: {
+        type: "object",
+        properties: {
+          raw_brief: { type: "string", description: "The recruiter's raw description of the role" },
+          job_title: { type: "string", description: "Extracted or clarified job title" },
+          company_name: { type: "string", description: "Client company name" },
+          job_type: { type: "string", description: "permanent, contract, or temp" },
+          location: { type: "string" },
+          salary_info: { type: "string", description: "Salary or rate info from the brief" },
+          start_date: { type: "string" },
+        },
+        required: ["raw_brief"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_job",
+      description: "Save a job specification to the jobs table. Call this ONLY after the user confirms the generated spec.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          company_id: { type: "string" },
+          raw_brief: { type: "string" },
+          full_spec: { type: "string", description: "JSON stringified full spec" },
+          job_type: { type: "string" },
+          location: { type: "string" },
+          remote_policy: { type: "string" },
+          salary_min: { type: "number" },
+          salary_max: { type: "number" },
+          salary_currency: { type: "string" },
+          start_date: { type: "string" },
+          end_date: { type: "string" },
+        },
+        required: ["title", "raw_brief", "full_spec"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.
@@ -372,9 +417,10 @@ GUIDED TOUR intents (phrases like "how do I X", "walk me through X", "show me ho
   Talent page: add-candidate-button, talent-search-input, talent-import-button, talent-filter-availability, talent-filter-role-type, talent-boolean-search-toggle.
   Outreach page: new-campaign-button, add-targets-button, new-script-button, outreach-tab-queue, outreach-tab-campaigns, outreach-tab-scripts.
   Insights page: insights-risk-snapshot, insights-relationship-strength, insights-pipeline-signals, insights-sales-momentum, insights-org-penetration.
-  Home page: home-create-invoice-button, home-add-sow-button, home-create-project-button, home-create-deal-button, home-billing-snapshot, home-pipeline-snapshot, home-diary, home-my-work.
-  Admin pages: admin-workspace-roles, admin-data-quality, admin-outreach-defaults, admin-billing-invoices, admin-schema-inventory, admin-integrations, admin-jarvis-settings.
-  Canvas page: canvas-page, canvas-add-node-button, canvas-edit-button, canvas-zoom-in, canvas-zoom-out, canvas-fit-view, canvas-company-select, canvas-build-orgchart, canvas-ai-research, canvas-connect-tool, canvas-delete-node, canvas-save-layout.
+   Home page: home-create-invoice-button, home-add-sow-button, home-create-project-button, home-create-deal-button, home-billing-snapshot, home-pipeline-snapshot, home-diary, home-my-work.
+   Jobs page: add-job-button, job-tab-overview, job-tab-adverts, job-tab-shortlist, job-tab-applications, job-generate-spec-button, job-generate-adverts-button, job-run-shortlist-button, job-publish-button, job-send-outreach-button.
+   Admin pages: admin-workspace-roles, admin-data-quality, admin-outreach-defaults, admin-billing-invoices, admin-schema-inventory, admin-integrations, admin-jarvis-settings.
+   Canvas page: canvas-page, canvas-add-node-button, canvas-edit-button, canvas-zoom-in, canvas-zoom-out, canvas-fit-view, canvas-company-select, canvas-build-orgchart, canvas-ai-research, canvas-connect-tool, canvas-delete-node, canvas-save-layout.
   Forms: company-name-input, contact-first-name-input, contact-email-input, contact-company-select, deal-value-input, deal-stage-select, notes-input, save-button.
 
 CANVAS ORG CHART GUIDED TOURS — when user asks about editing, building, or manipulating an org chart:
@@ -559,7 +605,50 @@ When creating a contact, deal, opportunity, project, or logging a call that refe
 4. If 0 results: say "I couldn't find [name] in your workspace. Would you like me to create it first?" and wait.
 5. NEVER guess or fabricate an entity ID. NEVER pass a name string where an ID is required.
 
-CONFIRMATION: Always confirm before executing. State ALL collected fields clearly using names (never IDs). Only call the tool AFTER the user confirms.`;
+CONFIRMATION: Always confirm before executing. State ALL collected fields clearly using names (never IDs). Only call the tool AFTER the user confirms.
+
+JOB SPEC WRITER FLOW — detect intents: "new job", "write a job spec", "I have a new role", "new requirement", "create a job", "I have a requirement":
+
+Step 1 — Capture brief:
+  Say: "Tell me about the role — just give me the key details and I'll build the full spec."
+  Wait for the user's rough brief. Extract: job title, company, type (perm/contract/temp), location, salary/rate, start date, any skills mentioned.
+
+Step 2 — Clarify gaps (max 3 questions total, 1-2 per message):
+  If job title missing: "What's the job title?"
+  If company missing: "Which client is this for?" — use lookup_company to find matches
+  If type missing: "Is this permanent, contract, or temp?"
+  Do NOT ask about every field — extract what you can, leave the rest blank.
+
+Step 3 — Generate spec:
+  Call the generate_job_spec tool with the raw brief and all clarified values.
+  Display the generated spec in a structured format:
+  **[Job Title]**
+  **Role Summary:** ...
+  **Key Responsibilities:**
+  • ...
+  **Essential Skills:**
+  • ...
+  **Desirable Skills:**
+  • ...
+  **What We Offer:**
+  • ...
+  **Salary:** ... | **Location:** ... | **Type:** ... | **Start:** ...
+
+  Say: "Here's your job spec. Shall I save it, or would you like to change anything?"
+
+Step 4 — Refinement:
+  If user says "change the salary to X" or "add cloud experience to essential skills" — make the change in the spec and show the updated version.
+  Ask again: "Updated. Shall I save it now?"
+
+Step 5 — Save:
+  When user confirms, call create_job with: raw_brief (original text), full_spec (JSON stringified), all extracted fields.
+  Navigate to /jobs/[new-id].
+  Say: "[Title] spec saved. Ready to generate adverts?"
+
+NAVIGATION — Jobs:
+  "take me to jobs" / "show me my jobs" / "open jobs" / "jobs list" → navigate to /jobs
+  "open job [name]" → navigate to /jobs, search for the job`;
+
 
 // ---------- Universal record lookup helper ----------
 async function lookupRecord(
@@ -1011,6 +1100,14 @@ async function executeTool(
         "draw reporting line": { path: "/canvas", action: "click", targetId: "canvas-connect-tool" },
         "delete node": { path: "/canvas", action: "click", targetId: "canvas-delete-node" },
         "remove from chart": { path: "/canvas", action: "click", targetId: "canvas-delete-node" },
+        // Jobs
+        jobs: { path: "/jobs" },
+        "jobs list": { path: "/jobs" },
+        "my jobs": { path: "/jobs" },
+        "show jobs": { path: "/jobs" },
+        "open jobs": { path: "/jobs" },
+        "add job": { path: "/jobs", action: "click", targetId: "add-job-button" },
+        "new job": { path: "/jobs", action: "click", targetId: "add-job-button" },
       };
 
       // Try exact match first, then fuzzy keyword match
@@ -1145,6 +1242,148 @@ async function executeTool(
         return { result: { matches: allMatches, auto_selected: allMatches[0], message: `Found "${allMatches[0].name}" — using this candidate.` }, entityType: "candidates" };
       }
       return { result: { matches: allMatches, message: `Found ${allMatches.length} candidates matching "${name}". Did you mean ${allMatches.slice(0, 3).map((c: any) => c.name).join(", or ")}?` }, entityType: "candidates" };
+    }
+    case "generate_job_spec": {
+      const rawBrief = input.raw_brief as string;
+      const jobTitle = (input.job_title as string) || "";
+      const companyName = (input.company_name as string) || "";
+      const jobType = (input.job_type as string) || "";
+      const location = (input.location as string) || "";
+      const salaryInfo = (input.salary_info as string) || "";
+      const startDate = (input.start_date as string) || "";
+
+      const specPrompt = `Raw brief: ${rawBrief}
+${jobTitle ? `Job title: ${jobTitle}` : ""}
+${companyName ? `Company: ${companyName}` : ""}
+${jobType ? `Type: ${jobType}` : ""}
+${location ? `Location: ${location}` : ""}
+${salaryInfo ? `Salary/Rate: ${salaryInfo}` : ""}
+${startDate ? `Start date: ${startDate}` : ""}`;
+
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) {
+        return { result: { error: "AI service not configured" }, entityType: "jobs" };
+      }
+
+      const specResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert recruitment consultant. Generate a professional job specification from the brief provided. Return JSON with these exact fields:
+  job_title (string), company_overview (2 sentences string), role_summary (3-4 sentences string),
+  key_responsibilities (array of 6-10 bullet strings),
+  essential_skills (array of 5-8 bullet strings),
+  desirable_skills (array of 3-5 bullet strings),
+  what_we_offer (array of 4-6 bullet strings),
+  salary_range (string), location (string), job_type (string - permanent/contract/temp), start_date (string),
+  about_the_recruiter (2 sentences string).
+Return ONLY valid JSON, no markdown fences.`,
+            },
+            { role: "user", content: specPrompt },
+          ],
+          tools: [{
+            type: "function",
+            function: {
+              name: "return_job_spec",
+              description: "Return the generated job specification",
+              parameters: {
+                type: "object",
+                properties: {
+                  job_title: { type: "string" },
+                  company_overview: { type: "string" },
+                  role_summary: { type: "string" },
+                  key_responsibilities: { type: "array", items: { type: "string" } },
+                  essential_skills: { type: "array", items: { type: "string" } },
+                  desirable_skills: { type: "array", items: { type: "string" } },
+                  what_we_offer: { type: "array", items: { type: "string" } },
+                  salary_range: { type: "string" },
+                  location: { type: "string" },
+                  job_type: { type: "string" },
+                  start_date: { type: "string" },
+                  about_the_recruiter: { type: "string" },
+                },
+                required: ["job_title", "role_summary", "key_responsibilities", "essential_skills"],
+              },
+            },
+          }],
+          tool_choice: { type: "function", function: { name: "return_job_spec" } },
+        }),
+      });
+
+      if (!specResponse.ok) {
+        console.error("[generate_job_spec] AI error:", specResponse.status);
+        return { result: { error: "Failed to generate job spec" }, entityType: "jobs" };
+      }
+
+      const specData = await specResponse.json();
+      let generatedSpec: any = {};
+      const toolCalls = specData.choices?.[0]?.message?.tool_calls;
+      if (toolCalls && toolCalls.length > 0) {
+        try {
+          generatedSpec = JSON.parse(toolCalls[0].function.arguments);
+        } catch (e) {
+          console.error("[generate_job_spec] Parse error:", e);
+        }
+      } else {
+        // Fallback: try parsing content directly
+        const content = specData.choices?.[0]?.message?.content || "";
+        try {
+          generatedSpec = JSON.parse(content.replace(/```json?\n?/g, "").replace(/```/g, "").trim());
+        } catch (e) {
+          console.error("[generate_job_spec] Content parse error:", e);
+          return { result: { error: "Failed to parse generated spec" }, entityType: "jobs" };
+        }
+      }
+
+      console.log("[generate_job_spec] Generated spec for:", generatedSpec.job_title);
+      return { result: { spec: generatedSpec }, entityType: "jobs" };
+    }
+    case "create_job": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "jobs" };
+
+      const insertPayload: Record<string, unknown> = {
+        title: input.title as string,
+        workspace_id: teamId,
+        raw_brief: (input.raw_brief as string) || null,
+        full_spec: (input.full_spec as string) || null,
+        job_type: (input.job_type as string) || null,
+        location: (input.location as string) || null,
+        remote_policy: (input.remote_policy as string) || null,
+        salary_min: (input.salary_min as number) || null,
+        salary_max: (input.salary_max as number) || null,
+        salary_currency: (input.salary_currency as string) || "GBP",
+        start_date: (input.start_date as string) || null,
+        end_date: (input.end_date as string) || null,
+        company_id: (input.company_id as string) || null,
+        status: "draft",
+        created_by: userId,
+      };
+
+      const { data, error } = await supabaseAdmin
+        .from("jobs")
+        .insert(insertPayload)
+        .select("id, title")
+        .single();
+
+      if (error) {
+        console.error("[create_job] Error:", error.message);
+        return { result: { error: error.message }, entityType: "jobs" };
+      }
+
+      console.log("[create_job] Created job:", data?.id, data?.title);
+      return {
+        result: { ...data, navigate_to: `/jobs/${data?.id}` },
+        entityType: "jobs",
+        entityId: data?.id,
+      };
     }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
@@ -1458,7 +1697,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 
     // Build invalidation list for frontend cache
     const invalidateQueries: string[] = [];
-    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms"]);
+    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job"]);
     const entityQueryMap: Record<string, string[]> = {
       companies: ["companies", "canvas-companies"],
       crm_companies: ["crm_companies"],
@@ -1470,6 +1709,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       crm_activities: ["crm_activities"],
       email: ["crm_activities"],
       sms: ["crm_activities"],
+      jobs: ["jobs"],
     };
 
     for (const action of actionsExecuted) {

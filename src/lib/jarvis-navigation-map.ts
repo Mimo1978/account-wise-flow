@@ -53,6 +53,16 @@ export const navigationMap: Record<string, NavigationEntry> = {
     label: "Projects",
     keywords: ["projects", "work", "deliverables", "project list"],
   },
+  jobs: {
+    path: "/jobs",
+    label: "Jobs",
+    keywords: ["jobs", "job list", "roles", "vacancies", "job specs", "requirements", "open roles"],
+  },
+  jobDetail: {
+    path: "/jobs/:id",
+    label: "Job Detail",
+    keywords: ["job detail", "view job", "job page", "job spec detail"],
+  },
   reports: {
     path: "/reports",
     label: "Reports",

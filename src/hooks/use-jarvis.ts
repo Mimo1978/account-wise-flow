@@ -37,7 +37,7 @@ export interface JarvisActionPayload {
   options?: string[];
 }
 
-export type JarvisFlowType = 'CREATE_COMPANY' | 'CREATE_CONTACT' | 'LOG_CALL' | 'CREATE_DEAL' | null;
+export type JarvisFlowType = 'CREATE_COMPANY' | 'CREATE_CONTACT' | 'LOG_CALL' | 'CREATE_DEAL' | 'CREATE_JOB_SPEC' | null;
 
 export interface JarvisFlowState {
   flow: JarvisFlowType;
@@ -63,6 +63,10 @@ const FLOW_FIELD_MAP: Record<string, { fields: string[]; highlightIds: string[] 
     fields: ['company', 'name', 'value', 'stage', 'close_date'],
     highlightIds: ['', 'deal-name-input', 'deal-value-input', 'deal-stage-select', 'deal-close-date-input'],
   },
+  CREATE_JOB_SPEC: {
+    fields: ['brief', 'title', 'company', 'type'],
+    highlightIds: ['', '', '', ''],
+  },
 };
 
 /** Detect if the AI response indicates a guided collection flow */
@@ -82,6 +86,9 @@ function detectFlowFromResponse(text: string, currentFlow: JarvisFlowState): Jar
     }
     if (/which company is this deal|let('s| me) create a deal/i.test(text)) {
       return { flow: 'CREATE_DEAL', collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
+    }
+    if (/tell me about the role|i'll build the full spec|let('s| me) (write|create|build) a job spec|new (job|role|requirement)/i.test(text)) {
+      return { flow: 'CREATE_JOB_SPEC', collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
     }
   }
 
@@ -172,6 +179,7 @@ const ENTITY_QUERY_KEY_MAP: Record<string, string[]> = {
   crm_projects: ['crm_projects'],
   crm_invoices: ['crm_invoices'],
   crm_activities: ['crm_activities'],
+  jobs: ['jobs'],
 };
 
 const INITIAL_FLOW_STATE: JarvisFlowState = { flow: null, collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };

@@ -138,13 +138,29 @@ class JarvisSpotlightManager {
     this._settings = { ...DEFAULT_SETTINGS, ...settings };
   }
 
+  /** Scroll element into view if not already fully visible */
+  private _scrollTo(el: HTMLElement, isSection = false): void {
+    const rect = el.getBoundingClientRect();
+    if (isSection) {
+      const targetTop = 120;
+      if (rect.top < targetTop || rect.top > window.innerHeight - 80) {
+        window.scrollBy({ top: rect.top - targetTop, behavior: "smooth" });
+      }
+    } else {
+      const isFullyVisible = rect.top >= 80 && rect.bottom <= window.innerHeight - 80;
+      if (!isFullyVisible) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+  }
+
   /** Highlight a single element by its data-jarvis-id */
   highlight(id: string, label?: string, duration = 4000): void {
     if (!this._settings.spotlight_enabled) return;
     const el = findEl(id);
     if (!el) return;
+    this._scrollTo(el);
     el.classList.add(HIGHLIGHT_CLASS);
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     this._activeElements.push(el);
     if (label && this._settings.tooltip_labels_enabled) showTooltipAbove(el, label);
     this._scheduleAutoClear(duration);
@@ -156,8 +172,8 @@ class JarvisSpotlightManager {
     for (const id of ids) {
       const el = findEl(id);
       if (!el) continue;
+      this._scrollTo(el);
       el.classList.add(HIGHLIGHT_CLASS);
-      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
       this._activeElements.push(el);
     }
     this._scheduleAutoClear(duration);
@@ -168,8 +184,8 @@ class JarvisSpotlightManager {
     if (!this._settings.spotlight_enabled) return;
     const el = findSection(sectionName);
     if (!el) return;
+    this._scrollTo(el, true);
     el.classList.add(SECTION_GLOW_CLASS);
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     this._activeSections.push(el);
   }
 

@@ -164,6 +164,24 @@ function findElement(
   attempt(maxRetries);
 }
 
+/** Scroll element into view if not already fully visible */
+function scrollToElement(element: HTMLElement, isSection = false) {
+  const rect = element.getBoundingClientRect();
+  if (isSection) {
+    // For sections, position top ~120px from viewport top (nav bar clearance)
+    const targetTop = 120;
+    const currentTop = rect.top;
+    if (currentTop < targetTop || currentTop > window.innerHeight - 80) {
+      window.scrollBy({ top: currentTop - targetTop, behavior: "smooth" });
+    }
+  } else {
+    const isFullyVisible = rect.top >= 80 && rect.bottom <= window.innerHeight - 80;
+    if (!isFullyVisible) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+}
+
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -243,8 +261,8 @@ export function useJarvisNavigation() {
     (targetId: string, label?: string) => {
       findElement(targetId, 8, (el) => {
         clearVisuals();
+        scrollToElement(el);
         el.classList.add(HIGHLIGHT_CLASS);
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
         if (label) showTooltip(el, label);
         track(
           setTimeout(() => {
@@ -261,8 +279,8 @@ export function useJarvisNavigation() {
     (targetId: string, label?: string) => {
       findElement(targetId, 8, (el) => {
         clearVisuals();
+        scrollToElement(el);
         el.classList.add(HIGHLIGHT_CLASS);
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
         if (label) showTooltip(el, label);
         track(
           setTimeout(() => {
@@ -470,10 +488,12 @@ export function useJarvisNavigation() {
               );
               document.getElementById(TOOLTIP_ID)?.remove();
 
-              // Use section glow for data-jarvis-section elements, highlight for others
+              // Scroll into view before applying glow
               const isSection = el.hasAttribute("data-jarvis-section");
+              scrollToElement(el, isSection);
+
+              // Use section glow for data-jarvis-section elements, highlight for others
               el.classList.add(isSection ? SECTION_GLOW_CLASS : HIGHLIGHT_CLASS);
-              el.scrollIntoView({ behavior: "smooth", block: "nearest" });
               resolve();
             });
             setTimeout(resolve, 3000);
@@ -489,8 +509,8 @@ export function useJarvisNavigation() {
               );
               document.getElementById(TOOLTIP_ID)?.remove();
 
+              scrollToElement(el);
               el.classList.add(HIGHLIGHT_CLASS);
-              el.scrollIntoView({ behavior: "smooth", block: "center" });
               if (step.speak) showTooltip(el, step.speak);
               setTimeout(() => {
                 el.click();

@@ -939,6 +939,40 @@ async function executeTool(
 
       return { result, entityType: "navigation", entityId: path };
     }
+    case "navigate_to_canvas_for_company": {
+      const companyName = (input.company_name as string).trim();
+      // Look up company by name
+      const { data: companies } = await supabaseAdmin
+        .from("companies")
+        .select("id, name")
+        .ilike("name", `%${companyName}%`)
+        .limit(5);
+      
+      if (!companies || companies.length === 0) {
+        // Try CRM companies as fallback
+        const { data: crmCompanies } = await supabaseAdmin
+          .from("crm_companies")
+          .select("id, name")
+          .ilike("name", `%${companyName}%`)
+          .is("deleted_at", null)
+          .limit(5);
+        
+        if (!crmCompanies || crmCompanies.length === 0) {
+          return { result: { error: `No company found matching "${companyName}"` }, entityType: "companies" };
+        }
+        return {
+          result: { navigate_to: `/canvas?company=${crmCompanies[0].id}`, matched_company: crmCompanies[0].name },
+          entityType: "navigation",
+          entityId: crmCompanies[0].id,
+        };
+      }
+
+      return {
+        result: { navigate_to: `/canvas?company=${companies[0].id}`, matched_company: companies[0].name },
+        entityType: "navigation",
+        entityId: companies[0].id,
+      };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }

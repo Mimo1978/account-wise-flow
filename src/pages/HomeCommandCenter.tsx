@@ -350,15 +350,16 @@ function DiaryEventsSection({ workspaceId }: { workspaceId: string | undefined }
 
 /* ─── Command Centre Tour Steps ─── */
 const COMMAND_CENTRE_TOUR: GuidedTourStep[] = [
-  { highlight: '[data-jarvis-section="stat-cards"]', speak: "Welcome to your Command Centre. This is the heartbeat of your business." },
+  { speak: "Welcome to your Command Centre. This is the heartbeat of your business.", delay: 2000 },
   { highlight: '[data-jarvis-section="stat-cards"]', speak: "These four cards at the top give you your headline numbers — active projects, pipeline value, outstanding invoices, and renewals." },
   { highlight: '[data-jarvis-section="pipeline-snapshot"]', speak: "Below that is your pipeline snapshot — every deal by stage. Click any stage chevron to see the deals inside." },
   { highlight: '[data-jarvis-section="my-work"]', speak: "My Work shows what needs your attention today — overdue items, shortlists to review, and outreach ready to send." },
   { highlight: '[data-jarvis-section="diary"]', speak: "Your diary shows calls and meetings for the next seven days." },
   { highlight: '[data-jarvis-section="active-projects"]', speak: "Active Projects shows all your live engagements. The Jobs column shows open recruitment roles linked to each project." },
   { highlight: '[data-jarvis-section="alerts-strip"]', speak: "Billing Alerts will flag anything overdue or expiring." },
+  { speak: "That is your Command Centre. Everything in one view. Just ask me to take you anywhere or show you anything.", delay: 2000 },
 ];
-const TOUR_CLOSING = "That is your Command Centre. Everything in one view. Just ask me to take you anywhere or show you anything.";
+const TOUR_CLOSING = "Tour complete.";
 
 /* ─── Main Page ─── */
 const HomeCommandCenter = () => {

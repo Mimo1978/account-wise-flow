@@ -164,17 +164,18 @@ export function JarvisSpotlightOverlay() {
 
   return (
     <>
-      {/* Screen border glow */}
-      {_screenGlowActive && (
-        <div className="jarvis-screen-glow" aria-hidden="true" />
-      )}
+      {/* Screen border glow — ALWAYS in DOM, toggle opacity via class only */}
+      <div
+        className={`jarvis-screen-glow ${_screenGlowActive ? "active" : ""}`}
+        aria-hidden="true"
+      />
 
       {/* Element tooltips */}
       {_tooltips.map((t) => (
         <div
           key={t.elementId}
-          className="jarvis-tooltip"
-          style={{ top: t.top, left: t.left }}
+          className="jarvis-spotlight-tooltip"
+          style={{ top: t.top, left: t.left, transform: "translateX(-50%) translateY(-100%)" }}
           aria-hidden="true"
         >
           {t.label}

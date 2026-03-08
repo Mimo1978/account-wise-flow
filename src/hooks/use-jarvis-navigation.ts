@@ -65,20 +65,45 @@ export function getLastCompanyPage(): JarvisNavHistoryEntry | null {
 
 const TOOLTIP_ID = "jarvis-nav-tooltip";
 const OVERLAY_ID = "jarvis-nav-overlay";
+const GLOW_DIV_ID = "jarvis-screen-glow-div";
 const HIGHLIGHT_CLASS = "jarvis-highlight";
-const GLOW_CLASS = "jarvis-screen-glow";
+const SECTION_GLOW_CLASS = "jarvis-section-glow";
 
 /* ------------------------------------------------------------------ */
 /*  DOM helpers                                                        */
 /* ------------------------------------------------------------------ */
 
+function getOrCreateGlowDiv(): HTMLElement {
+  let div = document.getElementById(GLOW_DIV_ID);
+  if (!div) {
+    div = document.createElement("div");
+    div.id = GLOW_DIV_ID;
+    div.className = "jarvis-screen-glow";
+    div.setAttribute("aria-hidden", "true");
+    document.body.appendChild(div);
+  }
+  return div;
+}
+
+function activatePageGlow() {
+  getOrCreateGlowDiv().classList.add("active");
+}
+
+function deactivatePageGlow() {
+  const div = document.getElementById(GLOW_DIV_ID);
+  div?.classList.remove("active");
+}
+
 function clearVisuals() {
   document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((el) => {
     el.classList.remove(HIGHLIGHT_CLASS);
   });
+  document.querySelectorAll(`.${SECTION_GLOW_CLASS}`).forEach((el) => {
+    el.classList.remove(SECTION_GLOW_CLASS);
+  });
   document.getElementById(TOOLTIP_ID)?.remove();
   removeOverlay();
-  document.body.classList.remove(GLOW_CLASS);
+  deactivatePageGlow();
 }
 
 function showOverlay() {
@@ -121,9 +146,15 @@ function findElement(
   onFound: (el: HTMLElement) => void
 ) {
   const attempt = (retries: number) => {
-    const el =
-      document.querySelector<HTMLElement>(`[data-jarvis-id="${targetId}"]`) ||
-      document.getElementById(targetId);
+    // Support CSS selectors (starting with [ or .) as well as jarvis-id/element-id
+    let el: HTMLElement | null = null;
+    if (targetId.startsWith("[") || targetId.startsWith(".") || targetId.startsWith("#")) {
+      el = document.querySelector<HTMLElement>(targetId);
+    }
+    if (!el) {
+      el = document.querySelector<HTMLElement>(`[data-jarvis-id="${targetId}"]`) ||
+           document.getElementById(targetId);
+    }
     if (el) {
       onFound(el);
     } else if (retries > 0) {
@@ -266,8 +297,8 @@ export function useJarvisNavigation() {
       const label = options?.label || entry?.label || destination;
       const isSamePage = location.pathname === path;
 
-      document.body.classList.add(GLOW_CLASS);
-      track(setTimeout(() => document.body.classList.remove(GLOW_CLASS), 3000));
+      activatePageGlow();
+      track(setTimeout(() => deactivatePageGlow(), 3000));
 
       if (!isSamePage) {
         showOverlay();
@@ -390,7 +421,7 @@ export function useJarvisNavigation() {
       tourSkipRef.current = false;
 
       setTourState({ steps, currentStep: 0, status: "running" });
-      document.body.classList.add(GLOW_CLASS);
+      activatePageGlow();
 
       let lastPath = location.pathname;
 
@@ -430,15 +461,19 @@ export function useJarvisNavigation() {
         if (step.highlight) {
           await new Promise<void>((resolve) => {
             findElement(step.highlight!, 10, (el) => {
-              // Clear previous highlights but keep glow
+              // Clear previous highlights but keep page glow
               document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((e) =>
                 e.classList.remove(HIGHLIGHT_CLASS)
               );
+              document.querySelectorAll(`.${SECTION_GLOW_CLASS}`).forEach((e) =>
+                e.classList.remove(SECTION_GLOW_CLASS)
+              );
               document.getElementById(TOOLTIP_ID)?.remove();
 
-              el.classList.add(HIGHLIGHT_CLASS);
-              el.scrollIntoView({ behavior: "smooth", block: "center" });
-              if (step.speak) showTooltip(el, step.speak);
+              // Use section glow for data-jarvis-section elements, highlight for others
+              const isSection = el.hasAttribute("data-jarvis-section");
+              el.classList.add(isSection ? SECTION_GLOW_CLASS : HIGHLIGHT_CLASS);
+              el.scrollIntoView({ behavior: "smooth", block: "nearest" });
               resolve();
             });
             setTimeout(resolve, 3000);

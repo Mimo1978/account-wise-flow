@@ -534,7 +534,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const location = useLocation();
+  // location is declared below as jarvisLocation
 
   // Draggable panel logic
   const PANEL_W = 420;

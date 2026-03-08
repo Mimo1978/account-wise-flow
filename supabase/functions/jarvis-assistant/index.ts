@@ -2340,6 +2340,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       jobs: ["jobs"],
       job_adverts: ["job_adverts"],
       job_shortlist: ["job_shortlist"],
+      diary_events: ["diary_events"],
     };
 
     for (const action of actionsExecuted) {

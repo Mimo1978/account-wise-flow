@@ -712,7 +712,7 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
                           {e.match_score != null && (
                             <Badge variant="outline" className={scoreBadgeClass(e.match_score)}>{e.match_score}%</Badge>
                           )}
-                          {statusBadge(e.status)}
+                          {statusBadge(e.status, e)}
                           {e.availability_warning && (
                             <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
                               <AlertTriangle className="w-3 h-3" /> {e.availability_warning}

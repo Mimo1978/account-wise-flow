@@ -133,13 +133,112 @@ function EmptyPanel({
   );
 }
 
-/* ─── Pipeline Stage ─── */
-function PipelineStage({ label, count }: { label: string; count: number }) {
+/* ─── Pipeline Chevron Stage ─── */
+const CHEVRON_COLORS: Record<string, string> = {
+  lead: '#3B82F6',
+  qualified: '#6366F1',
+  proposal: '#F59E0B',
+  negotiation: '#F97316',
+  won: '#22C55E',
+  lost: '#EF4444',
+};
+
+function PipelineChevron({
+  stage,
+  label,
+  count,
+  total,
+  isFirst,
+  isLast,
+  isActive,
+  onClick,
+}: {
+  stage: string;
+  label: string;
+  count: number;
+  total: number;
+  isFirst: boolean;
+  isLast: boolean;
+  isActive: boolean;
+  onClick: () => void;
+}) {
+  const color = CHEVRON_COLORS[stage] ?? '#6B7280';
   return (
-    <div className="flex-1 min-w-[120px] bg-muted/50 rounded-lg p-4 text-center">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-      <p className="text-xl font-bold text-foreground mt-1">{count}</p>
-    </div>
+    <button
+      onClick={onClick}
+      className="relative flex-1 min-w-[130px] transition-all duration-200 group"
+      style={{ filter: isActive ? 'brightness(1)' : 'brightness(0.85)', opacity: isActive ? 1 : 0.75 }}
+    >
+      <svg viewBox="0 0 200 80" preserveAspectRatio="none" className="w-full h-[80px]" aria-hidden>
+        <polygon
+          points={isFirst ? '0,0 180,0 200,40 180,80 0,80' : isLast ? '0,0 180,0 200,0 200,80 180,80 0,80 20,40' : '0,0 180,0 200,40 180,80 0,80 20,40'}
+          fill={color}
+          className="transition-all duration-200 group-hover:brightness-110"
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2">
+        <span className="text-[10px] font-semibold text-white uppercase tracking-wider leading-none">{label}</span>
+        <span className="text-xl font-bold text-white leading-tight mt-0.5">{count}</span>
+        <span className="text-[10px] text-white/80 leading-none">£{total.toLocaleString()}</span>
+      </div>
+    </button>
+  );
+}
+
+/* ─── Deal Card for Pipeline ─── */
+function PipelineDealCard({
+  deal,
+  onAdvance,
+  onCreateProject,
+  onViewProject,
+  isRecruitment,
+}: {
+  deal: Deal;
+  onAdvance?: (nextStage: string) => void;
+  onCreateProject?: () => void;
+  onViewProject?: () => void;
+  isRecruitment: boolean;
+}) {
+  const today = startOfDay(new Date());
+  const createdDate = startOfDay(new Date(deal.updated_at));
+  const daysInStage = Math.max(0, differenceInDays(today, createdDate));
+  const stageIdx = DEAL_STAGES.indexOf(deal.stage as any);
+  const nextStage = stageIdx >= 0 && stageIdx < DEAL_STAGES.length - 2 ? DEAL_STAGES[stageIdx + 1] : null;
+
+  return (
+    <Card className="p-4 hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-2">
+        <p className="text-sm font-semibold text-foreground truncate flex-1">{deal.name}</p>
+        {isRecruitment && (
+          <span className="shrink-0 w-5 h-5 rounded-full bg-purple-500 text-white text-[10px] font-bold flex items-center justify-center">R</span>
+        )}
+      </div>
+      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{deal.companies?.name ?? '—'}</span>
+        <span className="font-medium text-foreground">£{deal.value.toLocaleString()}</span>
+        {deal.expected_close_date && (
+          <span>{format(new Date(deal.expected_close_date), 'dd MMM')}</span>
+        )}
+        <span className="ml-auto tabular-nums">{daysInStage}d in stage</span>
+      </div>
+      <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border/40">
+        {nextStage && deal.stage !== 'won' && deal.stage !== 'lost' && onAdvance && (
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={() => onAdvance(nextStage)}>
+            → {DEAL_STAGE_LABELS[nextStage]}
+          </Button>
+        )}
+        {deal.stage === 'won' && !deal.engagement_id && onCreateProject && (
+          <Button size="sm" variant="default" className="h-6 text-[10px] px-2 gap-1" onClick={onCreateProject}>
+            <Briefcase className="w-3 h-3" /> Create Project
+          </Button>
+        )}
+        {deal.stage === 'won' && deal.engagement_id && onViewProject && (
+          <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 gap-1" onClick={onViewProject}>
+            <ArrowRight className="w-3 h-3" /> View Project
+          </Button>
+        )}
+      </div>
+    </Card>
   );
 }
 

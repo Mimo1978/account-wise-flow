@@ -738,7 +738,7 @@ const HomeCommandCenter = () => {
     return items;
   }, [outreachMetrics]);
 
-  // Critical dates: My Work = 30 days, Diary = 7 days (includes invoices + deals + outreach + jobs)
+  // Critical dates: My Work = 30 days (capped at 6, overdue first)
   const myWorkItems = useMemo(() => {
     const base = buildCriticalDates(sows, invoices, deals, 30);
     const all = [...base, ...outreachWorkItems, ...jobWorkItems];
@@ -746,21 +746,15 @@ const HomeCommandCenter = () => {
       if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
       return a.date.getTime() - b.date.getTime();
     });
-    return all;
+    return all.slice(0, 6);
   }, [sows, invoices, deals, outreachWorkItems, jobWorkItems]);
-  const diaryItems = useMemo(() => {
-    const base = buildCriticalDates(sows, invoices, deals, 7);
-    const outreach7 = outreachWorkItems.filter(i => i.daysUntil <= 7);
-    const all = [...base, ...outreach7];
-    all.sort((a, b) => {
-      if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
-      return a.date.getTime() - b.date.getTime();
-    });
-    return all;
-  }, [sows, invoices, deals, outreachWorkItems]);
 
-  const renewalCount = myWorkItems.length;
-  const overdueCount = myWorkItems.filter((i) => i.overdue).length;
+  // Renewals & Key Dates KPI: SOW renewals/end dates within 60 days
+  const renewalItems = useMemo(() => {
+    return buildCriticalDates(sows, [], [], 60);
+  }, [sows]);
+  const renewalCount = renewalItems.length;
+  const overdueCount = renewalItems.filter((i) => i.overdue).length;
 
   const billing = useMemo(() => computeBillingSnapshot(invoices), [invoices]);
 

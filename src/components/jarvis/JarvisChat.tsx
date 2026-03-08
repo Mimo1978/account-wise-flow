@@ -396,8 +396,8 @@ function useElevenLabsTTS(
       const voice = getPreferredVoice();
       if (voice) utterance.voice = voice;
       utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => { setIsSpeaking(false); onDone?.(); };
-      utterance.onerror = () => { setIsSpeaking(false); onDone?.(); };
+      utterance.onend = () => { setIsSpeaking(false); jarvisSpotlight.clearAll(); onDone?.(); };
+      utterance.onerror = () => { setIsSpeaking(false); jarvisSpotlight.clearAll(); onDone?.(); };
       window.speechSynthesis.speak(utterance);
     },
     [getPreferredVoice, speed, volume]

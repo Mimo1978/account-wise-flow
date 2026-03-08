@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useCrmProjects } from '@/hooks/use-crm-projects';
+import { useEngagements } from '@/hooks/use-engagements';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useJobProjects, useLinkJobToProject, useUnlinkJobFromProject } from '@/hooks/use-job-projects';
-import { Link2, ExternalLink, Plus, X, Loader2, FolderOpen } from 'lucide-react';
+import { Link2, Plus, X, Loader2, FolderOpen } from 'lucide-react';
 
 interface ProjectLinkerProps {
   jobId: string;
@@ -16,8 +17,9 @@ interface ProjectLinkerProps {
 
 export function ProjectLinker({ jobId, jobTitle, onProjectLinked }: ProjectLinkerProps) {
   const navigate = useNavigate();
+  const { currentWorkspace } = useWorkspace();
   const { data: links = [], isLoading } = useJobProjects(jobId);
-  const { data: projects = [] } = useCrmProjects();
+  const { data: engagements = [] } = useEngagements(currentWorkspace?.id);
   const linkMutation = useLinkJobToProject();
   const unlinkMutation = useUnlinkJobFromProject();
   const [open, setOpen] = useState(false);
@@ -25,12 +27,17 @@ export function ProjectLinker({ jobId, jobTitle, onProjectLinked }: ProjectLinke
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 100);
-  }, [open]);
+    if (open) {
+      console.log('[ProjectLinker] workspace_id:', currentWorkspace?.id);
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [open, currentWorkspace?.id]);
 
   const linkedProjectIds = new Set(links.map(l => l.project_id));
-  const filtered = projects.filter(
-    p => !linkedProjectIds.has(p.id) && p.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = engagements.filter(
+    p => !linkedProjectIds.has(p.id) &&
+      p.stage !== 'closed_lost' &&
+      p.name.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleLink = (projectId: string) => {
@@ -42,8 +49,7 @@ export function ProjectLinker({ jobId, jobTitle, onProjectLinked }: ProjectLinke
   };
 
   const handleCreateNew = () => {
-    // Navigate to projects page with pre-fill params
-    navigate(`/crm/projects?new=true&name=${encodeURIComponent(jobTitle)}&job_id=${encodeURIComponent(jobId)}`);
+    navigate(`/projects?new=true&name=${encodeURIComponent(jobTitle)}&job_id=${encodeURIComponent(jobId)}`);
   };
 
   if (isLoading) return <span className="text-xs text-muted-foreground">Loading…</span>;
@@ -56,7 +62,7 @@ export function ProjectLinker({ jobId, jobTitle, onProjectLinked }: ProjectLinke
       {linkedProject ? (
         <span className="inline-flex items-center gap-1.5">
           <button
-            onClick={() => navigate(`/crm/projects/${linkedProject.id}`)}
+            onClick={() => navigate(`/projects/${linkedProject.id}`)}
             className="text-sm text-primary hover:underline underline-offset-2 cursor-pointer font-medium"
           >
             {linkedProject.name}
@@ -93,10 +99,12 @@ export function ProjectLinker({ jobId, jobTitle, onProjectLinked }: ProjectLinke
                 <button
                   key={p.id}
                   onClick={() => handleLink(p.id)}
-                  className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors flex items-center justify-between"
+                  className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors flex items-center justify-between gap-2"
                 >
-                  <span className="truncate">{p.name}</span>
-                  <Badge variant="outline" className="text-[10px] ml-2 flex-shrink-0">{p.status}</Badge>
+                  <span className="truncate font-medium">{p.name}</span>
+                  <Badge variant="outline" className="text-[10px] flex-shrink-0 capitalize">
+                    {p.engagement_type || 'Project'}
+                  </Badge>
                 </button>
               ))}
             </div>
@@ -129,7 +137,6 @@ export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss, onProje
   const { data: links = [] } = useJobProjects(jobId);
   const [dismissed, setDismissed] = useState(false);
 
-  // Don't show if already linked or dismissed
   if (links.length > 0 || dismissed) return null;
 
   const dismiss = () => {
@@ -167,18 +174,14 @@ export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss, onProje
     );
   }
 
-  if (variant === 'filled') {
-    // This is rendered as a dialog externally
-    return null;
-  }
-
   return null;
 }
 
 // Inline mini-linker for banners
 function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; jobTitle: string; onLinked: (projectId: string) => void }) {
   const navigate = useNavigate();
-  const { data: projects = [] } = useCrmProjects();
+  const { currentWorkspace } = useWorkspace();
+  const { data: engagements = [] } = useEngagements(currentWorkspace?.id);
   const linkMutation = useLinkJobToProject();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -204,22 +207,25 @@ function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; job
           className="h-8 text-sm mb-2"
         />
         <div className="max-h-40 overflow-y-auto space-y-0.5">
-          {projects
+          {engagements
             .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
             .slice(0, 8)
             .map(p => (
               <button
                 key={p.id}
                 onClick={() => handleLink(p.id)}
-                className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors truncate"
+                className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors flex items-center justify-between gap-2"
               >
-                {p.name}
+                <span className="truncate font-medium">{p.name}</span>
+                <Badge variant="outline" className="text-[10px] flex-shrink-0 capitalize">
+                  {p.engagement_type || 'Project'}
+                </Badge>
               </button>
             ))}
         </div>
         <div className="border-t border-border mt-1 pt-1">
           <button
-            onClick={() => navigate(`/crm/projects?new=true&name=${encodeURIComponent(jobTitle)}&job_id=${encodeURIComponent(jobId)}`)}
+            onClick={() => navigate(`/projects?new=true&name=${encodeURIComponent(jobTitle)}&job_id=${encodeURIComponent(jobId)}`)}
             className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors flex items-center gap-1.5 text-primary"
           >
             <Plus className="w-3.5 h-3.5" /> Create new project
@@ -233,7 +239,8 @@ function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; job
 // Modal version for the "Filled" celebration modal
 export function FilledModalLinker({ jobId, jobTitle, onLinked, onProjectLinked }: { jobId: string; jobTitle: string; onLinked: () => void; onProjectLinked?: (projectId: string) => void }) {
   const navigate = useNavigate();
-  const { data: projects = [] } = useCrmProjects();
+  const { currentWorkspace } = useWorkspace();
+  const { data: engagements = [] } = useEngagements(currentWorkspace?.id);
   const linkMutation = useLinkJobToProject();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -260,22 +267,25 @@ export function FilledModalLinker({ jobId, jobTitle, onLinked, onProjectLinked }
           className="h-8 text-sm mb-2"
         />
         <div className="max-h-48 overflow-y-auto space-y-0.5">
-          {projects
+          {engagements
             .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
             .slice(0, 10)
             .map(p => (
               <button
                 key={p.id}
                 onClick={() => handleLink(p.id)}
-                className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors truncate"
+                className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors flex items-center justify-between gap-2"
               >
-                {p.name}
+                <span className="truncate font-medium">{p.name}</span>
+                <Badge variant="outline" className="text-[10px] flex-shrink-0 capitalize">
+                  {p.engagement_type || 'Project'}
+                </Badge>
               </button>
             ))}
         </div>
         <div className="border-t border-border mt-1 pt-1">
           <button
-            onClick={() => navigate(`/crm/projects?new=true&name=${encodeURIComponent(jobTitle)}&job_id=${encodeURIComponent(jobId)}`)}
+            onClick={() => navigate(`/projects?new=true&name=${encodeURIComponent(jobTitle)}&job_id=${encodeURIComponent(jobId)}`)}
             className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-accent transition-colors flex items-center gap-1.5 text-primary"
           >
             <Plus className="w-3.5 h-3.5" /> Create new project

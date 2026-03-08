@@ -1146,6 +1146,7 @@ serve(async (req) => {
     const invalidateQueries: string[] = [];
     const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms"]);
     const entityQueryMap: Record<string, string[]> = {
+      companies: ["companies", "canvas-companies"],
       crm_companies: ["crm_companies"],
       crm_contacts: ["crm_contacts"],
       crm_projects: ["crm_projects"],

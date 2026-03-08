@@ -21,7 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { useJarvis, JarvisMessage, JarvisSuggestion } from "@/hooks/use-jarvis";
+import { useJarvis, JarvisMessage, JarvisSuggestion, JarvisActionPayload } from "@/hooks/use-jarvis";
 import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -99,18 +99,26 @@ function MessageBubble({
           {message.content}
         </div>
 
-        {/* Suggestion chips */}
+        {/* Suggestion chips / SHOW_MENU buttons */}
         {!isUser && message.suggestions && message.suggestions.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-1">
-            {message.suggestions.map((s) => (
-              <button
-                key={s.destination}
-                onClick={() => onSuggestionClick?.(s)}
-                className="text-xs px-2.5 py-1 rounded-full border border-border hover:bg-accent hover:border-primary/30 transition-colors text-foreground"
-              >
-                {s.label}
-              </button>
-            ))}
+            {message.suggestions.map((s) => {
+              const isMenu = (s as any).isMenu || message.actionPayload?.type === 'SHOW_MENU';
+              return (
+                <button
+                  key={s.destination}
+                  onClick={() => onSuggestionClick?.(s)}
+                  className={cn(
+                    "text-xs px-2.5 py-1 rounded-full border transition-colors font-medium",
+                    isMenu
+                      ? "bg-orange-500 text-white border-orange-500 hover:bg-orange-600 hover:border-orange-600"
+                      : "border-border hover:bg-accent hover:border-primary/30 text-foreground"
+                  )}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
           </div>
         )}
 

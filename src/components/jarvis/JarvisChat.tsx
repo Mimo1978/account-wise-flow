@@ -439,6 +439,7 @@ function useElevenLabsTTS(
         audio.onended = () => {
           setIsSpeaking(false);
           audioRef.current = null;
+          jarvisSpotlight.clearAll();
           onDoneRef.current?.();
           onDoneRef.current = null;
         };

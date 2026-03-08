@@ -176,7 +176,7 @@ export function ProjectLinkPrompt({ jobId, jobTitle, variant, onDismiss, onProje
 }
 
 // Inline mini-linker for banners
-function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; jobTitle: string; onLinked: () => void }) {
+function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; jobTitle: string; onLinked: (projectId: string) => void }) {
   const navigate = useNavigate();
   const { data: projects = [] } = useCrmProjects();
   const linkMutation = useLinkJobToProject();
@@ -186,7 +186,7 @@ function ProjectLinkerInline({ jobId, jobTitle, onLinked }: { jobId: string; job
   const handleLink = (projectId: string) => {
     linkMutation.mutate({ jobId, projectId });
     setOpen(false);
-    onLinked();
+    onLinked(projectId);
   };
 
   return (

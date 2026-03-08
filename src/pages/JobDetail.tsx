@@ -40,9 +40,19 @@ import {
   useSendOutreachSms,
   useSendOutreachAiCall,
   useUpdateOutreachMessage,
+  useLogCandidateReply,
+  useJobUnreviewedReplies,
   type JobShortlistEntry,
   type OutreachMessage,
 } from '@/hooks/use-jobs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   useBoardFormats,
   useUpdateAdvert,

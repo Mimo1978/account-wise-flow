@@ -291,8 +291,8 @@ export function useJarvisNavigation() {
       const label = options?.label || entry?.label || destination;
       const isSamePage = location.pathname === path;
 
-      document.body.classList.add(GLOW_CLASS);
-      track(setTimeout(() => document.body.classList.remove(GLOW_CLASS), 3000));
+      activatePageGlow();
+      track(setTimeout(() => deactivatePageGlow(), 3000));
 
       if (!isSamePage) {
         showOverlay();

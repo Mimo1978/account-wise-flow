@@ -8,7 +8,7 @@ export interface JobProjectLink {
   project_id: string;
   created_at: string;
   created_by: string | null;
-  project?: { id: string; name: string; status: string } | null;
+  project?: { id: string; name: string; engagement_type: string; stage: string } | null;
 }
 
 export function useJobProjects(jobId: string | undefined) {
@@ -18,12 +18,12 @@ export function useJobProjects(jobId: string | undefined) {
       if (!jobId) return [];
       const { data, error } = await supabase
         .from('jobs_projects' as any)
-        .select('*, crm_projects(id, name, status)')
+        .select('*, engagements(id, name, engagement_type, stage)')
         .eq('job_id', jobId);
       if (error) throw error;
       return (data ?? []).map((d: any) => ({
         ...d,
-        project: d.crm_projects,
+        project: d.engagements,
       })) as JobProjectLink[];
     },
     enabled: !!jobId,

@@ -154,7 +154,7 @@ export function JobBriefSection({ job, onProjectLinked }: JobBriefSectionProps) 
         </div>
         
         {/* Pause point 1: Suggest linking to a project after spec approval */}
-        <ProjectLinkPrompt jobId={job.id} jobTitle={job.title} variant="spec-approved" />
+        <ProjectLinkPrompt jobId={job.id} jobTitle={job.title} variant="spec-approved" onProjectLinked={onProjectLinked} />
         
         <Card>
           <CardHeader><CardTitle className="text-sm">Job Specification</CardTitle></CardHeader>

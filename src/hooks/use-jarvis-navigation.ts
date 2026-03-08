@@ -164,6 +164,24 @@ function findElement(
   attempt(maxRetries);
 }
 
+/** Scroll element into view if not already fully visible */
+function scrollToElement(element: HTMLElement, isSection = false) {
+  const rect = element.getBoundingClientRect();
+  if (isSection) {
+    // For sections, position top ~120px from viewport top (nav bar clearance)
+    const targetTop = 120;
+    const currentTop = rect.top;
+    if (currentTop < targetTop || currentTop > window.innerHeight - 80) {
+      window.scrollBy({ top: currentTop - targetTop, behavior: "smooth" });
+    }
+  } else {
+    const isFullyVisible = rect.top >= 80 && rect.bottom <= window.innerHeight - 80;
+    if (!isFullyVisible) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+}
+
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

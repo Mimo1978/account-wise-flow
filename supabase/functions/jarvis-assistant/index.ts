@@ -374,6 +374,41 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "generate_adverts",
+      description: "Generate tailored job adverts for selected job boards from a job specification. Respects each board's word/character limits and format rules. Supports boards: internal, linkedin, jobserve, reed, own_site, indeed.",
+      parameters: {
+        type: "object",
+        properties: {
+          job_id: { type: "string", description: "The job UUID to generate adverts for" },
+          boards: {
+            type: "array",
+            items: { type: "string" },
+            description: "Array of board names to generate for, e.g. ['linkedin', 'reed', 'indeed']",
+          },
+        },
+        required: ["job_id", "boards"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_advert",
+      description: "Update the content of an existing job advert. Use when the user asks to shorten, rephrase, or modify a specific advert.",
+      parameters: {
+        type: "object",
+        properties: {
+          advert_id: { type: "string" },
+          instruction: { type: "string", description: "What to change, e.g. 'shorten by 20%' or 'make more benefits-led'" },
+          job_id: { type: "string", description: "The parent job ID for context" },
+        },
+        required: ["advert_id", "instruction", "job_id"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.
@@ -1385,6 +1420,65 @@ Return ONLY valid JSON, no markdown fences.`,
         entityId: data?.id,
       };
     }
+    case "generate_adverts": {
+      // Delegate to the generate-adverts edge function via internal fetch
+      const jobId = input.job_id as string;
+      const boards = input.boards as string[];
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/generate-adverts`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ job_id: jobId, boards }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Advert generation failed" }, entityType: "job_adverts" };
+      const successCount = (data.results || []).filter((r: any) => r.advert).length;
+      return {
+        result: { ...data, message: `Generated ${successCount} advert(s) successfully.`, navigate_to: `/jobs/${jobId}` },
+        entityType: "job_adverts",
+        entityId: jobId,
+      };
+    }
+    case "update_advert": {
+      const advertId = input.advert_id as string;
+      const instruction = input.instruction as string;
+      const jobId = input.job_id as string;
+
+      // Fetch current advert
+      const { data: advert } = await supabaseAdmin
+        .from("job_adverts")
+        .select("content, board")
+        .eq("id", advertId)
+        .single();
+      if (!advert?.content) return { result: { error: "Advert not found" }, entityType: "job_adverts" };
+
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) return { result: { error: "AI not configured" }, entityType: "job_adverts" };
+
+      const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: "You are an expert recruitment copywriter. Modify the job advert as instructed. Return only the updated plain text, no markdown." },
+            { role: "user", content: `Current advert for ${advert.board}:\n\n${advert.content}\n\nInstruction: ${instruction}` },
+          ],
+        }),
+      });
+      if (!aiRes.ok) return { result: { error: "AI rewrite failed" }, entityType: "job_adverts" };
+      const aiData = await aiRes.json();
+      const newContent = aiData.choices?.[0]?.message?.content || "";
+      const wordCount = newContent.trim().split(/\s+/).filter(Boolean).length;
+      const charCount = newContent.length;
+
+      await supabaseAdmin.from("job_adverts").update({ content: newContent, word_count: wordCount, character_count: charCount }).eq("id", advertId);
+      return { result: { success: true, board: advert.board, word_count: wordCount }, entityType: "job_adverts", entityId: advertId };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }
@@ -1697,7 +1791,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 
     // Build invalidation list for frontend cache
     const invalidateQueries: string[] = [];
-    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job"]);
+    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert"]);
     const entityQueryMap: Record<string, string[]> = {
       companies: ["companies", "canvas-companies"],
       crm_companies: ["crm_companies"],
@@ -1710,6 +1804,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       email: ["crm_activities"],
       sms: ["crm_activities"],
       jobs: ["jobs"],
+      job_adverts: ["job_adverts"],
     };
 
     for (const action of actionsExecuted) {

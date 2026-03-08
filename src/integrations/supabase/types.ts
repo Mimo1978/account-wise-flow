@@ -3383,6 +3383,7 @@ export type Database = {
           end_date: string | null
           full_spec: string | null
           id: string
+          is_confidential: boolean
           job_type: string | null
           location: string | null
           raw_brief: string | null
@@ -3403,6 +3404,7 @@ export type Database = {
           end_date?: string | null
           full_spec?: string | null
           id?: string
+          is_confidential?: boolean
           job_type?: string | null
           location?: string | null
           raw_brief?: string | null
@@ -3423,6 +3425,7 @@ export type Database = {
           end_date?: string | null
           full_spec?: string | null
           id?: string
+          is_confidential?: boolean
           job_type?: string | null
           location?: string | null
           raw_brief?: string | null

@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { PageBackButton } from '@/components/ui/page-back-button';
 import {
   AlertDialog,
@@ -26,18 +29,20 @@ import {
   useUpdateJobStatus,
 } from '@/hooks/use-jobs';
 import {
-  Briefcase,
-  FileText,
-  Users,
-  Inbox,
-  Activity,
-  Sparkles,
-  Send,
-  Play,
-  Pause,
-  CheckCircle2,
-  XCircle,
-  FileEdit,
+  useBoardFormats,
+  useUpdateAdvert,
+  usePublishAdvert,
+  useToggleConfidential,
+  BOARD_DEFINITIONS,
+} from '@/hooks/use-job-adverts';
+import { GenerateAdvertsModal } from '@/components/jobs/GenerateAdvertsModal';
+import { BoardFormatModal } from '@/components/jobs/BoardFormatModal';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/sonner';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  Briefcase, FileText, Users, Inbox, Activity, Sparkles, Send, Play,
+  Pause, CheckCircle2, XCircle, FileEdit, Copy, Globe, Loader2, Settings2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -50,22 +55,20 @@ const STATUS_BADGE: Record<string, { className: string; label: string }> = {
 };
 
 const SHORTLIST_STATUS: Record<string, string> = {
-  pending: 'Pending',
-  contacted: 'Contacted',
-  responded: 'Responded',
-  interviewing: 'Interviewing',
-  rejected: 'Rejected',
-  placed: 'Placed',
+  pending: 'Pending', contacted: 'Contacted', responded: 'Responded',
+  interviewing: 'Interviewing', rejected: 'Rejected', placed: 'Placed',
 };
 
 const APP_STATUS: Record<string, string> = {
-  new: 'New',
-  reviewing: 'Reviewing',
-  shortlisted: 'Shortlisted',
-  rejected: 'Rejected',
-  interviewing: 'Interviewing',
-  offered: 'Offered',
-  placed: 'Placed',
+  new: 'New', reviewing: 'Reviewing', shortlisted: 'Shortlisted',
+  rejected: 'Rejected', interviewing: 'Interviewing', offered: 'Offered', placed: 'Placed',
+};
+
+const ADVERT_STATUS_BADGE: Record<string, { className: string; label: string }> = {
+  draft: { className: 'bg-muted text-muted-foreground', label: 'Draft' },
+  published: { className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', label: 'Published' },
+  ready_to_post: { className: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30', label: 'Ready to Post' },
+  expired: { className: 'bg-muted text-muted-foreground', label: 'Expired' },
 };
 
 const JobDetail = () => {
@@ -96,7 +99,6 @@ const JobDetail = () => {
   }
 
   const badge = STATUS_BADGE[job.status] || STATUS_BADGE.draft;
-
   const handleStatusChange = (newStatus: string) => {
     updateStatus.mutate({ id: job.id, status: newStatus });
   };
@@ -121,9 +123,6 @@ const JobDetail = () => {
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button variant="outline" size="sm" data-jarvis-id="job-generate-spec-button">
             <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Spec
-          </Button>
-          <Button variant="outline" size="sm" data-jarvis-id="job-generate-adverts-button">
-            <FileText className="w-3.5 h-3.5 mr-1.5" /> Generate Adverts
           </Button>
           <Button variant="outline" size="sm" data-jarvis-id="job-run-shortlist-button">
             <Users className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist
@@ -203,7 +202,7 @@ const JobDetail = () => {
         <TabsContent value="adverts"><AdvertsTab jobId={job.id} /></TabsContent>
         <TabsContent value="shortlist"><ShortlistTab jobId={job.id} /></TabsContent>
         <TabsContent value="applications"><ApplicationsTab jobId={job.id} /></TabsContent>
-        <TabsContent value="activity"><ActivityTab jobId={job.id} /></TabsContent>
+        <TabsContent value="activity"><ActivityTab /></TabsContent>
       </Tabs>
     </div>
   );
@@ -211,6 +210,9 @@ const JobDetail = () => {
 
 // ---------- Overview Tab ----------
 function OverviewTab({ job }: { job: any }) {
+  const toggleConfidential = useToggleConfidential();
+  const isConfidential = job.is_confidential ?? false;
+
   const salaryStr = job.salary_min || job.salary_max
     ? `${job.salary_currency} ${job.salary_min?.toLocaleString() ?? '?'} – ${job.salary_max?.toLocaleString() ?? '?'}`
     : '—';
@@ -226,6 +228,17 @@ function OverviewTab({ job }: { job: any }) {
           <Row label="Salary" value={salaryStr} />
           <Row label="Start Date" value={job.start_date ? format(new Date(job.start_date), 'dd MMM yyyy') : '—'} />
           {job.end_date && <Row label="End Date" value={format(new Date(job.end_date), 'dd MMM yyyy')} />}
+          <div className="flex items-center justify-between pt-2 border-t border-border">
+            <div>
+              <Label htmlFor="confidential-toggle" className="text-sm font-medium">Confidential Role</Label>
+              <p className="text-xs text-muted-foreground">Hide company name from adverts</p>
+            </div>
+            <Switch
+              id="confidential-toggle"
+              checked={isConfidential}
+              onCheckedChange={(checked) => toggleConfidential.mutate({ jobId: job.id, isConfidential: checked })}
+            />
+          </div>
         </CardContent>
       </Card>
       <Card>
@@ -262,55 +275,195 @@ function Row({ label, value }: { label: string; value: string }) {
 // ---------- Adverts Tab ----------
 function AdvertsTab({ jobId }: { jobId: string }) {
   const { data: adverts = [], isLoading } = useJobAdverts(jobId);
+  const { data: boardFormats = [] } = useBoardFormats();
+  const updateAdvert = useUpdateAdvert();
+  const publishAdvert = usePublishAdvert();
+  const queryClient = useQueryClient();
+
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [boardFormatBoard, setBoardFormatBoard] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const existingBoardFormats = new Set(boardFormats.map(f => f.board));
+  const existingFormat = boardFormatBoard ? boardFormats.find(f => f.board === boardFormatBoard) : null;
+
+  const handleGenerate = useCallback(async (boards: string[]) => {
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-adverts', {
+        body: { job_id: jobId, boards },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const successCount = data.results?.filter((r: any) => r.advert).length || 0;
+      const failCount = data.results?.filter((r: any) => r.error).length || 0;
+      queryClient.invalidateQueries({ queryKey: ['job_adverts'] });
+      if (successCount > 0) toast.success(`${successCount} advert${successCount > 1 ? 's' : ''} generated`);
+      if (failCount > 0) toast.error(`${failCount} advert${failCount > 1 ? 's' : ''} failed to generate`);
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to generate adverts');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [jobId, queryClient]);
+
+  const handleSaveEdit = (id: string) => {
+    updateAdvert.mutate({ id, content: editContent });
+    setEditingId(null);
+  };
+
+  const handleCopy = (content: string) => {
+    navigator.clipboard.writeText(content);
+    toast.success('Advert text copied to clipboard');
+  };
 
   if (isLoading) return <TableSkeleton />;
 
   return (
-    <Card>
-      <CardHeader className="flex-row items-center justify-between">
-        <CardTitle className="text-sm">Job Adverts</CardTitle>
-        <Button variant="outline" size="sm" data-jarvis-id="job-publish-button">
-          <Send className="w-3.5 h-3.5 mr-1.5" /> Publish
-        </Button>
-      </CardHeader>
-      <CardContent className="p-0">
-        {adverts.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">No adverts yet. Generate adverts from the job specification.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Board</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Words</TableHead>
-                <TableHead>Chars</TableHead>
-                <TableHead>Published</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {adverts.map(a => (
-                <TableRow key={a.id}>
-                  <TableCell className="font-medium capitalize">{a.board || '—'}</TableCell>
-                  <TableCell><Badge variant="outline" className="capitalize">{a.status}</Badge></TableCell>
-                  <TableCell className="text-muted-foreground">{a.word_count ?? '—'}</TableCell>
-                  <TableCell className="text-muted-foreground">{a.character_count ?? '—'}</TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {a.published_at ? format(new Date(a.published_at), 'dd MMM yyyy') : '—'}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </CardContent>
-    </Card>
+    <>
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle className="text-sm">Job Adverts</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowGenerateModal(true)}
+            data-jarvis-id="job-generate-adverts-button"
+          >
+            <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Adverts
+          </Button>
+        </CardHeader>
+        <CardContent className="p-0">
+          {adverts.length === 0 ? (
+            <div className="text-center py-8 space-y-3">
+              <FileText className="w-8 h-8 text-muted-foreground mx-auto" />
+              <p className="text-sm text-muted-foreground">No adverts yet. Generate adverts from the job specification.</p>
+              <Button variant="outline" size="sm" onClick={() => setShowGenerateModal(true)}>
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Adverts
+              </Button>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {adverts.map(a => {
+                const statusBadge = ADVERT_STATUS_BADGE[a.status] || ADVERT_STATUS_BADGE.draft;
+                const boardDef = BOARD_DEFINITIONS[a.board || ''];
+                const isEditing = editingId === a.id;
+
+                return (
+                  <div key={a.id} className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm capitalize">{boardDef?.label || a.board || '—'}</span>
+                        <Badge variant="outline" className={statusBadge.className}>{statusBadge.label}</Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {a.word_count ?? 0} words · {a.character_count ?? 0} chars
+                        </span>
+                        {boardDef?.maxWords && a.word_count && a.word_count > boardDef.maxWords && (
+                          <span className="text-xs text-destructive font-medium">Over limit!</span>
+                        )}
+                        {boardDef?.maxChars && a.character_count && a.character_count > boardDef.maxChars && (
+                          <span className="text-xs text-destructive font-medium">Over limit!</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {!isEditing && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => { setEditingId(a.id); setEditContent(a.content || ''); }}
+                            >
+                              <FileEdit className="w-3.5 h-3.5 mr-1" /> Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleCopy(a.content || '')}
+                            >
+                              <Copy className="w-3.5 h-3.5 mr-1" /> Copy
+                            </Button>
+                            {a.status === 'draft' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => publishAdvert.mutate({ id: a.id, board: a.board || '' })}
+                                data-jarvis-id="job-publish-button"
+                              >
+                                {a.board === 'internal' ? (
+                                  <><Globe className="w-3.5 h-3.5 mr-1" /> Publish</>
+                                ) : (
+                                  <><Send className="w-3.5 h-3.5 mr-1" /> Ready to Post</>
+                                )}
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={editContent}
+                          onChange={e => setEditContent(e.target.value)}
+                          rows={12}
+                          className="text-sm font-mono"
+                        />
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">
+                            {editContent.trim().split(/\s+/).filter(Boolean).length} words · {editContent.length} chars
+                          </span>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
+                            <Button size="sm" onClick={() => handleSaveEdit(a.id)} disabled={updateAdvert.isPending}>
+                              Save Changes
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-foreground whitespace-pre-wrap bg-muted/30 rounded-md p-3 max-h-48 overflow-y-auto">
+                        {a.content || 'No content'}
+                      </div>
+                    )}
+                    {a.published_at && (
+                      <p className="text-xs text-muted-foreground">
+                        Published {format(new Date(a.published_at), 'dd MMM yyyy HH:mm')}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <GenerateAdvertsModal
+        open={showGenerateModal}
+        onOpenChange={setShowGenerateModal}
+        onGenerate={handleGenerate}
+        onOpenBoardFormat={(board) => { setBoardFormatBoard(board); }}
+        existingBoardFormats={existingBoardFormats}
+        isGenerating={isGenerating}
+      />
+
+      {boardFormatBoard && (
+        <BoardFormatModal
+          board={boardFormatBoard}
+          existingFormat={existingFormat}
+          open={!!boardFormatBoard}
+          onOpenChange={(open) => { if (!open) setBoardFormatBoard(null); }}
+        />
+      )}
+    </>
   );
 }
 
 // ---------- Shortlist Tab ----------
 function ShortlistTab({ jobId }: { jobId: string }) {
   const { data: entries = [], isLoading } = useJobShortlist(jobId);
-
   if (isLoading) return <TableSkeleton />;
 
   return (
@@ -323,7 +476,7 @@ function ShortlistTab({ jobId }: { jobId: string }) {
       </CardHeader>
       <CardContent className="p-0">
         {entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">No candidates shortlisted yet. Run the AI shortlist to find matches.</p>
+          <p className="text-sm text-muted-foreground text-center py-8">No candidates shortlisted yet.</p>
         ) : (
           <Table>
             <TableHeader>
@@ -375,7 +528,6 @@ function ShortlistTab({ jobId }: { jobId: string }) {
 // ---------- Applications Tab ----------
 function ApplicationsTab({ jobId }: { jobId: string }) {
   const { data: apps = [], isLoading } = useJobApplications(jobId);
-
   if (isLoading) return <TableSkeleton />;
 
   return (
@@ -405,9 +557,7 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
                   </TableCell>
                   <TableCell className="capitalize text-muted-foreground">{a.source || '—'}</TableCell>
                   <TableCell>
-                    {a.ai_match_score != null ? (
-                      <Badge variant="outline">{a.ai_match_score}%</Badge>
-                    ) : '—'}
+                    {a.ai_match_score != null ? <Badge variant="outline">{a.ai_match_score}%</Badge> : '—'}
                   </TableCell>
                   <TableCell className="text-sm">{APP_STATUS[a.status] || a.status}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
@@ -424,12 +574,12 @@ function ApplicationsTab({ jobId }: { jobId: string }) {
 }
 
 // ---------- Activity Tab ----------
-function ActivityTab({ jobId }: { jobId: string }) {
+function ActivityTab() {
   return (
     <Card>
       <CardContent className="py-8 text-center">
         <Activity className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground">Activity timeline coming soon. All job events will appear here.</p>
+        <p className="text-sm text-muted-foreground">Activity timeline coming soon.</p>
       </CardContent>
     </Card>
   );

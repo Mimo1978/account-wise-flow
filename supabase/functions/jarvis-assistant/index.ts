@@ -1100,8 +1100,23 @@ serve(async (req) => {
     // Extract text response
     let responseText = aiResponse.choices?.[0]?.message?.content || "";
 
-    // Parse guided_tour from response text if present
+    // Parse structured <action> block from response
+    let actionPayload: Record<string, unknown> | null = null;
+    const actionMatch = responseText.match(/<action>([\s\S]*?)<\/action>/);
+    if (actionMatch) {
+      try {
+        actionPayload = JSON.parse(actionMatch[1]);
+        responseText = responseText.replace(/<action>[\s\S]*?<\/action>/, '').trim();
+      } catch (e) {
+        console.warn("[jarvis] Failed to parse action:", e);
+      }
+    }
+
+    // Parse guided_tour from response text if present (legacy format, also check action payload)
     let guidedTour: any[] | null = null;
+    if (actionPayload?.type === 'GUIDED_TOUR' && actionPayload?.steps) {
+      guidedTour = actionPayload.steps as any[];
+    }
     const tourMatch = responseText.match(/<guided_tour>([\s\S]*?)<\/guided_tour>/);
     if (tourMatch) {
       try {
@@ -1112,8 +1127,23 @@ serve(async (req) => {
       }
     }
 
-    // Parse suggestions from response text if present
+    // Parse suggestions from response text or action payload
     let suggestions: any[] | null = null;
+    if (actionPayload?.type === 'SHOW_MENU' && actionPayload?.options) {
+      // Convert SHOW_MENU options to suggestion format
+      const menuOptions = actionPayload.options as string[];
+      const menuDestMap: Record<string, string> = {
+        "Home Dashboard": "home", "Companies": "companies", "Contacts": "contacts",
+        "Talent Database": "talent", "Outreach": "outreach", "Revenue Intelligence": "insights",
+        "Canvas Org Chart": "canvas", "Canvas": "canvas", "Projects": "projects",
+        "Admin Settings": "admin", "Admin": "admin",
+      };
+      suggestions = menuOptions.map(label => ({
+        label,
+        destination: menuDestMap[label] || label.toLowerCase(),
+        isMenu: true,
+      }));
+    }
     const suggestionsMatch = responseText.match(/<suggestions>([\s\S]*?)<\/suggestions>/);
     if (suggestionsMatch) {
       try {

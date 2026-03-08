@@ -497,6 +497,90 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  // ─── Diary tools ───
+  {
+    type: "function",
+    function: {
+      name: "find_diary_slots",
+      description: "Find available 30-minute diary slots for the recruiter in the next 5 working days. Use when the user says 'book a call', 'find a time', 'what slots are free', 'schedule a meeting'.",
+      parameters: {
+        type: "object",
+        properties: {
+          max_slots: { type: "number", description: "Number of slots to return (default 3)" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "book_diary_event",
+      description: "Book a diary event (call/meeting/task) for the recruiter. Use after the user confirms a time slot.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string" },
+          description: { type: "string" },
+          start_time: { type: "string", description: "ISO datetime" },
+          end_time: { type: "string", description: "ISO datetime" },
+          event_type: { type: "string", description: "call, meeting, or task" },
+          candidate_name: { type: "string", description: "Candidate name to look up" },
+          job_id: { type: "string" },
+          contact_name: { type: "string" },
+        },
+        required: ["title", "start_time", "end_time"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_diary_events",
+      description: "Get diary events for today, tomorrow, or a date range. Use when user asks 'what's in my diary', 'what calls do I have today', 'show my schedule'.",
+      parameters: {
+        type: "object",
+        properties: {
+          period: { type: "string", description: "today, tomorrow, this_week, or custom" },
+          date_from: { type: "string", description: "ISO date for custom range" },
+          date_to: { type: "string", description: "ISO date for custom range" },
+        },
+        required: ["period"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cancel_diary_event",
+      description: "Cancel a diary event. Use when user says 'cancel the call with [name]', 'remove that meeting'.",
+      parameters: {
+        type: "object",
+        properties: {
+          candidate_name: { type: "string", description: "Search for event by candidate name" },
+          event_id: { type: "string", description: "Direct event ID if known" },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "reschedule_diary_event",
+      description: "Reschedule a diary event to a new time. Use when user says 'reschedule [name] call', 'move that meeting'.",
+      parameters: {
+        type: "object",
+        properties: {
+          candidate_name: { type: "string", description: "Search for event by candidate name" },
+          event_id: { type: "string", description: "Direct event ID if known" },
+          new_start_time: { type: "string", description: "New ISO datetime" },
+          new_end_time: { type: "string", description: "New ISO datetime" },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.

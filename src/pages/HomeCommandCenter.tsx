@@ -700,7 +700,7 @@ const HomeCommandCenter = () => {
 
         {/* ═══ 5. ALERTS STRIP ═══ */}
         {alerts.length > 0 && (
-          <section data-jarvis-id="home-alerts-strip">
+          <section data-jarvis-id="home-alerts-strip" data-jarvis-section="alerts-strip">
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-destructive/5 border border-destructive/10">
               <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
               <div className="flex flex-wrap items-center gap-2">

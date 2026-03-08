@@ -34,7 +34,9 @@ export function ProjectLinker({ jobId, jobTitle, onProjectLinked }: ProjectLinke
   );
 
   const handleLink = (projectId: string) => {
-    linkMutation.mutate({ jobId, projectId });
+    linkMutation.mutate({ jobId, projectId }, {
+      onSuccess: () => onProjectLinked?.(projectId),
+    });
     setOpen(false);
     setSearch('');
   };

@@ -413,6 +413,9 @@ function useElevenLabsTTS(
       onDoneRef.current = onDone || null;
       setIsSpeaking(true);
 
+      // Auto-spotlight any elements mentioned in the speech
+      jarvisSpotlight.autoSpotlight(text);
+
       try {
         // Try ElevenLabs first
         const { data, error } = await supabase.functions.invoke("jarvis-speak", {

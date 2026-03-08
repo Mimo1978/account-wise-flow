@@ -890,6 +890,27 @@ async function executeTool(
         "create campaign": { path: "/outreach", action: "click", targetId: "new-campaign-button" },
         "create invoice": { path: "/home", action: "click", targetId: "create-invoice-button" },
         "import companies": { path: "/companies", action: "click", targetId: "import-companies-button" },
+        // Canvas actions
+        "save chart": { path: "/canvas", action: "click", targetId: "canvas-save-layout" },
+        "save the chart": { path: "/canvas", action: "click", targetId: "canvas-save-layout" },
+        "fit view": { path: "/canvas", action: "click", targetId: "canvas-fit-view" },
+        "fit the chart": { path: "/canvas", action: "click", targetId: "canvas-fit-view" },
+        "fit chart to screen": { path: "/canvas", action: "click", targetId: "canvas-fit-view" },
+        "zoom in": { path: "/canvas", action: "click", targetId: "canvas-zoom-in" },
+        "zoom in on the chart": { path: "/canvas", action: "click", targetId: "canvas-zoom-in" },
+        "zoom out": { path: "/canvas", action: "click", targetId: "canvas-zoom-out" },
+        "build org chart": { path: "/canvas", action: "click", targetId: "canvas-build-orgchart" },
+        "build the org chart": { path: "/canvas", action: "click", targetId: "canvas-build-orgchart" },
+        "research org": { path: "/canvas", action: "click", targetId: "canvas-ai-research" },
+        "research the org structure": { path: "/canvas", action: "click", targetId: "canvas-ai-research" },
+        "add to org chart": { path: "/canvas", action: "click", targetId: "canvas-add-node-button" },
+        "add person to org chart": { path: "/canvas", action: "click", targetId: "canvas-add-node-button" },
+        "add someone to the org chart": { path: "/canvas", action: "click", targetId: "canvas-add-node-button" },
+        "connect people": { path: "/canvas", action: "click", targetId: "canvas-connect-tool" },
+        "connect two people": { path: "/canvas", action: "click", targetId: "canvas-connect-tool" },
+        "draw reporting line": { path: "/canvas", action: "click", targetId: "canvas-connect-tool" },
+        "delete node": { path: "/canvas", action: "click", targetId: "canvas-delete-node" },
+        "remove from chart": { path: "/canvas", action: "click", targetId: "canvas-delete-node" },
       };
 
       // Try exact match first, then fuzzy keyword match

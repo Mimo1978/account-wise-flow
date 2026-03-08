@@ -203,71 +203,93 @@ All colors MUST be HSL.
   z-index: 9998;
   opacity: 0;
   transition: opacity 0.4s ease;
-  box-shadow: inset 0 0 0 3px #f97316, inset 0 0 60px rgba(249, 115, 22, 0.12);
+  box-shadow: inset 0 0 0 4px #06B6D4, inset 0 0 80px rgba(6, 182, 212, 0.2);
+  animation: jarvis-page-pulse 1.8s ease-in-out infinite;
 }
 .jarvis-page-glow.active,
 .jarvis-screen-glow.active {
   opacity: 1;
 }
+@keyframes jarvis-page-pulse {
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
+}
 
 /* ELEMENT SPOTLIGHT — outline + shadow only, never change position/background/layout */
 .jarvis-spotlight,
 .jarvis-highlight {
-  outline: 2px solid #f97316 !important;
-  outline-offset: 3px !important;
-  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.25),
-              0 0 20px rgba(249, 115, 22, 0.4) !important;
-  animation: jarvis-element-pulse 1.5s ease-in-out infinite;
+  outline: 3px solid #FACC15 !important;
+  outline-offset: 4px !important;
+  box-shadow:
+    0 0 0 6px rgba(250, 204, 21, 0.3),
+    0 0 30px rgba(250, 204, 21, 0.6),
+    0 0 60px rgba(250, 204, 21, 0.3) !important;
+  animation: jarvis-element-pulse 1.2s ease-in-out infinite;
   transition: outline 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* SECTION GLOW — gentler version for large sections, no layout changes */
+/* SECTION GLOW — for large sections, no layout changes */
 .jarvis-section-glow {
-  outline: 2px solid rgba(249, 115, 22, 0.5) !important;
-  outline-offset: 4px !important;
-  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.12),
-              0 0 24px rgba(249, 115, 22, 0.2) !important;
+  outline: 2px solid #818CF8 !important;
+  outline-offset: 6px !important;
+  box-shadow:
+    0 0 0 8px rgba(129, 140, 248, 0.15),
+    0 0 40px rgba(129, 140, 248, 0.4) !important;
+  background: rgba(129, 140, 248, 0.04) !important;
   animation: jarvis-section-pulse 2s ease-in-out infinite;
   transition: outline 0.3s ease, box-shadow 0.3s ease;
 }
 @keyframes jarvis-section-pulse {
-  0%, 100% { box-shadow: 0 0 0 4px rgba(249,115,22,0.12), 0 0 24px rgba(249,115,22,0.2); }
-  50%       { box-shadow: 0 0 0 6px rgba(249,115,22,0.2), 0 0 36px rgba(249,115,22,0.35); }
+  0%, 100% { box-shadow: 0 0 0 8px rgba(129,140,248,0.15), 0 0 40px rgba(129,140,248,0.4); }
+  50%      { box-shadow: 0 0 0 10px rgba(129,140,248,0.25), 0 0 60px rgba(129,140,248,0.55); }
 }
 
 /* NAV ITEM HIGHLIGHT */
 .jarvis-nav-highlight {
-  background: rgba(249, 115, 22, 0.15) !important;
-  border-left: 3px solid #f97316 !important;
-  animation: jarvis-nav-pulse 1.5s ease-in-out 2;
+  background: rgba(6, 182, 212, 0.2) !important;
+  border-left: 3px solid #06B6D4 !important;
+  box-shadow: inset 0 0 20px rgba(6, 182, 212, 0.15);
+  animation: jarvis-nav-pulse 1s ease-in-out 3;
 }
 @keyframes jarvis-nav-pulse {
-  0%, 100% { background: rgba(249,115,22,0.15); }
-  50%       { background: rgba(249,115,22,0.28); }
+  0%, 100% { background: rgba(6,182,212,0.2); }
+  50%      { background: rgba(6,182,212,0.35); }
 }
 
 @keyframes jarvis-element-pulse {
-  0%, 100% { box-shadow: 0 0 0 4px rgba(249,115,22,0.25), 0 0 20px rgba(249,115,22,0.4); }
-  50%       { box-shadow: 0 0 0 6px rgba(249,115,22,0.4), 0 0 40px rgba(249,115,22,0.6); }
+  0%, 100% {
+    box-shadow:
+      0 0 0 6px rgba(250,204,21,0.3),
+      0 0 30px rgba(250,204,21,0.4),
+      0 0 60px rgba(250,204,21,0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 0 8px rgba(250,204,21,0.5),
+      0 0 40px rgba(250,204,21,0.8),
+      0 0 80px rgba(250,204,21,0.4);
+  }
 }
 
 /* FLOATING LABEL TOOLTIP — positioned with JS getBoundingClientRect */
-.jarvis-spotlight-tooltip {
+.jarvis-spotlight-tooltip,
+.jarvis-nav-tooltip {
   position: fixed;
   pointer-events: none;
   z-index: 10001;
-  background: #f97316;
-  color: #fff;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  background: #FACC15;
+  color: #1A1A2E;
+  font-size: 13px;
+  font-weight: 700;
   padding: 6px 14px;
   border-radius: 8px;
   white-space: nowrap;
-  box-shadow: 0 4px 20px rgba(249, 115, 22, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   animation: jarvis-tooltip-fade-in 0.2s ease-out;
   letter-spacing: 0.01em;
 }
-.jarvis-spotlight-tooltip::after {
+.jarvis-spotlight-tooltip::after,
+.jarvis-nav-tooltip::after {
   content: '';
   position: absolute;
   bottom: -5px;
@@ -275,7 +297,7 @@ All colors MUST be HSL.
   transform: translateX(-50%);
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-top: 6px solid #f97316;
+  border-top: 6px solid #FACC15;
 }
 @keyframes jarvis-tooltip-fade-in {
   from { opacity: 0; transform: translateY(4px); }
@@ -317,8 +339,8 @@ All colors MUST be HSL.
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 3px solid rgba(249,115,22,0.25);
-  border-top-color: #f97316;
+  border: 3px solid rgba(6,182,212,0.25);
+  border-top-color: #06B6D4;
   animation: jarvis-spin 0.6s linear infinite;
 }
 @keyframes jarvis-spin {

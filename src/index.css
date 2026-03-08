@@ -337,7 +337,6 @@ All colors MUST be HSL.
 @keyframes jarvis-spin {
   to { transform: rotate(360deg); }
 }
-  border-radius: inherit;
   z-index: 1000;
   animation: jarvis-spotlight-pulse 1.4s ease-in-out 3;
 }

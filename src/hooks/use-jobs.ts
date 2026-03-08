@@ -143,11 +143,60 @@ export function useJobShortlist(jobId: string | undefined) {
         .from('job_shortlist')
         .select('*, candidates(name, current_title, availability_status, location)')
         .eq('job_id', jobId)
+        .order('priority', { ascending: true })
         .order('match_score', { ascending: false });
       if (error) throw error;
       return (data ?? []) as JobShortlistEntry[];
     },
     enabled: !!jobId,
+  });
+}
+
+// ---------- Update shortlist entry status ----------
+export function useUpdateShortlistStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { error } = await supabase.from('job_shortlist').update({ status }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['job_shortlist'] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ---------- Bulk approve shortlist ----------
+export function useApproveAllShortlist() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (jobId: string) => {
+      const { error } = await supabase
+        .from('job_shortlist')
+        .update({ status: 'approved' })
+        .eq('job_id', jobId)
+        .in('status', ['pending', 'reserve']);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['job_shortlist'] });
+      toast.success('All candidates approved for outreach');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
+// ---------- Update shortlist priority ----------
+export function useUpdateShortlistPriority() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (updates: { id: string; priority: number }[]) => {
+      for (const u of updates) {
+        const { error } = await supabase.from('job_shortlist').update({ priority: u.priority }).eq('id', u.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['job_shortlist'] }),
+    onError: (e: Error) => toast.error(e.message),
   });
 }
 

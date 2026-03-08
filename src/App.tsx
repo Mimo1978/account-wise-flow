@@ -131,6 +131,8 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <JarvisSpotlightProvider>
+          <JarvisSpotlightOverlay />
           <WelcomeModal />
           <Routes>
             {/* PUBLIC ROUTES */}

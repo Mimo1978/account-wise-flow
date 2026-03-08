@@ -639,6 +639,14 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
+  // Highlight the relevant form field when flow state changes
+  useEffect(() => {
+    const highlightId = getFlowHighlightId(flowState);
+    if (highlightId) {
+      jarvisNav.highlightElement(highlightId);
+    }
+  }, [flowState.flow, flowState.currentQuestion]);
+
   // One-time greeting per session
   useEffect(() => {
     const alreadyGreeted = sessionStorage.getItem("jarvis_greeted");

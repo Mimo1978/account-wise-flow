@@ -404,7 +404,7 @@ function useElevenLabsTTS(
 
   const speak = useCallback(
     async (text: string, onDone?: () => void) => {
-      if (!enabled) {
+      if (!enabled || !text || !text.trim()) {
         onDone?.();
         return;
       }

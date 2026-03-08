@@ -974,7 +974,7 @@ serve(async (req) => {
       );
     }
 
-    const { user_message, conversation_history, user_first_name, nav_history } = await req.json();
+    const { user_message, conversation_history, user_first_name, nav_history, flow_state } = await req.json();
     if (!user_message || typeof user_message !== "string") {
       return new Response(JSON.stringify({ error: "user_message is required" }), {
         status: 400,
@@ -993,6 +993,21 @@ serve(async (req) => {
         .map((e: { path: string; label: string }) => `${e.label} (${e.path})`)
         .join(" → ");
       systemWithName += `\n\nSESSION NAVIGATION HISTORY (pages visited in order, earliest first):\n${historyStr}\nCurrent page is the last entry. Use this to answer "go back", "where did we come from", "back to that company", "back to where we started" requests.`;
+    }
+    // Inject active flow state for guided collection continuity
+    if (flow_state && flow_state.flow) {
+      systemWithName += `\n\nACTIVE GUIDED COLLECTION FLOW:
+Type: ${flow_state.flow}
+Fields collected so far: ${JSON.stringify(flow_state.collectedFields)}
+Current question index: ${flow_state.currentQuestion}
+Awaiting confirmation: ${flow_state.awaitingConfirmation}
+
+IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from where you left off.
+- Do NOT restart the flow or re-ask for fields already collected.
+- Ask the NEXT unanswered field(s) — maximum 2 per message.
+- If all fields are collected and awaitingConfirmation is false, present a summary and ask to confirm.
+- If the user says "cancel", "stop", or "start over", abort the flow and confirm cancellation.
+- If the user says "change the [field]", ask for the new value for that specific field.`;
     }
 
     const messages = [

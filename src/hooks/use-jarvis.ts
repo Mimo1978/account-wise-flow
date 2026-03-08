@@ -284,12 +284,16 @@ export function useJarvis() {
             responseText
           );
 
+        // Update flow state based on response
+        const newFlowState = detectFlowFromResponse(responseText, flowState);
+        setFlowState(newFlowState);
+
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
             content: responseText,
-            awaitingConfirmation: isConfirmation,
+            awaitingConfirmation: isConfirmation || newFlowState.awaitingConfirmation,
             isSuccess,
             navigateTo: data.navigate_to || undefined,
             targetAction: data.target_action || undefined,
@@ -327,10 +331,17 @@ export function useJarvis() {
         setIsLoading(false);
       }
     },
-    [messages, userFirstName, queryClient]
+    [messages, userFirstName, queryClient, flowState]
   );
 
-  const clearHistory = useCallback(() => setMessages([]), []);
+  const clearHistory = useCallback(() => {
+    setMessages([]);
+    setFlowState(INITIAL_FLOW_STATE);
+  }, []);
 
-  return { messages, isLoading, sendMessage, clearHistory, userFirstName };
+  const cancelFlow = useCallback(() => {
+    setFlowState(INITIAL_FLOW_STATE);
+  }, []);
+
+  return { messages, isLoading, sendMessage, clearHistory, userFirstName, flowState, cancelFlow };
 }

@@ -151,12 +151,14 @@ function MessageBubble({
   onCancel,
   onReplay,
   onSuggestionClick,
+  onNavigate,
 }: {
   message: JarvisMessage;
   onConfirm?: () => void;
   onCancel?: () => void;
   onReplay?: () => void;
   onSuggestionClick?: (suggestion: JarvisSuggestion) => void;
+  onNavigate?: (dest: string) => void;
 }) {
   const isUser = message.role === "user";
 

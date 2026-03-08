@@ -436,12 +436,8 @@ const STATUS_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'destructiv
 /* ─── Diary Events Section (real diary_events + critical dates) ─── */
 function DiaryEventsSection({
   workspaceId,
-  diaryItems,
-  onItemClick,
 }: {
   workspaceId: string | undefined;
-  diaryItems: CriticalDateItem[];
-  onItemClick: (item: CriticalDateItem) => void;
 }) {
   const { data: diaryEvents = [] } = useQuery({
     queryKey: ['diary_events', workspaceId],

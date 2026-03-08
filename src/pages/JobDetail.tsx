@@ -215,8 +215,9 @@ const JobDetail = () => {
           <TabsTrigger value="adverts" data-jarvis-id="job-tab-adverts">
             <FileText className="w-3.5 h-3.5 mr-1.5" /> Adverts
           </TabsTrigger>
-          <TabsTrigger value="shortlist" data-jarvis-id="job-tab-shortlist">
+          <TabsTrigger value="shortlist" data-jarvis-id="job-tab-shortlist" className="relative">
             <Users className="w-3.5 h-3.5 mr-1.5" /> Shortlist
+            <ShortlistReplyBadge jobId={job.id} />
           </TabsTrigger>
           <TabsTrigger value="outreach" data-jarvis-id="job-tab-outreach">
             <Send className="w-3.5 h-3.5 mr-1.5" /> Outreach

@@ -48,6 +48,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
+  const { data: newAppCount = 0 } = useNewApplicationsCount();
 
   const handleSignOut = async () => {
     await signOut();

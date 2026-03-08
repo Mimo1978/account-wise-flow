@@ -782,9 +782,20 @@ function ShortlistTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) 
                           <span>Availability: {e.candidates?.availability_status || 'Unknown'}</span>
                           <span>Location: {e.candidates?.location || 'Unknown'}</span>
                         </div>
+                        {e.candidate_interest && (
+                          <div className="flex items-center gap-2 text-xs pt-1 border-t border-border">
+                            <Reply className="w-3 h-3 text-muted-foreground" />
+                            <span>Response: <strong className="capitalize">{e.candidate_interest}</strong></span>
+                            {e.availability_confirmed && <span className="text-muted-foreground">· {e.availability_confirmed}</span>}
+                            {e.response_received_at && <span className="text-muted-foreground">· {format(new Date(e.response_received_at), 'dd MMM HH:mm')}</span>}
+                          </div>
+                        )}
                         <div className="flex items-center gap-1 pt-1">
                           <Button variant="ghost" size="sm" className="h-7 text-xs"><Mail className="w-3 h-3 mr-1" /> Email</Button>
                           <Button variant="ghost" size="sm" className="h-7 text-xs"><MessageSquare className="w-3 h-3 mr-1" /> SMS</Button>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleLogReply(e.id)}>
+                            <Reply className="w-3 h-3 mr-1" /> Log Reply
+                          </Button>
                         </div>
                       </div>
                     )}

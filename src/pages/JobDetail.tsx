@@ -396,7 +396,7 @@ function OverviewTab({ job, onProjectLinked }: { job: any; onProjectLinked?: (pr
   return (
     <div className="space-y-6">
       {/* Job Brief Section — the primary workflow entry point */}
-      <JobBriefSection job={job} />
+      <JobBriefSection job={job} onProjectLinked={onProjectLinked} />
 
       {/* Details card */}
       <Card>

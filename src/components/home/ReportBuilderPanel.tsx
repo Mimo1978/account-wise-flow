@@ -126,8 +126,8 @@ export function ReportBuilderPanel({ open, onOpenChange, preselectedType, autoDo
             .eq('workspace_id', wsId)
             .gte('due_date', from)
             .lte('due_date', to)
-            .order('due_date');
-          rows = (data ?? []).map((d: any) => ({
+            .order('due_date') as { data: any[] | null };
+          rows = (data ?? []).map((d) => ({
             Invoice: d.invoice_number ?? '—',
             Company: d.company_name ?? '—',
             Total: `${d.currency ?? 'GBP'} ${Number(d.total ?? 0).toLocaleString()}`,

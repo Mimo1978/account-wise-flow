@@ -561,6 +561,9 @@ const HomeCommandCenter = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link to="/insights" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium">
+              View Analytics →
+            </Link>
             <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" onClick={handleStartTour} data-jarvis-id="take-tour-button">
               <Compass className="w-3.5 h-3.5" /> Take the Tour
             </Button>

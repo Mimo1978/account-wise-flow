@@ -40,6 +40,7 @@ import Outreach from "./pages/Outreach";
 import SchemaInventory from "./pages/SchemaInventory";
 import ProjectsList from "./pages/ProjectsList";
 import DealsPage from "./pages/DealsPage";
+import DocumentsHub from "./pages/DocumentsHub";
 import JobsList from "./pages/JobsList";
 import JobDetail from "./pages/JobDetail";
 import PublicJobBoard from "./pages/PublicJobBoard";

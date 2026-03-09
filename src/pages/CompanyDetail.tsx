@@ -313,6 +313,20 @@ export default function CompanyDetail() {
     enabled: !!crmCompanyId,
   });
 
+  // ── Fetch commercial documents for this company ──
+  const { data: companyDocs = [] } = useQuery({
+    queryKey: ["company-commercial-docs", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("commercial_documents" as any).select("*")
+        .eq("company_id", id).order("created_at", { ascending: false });
+      if (error) { console.error("company docs error:", error); return []; }
+      return data || [];
+    },
+    enabled: !!id,
+  });
+
   // ── Mutations ──
   const updateCompany = useMutation({
     mutationFn: async (updates: Record<string, any>) => {

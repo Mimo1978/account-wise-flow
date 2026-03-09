@@ -42,8 +42,6 @@ import {
 import { format, parseISO, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
-import { LogActivityModal } from "@/components/communications/LogActivityModal";
-import { AddContactModal } from "@/components/canvas/AddContactModal";
 
 /* ─── helpers ─── */
 const fmtDate = (d?: string | null) => {

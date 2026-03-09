@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +22,7 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter, SheetDescription,
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from "@/components/ui/sheet";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -34,11 +34,15 @@ import {
   Pencil, Plus, TrendingUp, User, Mail, Clock, FileText, Activity,
   ChevronDown, ExternalLink, DollarSign, Calendar, StickyNote,
   AlertTriangle, CheckCircle2, Info, Loader2, Flag, BookOpen,
-  CalendarClock, Shield, X,
+  CalendarClock, Shield, X, PartyPopper, XCircle,
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 /* ─── helpers ─── */
 const fmtDate = (d?: string | null) => {
@@ -61,8 +65,6 @@ const STATUS_OPTIONS = [
   { value: "client", label: "Client", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
   { value: "prospect", label: "Prospect", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" },
   { value: "dormant", label: "Dormant", color: "bg-muted text-muted-foreground italic" },
-  { value: "active", label: "Active", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
-  { value: "cooling", label: "Cooling", color: "bg-muted text-muted-foreground" },
 ];
 const getStatusConfig = (s?: string) => STATUS_OPTIONS.find(o => o.value === s) || STATUS_OPTIONS[0];
 
@@ -80,37 +82,46 @@ const ACCOUNT_FLAGS = [
   { value: "dormant", label: "Dormant", icon: Clock, color: "text-muted-foreground" },
 ];
 
-const DEAL_STAGE_COLORS: Record<string, string> = {
+const PIPELINE_STAGES = [
+  { value: "lead", label: "Lead" },
+  { value: "qualified", label: "Qualified" },
+  { value: "proposal", label: "Proposal" },
+  { value: "negotiation", label: "Negotiation" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+];
+
+const STAGE_COLORS: Record<string, string> = {
+  lead: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  qualified: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+  proposal: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  negotiation: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  won: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  lost: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
   active: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   complete: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  won: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  lost: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 };
 
 /* ══════════════════════════════════════════════════════════════════
-   REUSABLE SLIDE-IN PANEL (FIX 6)
+   REUSABLE SLIDE-IN PANEL — 520px, sticky footer, pb-20
    ══════════════════════════════════════════════════════════════════ */
 function SlideInPanel({ open, onClose, title, subtitle, children, footer }: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-  footer?: React.ReactNode;
+  open: boolean; onClose: () => void; title: string; subtitle?: string;
+  children: React.ReactNode; footer?: React.ReactNode;
 }) {
   return (
     <Sheet open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <SheetContent className="sm:max-w-[480px] overflow-y-auto flex flex-col">
-        <SheetHeader className="pb-2">
-          <SheetTitle>{title}</SheetTitle>
+      <SheetContent className="sm:max-w-[520px] overflow-y-auto flex flex-col p-0">
+        <SheetHeader className="px-6 pt-6 pb-2">
+          <SheetTitle>{title}{subtitle ? ` — ${subtitle}` : ""}</SheetTitle>
           {subtitle && <SheetDescription>{subtitle}</SheetDescription>}
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {children}
         </div>
         {footer && (
-          <div className="border-t border-border pt-4 flex items-center justify-between gap-2">
+          <div className="sticky bottom-0 border-t border-border bg-background px-6 py-5 pb-20 flex items-center justify-between gap-2">
             {footer}
           </div>
         )}
@@ -141,8 +152,9 @@ export default function CompanyDetail() {
   const [editProjectId, setEditProjectId] = useState<string | null>(null);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const [ownerPopoverOpen, setOwnerPopoverOpen] = useState(false);
+  const [addLeadOpen, setAddLeadOpen] = useState(false);
 
-  // ── Fetch company ──
+  // ── Fetch company (from companies table) ──
   const { data: rawCompany, isLoading } = useQuery({
     queryKey: ["companies", id],
     queryFn: async () => {
@@ -152,6 +164,44 @@ export default function CompanyDetail() {
       return data as any;
     },
     enabled: !!id,
+  });
+
+  // ── Auto-sync to crm_companies — find or create a matching CRM record ──
+  const { data: crmCompanyId } = useQuery({
+    queryKey: ["crm-company-sync", id, rawCompany?.name],
+    queryFn: async () => {
+      if (!id || !rawCompany) return null;
+      const companyName = rawCompany.name;
+      console.log("[CompanyDetail] Syncing crm_companies for:", companyName, "companies.id:", id);
+
+      // First try to find existing crm_companies record by name
+      const { data: existing } = await supabase
+        .from("crm_companies" as any).select("id")
+        .eq("name", companyName).limit(1);
+
+      if (existing && existing.length > 0) {
+        console.log("[CompanyDetail] Found existing crm_companies record:", existing[0].id);
+        return existing[0].id as string;
+      }
+
+      // Create one
+      const { data: created, error } = await supabase
+        .from("crm_companies" as any).insert({
+          name: companyName,
+          industry: rawCompany.industry || null,
+          website: rawCompany.website || null,
+          phone: rawCompany.switchboard || null,
+        } as any).select("id").single();
+
+      if (error) {
+        console.error("[CompanyDetail] Failed to create crm_companies record:", error);
+        return null;
+      }
+      console.log("[CompanyDetail] Created crm_companies record:", created.id);
+      return created.id as string;
+    },
+    enabled: !!id && !!rawCompany,
+    staleTime: Infinity,
   });
 
   // ── Fetch contacts ──
@@ -191,64 +241,61 @@ export default function CompanyDetail() {
     enabled: !!currentWorkspace?.id,
   });
 
-  // ── Fetch deals ──
+  // ── Fetch deals (using crm_company_id) ──
   const { data: deals = [] } = useQuery({
-    queryKey: ["company-deals", id],
+    queryKey: ["company-deals", crmCompanyId],
     queryFn: async () => {
-      if (!id) return [];
-      console.log("[CompanyDetail] Fetching deals for company_id:", id);
+      if (!crmCompanyId) return [];
+      console.log("[CompanyDetail] Fetching deals for crm_company_id:", crmCompanyId);
       const { data, error } = await supabase
         .from("crm_deals" as any).select("*")
-        .eq("company_id", id).order("created_at", { ascending: false });
+        .eq("company_id", crmCompanyId).order("created_at", { ascending: false });
       if (error) { console.error("[CompanyDetail] Deals query error:", error); return []; }
       console.log("[CompanyDetail] Deals result:", data?.length, data);
       return data || [];
     },
-    enabled: !!id,
+    enabled: !!crmCompanyId,
   });
 
-  // ── Fetch projects ──
+  // ── Fetch projects (using crm_company_id) ──
   const { data: projects = [] } = useQuery({
-    queryKey: ["company-projects", id],
+    queryKey: ["company-projects", crmCompanyId],
     queryFn: async () => {
-      if (!id) return [];
-      console.log("[CompanyDetail] Fetching projects for company_id:", id);
+      if (!crmCompanyId) return [];
       const { data, error } = await supabase
         .from("crm_projects" as any).select("*")
-        .eq("company_id", id).order("created_at", { ascending: false });
-      if (error) { console.error("[CompanyDetail] Projects query error:", error); return []; }
-      console.log("[CompanyDetail] Projects result:", data?.length, data);
-      return data || [];
-    },
-    enabled: !!id,
-  });
-
-  // ── Fetch invoices ──
-  const { data: invoices = [] } = useQuery({
-    queryKey: ["company-invoices", id],
-    queryFn: async () => {
-      if (!id) return [];
-      const { data, error } = await supabase
-        .from("crm_invoices" as any).select("*")
-        .eq("company_id", id).order("created_at", { ascending: false });
+        .eq("company_id", crmCompanyId).order("created_at", { ascending: false });
       if (error) return [];
       return data || [];
     },
-    enabled: !!id,
+    enabled: !!crmCompanyId,
   });
 
-  // ── Fetch ALL activities (company-level + contact-level) ──
-  const { data: activities = [] } = useQuery({
-    queryKey: ["company-all-activities", id],
+  // ── Fetch invoices (using crm_company_id) ──
+  const { data: invoices = [] } = useQuery({
+    queryKey: ["company-invoices", crmCompanyId],
     queryFn: async () => {
-      if (!id) return [];
-      // Get company-level activities
+      if (!crmCompanyId) return [];
+      const { data, error } = await supabase
+        .from("crm_invoices" as any).select("*")
+        .eq("company_id", crmCompanyId).order("created_at", { ascending: false });
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!crmCompanyId,
+  });
+
+  // ── Fetch activities (using crm_company_id) ──
+  const { data: activities = [] } = useQuery({
+    queryKey: ["company-all-activities", crmCompanyId, id],
+    queryFn: async () => {
+      if (!crmCompanyId) return [];
       const { data: companyActs } = await supabase
         .from("crm_activities" as any).select("*")
-        .eq("company_id", id).order("created_at", { ascending: false }).limit(200);
-      // Get contact IDs at this company
+        .eq("company_id", crmCompanyId).order("created_at", { ascending: false }).limit(200);
+      // Also get contact-level activities
       const { data: contactRows } = await supabase
-        .from("contacts").select("id").eq("company_id", id).is("deleted_at", null);
+        .from("contacts").select("id").eq("company_id", id!).is("deleted_at", null);
       const contactIds = (contactRows || []).map((c: any) => c.id);
       let contactActs: any[] = [];
       if (contactIds.length > 0) {
@@ -257,14 +304,13 @@ export default function CompanyDetail() {
           .in("contact_id", contactIds).order("created_at", { ascending: false }).limit(200);
         contactActs = data || [];
       }
-      // Merge and dedupe
       const allMap = new Map<string, any>();
       [...(companyActs || []), ...contactActs].forEach((a: any) => allMap.set(a.id, a));
       return Array.from(allMap.values()).sort((a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
     },
-    enabled: !!id,
+    enabled: !!crmCompanyId,
   });
 
   // ── Mutations ──
@@ -291,9 +337,7 @@ export default function CompanyDetail() {
       await updateCompany.mutateAsync({ relationship_status: newStatus });
       setStatusPopoverOpen(false);
       toast({ title: "Status updated" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
+    } catch {}
   };
 
   const handleOwnerAssign = async (userId: string, userName: string) => {
@@ -301,9 +345,11 @@ export default function CompanyDetail() {
       await updateCompany.mutateAsync({ account_manager: userName, owner_id: userId });
       setOwnerPopoverOpen(false);
       toast({ title: "Account owner assigned", description: userName });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
+    } catch {}
+  };
+
+  const handlePanelSaved = (queryKeys: string[][]) => {
+    queryKeys.forEach(k => queryClient.invalidateQueries({ queryKey: k }));
   };
 
   if (isLoading) return <div className="flex items-center justify-center min-h-[400px] text-muted-foreground">Loading company…</div>;
@@ -312,8 +358,13 @@ export default function CompanyDetail() {
   const company = rawCompany;
   const statusConfig = getStatusConfig(company.relationship_status);
   const ownerName = company.account_manager || null;
+
+  // Pipeline value: sum deals not won/lost
   const openDealsValue = (deals as any[])
-    .filter((d: any) => !["complete", "cancelled", "won", "lost"].includes(d.status))
+    .filter((d: any) => {
+      const stage = d.stage || d.status;
+      return !["won", "lost", "complete", "cancelled"].includes(stage);
+    })
     .reduce((sum: number, d: any) => sum + (d.value || 0), 0);
 
   // Coverage score
@@ -368,7 +419,7 @@ export default function CompanyDetail() {
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-40 p-1" align="start">
-                    {STATUS_OPTIONS.filter(o => !["active", "cooling"].includes(o.value)).map(opt => (
+                    {STATUS_OPTIONS.map(opt => (
                       <button key={opt.value} onClick={() => handleStatusChange(opt.value)}
                         className={cn("w-full text-left px-3 py-1.5 text-sm rounded hover:bg-muted flex items-center gap-2", opt.value === company.relationship_status && "bg-muted")}>
                         <span className={cn("w-2 h-2 rounded-full", opt.color.split(" ")[0])} /> {opt.label}
@@ -399,7 +450,7 @@ export default function CompanyDetail() {
               <CardContent className="pt-4 pb-3 flex items-center gap-3">
                 <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   {ownerName ? (
-                    <Avatar className="h-9 w-9"><AvatarFallback className="text-xs bg-primary/10 text-primary">{ownerName.split(" ").map(n => n[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
+                    <Avatar className="h-9 w-9"><AvatarFallback className="text-xs bg-primary/10 text-primary">{ownerName.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
                   ) : <User className="h-4 w-4 text-primary" />}
                 </div>
                 <div className="min-w-0">
@@ -429,7 +480,7 @@ export default function CompanyDetail() {
             </PopoverContent>
           </Popover>
 
-          {/* ACTION BAR — all inline */}
+          {/* ACTION BAR */}
           <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" size="sm" onClick={() => setAddContactOpen(true)} data-jarvis-id="company-add-contact-button">
               <Plus className="h-4 w-4 mr-1" /> Add Contact
@@ -437,7 +488,9 @@ export default function CompanyDetail() {
             <Button size="sm" onClick={() => setAddDealOpen(true)} data-jarvis-id="company-add-deal-button">
               <Plus className="h-4 w-4 mr-1" /> Add Deal
             </Button>
-            {/* FIX 1 — reframed Log Activity dropdown */}
+            <Button variant="outline" size="sm" onClick={() => setAddLeadOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" /> Capture Lead
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" data-jarvis-id="company-log-activity-button">
@@ -545,7 +598,7 @@ export default function CompanyDetail() {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-muted-foreground">£{(d.value || 0).toLocaleString()}</span>
-                            <Badge variant="secondary" className="text-xs capitalize">{d.status}</Badge>
+                            <Badge className={cn("text-xs capitalize", STAGE_COLORS[d.stage || d.status] || "bg-muted text-muted-foreground")}>{d.stage || d.status}</Badge>
                           </div>
                         </div>
                       ))}
@@ -634,40 +687,41 @@ export default function CompanyDetail() {
             </div>
           </TabsContent>
 
-          {/* ─── DEALS TAB (FIX 3 — cards grouped by stage, inline creation) ─── */}
+          {/* ─── DEALS TAB ─── */}
           <TabsContent value="deals">
             <DealsTab deals={deals as any[]} companyName={company.name}
               onAddDeal={() => setAddDealOpen(true)}
               onEditDeal={(dealId) => setEditDealId(dealId)} />
           </TabsContent>
 
-          {/* ─── PROJECTS TAB (FIX 4 — cards, inline creation) ─── */}
+          {/* ─── PROJECTS TAB ─── */}
           <TabsContent value="projects">
             <ProjectsTab projects={projects as any[]} companyName={company.name}
               onAddProject={() => setAddProjectOpen(true)}
-              onEditProject={(pid) => setEditProjectId(pid)} />
+              onEditProject={(projectId) => setEditProjectId(projectId)} />
           </TabsContent>
 
           {/* ─── DOCUMENTS TAB ─── */}
           <TabsContent value="documents">
             <Card><CardContent className="py-12 text-center">
               <FileText className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-muted-foreground mb-3">No documents uploaded yet.</p>
-              <Button size="sm" variant="outline"><Plus className="h-4 w-4 mr-1" /> Upload Document</Button>
+              <p className="text-muted-foreground mb-3">Document management coming soon.</p>
             </CardContent></Card>
           </TabsContent>
 
-          {/* ─── ACTIVITY TAB (FIX 2 — account intelligence view) ─── */}
+          {/* ─── ACTIVITY TAB ─── */}
           <TabsContent value="activity">
-            <ActivityIntelligenceTab activities={activities as any[]} contacts={contacts} companyName={company.name} />
+            <ActivityIntelligenceTab activities={activities} contacts={contacts} companyName={company.name} />
           </TabsContent>
 
           {/* ─── CANVAS TAB ─── */}
           <TabsContent value="canvas">
-            <Card><CardContent className="py-12 text-center space-y-4">
-              <Network className="h-12 w-12 text-muted-foreground mx-auto" />
-              <p className="text-muted-foreground">View {company.name}'s org chart and relationship map on the Canvas.</p>
-              <Button onClick={() => navigate(`/canvas?company=${id}`)} className="gap-2"><Network className="h-4 w-4" /> Open on Canvas</Button>
+            <Card><CardContent className="py-12 text-center">
+              <Network className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-muted-foreground mb-3">Canvas view for {company.name}</p>
+              <Button variant="outline" onClick={() => navigate(`/canvas?company_id=${id}`)}>
+                <Network className="h-4 w-4 mr-1" /> Open Full Canvas
+              </Button>
             </CardContent></Card>
           </TabsContent>
 
@@ -679,7 +733,11 @@ export default function CompanyDetail() {
                 <Button size="sm" variant="outline" onClick={() => setAddInvoiceOpen(true)}><Plus className="h-4 w-4 mr-1" /> Create Invoice</Button>
               </div>
               {(invoices as any[]).length === 0 ? (
-                <Card><CardContent className="py-12 text-center text-muted-foreground">No invoices linked yet.</CardContent></Card>
+                <Card><CardContent className="py-12 text-center">
+                  <FileText className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+                  <p className="text-muted-foreground mb-3">No invoices yet.</p>
+                  <Button size="sm" variant="outline" onClick={() => setAddInvoiceOpen(true)}><Plus className="h-4 w-4 mr-1" /> Create Invoice</Button>
+                </CardContent></Card>
               ) : (
                 <Card><div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -690,15 +748,9 @@ export default function CompanyDetail() {
                     <tbody>
                       {(invoices as any[]).map((inv: any) => (
                         <tr key={inv.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                          <td className="p-3 font-medium">{inv.invoice_number || inv.id.slice(0, 8)}</td>
+                          <td className="p-3 font-medium">{inv.invoice_number || "—"}</td>
                           <td className="p-3">£{(inv.total || 0).toLocaleString()}</td>
-                          <td className="p-3">
-                            <Badge variant="secondary" className={cn("text-xs capitalize",
-                              inv.status === "paid" && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-                              inv.status === "overdue" && "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-                              inv.status === "sent" && "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-                            )}>{inv.status}</Badge>
-                          </td>
+                          <td className="p-3"><Badge variant="secondary" className="text-xs capitalize">{inv.status}</Badge></td>
                           <td className="p-3 text-muted-foreground">{fmtDate(inv.due_date)}</td>
                         </tr>
                       ))}
@@ -711,59 +763,55 @@ export default function CompanyDetail() {
         </Tabs>
       </div>
 
-      {/* ══════ ALL SLIDE-IN PANELS ══════ */}
+      {/* ─── ALL SLIDE-IN PANELS ─── */}
+      <EditCompanyPanel open={editOpen} onClose={() => setEditOpen(false)} company={company}
+        onSaved={() => { setEditOpen(false); handlePanelSaved([["companies", id!]]); }} />
 
-      {/* Edit Company */}
-      <EditCompanyPanel open={editOpen} onClose={() => setEditOpen(false)} company={rawCompany}
-        onSaved={() => { queryClient.invalidateQueries({ queryKey: ["companies", id] }); setEditOpen(false); }} />
-
-      {/* Add Contact */}
       <AddContactPanel open={addContactOpen} onClose={() => setAddContactOpen(false)}
         companyId={id!} companyName={company.name}
-        onSaved={() => { queryClient.invalidateQueries({ queryKey: ["company-contacts", id] }); setAddContactOpen(false); }} />
+        onSaved={() => { setAddContactOpen(false); handlePanelSaved([["company-contacts", id!]]); }} />
 
-      {/* Add Deal */}
-      <AddDealPanel open={addDealOpen} onClose={() => setAddDealOpen(false)}
-        companyId={id!} companyName={company.name}
-        onSaved={() => { queryClient.invalidateQueries({ queryKey: ["company-deals", id] }); setAddDealOpen(false); }} />
+      {crmCompanyId && (
+        <>
+          <AddDealPanel open={addDealOpen} onClose={() => setAddDealOpen(false)}
+            companyId={crmCompanyId} companyName={company.name}
+            onSaved={() => { setAddDealOpen(false); handlePanelSaved([["company-deals", crmCompanyId], ["crm_deals"]]); }} />
 
-      {/* Edit Deal */}
-      {editDealId && (
-        <EditDealPanel open={!!editDealId} onClose={() => setEditDealId(null)}
-          dealId={editDealId} companyName={company.name}
-          onSaved={() => { queryClient.invalidateQueries({ queryKey: ["company-deals", id] }); setEditDealId(null); }} />
+          <EditDealPanel open={!!editDealId} onClose={() => setEditDealId(null)}
+            dealId={editDealId || ""} companyName={company.name} crmCompanyId={crmCompanyId}
+            onSaved={() => { setEditDealId(null); handlePanelSaved([["company-deals", crmCompanyId], ["crm_deals"]]); }}
+            onCreateProject={(dealTitle) => {
+              setEditDealId(null);
+              setAddProjectOpen(true);
+            }} />
+
+          <AddProjectPanel open={addProjectOpen} onClose={() => setAddProjectOpen(false)}
+            companyId={crmCompanyId} companyName={company.name}
+            onSaved={() => { setAddProjectOpen(false); handlePanelSaved([["company-projects", crmCompanyId], ["crm_projects"]]); }} />
+
+          <EditProjectPanel open={!!editProjectId} onClose={() => setEditProjectId(null)}
+            projectId={editProjectId || ""} companyName={company.name}
+            onSaved={() => { setEditProjectId(null); handlePanelSaved([["company-projects", crmCompanyId], ["crm_projects"]]); }} />
+
+          <AddInvoicePanel open={addInvoiceOpen} onClose={() => setAddInvoiceOpen(false)}
+            companyId={crmCompanyId} companyName={company.name}
+            onSaved={() => { setAddInvoiceOpen(false); handlePanelSaved([["company-invoices", crmCompanyId], ["crm_invoices"]]); }} />
+
+          <LogActivityPanel open={logActivityOpen} onClose={() => setLogActivityOpen(false)}
+            companyId={crmCompanyId} companyName={company.name} defaultType={logActivityType}
+            contacts={contacts}
+            onSaved={() => { setLogActivityOpen(false); handlePanelSaved([["company-all-activities", crmCompanyId, id!]]); }} />
+
+          <AddLeadPanel open={addLeadOpen} onClose={() => setAddLeadOpen(false)}
+            companyId={crmCompanyId} companyName={company.name}
+            onSaved={() => { setAddLeadOpen(false); toast({ title: "Lead captured" }); }} />
+        </>
       )}
-
-      {/* Add Project */}
-      <AddProjectPanel open={addProjectOpen} onClose={() => setAddProjectOpen(false)}
-        companyId={id!} companyName={company.name}
-        onSaved={() => { queryClient.invalidateQueries({ queryKey: ["company-projects", id] }); setAddProjectOpen(false); }} />
-
-      {/* Edit Project */}
-      {editProjectId && (
-        <EditProjectPanel open={!!editProjectId} onClose={() => setEditProjectId(null)}
-          projectId={editProjectId} companyName={company.name}
-          onSaved={() => { queryClient.invalidateQueries({ queryKey: ["company-projects", id] }); setEditProjectId(null); }} />
-      )}
-
-      {/* Log Activity */}
-      <LogActivityPanel open={logActivityOpen} onClose={() => setLogActivityOpen(false)}
-        companyId={id!} companyName={company.name} defaultType={logActivityType}
-        contacts={contacts}
-        onSaved={() => { queryClient.invalidateQueries({ queryKey: ["company-all-activities", id] }); setLogActivityOpen(false); }} />
-
-      {/* Add Invoice */}
-      <AddInvoicePanel open={addInvoiceOpen} onClose={() => setAddInvoiceOpen(false)}
-        companyId={id!} companyName={company.name}
-        onSaved={() => { queryClient.invalidateQueries({ queryKey: ["company-invoices", id] }); setAddInvoiceOpen(false); }} />
     </div>
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   SUB-COMPONENTS
-   ══════════════════════════════════════════════════════════════════ */
-
+/* ─── QUICK STAT ─── */
 function QuickStat({ icon: Icon, label, value, valueClass }: { icon: any; label: string; value: string; valueClass?: string }) {
   return (
     <Card>
@@ -780,23 +828,25 @@ function QuickStat({ icon: Icon, label, value, valueClass }: { icon: any; label:
   );
 }
 
+/* ─── INLINE FIELD ─── */
 function InlineField({ label, value, field, onSave, isLink }: {
-  label: string; value?: string | null; field: string; onSave: (field: string, value: string) => void; isLink?: boolean;
+  label: string; value?: string | null; field: string;
+  onSave: (field: string, value: string) => void; isLink?: boolean;
 }) {
   const [editing, setEditing] = useState(false);
-  const [editVal, setEditVal] = useState(value || "");
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (editing) { setEditVal(value || ""); setTimeout(() => inputRef.current?.focus(), 50); } }, [editing]);
-  const save = () => { if (editVal !== (value || "")) onSave(field, editVal); setEditing(false); };
+  const [draft, setDraft] = useState(value || "");
+  useEffect(() => { setDraft(value || ""); }, [value]);
+
   return (
-    <div className="flex items-start gap-2 py-1">
+    <div className="flex items-start gap-2 py-1 group">
       <span className="text-muted-foreground w-24 shrink-0 text-xs pt-0.5">{label}</span>
       {editing ? (
-        <Input ref={inputRef} value={editVal} onChange={e => setEditVal(e.target.value)}
-          onBlur={save} onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
+        <Input autoFocus value={draft} onChange={e => setDraft(e.target.value)}
+          onBlur={() => { onSave(field, draft); setEditing(false); }}
+          onKeyDown={e => { if (e.key === "Enter") { onSave(field, draft); setEditing(false); } if (e.key === "Escape") setEditing(false); }}
           className="h-7 text-sm" />
       ) : (
-        <button onClick={() => setEditing(true)} className="text-left text-foreground hover:underline min-h-[20px]">
+        <button onClick={() => setEditing(true)} className="text-left flex-1 min-w-0 hover:bg-muted/50 rounded px-1 -mx-1 transition-colors">
           {value ? (isLink ? (
             <a href={value.startsWith("http") ? value : `https://${value}`} target="_blank" rel="noopener noreferrer"
               className="text-primary hover:underline flex items-center gap-1" onClick={e => e.stopPropagation()}>
@@ -814,9 +864,9 @@ function DealsTab({ deals, companyName, onAddDeal, onEditDeal }: {
   deals: any[]; companyName: string; onAddDeal: () => void; onEditDeal: (id: string) => void;
 }) {
   const grouped = useMemo(() => {
-    const active = deals.filter(d => d.status === "active");
-    const won = deals.filter(d => d.status === "complete" || d.status === "won");
-    const lost = deals.filter(d => d.status === "cancelled" || d.status === "lost");
+    const active = deals.filter(d => !["won", "lost", "complete", "cancelled"].includes(d.stage || d.status));
+    const won = deals.filter(d => (d.stage || d.status) === "won" || d.status === "complete");
+    const lost = deals.filter(d => (d.stage || d.status) === "lost" || d.status === "cancelled");
     return { active, won, lost };
   }, [deals]);
 
@@ -854,7 +904,7 @@ function DealGroup({ title, deals, onEdit }: { title: string; deals: any[]; onEd
               <p className="font-semibold text-sm truncate">{d.title}</p>
               <div className="flex items-center justify-between">
                 <span className="text-lg font-bold text-foreground">£{(d.value || 0).toLocaleString()}</span>
-                <Badge className={cn("text-xs capitalize", DEAL_STAGE_COLORS[d.status] || "bg-muted text-muted-foreground")}>{d.status}</Badge>
+                <Badge className={cn("text-xs capitalize", STAGE_COLORS[d.stage || d.status] || "bg-muted text-muted-foreground")}>{d.stage || d.status}</Badge>
               </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Close: {fmtDateShort(d.end_date || d.signed_date)}</span>
@@ -907,13 +957,12 @@ function ProjectsTab({ projects, companyName, onAddProject, onEditProject }: {
   );
 }
 
-/* ─── ACTIVITY INTELLIGENCE TAB (FIX 2) ─── */
+/* ─── ACTIVITY INTELLIGENCE TAB ─── */
 function ActivityIntelligenceTab({ activities, contacts, companyName }: {
   activities: any[]; contacts: Contact[]; companyName: string;
 }) {
   const [filter, setFilter] = useState("all");
 
-  // Stats
   const contactActivityCounts = useMemo(() => {
     const map = new Map<string, { count: number; lastDate: string | null; channels: Set<string> }>();
     contacts.forEach(c => map.set(c.id, { count: 0, lastDate: null, channels: new Set() }));
@@ -954,7 +1003,7 @@ function ActivityIntelligenceTab({ activities, contacts, companyName }: {
 
   const contactsWithActivity = useMemo(() => {
     return contacts.map(c => {
-      const data = contactActivityCounts.get(c.id) || { count: 0, lastDate: null, channels: new Set() };
+      const data = contactActivityCounts.get(c.id) || { count: 0, lastDate: null, channels: new Set<string>() };
       return { ...c, actCount: data.count, lastActDate: data.lastDate, channels: Array.from(data.channels), warmth: getWarmth(data.lastDate) };
     }).sort((a, b) => {
       if (!a.lastActDate && !b.lastActDate) return 0;
@@ -977,7 +1026,6 @@ function ActivityIntelligenceTab({ activities, contacts, companyName }: {
 
   return (
     <div className="space-y-6">
-      {/* Account Health Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Card><CardContent className="pt-4 pb-3">
           <p className="text-xs text-muted-foreground mb-1">Most Active Contact</p>
@@ -993,7 +1041,6 @@ function ActivityIntelligenceTab({ activities, contacts, companyName }: {
         </CardContent></Card>
       </div>
 
-      {/* Contact Engagement Table */}
       {contacts.length > 0 && (
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">Contact Engagement</CardTitle></CardHeader>
@@ -1027,7 +1074,6 @@ function ActivityIntelligenceTab({ activities, contacts, companyName }: {
         </Card>
       )}
 
-      {/* Full Activity Timeline */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           {["all", "call", "email", "meeting", "note", "task"].map(f => (
@@ -1060,7 +1106,7 @@ function ActivityIntelligenceTab({ activities, contacts, companyName }: {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   SLIDE-IN PANELS (all inline, never navigate away)
+   SLIDE-IN PANELS
    ══════════════════════════════════════════════════════════════════ */
 
 function EditCompanyPanel({ open, onClose, company, onSaved }: {
@@ -1090,9 +1136,9 @@ function EditCompanyPanel({ open, onClose, company, onSaved }: {
     finally { setSaving(false); }
   };
   return (
-    <SlideInPanel open={open} onClose={onClose} title={`Edit ${company?.name || "Company"}`}
+    <SlideInPanel open={open} onClose={onClose} title="Edit Company" subtitle={company?.name}
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Saving…</> : "Save Changes"}</Button></>}>
-      <div><Label>Company Name *</Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+      <div><Label>Company Name <span className="text-red-500">*</span></Label><Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
       <div><Label>Website</Label><Input placeholder="https://..." value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))} /></div>
       <div className="grid grid-cols-2 gap-4">
         <div><Label>Industry</Label>
@@ -1107,7 +1153,7 @@ function EditCompanyPanel({ open, onClose, company, onSaved }: {
       <div><Label>Status</Label>
         <Select value={form.relationship_status} onValueChange={v => setForm(f => ({ ...f, relationship_status: v }))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-popover z-[9999]">{STATUS_OPTIONS.filter(o => !["active", "cooling"].includes(o.value)).map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+          <SelectContent className="bg-popover z-[9999]">{STATUS_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
         </Select></div>
       <div><Label>Notes</Label><Textarea rows={4} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} /></div>
     </SlideInPanel>
@@ -1133,7 +1179,8 @@ function AddContactPanel({ open, onClose, companyId, companyName, onSaved }: {
   return (
     <SlideInPanel open={open} onClose={onClose} title="Add Contact" subtitle={companyName}
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? "Adding…" : "Add Contact"}</Button></>}>
-      <div><Label>Full Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" /></div>
+      <div className="bg-muted/50 rounded-lg p-3 text-sm"><span className="text-muted-foreground">Company:</span> <span className="font-medium">{companyName}</span> <span className="text-xs text-muted-foreground">(locked)</span></div>
+      <div><Label>Full Name <span className="text-red-500">*</span></Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" /></div>
       <div><Label>Job Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} /></div>
       <div><Label>Email</Label><Input value={email} onChange={e => setEmail(e.target.value)} type="email" /></div>
       <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
@@ -1145,84 +1192,178 @@ function AddContactPanel({ open, onClose, companyId, companyName, onSaved }: {
 function AddDealPanel({ open, onClose, companyId, companyName, onSaved }: {
   open: boolean; onClose: () => void; companyId: string; companyName: string; onSaved: () => void;
 }) {
-  const [title, setTitle] = useState(""); const [value, setValue] = useState(""); const [status, setStatus] = useState("active");
+  const [title, setTitle] = useState(""); const [value, setValue] = useState(""); const [stage, setStage] = useState("lead");
   const [endDate, setEndDate] = useState(""); const [notes, setNotes] = useState(""); const [saving, setSaving] = useState(false);
-  useEffect(() => { if (open) { setTitle(""); setValue(""); setStatus("active"); setEndDate(""); setNotes(""); } }, [open]);
+  const [confirmStage, setConfirmStage] = useState<string | null>(null);
+
+  useEffect(() => { if (open) { setTitle(""); setValue(""); setStage("lead"); setEndDate(""); setNotes(""); } }, [open]);
+
+  const handleStageChange = (newStage: string) => {
+    if (newStage === "won" || newStage === "lost") {
+      setConfirmStage(newStage);
+    } else {
+      setStage(newStage);
+    }
+  };
+
   const handleSave = async () => {
     if (!title.trim()) { toast({ title: "Deal name required", variant: "destructive" }); return; }
     setSaving(true);
+    console.log("[AddDeal] Inserting deal with company_id (crm_companies UUID):", companyId);
     try {
       const { error } = await supabase.from("crm_deals" as any).insert({
-        title, value: parseFloat(value) || 0, currency: "GBP", status, company_id: companyId,
+        title, value: parseFloat(value) || 0, currency: "GBP", status: stage === "won" ? "complete" : stage === "lost" ? "cancelled" : "active",
+        stage, company_id: companyId,
         end_date: endDate || null, notes: notes || null,
       } as any);
       if (error) throw error;
       toast({ title: "Deal created" }); onSaved();
-    } catch (err: any) { toast({ title: "Error", description: err.message, variant: "destructive" }); }
+    } catch (err: any) {
+      console.error("[AddDeal] Insert error:", err);
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
     finally { setSaving(false); }
   };
+
   return (
-    <SlideInPanel open={open} onClose={onClose} title="Add Deal" subtitle={companyName}
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? "Creating…" : "Create Deal"}</Button></>}>
-      <div className="bg-muted/50 rounded-lg p-3 text-sm"><span className="text-muted-foreground">Company:</span> <span className="font-medium">{companyName}</span> <span className="text-xs text-muted-foreground">(locked)</span></div>
-      <div><Label>Deal Name *</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Recruitment Q1 2026" /></div>
-      <div className="grid grid-cols-2 gap-4">
-        <div><Label>Value (£)</Label><Input type="number" value={value} onChange={e => setValue(e.target.value)} placeholder="0" /></div>
-        <div><Label>Stage</Label>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-popover z-[9999]">
-              <SelectItem value="active">Active</SelectItem><SelectItem value="complete">Won</SelectItem><SelectItem value="cancelled">Lost</SelectItem>
-            </SelectContent>
-          </Select></div>
-      </div>
-      <div><Label>Close Date</Label><Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
-      <div><Label>Notes</Label><Textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} /></div>
-    </SlideInPanel>
+    <>
+      <SlideInPanel open={open} onClose={onClose} title="Add Deal" subtitle={companyName}
+        footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? "Creating…" : "Create Deal"}</Button></>}>
+        <div className="bg-muted/50 rounded-lg p-3 text-sm"><span className="text-muted-foreground">Company:</span> <span className="font-medium">{companyName}</span> <span className="text-xs text-muted-foreground">(locked)</span></div>
+        <div><Label>Deal Name <span className="text-red-500">*</span></Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Recruitment Q1 2026" /></div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><Label>Value (£)</Label><Input type="number" value={value} onChange={e => setValue(e.target.value)} placeholder="0" /></div>
+          <div><Label>Stage</Label>
+            <Select value={stage} onValueChange={handleStageChange}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-popover z-[9999]">
+                {PIPELINE_STAGES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+              </SelectContent>
+            </Select></div>
+        </div>
+        <div><Label>Expected Close Date</Label><Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+        <div><Label>Notes</Label><Textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} /></div>
+      </SlideInPanel>
+
+      <AlertDialog open={!!confirmStage} onOpenChange={() => setConfirmStage(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {confirmStage === "won" ? <><PartyPopper className="h-5 w-5 text-green-600" /> Mark this deal as Won?</> : <><XCircle className="h-5 w-5 text-red-600" /> Mark this deal as Lost?</>}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmStage === "won" ? "Congratulations! This will move the deal to the Won stage." : "This will mark the deal as lost."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setStage(confirmStage!); setConfirmStage(null); }}>
+              {confirmStage === "won" ? "Yes, mark as Won 🎉" : "Yes, mark as Lost"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
-function EditDealPanel({ open, onClose, dealId, companyName, onSaved }: {
-  open: boolean; onClose: () => void; dealId: string; companyName: string; onSaved: () => void;
+function EditDealPanel({ open, onClose, dealId, companyName, crmCompanyId, onSaved, onCreateProject }: {
+  open: boolean; onClose: () => void; dealId: string; companyName: string; crmCompanyId: string;
+  onSaved: () => void; onCreateProject: (title: string) => void;
 }) {
   const { data: deal } = useQuery({
     queryKey: ["crm_deals", dealId],
     queryFn: async () => { const { data } = await supabase.from("crm_deals" as any).select("*").eq("id", dealId).single(); return data as any; },
-    enabled: !!dealId,
+    enabled: !!dealId && open,
   });
-  const [title, setTitle] = useState(""); const [value, setValue] = useState(""); const [status, setStatus] = useState("active");
+  const [title, setTitle] = useState(""); const [value, setValue] = useState(""); const [stage, setStage] = useState("lead");
   const [endDate, setEndDate] = useState(""); const [notes, setNotes] = useState(""); const [saving, setSaving] = useState(false);
+  const [confirmStage, setConfirmStage] = useState<string | null>(null);
+  const [showProjectPrompt, setShowProjectPrompt] = useState(false);
+
   useEffect(() => {
-    if (deal) { setTitle(deal.title || ""); setValue(String(deal.value || "")); setStatus(deal.status || "active"); setEndDate(deal.end_date || ""); setNotes(deal.notes || ""); }
+    if (deal) {
+      setTitle(deal.title || ""); setValue(String(deal.value || ""));
+      setStage(deal.stage || deal.status || "lead");
+      setEndDate(deal.end_date || ""); setNotes(deal.notes || "");
+    }
   }, [deal]);
+
+  const handleStageChange = (newStage: string) => {
+    if (newStage === "won" || newStage === "lost") {
+      setConfirmStage(newStage);
+    } else {
+      setStage(newStage);
+      // Prompt project creation on proposal+
+      if (newStage === "proposal" || newStage === "negotiation") {
+        setShowProjectPrompt(true);
+      }
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       const { error } = await supabase.from("crm_deals" as any).update({
-        title, value: parseFloat(value) || 0, status, end_date: endDate || null, notes: notes || null,
+        title, value: parseFloat(value) || 0,
+        status: stage === "won" ? "complete" : stage === "lost" ? "cancelled" : "active",
+        stage,
+        end_date: endDate || null, notes: notes || null,
       } as any).eq("id", dealId);
       if (error) throw error;
       toast({ title: "Deal updated" }); onSaved();
     } catch (err: any) { toast({ title: "Error", description: err.message, variant: "destructive" }); }
     finally { setSaving(false); }
   };
+
   return (
-    <SlideInPanel open={open} onClose={onClose} title="Edit Deal" subtitle={companyName}
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</Button></>}>
-      <div><Label>Deal Name</Label><Input value={title} onChange={e => setTitle(e.target.value)} /></div>
-      <div className="grid grid-cols-2 gap-4">
-        <div><Label>Value (£)</Label><Input type="number" value={value} onChange={e => setValue(e.target.value)} /></div>
-        <div><Label>Stage</Label>
-          <Select value={status} onValueChange={setStatus}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent className="bg-popover z-[9999]">
-              <SelectItem value="active">Active</SelectItem><SelectItem value="complete">Won</SelectItem><SelectItem value="cancelled">Lost</SelectItem>
-            </SelectContent>
-          </Select></div>
-      </div>
-      <div><Label>Close Date</Label><Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
-      <div><Label>Notes</Label><Textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} /></div>
-    </SlideInPanel>
+    <>
+      <SlideInPanel open={open} onClose={onClose} title="Edit Deal" subtitle={companyName}
+        footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</Button></>}>
+        <div><Label>Deal Name</Label><Input value={title} onChange={e => setTitle(e.target.value)} /></div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><Label>Value (£)</Label><Input type="number" value={value} onChange={e => setValue(e.target.value)} /></div>
+          <div><Label>Stage</Label>
+            <Select value={stage} onValueChange={handleStageChange}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-popover z-[9999]">
+                {PIPELINE_STAGES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+              </SelectContent>
+            </Select></div>
+        </div>
+        <div><Label>Expected Close Date</Label><Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+        <div><Label>Notes</Label><Textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} /></div>
+      </SlideInPanel>
+
+      <AlertDialog open={!!confirmStage} onOpenChange={() => setConfirmStage(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {confirmStage === "won" ? <><PartyPopper className="h-5 w-5 text-green-600" /> Mark this deal as Won?</> : <><XCircle className="h-5 w-5 text-red-600" /> Mark this deal as Lost?</>}
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setStage(confirmStage!); setConfirmStage(null); }}>
+              {confirmStage === "won" ? "Yes, mark as Won 🎉" : "Yes, mark as Lost"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showProjectPrompt} onOpenChange={setShowProjectPrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create a project for this deal?</AlertDialogTitle>
+            <AlertDialogDescription>This deal is progressing — would you like to create a project to track delivery?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not yet</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setShowProjectPrompt(false); onCreateProject(title); }}>Create Project</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -1250,7 +1391,7 @@ function AddProjectPanel({ open, onClose, companyId, companyName, onSaved }: {
     <SlideInPanel open={open} onClose={onClose} title="Add Project" subtitle={companyName}
       footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? "Creating…" : "Create Project"}</Button></>}>
       <div className="bg-muted/50 rounded-lg p-3 text-sm"><span className="text-muted-foreground">Company:</span> <span className="font-medium">{companyName}</span> <span className="text-xs text-muted-foreground">(locked)</span></div>
-      <div><Label>Project Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Cloud Migration" /></div>
+      <div><Label>Project Name <span className="text-red-500">*</span></Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Cloud Migration" /></div>
       <div className="grid grid-cols-2 gap-4">
         <div><Label>Type</Label>
           <Select value={type} onValueChange={setType}>
@@ -1280,7 +1421,7 @@ function EditProjectPanel({ open, onClose, projectId, companyName, onSaved }: {
   const { data: project } = useQuery({
     queryKey: ["crm_projects", projectId],
     queryFn: async () => { const { data } = await supabase.from("crm_projects" as any).select("*").eq("id", projectId).single(); return data as any; },
-    enabled: !!projectId,
+    enabled: !!projectId && open,
   });
   const [name, setName] = useState(""); const [type, setType] = useState(""); const [status, setStatus] = useState("active");
   const [budget, setBudget] = useState(""); const [notes, setNotes] = useState(""); const [saving, setSaving] = useState(false);
@@ -1386,7 +1527,7 @@ function LogActivityPanel({ open, onClose, companyId, companyName, defaultType, 
                 </SelectContent>
               </Select></div>
           )}
-          <div><Label>Subject *</Label><Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Brief description" /></div>
+          <div><Label>Subject <span className="text-red-500">*</span></Label><Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Brief description" /></div>
           <div><Label>Notes</Label><Textarea rows={3} value={body} onChange={e => setBody(e.target.value)} /></div>
         </>
       )}
@@ -1420,7 +1561,46 @@ function AddInvoicePanel({ open, onClose, companyId, companyName, onSaved }: {
       <div><Label>Invoice Number</Label><Input value={invNumber} onChange={e => setInvNumber(e.target.value)} placeholder="INV-001" /></div>
       <div><Label>Total (£)</Label><Input type="number" value={total} onChange={e => setTotal(e.target.value)} /></div>
       <div><Label>Due Date</Label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
-      <div><Label>Notes</Label><Textarea rows={2} value={notes} onChange={e => setNotes(e.target.value)} /></div>
+      <div><Label>Notes</Label><Textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} /></div>
+    </SlideInPanel>
+  );
+}
+
+function AddLeadPanel({ open, onClose, companyId, companyName, onSaved }: {
+  open: boolean; onClose: () => void; companyId: string; companyName: string; onSaved: () => void;
+}) {
+  const [title, setTitle] = useState(""); const [source, setSource] = useState("inbound");
+  const [notes, setNotes] = useState(""); const [saving, setSaving] = useState(false);
+  useEffect(() => { if (open) { setTitle(""); setSource("inbound"); setNotes(""); } }, [open]);
+  const handleSave = async () => {
+    if (!title.trim()) { toast({ title: "Lead title required", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("leads" as any).insert({
+        title, source, notes: notes || null, company_id: companyId, status: "new",
+      } as any);
+      if (error) throw error;
+      onSaved();
+    } catch (err: any) { toast({ title: "Error", description: err.message, variant: "destructive" }); }
+    finally { setSaving(false); }
+  };
+  return (
+    <SlideInPanel open={open} onClose={onClose} title="Capture Lead" subtitle={companyName}
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Capture Lead"}</Button></>}>
+      <div className="bg-muted/50 rounded-lg p-3 text-sm"><span className="text-muted-foreground">Company:</span> <span className="font-medium">{companyName}</span></div>
+      <div><Label>Lead Title <span className="text-red-500">*</span></Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Infrastructure consulting opportunity" /></div>
+      <div><Label>Source</Label>
+        <Select value={source} onValueChange={setSource}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent className="bg-popover z-[9999]">
+            <SelectItem value="inbound">Inbound</SelectItem>
+            <SelectItem value="referral">Referral</SelectItem>
+            <SelectItem value="outbound">Outbound</SelectItem>
+            <SelectItem value="job_board">Job Board</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select></div>
+      <div><Label>Notes</Label><Textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} /></div>
     </SlideInPanel>
   );
 }

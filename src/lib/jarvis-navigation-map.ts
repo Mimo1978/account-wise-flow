@@ -40,8 +40,8 @@ export const navigationMap: Record<string, NavigationEntry> = {
   },
   insights: {
     path: "/insights",
-    label: "Revenue Intelligence",
-    keywords: ["insights", "analytics", "intelligence", "reports", "revenue", "executive insights"],
+    label: "Analytics & Intelligence",
+    keywords: ["insights", "analytics", "intelligence", "reports", "revenue", "executive insights", "win rate", "forecast", "pipeline chart"],
   },
   canvas: {
     path: "/canvas",

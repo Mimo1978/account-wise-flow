@@ -68,7 +68,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
     { path: '/talent', label: 'Talent', icon: Database, jarvisId: 'nav-talent' },
     { path: '/jobs', label: 'Jobs', icon: BookOpen, jarvisId: 'nav-jobs' },
     { path: '/outreach', label: 'Outreach', icon: Megaphone, jarvisId: 'nav-outreach' },
-    { path: '/insights', label: 'Insights', icon: BarChart3, jarvisId: 'nav-insights' },
+    { path: '/insights', label: 'Analytics', icon: BarChart3, jarvisId: 'nav-analytics' },
   ];
 
   const aiNavItems: typeof navItems = [];

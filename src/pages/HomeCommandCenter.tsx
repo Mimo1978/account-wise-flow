@@ -824,61 +824,7 @@ const HomeCommandCenter = () => {
           )}
         </section>
 
-        {/* ═══ 8. SOWS & CONTRACTS (collapsible) ═══ */}
-        <section data-jarvis-section="sows-contracts">
-          <SectionHeader title="SOWs & Contracts" icon={FileText} accentColor="bg-muted-foreground">
-            <Button size="sm" className="gap-1.5" onClick={() => setSowOpen(true)} data-jarvis-id="home-add-sow-button">
-              <Plus className="w-3.5 h-3.5" /> Add SOW
-            </Button>
-          </SectionHeader>
-          {sowsLoading ? (
-            <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"><CardContent className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></CardContent></Card>
-          ) : sows.length === 0 ? (
-            <EmptyPanel title="No SOWs or contracts" description="Add statements of work to track renewals, billing and contract health."
-              icon={FileText} ctas={[{ label: 'Add SOW', onClick: () => setSowOpen(true) }, { label: 'View Companies', to: '/companies', variant: 'outline' }]} />
-          ) : (
-            <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
-              <button onClick={() => setSowsExpanded(!sowsExpanded)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/30 transition-colors">
-                <span className="text-sm font-medium text-foreground">{sows.length} SOW{sows.length !== 1 ? 's' : ''} & contract{sows.length !== 1 ? 's' : ''}</span>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {sowsExpanded ? 'Collapse' : 'Expand'}
-                  <ChevronDown className={`w-4 h-4 transition-transform ${sowsExpanded ? 'rotate-180' : ''}`} />
-                </div>
-              </button>
-              {sowsExpanded && (
-                <div className="border-t border-border overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/30">
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Ref</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Company</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Billing</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Value</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">End Date</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Renewal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sows.map((sow, i) => (
-                        <tr key={sow.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer ${i % 2 === 1 ? 'bg-muted/10' : ''}`}
-                          onClick={() => openSowDetail(sow)}>
-                          <td className="px-4 py-3 font-medium text-foreground">{sow.sow_ref || '—'}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{sow.companies?.name ?? '—'}</td>
-                          <td className="px-4 py-3"><Badge variant={sow.status === 'signed' ? 'default' : sow.status === 'expired' ? 'destructive' : 'secondary'} className="text-xs capitalize">{sow.status}</Badge></td>
-                          <td className="px-4 py-3"><Badge variant="outline" className="text-xs capitalize">{sow.billing_model.replace('_', ' ')}</Badge></td>
-                          <td className="px-4 py-3 text-muted-foreground">{sow.value > 0 ? `${sow.currency} ${sow.value.toLocaleString()}` : '—'}</td>
-                          <td className="px-4 py-3 text-muted-foreground text-xs">{sow.end_date ? format(new Date(sow.end_date), 'dd MMM yyyy') : '—'}</td>
-                          <td className="px-4 py-3 text-muted-foreground text-xs">{sow.renewal_date ? format(new Date(sow.renewal_date), 'dd MMM yyyy') : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Card>
-          )}
-        </section>
+        {/* SOWs & Contracts section removed — documents now live in /documents hub */}
 
         {/* ═══ MODALS ═══ */}
         <CreateEngagementModal open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) setConvertDeal(null); }}

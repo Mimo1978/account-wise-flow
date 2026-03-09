@@ -3,9 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface Deal {
   id: string;
-  workspace_id: string;
-  company_id: string;
+  workspace_id: string | null;
+  company_id: string | null;
   engagement_id: string | null;
+  title: string;
+  /** @deprecated Use title instead */
   name: string;
   stage: string;
   owner_id: string | null;
@@ -18,7 +20,12 @@ export interface Deal {
   created_at: string;
   updated_at: string;
   companies?: { name: string } | null;
+  crm_companies?: { id: string; name: string } | null;
   engagements?: { name: string } | null;
+  contact_id?: string | null;
+  project_id?: string | null;
+  status?: string;
+  notes?: string | null;
 }
 
 export const DEAL_STAGES = ['lead', 'qualified', 'proposal', 'negotiation', 'won', 'lost'] as const;
@@ -38,12 +45,16 @@ export function useDeals(workspaceId: string | undefined) {
     queryFn: async () => {
       if (!workspaceId) return [];
       const { data, error } = await supabase
-        .from('deals')
-        .select('*, companies(name), engagements(name)')
+        .from('crm_deals')
+        .select('*, crm_companies(id, name)')
         .eq('workspace_id', workspaceId)
         .order('updated_at', { ascending: false });
       if (error) throw error;
-      return (data ?? []) as Deal[];
+      return (data ?? []).map((d: any) => ({
+        ...d,
+        name: d.title, // backward compat
+        companies: d.crm_companies, // backward compat
+      })) as Deal[];
     },
     enabled: !!workspaceId,
   });
@@ -54,8 +65,8 @@ export function useCreateDeal() {
   return useMutation({
     mutationFn: async (input: {
       workspace_id: string;
-      company_id: string;
-      name: string;
+      company_id?: string;
+      title: string;
       stage?: string;
       value?: number;
       probability?: number;
@@ -64,8 +75,8 @@ export function useCreateDeal() {
       next_step_due?: string | null;
     }) => {
       const { data, error } = await supabase
-        .from('deals')
-        .insert(input)
+        .from('crm_deals')
+        .insert(input as any)
         .select()
         .single();
       if (error) throw error;
@@ -80,10 +91,10 @@ export function useCreateDeal() {
 export function useUpdateDeal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & Partial<Omit<Deal, 'id' | 'workspace_id' | 'created_at' | 'updated_at' | 'companies' | 'engagements'>>) => {
+    mutationFn: async ({ id, ...updates }: { id: string } & Record<string, any>) => {
       const { data, error } = await supabase
-        .from('deals')
-        .update(updates)
+        .from('crm_deals')
+        .update(updates as any)
         .eq('id', id)
         .select()
         .single();

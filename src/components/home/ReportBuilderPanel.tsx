@@ -83,7 +83,7 @@ export function ReportBuilderPanel({ open, onOpenChange, preselectedType, autoDo
             .eq('workspace_id', wsId)
             .order('stage') as { data: any[] | null };
           rows = (data ?? []).map((d) => ({
-            Deal: d.name,
+            Deal: d.title,
             Stage: d.stage,
             Value: `${d.currency} ${Number(d.value).toLocaleString()}`,
             Probability: `${d.probability}%`,

@@ -37,7 +37,7 @@ export function useAnalyticsCharts(workspaceId: string | undefined) {
     queryFn: async () => {
       if (!workspaceId) return [];
       const { data, error } = await supabase
-        .from('deals')
+        .from('crm_deals')
         .select('stage, value, probability')
         .eq('workspace_id', workspaceId);
       if (error) throw error;

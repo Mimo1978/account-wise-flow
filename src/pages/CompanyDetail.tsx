@@ -841,8 +841,7 @@ export default function CompanyDetail() {
                           engagementScore: 50,
                         }}
                         onContactClick={(contact) => {
-                          setSelectedContactId(contact.id);
-                          setContactDetailOpen(true);
+                          navigate(`/contacts/${contact.id}`, { state: { from: `/companies/${id}`, fromLabel: `Back to ${company.name}` } });
                         }}
                       />
                     </div>

@@ -160,7 +160,7 @@ const JobDetail = () => {
     createDeal.mutate({
       workspace_id: currentWorkspace.id,
       company_id: job.company_id,
-      name: dealName,
+      title: dealName,
       stage: dealStage,
       value: dealValue,
       expected_close_date: dealCloseDate || null,

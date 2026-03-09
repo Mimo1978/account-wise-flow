@@ -169,7 +169,7 @@ const Canvas = () => {
   
   // Back to companies handler
   const handleBackToCompanies = () => {
-    navigate('/companies');
+    navigate(backTo);
   };
 
   const handleCompanySaveAndSwitch = () => {

@@ -608,7 +608,7 @@ const HomeCommandCenter = () => {
         </div>
 
         {/* ═══ 2. PIPELINE SNAPSHOT (hero) ═══ */}
-        <section data-j data-jarvis-section="pipeline-snapshot"arvis-id="home-pipeline-snapshot">
+        <section data-jarvis-section="pipeline-snapshot" data-jarvis-id="home-pipeline-snapshot">
           <SectionHeader title="Pipeline Snapshot" icon={TrendingUp} accentColor="bg-primary">
             <div className="text-xs text-muted-foreground">
               Total: £{totalPipelineValue.toLocaleString()} · Weighted: £{weightedPipelineValue.toLocaleString()} · 30d: £{next30Forecast.toLocaleString()}

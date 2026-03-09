@@ -501,15 +501,49 @@ const HomeCommandCenter = () => {
   const handleMarkOverdue = async (inv: Invoice) => { try { await updateInvoice.mutateAsync({ id: inv.id, status: 'overdue' }); toast.success('Invoice marked as overdue'); } catch { toast.error('Failed to update invoice'); } };
   const handleMarkPaid = async (inv: Invoice) => { try { await updateInvoice.mutateAsync({ id: inv.id, status: 'paid', paid_date: new Date().toISOString().split('T')[0] }); toast.success('Invoice marked as paid'); } catch { toast.error('Failed to update invoice'); } };
 
+  // ── Document expiry alerts ──
+  const { data: expiringDocs = [] } = useQuery({
+    queryKey: ['commercial_documents_expiring', currentWorkspace?.id],
+    queryFn: async () => {
+      if (!currentWorkspace?.id) return [];
+      const { data, error } = await supabase
+        .from('commercial_documents' as any)
+        .select('id, name, type, end_date, status, companies(id, name)')
+        .eq('workspace_id', currentWorkspace.id)
+        .not('end_date', 'is', null)
+        .not('status', 'in', '("cancelled","expired")')
+        .order('end_date');
+      if (error) { console.error('doc expiry query:', error); return []; }
+      return data || [];
+    },
+    enabled: !!currentWorkspace?.id,
+  });
+
   // ── Alerts ──
   const alerts = useMemo(() => {
     const items: { label: string; color: string; onClick: () => void }[] = [];
     if (billing.overdueCount > 0) items.push({ label: `${billing.overdueCount} overdue invoice${billing.overdueCount !== 1 ? 's' : ''} · £${billing.overdueAmount.toLocaleString()}`, color: 'bg-destructive/10 text-destructive hover:bg-destructive/20', onClick: () => setBillingExpanded(true) });
     const renewalsDue30 = buildCriticalDates(sows, [], [], 30).length;
-    if (renewalsDue30 > 0) items.push({ label: `${renewalsDue30} renewal${renewalsDue30 !== 1 ? 's' : ''} due within 30 days`, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 hover:bg-amber-200', onClick: () => setSowsExpanded(true) });
-    // Jobs with no activity in 14 days — use jobsSummary
+    if (renewalsDue30 > 0) items.push({ label: `${renewalsDue30} renewal${renewalsDue30 !== 1 ? 's' : ''} due within 30 days`, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 hover:bg-amber-200', onClick: () => navigate('/documents') });
+
+    // Document expiry alerts
+    const today = startOfDay(new Date());
+    for (const doc of expiringDocs as any[]) {
+      if (!doc.end_date) continue;
+      const endDate = startOfDay(new Date(doc.end_date));
+      const days = differenceInDays(endDate, today);
+      const companyLabel = doc.companies?.name ? ` (${doc.companies.name})` : '';
+      if (days < 0) {
+        items.push({ label: `🔴 ${doc.name} — EXPIRED${companyLabel}`, color: 'bg-destructive/10 text-destructive hover:bg-destructive/20', onClick: () => navigate('/documents') });
+      } else if (days <= 30) {
+        items.push({ label: `🔴 ${doc.name} expiring in ${days}d${companyLabel}`, color: 'bg-destructive/10 text-destructive hover:bg-destructive/20', onClick: () => navigate('/documents') });
+      } else if (days <= 90) {
+        items.push({ label: `🟡 ${doc.name} expiring in ${days}d${companyLabel}`, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 hover:bg-amber-200', onClick: () => navigate('/documents') });
+      }
+    }
+
     return items;
-  }, [billing, sows]);
+  }, [billing, sows, expiringDocs]);
 
   // Auto-expand SOWs if they have entries
   useEffect(() => { if (sows.length > 0) setSowsExpanded(false); }, [sows.length]);

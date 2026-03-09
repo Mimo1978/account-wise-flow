@@ -1131,3 +1131,108 @@ function EditCompanyPanel({ open, onOpenChange, company, onSaved }: {
     </Sheet>
   );
 }
+
+/* ─── Add Contact Dialog (local) ─── */
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+
+function AddContactDialog({ open, onOpenChange, companyId, companyName, onAdded }: {
+  open: boolean; onOpenChange: (v: boolean) => void; companyId: string; companyName: string; onAdded: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [title, setTitle] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dept, setDept] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!name.trim()) { toast({ title: "Name required", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("contacts").insert({
+        name, title: title || null, email: email || null, phone: phone || null,
+        department: dept || null, company_id: companyId,
+      } as any);
+      if (error) throw error;
+      toast({ title: "Contact added" });
+      onAdded();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>Add Contact to {companyName}</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-2">
+          <div><Label>Name *</Label><Input value={name} onChange={e => setName(e.target.value)} placeholder="Full name" /></div>
+          <div><Label>Title</Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Job title" /></div>
+          <div><Label>Email</Label><Input value={email} onChange={e => setEmail(e.target.value)} type="email" /></div>
+          <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} /></div>
+          <div><Label>Department</Label><Input value={dept} onChange={e => setDept(e.target.value)} /></div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving}>{saving ? "Adding…" : "Add Contact"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── Log Activity Dialog (local) ─── */
+function LogActivityDialog({ open, onOpenChange, companyId, defaultType }: {
+  open: boolean; onOpenChange: (v: boolean) => void; companyId: string; defaultType: string;
+}) {
+  const [type, setType] = useState(defaultType);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setType(defaultType); }, [defaultType]);
+
+  const handleSave = async () => {
+    if (!subject.trim()) { toast({ title: "Subject required", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("crm_activities" as any).insert({
+        type, subject, body: body || null, company_id: companyId,
+        status: "completed", direction: "outbound",
+      } as any);
+      if (error) throw error;
+      toast({ title: "Activity logged" });
+      onOpenChange(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>Log Activity</DialogTitle></DialogHeader>
+        <div className="space-y-3 py-2">
+          <div>
+            <Label>Type</Label>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-popover z-[9999]">
+                <SelectItem value="call">Call</SelectItem>
+                <SelectItem value="email">Email</SelectItem>
+                <SelectItem value="meeting">Meeting</SelectItem>
+                <SelectItem value="note">Note</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div><Label>Subject *</Label><Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Brief description" /></div>
+          <div><Label>Notes</Label><Textarea rows={3} value={body} onChange={e => setBody(e.target.value)} /></div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Log Activity"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

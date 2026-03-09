@@ -176,7 +176,7 @@ export default function CompanyDetail() {
 
       // First try to find existing crm_companies record by name
       const { data: existing } = await supabase
-        .from("crm_companies" as any).select("id")
+        .from("crm_companies").select("id")
         .eq("name", companyName).limit(1);
 
       if (existing && existing.length > 0) {
@@ -186,12 +186,12 @@ export default function CompanyDetail() {
 
       // Create one
       const { data: created, error } = await supabase
-        .from("crm_companies" as any).insert({
+        .from("crm_companies").insert({
           name: companyName,
           industry: rawCompany.industry || null,
           website: rawCompany.website || null,
           phone: rawCompany.switchboard || null,
-        } as any).select("id").single();
+        }).select("id").single();
 
       if (error) {
         console.error("[CompanyDetail] Failed to create crm_companies record:", error);

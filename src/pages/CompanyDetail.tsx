@@ -600,21 +600,6 @@ export default function CompanyDetail() {
               valueClass={openDealsValue > 0 ? "text-green-600" : undefined} />
           </div>
 
-          {/* Owner popover */}
-          <Popover open={ownerPopoverOpen} onOpenChange={setOwnerPopoverOpen}>
-            <PopoverTrigger asChild><span /></PopoverTrigger>
-            <PopoverContent className="w-56 p-1" align="start">
-              <p className="px-3 py-2 text-xs font-medium text-muted-foreground">Assign Account Owner</p>
-              {workspaceUsers.map((u: any) => (
-                <button key={u.id} onClick={() => handleOwnerAssign(u.id, u.name)}
-                  className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-muted flex items-center gap-2">
-                  <Avatar className="h-5 w-5"><AvatarFallback className="text-[10px]">{u.name.charAt(0)}</AvatarFallback></Avatar>
-                  {u.name}
-                </button>
-              ))}
-              {workspaceUsers.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">No workspace users found</p>}
-            </PopoverContent>
-          </Popover>
 
           {/* ACTION BAR */}
           <div className="flex items-center gap-2 flex-wrap">

@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Contact } from "@/lib/types";
+import { usePermissions } from "@/hooks/use-permissions";
 import { AccountCanvas } from "@/components/canvas/AccountCanvas";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

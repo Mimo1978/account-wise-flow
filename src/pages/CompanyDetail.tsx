@@ -601,10 +601,7 @@ export default function CompanyDetail() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => {
-              const tab = document.querySelector('[data-jarvis-id="company-tab-canvas"]') as HTMLElement;
-              tab?.click();
-            }} data-jarvis-id="company-open-canvas-button">
+            <Button variant="outline" size="sm" onClick={() => navigate(`/canvas?company=${id}`, { state: { from: `/companies/${id}`, fromLabel: `Back to ${company.name}` } })} data-jarvis-id="company-open-canvas-button">
               <Network className="h-4 w-4 mr-1" /> Open on Canvas
             </Button>
           </div>

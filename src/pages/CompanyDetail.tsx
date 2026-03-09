@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Contact } from "@/lib/types";
+import { AccountCanvas } from "@/components/canvas/AccountCanvas";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -601,10 +602,7 @@ export default function CompanyDetail() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button variant="outline" size="sm" onClick={() => {
-              const tab = document.querySelector('[data-jarvis-id="company-tab-canvas"]') as HTMLElement;
-              tab?.click();
-            }} data-jarvis-id="company-open-canvas-button">
+            <Button variant="outline" size="sm" onClick={() => navigate(`/canvas?company=${id}`, { state: { from: `/companies/${id}`, fromLabel: `Back to ${company.name}` } })} data-jarvis-id="company-open-canvas-button">
               <Network className="h-4 w-4 mr-1" /> Open on Canvas
             </Button>
           </div>
@@ -802,13 +800,55 @@ export default function CompanyDetail() {
 
           {/* ─── CANVAS TAB ─── */}
           <TabsContent value="canvas">
-            <Card><CardContent className="py-12 text-center">
-              <Network className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-muted-foreground mb-3">Canvas view for {company.name}</p>
-              <Button variant="outline" onClick={() => navigate(`/canvas?company_id=${id}`)}>
-                <Network className="h-4 w-4 mr-1" /> Open Full Canvas
-              </Button>
-            </CardContent></Card>
+            {contacts.length === 0 ? (
+              <Card><CardContent className="py-12 text-center">
+                <Users className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+                <p className="font-medium mb-1">No contacts available</p>
+                <p className="text-sm text-muted-foreground mb-4">Add contacts to {company.name} to view them on the canvas.</p>
+                <Button size="sm" onClick={() => setAddContactOpen(true)}><Plus className="h-4 w-4 mr-1" /> Add Contact</Button>
+              </CardContent></Card>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{contacts.length} contacts mapped</p>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/canvas?company=${id}`, { state: { from: `/companies/${id}`, fromLabel: `Back to ${company.name}` } })}>
+                    <ExternalLink className="h-4 w-4 mr-1" /> Open Full Canvas
+                  </Button>
+                </div>
+                <Card className="overflow-hidden">
+                  <CardContent className="p-0">
+                    <div className="h-[500px] relative">
+                      <AccountCanvas
+                        account={{
+                          id: company.id,
+                          name: company.name,
+                          industry: company.industry || 'Other',
+                          size: company.size || 'Unknown',
+                          contacts: contacts.map((c: any) => ({
+                            id: c.id,
+                            name: c.name,
+                            title: c.title || '',
+                            department: c.department || '',
+                            seniority: c.seniority || 'mid',
+                            email: c.email || '',
+                            phone: c.phone || '',
+                            status: c.status || 'unknown',
+                            engagementScore: 50,
+                            managerId: c.manager_id ?? null,
+                            siblingOrder: 0,
+                          })),
+                          lastUpdated: company.updated_at,
+                          engagementScore: 50,
+                        }}
+                        onContactClick={(contact) => {
+                          navigate(`/contacts/${contact.id}`, { state: { from: `/companies/${id}`, fromLabel: `Back to ${company.name}` } });
+                        }}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </TabsContent>
 
           {/* ─── INVOICES TAB ─── */}

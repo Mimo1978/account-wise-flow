@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, Brain, Network, Table2, UserPlus, Upload, Users, GitBranch, ArrowLeft, Loader2, Building2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,7 +47,10 @@ import { useOrgChartTree } from "@/hooks/use-org-chart-tree";
 
 const Canvas = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const backTo = (location.state as any)?.from || '/companies';
+  const backLabel = (location.state as any)?.fromLabel || 'Companies';
   const {
     showOnboardingModal,
     showTooltips,
@@ -166,7 +169,7 @@ const Canvas = () => {
   
   // Back to companies handler
   const handleBackToCompanies = () => {
-    navigate('/companies');
+    navigate(backTo);
   };
 
   const handleCompanySaveAndSwitch = () => {
@@ -486,7 +489,7 @@ const Canvas = () => {
         className="gap-2 shrink-0"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span className="hidden sm:inline">Companies</span>
+        <span className="hidden sm:inline">{backLabel}</span>
       </Button>
       <div className="h-6 w-px bg-border shrink-0" />
       <div className="min-w-0 shrink-0">

@@ -130,6 +130,81 @@ function SlideInPanel({ open, onClose, title, subtitle, children, footer }: {
   );
 }
 
+/* ─── Company Documents Section ─── */
+const DOC_TYPE_BADGES: Record<string, { label: string; color: string }> = {
+  sow: { label: "SOW", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
+  msa: { label: "MSA", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" },
+  proposal: { label: "Proposal", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" },
+  rfp: { label: "RFP", color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
+  contract: { label: "Contract", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
+  nda: { label: "NDA", color: "bg-muted text-muted-foreground" },
+  other: { label: "Other", color: "bg-muted text-muted-foreground" },
+};
+const DOC_STATUS_BADGES: Record<string, { label: string; color: string }> = {
+  draft: { label: "Draft", color: "bg-muted text-muted-foreground" },
+  sent: { label: "Sent", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
+  under_review: { label: "Under Review", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" },
+  signed: { label: "Signed", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
+  active: { label: "Active", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
+  expired: { label: "Expired", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" },
+  cancelled: { label: "Cancelled", color: "bg-muted text-muted-foreground" },
+};
+function CompanyDocumentsSection({ docs, companyName, companyId, onUpload }: { docs: any[]; companyName: string; companyId: string; onUpload: () => void }) {
+  const activeAgreements = docs.filter((d: any) => ["msa", "contract"].includes(d.type) && ["active", "signed"].includes(d.status));
+  const sowDocs = docs.filter((d: any) => d.type === "sow");
+  const proposals = docs.filter((d: any) => ["proposal", "rfp"].includes(d.type));
+  const expiredDocs = docs.filter((d: any) => ["expired", "cancelled"].includes(d.status));
+  const otherDocs = docs.filter((d: any) => !activeAgreements.includes(d) && !sowDocs.includes(d) && !proposals.includes(d) && !expiredDocs.includes(d));
+  const renderGroup = (title: string, items: any[]) => {
+    if (items.length === 0) return null;
+    return (
+      <div className="space-y-2">
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</h4>
+        {items.map((doc: any) => {
+          const t = DOC_TYPE_BADGES[doc.type] || DOC_TYPE_BADGES.other;
+          const s = DOC_STATUS_BADGES[doc.status] || DOC_STATUS_BADGES.draft;
+          return (
+            <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
+              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {doc.value > 0 ? `${doc.currency || "GBP"} ${Number(doc.value).toLocaleString()} · ` : ""}
+                  {doc.start_date && doc.end_date ? `${doc.start_date} – ${doc.end_date}` : doc.start_date ? `From ${doc.start_date}` : ""}
+                </p>
+              </div>
+              <Badge className={`text-[10px] ${t.color} border-0`}>{t.label}</Badge>
+              <Badge className={`text-[10px] ${s.color} border-0`}>{s.label}</Badge>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+  if (docs.length === 0) {
+    return (
+      <Card><CardContent className="py-12 text-center">
+        <FileText className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+        <p className="text-sm text-muted-foreground mb-3">No documents for {companyName}</p>
+        <Button variant="outline" size="sm" onClick={onUpload} className="gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Document</Button>
+      </CardContent></Card>
+    );
+  }
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">{docs.length} document{docs.length !== 1 ? "s" : ""}</p>
+        <Button variant="outline" size="sm" onClick={onUpload} className="gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Document</Button>
+      </div>
+      {renderGroup("Active Agreements", activeAgreements)}
+      {renderGroup("Statements of Work", sowDocs)}
+      {renderGroup("Proposals & Bids", proposals)}
+      {renderGroup("Other", otherDocs)}
+      {renderGroup("Expired / Archived", expiredDocs)}
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════════
    MAIN PAGE
    ══════════════════════════════════════════════════════════════════ */

@@ -851,28 +851,27 @@ export default function CompanyDetail() {
         }}
       />
 
-      {/* Add Contact Modal */}
+      {/* Add Contact — simple dialog */}
       {addContactOpen && (
-        <AddContactModal
+        <AddContactDialog
           open={addContactOpen}
           onOpenChange={setAddContactOpen}
           companyId={id!}
           companyName={company.name}
-          onContactAdded={() => {
+          onAdded={() => {
             queryClient.invalidateQueries({ queryKey: ["company-contacts", id] });
             setAddContactOpen(false);
           }}
         />
       )}
 
-      {/* Log Activity Modal */}
+      {/* Log Activity — simple dialog */}
       {logActivityOpen && (
-        <LogActivityModal
+        <LogActivityDialog
           open={logActivityOpen}
           onOpenChange={setLogActivityOpen}
-          defaultType={logActivityType as any}
-          companyId={id}
-          companyName={company.name}
+          companyId={id!}
+          defaultType={logActivityType}
         />
       )}
     </div>

@@ -582,7 +582,7 @@ const HomeCommandCenter = () => {
                   const isActive = pipelineFilter === null || pipelineFilter === stage;
                   return <PipelineChevron key={stage} stage={stage} label={DEAL_STAGE_LABELS[stage]} count={stageDeals.length} total={stageTotal}
                     isFirst={idx === 0} isLast={idx === DEAL_STAGES.length - 1} isActive={isActive}
-                    onClick={() => setPipelineFilter(prev => prev === stage ? null : stage)} />;
+                    onClick={() => navigate(`/deals?stage=${stage}`, { state: { from: '/home' } })} />;
                 })}
               </div>
               {(() => {

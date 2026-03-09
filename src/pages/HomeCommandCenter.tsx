@@ -561,6 +561,9 @@ const HomeCommandCenter = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Link to="/insights" className="text-xs text-primary hover:text-primary/80 transition-colors font-medium">
+              View Analytics →
+            </Link>
             <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground" onClick={handleStartTour} data-jarvis-id="take-tour-button">
               <Compass className="w-3.5 h-3.5" /> Take the Tour
             </Button>
@@ -605,7 +608,7 @@ const HomeCommandCenter = () => {
         </div>
 
         {/* ═══ 2. PIPELINE SNAPSHOT (hero) ═══ */}
-        <section data-j data-jarvis-section="pipeline-snapshot"arvis-id="home-pipeline-snapshot">
+        <section data-jarvis-section="pipeline-snapshot" data-jarvis-id="home-pipeline-snapshot">
           <SectionHeader title="Pipeline Snapshot" icon={TrendingUp} accentColor="bg-primary">
             <div className="text-xs text-muted-foreground">
               Total: £{totalPipelineValue.toLocaleString()} · Weighted: £{weightedPipelineValue.toLocaleString()} · 30d: £{next30Forecast.toLocaleString()}
@@ -654,6 +657,30 @@ const HomeCommandCenter = () => {
             </div>
           )}
         </section>
+
+        {/* ═══ METRICS BAR ═══ */}
+        {(() => {
+          const wonD = deals.filter(d => d.stage === 'won');
+          const lostD = deals.filter(d => d.stage === 'lost');
+          const wr = wonD.length + lostD.length > 0 ? Math.round((wonD.length / (wonD.length + lostD.length)) * 100) : null;
+          const avgDeal = activeDeals.length > 0 ? Math.round(activeDeals.reduce((s, d) => s + d.value, 0) / activeDeals.length) : null;
+          const pipelineHealth = activeDeals.length > 0 ? (activeDeals.length >= 5 ? 'Strong' : activeDeals.length >= 2 ? 'Building' : 'Thin') : null;
+          return (deals.length > 0 || billing.overdueCount > 0) ? (
+            <div className="flex flex-wrap items-center gap-6 px-4 py-2 rounded-lg bg-muted/30 text-xs text-muted-foreground" data-jarvis-id="home-metrics-bar">
+              <Link to="/insights" className="hover:text-foreground transition-colors cursor-pointer">
+                Win Rate: <span className="font-semibold text-foreground">{wr !== null ? `${wr}%` : '—'}</span>
+              </Link>
+              <span>|</span>
+              <span>Avg Deal Size: <span className="font-semibold text-foreground">{avgDeal !== null ? `£${avgDeal.toLocaleString()}` : '—'}</span></span>
+              <span>|</span>
+              <span>Pipeline Health: <span className="font-semibold text-foreground">{pipelineHealth ?? '—'}</span></span>
+              <span>|</span>
+              <Link to="/insights" className="hover:text-foreground transition-colors cursor-pointer">
+                Overdue Invoices: <span className={`font-semibold ${billing.overdueCount > 0 ? 'text-destructive' : 'text-foreground'}`}>£{billing.overdueAmount.toLocaleString()}</span>
+              </Link>
+            </div>
+          ) : null;
+        })()}
 
         {/* ═══ 3. MY WORK + DIARY (50/50) ═══ */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

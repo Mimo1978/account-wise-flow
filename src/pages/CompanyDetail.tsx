@@ -745,9 +745,32 @@ export default function CompanyDetail() {
                     <InlineField label="LinkedIn" value={(company as any).linkedin_url} field="linkedin_url" onSave={handleInlineUpdate} isLink />
                     <div className="flex items-start gap-2 py-1">
                       <span className="text-muted-foreground w-24 shrink-0 text-xs pt-0.5">Account Owner</span>
-                      <button onClick={() => setOwnerPopoverOpen(true)} className="text-foreground hover:underline text-left">
-                        {ownerName || <span className="text-muted-foreground">Unassigned</span>}
-                      </button>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="text-foreground hover:underline text-left flex items-center gap-1">
+                            {ownerName || <span className="text-muted-foreground">Unassigned</span>}
+                            {canAssignOwner && <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-2" align="start">
+                          {canAssignOwner ? (
+                            <>
+                              <p className="px-2 py-1 text-xs font-semibold text-muted-foreground">Reassign Owner</p>
+                              {workspaceUsers.map((u: any) => (
+                                <button key={u.id} onClick={() => handleOwnerAssign(u.id, u.name)}
+                                  className={cn("w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-muted flex items-center gap-2", u.name === ownerName && "bg-muted")}>
+                                  <Avatar className="h-5 w-5"><AvatarFallback className="text-[10px]">{u.name.charAt(0)}</AvatarFallback></Avatar>
+                                  {u.name}
+                                  {u.name === ownerName && <CheckCircle2 className="h-3.5 w-3.5 text-primary ml-auto" />}
+                                </button>
+                              ))}
+                              {workspaceUsers.length === 0 && <p className="px-2 py-2 text-xs text-muted-foreground">No workspace users found</p>}
+                            </>
+                          ) : (
+                            <p className="px-2 py-2 text-xs text-muted-foreground">Only admins and managers can reassign ownership.</p>
+                          )}
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <Separator />
                     <div className="text-xs text-muted-foreground space-y-1">

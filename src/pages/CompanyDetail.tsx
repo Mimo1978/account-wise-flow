@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Contact } from "@/lib/types";
+import { usePermissions } from "@/hooks/use-permissions";
 import { AccountCanvas } from "@/components/canvas/AccountCanvas";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -215,8 +216,9 @@ export default function CompanyDetail() {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { isAdmin, isManager } = usePermissions();
+  const canAssignOwner = isAdmin || isManager;
 
-  // Panel states
   const [editOpen, setEditOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [addDealOpen, setAddDealOpen] = useState(false);
@@ -536,39 +538,69 @@ export default function CompanyDetail() {
             <QuickStat icon={TrendingUp} label="Engagement Score" value={`${company.engagement_score || 50}%`} />
             <QuickStat icon={Users} label="Total Contacts" value={String(contacts.length)} />
             <QuickStat icon={Clock} label="Last Activity" value={fmtDate(company.updated_at)} />
-            <Card className="cursor-pointer" onClick={() => setOwnerPopoverOpen(true)} data-jarvis-id="company-assign-owner">
-              <CardContent className="pt-4 pb-3 flex items-center gap-3">
-                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  {ownerName ? (
-                    <Avatar className="h-9 w-9"><AvatarFallback className="text-xs bg-primary/10 text-primary">{ownerName.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
-                  ) : <User className="h-4 w-4 text-primary" />}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{ownerName || "Unassigned"}</p>
-                  <p className="text-xs text-muted-foreground">Account Lead</p>
-                </div>
-              </CardContent>
-            </Card>
+            <Popover open={ownerPopoverOpen} onOpenChange={setOwnerPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Card className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" data-jarvis-id="company-assign-owner">
+                  <CardContent className="pt-4 pb-3 flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      {ownerName ? (
+                        <Avatar className="h-9 w-9"><AvatarFallback className="text-xs bg-primary/10 text-primary">{ownerName.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
+                      ) : <User className="h-4 w-4 text-primary" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{ownerName || "Unassigned"}</p>
+                      <p className="text-xs text-muted-foreground">Account Lead</p>
+                    </div>
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  </CardContent>
+                </Card>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-2" align="start" sideOffset={4}>
+                <p className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {(canAssignOwner) ? "Assign Account Owner" : "Account Owner"}
+                </p>
+                {ownerName && (
+                  <div className="px-2 py-2 mb-1 rounded-md bg-primary/5 border border-primary/10 flex items-center gap-2">
+                    <Avatar className="h-6 w-6"><AvatarFallback className="text-[10px] bg-primary/10 text-primary">{ownerName.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}</AvatarFallback></Avatar>
+                    <span className="text-sm font-medium text-foreground">{ownerName}</span>
+                    <Badge variant="secondary" className="ml-auto text-[10px]">Current</Badge>
+                  </div>
+                )}
+                {canAssignOwner ? (
+                  <>
+                    {workspaceUsers.length > 0 ? (
+                      <div className="space-y-0.5 max-h-48 overflow-y-auto">
+                        {workspaceUsers.map((u: any) => (
+                          <button key={u.id} onClick={() => handleOwnerAssign(u.id, u.name)}
+                            className={cn("w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-muted flex items-center gap-2 transition-colors", u.name === ownerName && "bg-muted")}>
+                            <Avatar className="h-5 w-5"><AvatarFallback className="text-[10px]">{u.name.charAt(0)}</AvatarFallback></Avatar>
+                            <span className="truncate">{u.name}</span>
+                            {u.name === ownerName && <CheckCircle2 className="h-3.5 w-3.5 text-primary ml-auto shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="px-2 py-3 text-xs text-muted-foreground text-center">No workspace users found</p>
+                    )}
+                    {ownerName && (
+                      <button onClick={() => handleOwnerAssign("", "")}
+                        className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-destructive/10 text-destructive flex items-center gap-2 mt-1 border-t border-border pt-2">
+                        <X className="h-3.5 w-3.5" /> Unassign Owner
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <p className="px-2 py-2 text-xs text-muted-foreground">
+                    {ownerName ? `Owned by ${ownerName}` : "No owner assigned"} — only admins and managers can reassign.
+                  </p>
+                )}
+              </PopoverContent>
+            </Popover>
             <QuickStat icon={DollarSign} label="Pipeline"
               value={openDealsValue > 0 ? `£${openDealsValue.toLocaleString()}` : "£0"}
               valueClass={openDealsValue > 0 ? "text-green-600" : undefined} />
           </div>
 
-          {/* Owner popover */}
-          <Popover open={ownerPopoverOpen} onOpenChange={setOwnerPopoverOpen}>
-            <PopoverTrigger asChild><span /></PopoverTrigger>
-            <PopoverContent className="w-56 p-1" align="start">
-              <p className="px-3 py-2 text-xs font-medium text-muted-foreground">Assign Account Owner</p>
-              {workspaceUsers.map((u: any) => (
-                <button key={u.id} onClick={() => handleOwnerAssign(u.id, u.name)}
-                  className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-muted flex items-center gap-2">
-                  <Avatar className="h-5 w-5"><AvatarFallback className="text-[10px]">{u.name.charAt(0)}</AvatarFallback></Avatar>
-                  {u.name}
-                </button>
-              ))}
-              {workspaceUsers.length === 0 && <p className="px-3 py-2 text-xs text-muted-foreground">No workspace users found</p>}
-            </PopoverContent>
-          </Popover>
 
           {/* ACTION BAR */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -713,9 +745,32 @@ export default function CompanyDetail() {
                     <InlineField label="LinkedIn" value={(company as any).linkedin_url} field="linkedin_url" onSave={handleInlineUpdate} isLink />
                     <div className="flex items-start gap-2 py-1">
                       <span className="text-muted-foreground w-24 shrink-0 text-xs pt-0.5">Account Owner</span>
-                      <button onClick={() => setOwnerPopoverOpen(true)} className="text-foreground hover:underline text-left">
-                        {ownerName || <span className="text-muted-foreground">Unassigned</span>}
-                      </button>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="text-foreground hover:underline text-left flex items-center gap-1">
+                            {ownerName || <span className="text-muted-foreground">Unassigned</span>}
+                            {canAssignOwner && <ChevronDown className="h-3 w-3 text-muted-foreground" />}
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-56 p-2" align="start">
+                          {canAssignOwner ? (
+                            <>
+                              <p className="px-2 py-1 text-xs font-semibold text-muted-foreground">Reassign Owner</p>
+                              {workspaceUsers.map((u: any) => (
+                                <button key={u.id} onClick={() => handleOwnerAssign(u.id, u.name)}
+                                  className={cn("w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-muted flex items-center gap-2", u.name === ownerName && "bg-muted")}>
+                                  <Avatar className="h-5 w-5"><AvatarFallback className="text-[10px]">{u.name.charAt(0)}</AvatarFallback></Avatar>
+                                  {u.name}
+                                  {u.name === ownerName && <CheckCircle2 className="h-3.5 w-3.5 text-primary ml-auto" />}
+                                </button>
+                              ))}
+                              {workspaceUsers.length === 0 && <p className="px-2 py-2 text-xs text-muted-foreground">No workspace users found</p>}
+                            </>
+                          ) : (
+                            <p className="px-2 py-2 text-xs text-muted-foreground">Only admins and managers can reassign ownership.</p>
+                          )}
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <Separator />
                     <div className="text-xs text-muted-foreground space-y-1">

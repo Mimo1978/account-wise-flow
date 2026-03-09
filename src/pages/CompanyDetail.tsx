@@ -544,7 +544,7 @@ export default function CompanyDetail() {
             <TabsTrigger value="contacts" data-jarvis-id="company-tab-contacts">Contacts ({contacts.length})</TabsTrigger>
             <TabsTrigger value="deals" data-jarvis-id="company-tab-deals">Deals ({(deals as any[]).length})</TabsTrigger>
             <TabsTrigger value="projects" data-jarvis-id="company-tab-projects">Projects ({(projects as any[]).length})</TabsTrigger>
-            <TabsTrigger value="documents" data-jarvis-id="company-tab-documents">Documents</TabsTrigger>
+            <TabsTrigger value="documents" data-jarvis-id="company-tab-documents">Documents ({(companyDocs as any[]).length})</TabsTrigger>
             <TabsTrigger value="activity" data-jarvis-id="company-tab-activity">Activity</TabsTrigger>
             <TabsTrigger value="canvas" data-jarvis-id="company-tab-canvas">Canvas</TabsTrigger>
             <TabsTrigger value="invoices" data-jarvis-id="company-tab-invoices">Invoices ({(invoices as any[]).length})</TabsTrigger>

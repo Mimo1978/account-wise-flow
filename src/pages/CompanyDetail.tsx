@@ -216,8 +216,9 @@ export default function CompanyDetail() {
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { isAdmin, isManager } = usePermissions();
+  const canAssignOwner = isAdmin || isManager;
 
-  // Panel states
   const [editOpen, setEditOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [addDealOpen, setAddDealOpen] = useState(false);

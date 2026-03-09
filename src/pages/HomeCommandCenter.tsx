@@ -619,7 +619,7 @@ const HomeCommandCenter = () => {
             <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"><CardContent className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></CardContent></Card>
           ) : deals.length === 0 ? (
             <EmptyPanel title="No deals in pipeline" description="Track consulting and recruitment deals through your sales pipeline."
-              icon={Target} ctas={[{ label: 'Create Deal', onClick: () => setDealOpen(true) }, { label: 'View Companies', to: '/companies', variant: 'outline' }]} />
+              icon={Target} ctas={[{ label: 'Create Deal', onClick: () => setDealOpen(true) }]} />
           ) : (
             <div className="space-y-4">
               <div className="flex items-stretch -space-x-1 overflow-x-auto rounded-xl" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>

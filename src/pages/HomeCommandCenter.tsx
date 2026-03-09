@@ -805,7 +805,7 @@ const HomeCommandCenter = () => {
             <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"><CardContent className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></CardContent></Card>
           ) : invoices.length === 0 ? (
             <EmptyPanel title="No invoices yet" description="Track outstanding invoices, payments and billing milestones here."
-              icon={Receipt} ctas={[{ label: 'Create Invoice', onClick: () => setInvoiceOpen(true) }, { label: 'View Companies', to: '/companies', variant: 'outline' }]} />
+              icon={Receipt} ctas={[{ label: 'Create Invoice', onClick: () => setInvoiceOpen(true) }]} />
           ) : (
             <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
               {/* Collapsed summary — always visible */}

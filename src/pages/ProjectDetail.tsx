@@ -1,4 +1,5 @@
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { PageBackButton } from '@/components/ui/page-back-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -724,10 +725,7 @@ const ProjectDetail = () => {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
-          <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground -ml-2 mb-1" onClick={() => navigate(-1)}>
-            <ChevronLeft className="w-4 h-4" />
-            Back
-          </Button>
+          <PageBackButton fallback="/projects" />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">{engagement.name}</h1>
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary" className="text-xs capitalize">{engagement.engagement_type.replace('_', ' ')}</Badge>

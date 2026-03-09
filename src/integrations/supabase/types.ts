@@ -1391,10 +1391,16 @@ export type Database = {
           created_by: string
           currency: string
           end_date: string | null
+          engagement_id: string | null
+          expected_close_date: string | null
           id: string
+          next_step: string | null
+          next_step_due: string | null
           notes: string | null
           opportunity_id: string | null
+          owner_id: string | null
           payment_terms: string | null
+          probability: number | null
           project_id: string | null
           signed_date: string | null
           stage: string
@@ -1403,6 +1409,7 @@ export type Database = {
           title: string
           updated_at: string
           value: number
+          workspace_id: string | null
         }
         Insert: {
           company_id?: string | null
@@ -1411,10 +1418,16 @@ export type Database = {
           created_by?: string
           currency?: string
           end_date?: string | null
+          engagement_id?: string | null
+          expected_close_date?: string | null
           id?: string
+          next_step?: string | null
+          next_step_due?: string | null
           notes?: string | null
           opportunity_id?: string | null
+          owner_id?: string | null
           payment_terms?: string | null
+          probability?: number | null
           project_id?: string | null
           signed_date?: string | null
           stage?: string
@@ -1423,6 +1436,7 @@ export type Database = {
           title: string
           updated_at?: string
           value?: number
+          workspace_id?: string | null
         }
         Update: {
           company_id?: string | null
@@ -1431,10 +1445,16 @@ export type Database = {
           created_by?: string
           currency?: string
           end_date?: string | null
+          engagement_id?: string | null
+          expected_close_date?: string | null
           id?: string
+          next_step?: string | null
+          next_step_due?: string | null
           notes?: string | null
           opportunity_id?: string | null
+          owner_id?: string | null
           payment_terms?: string | null
+          probability?: number | null
           project_id?: string | null
           signed_date?: string | null
           stage?: string
@@ -1443,6 +1463,7 @@ export type Database = {
           title?: string
           updated_at?: string
           value?: number
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -1471,6 +1492,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "crm_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]

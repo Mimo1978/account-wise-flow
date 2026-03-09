@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +14,14 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, DollarSign, Search, Filter } from "lucide-react";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import { Plus, DollarSign, Search, Link2 } from "lucide-react";
 import { differenceInDays, parseISO, format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { PageBackButton } from "@/components/ui/page-back-button";
 
 const PIPELINE_STAGES = [
   { value: "lead", label: "Lead", color: "bg-blue-500" },
@@ -38,16 +43,31 @@ const STAGE_BADGE: Record<string, string> = {
 
 export default function DealsPage() {
   const queryClient = useQueryClient();
-  const [stageFilter, setStageFilter] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialStage = searchParams.get("stage");
+  const [stageFilter, setStageFilter] = useState<string | null>(initialStage);
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const [linkProjectDealId, setLinkProjectDealId] = useState<string | null>(null);
+  const [projectSearch, setProjectSearch] = useState("");
+
+  const handleStageFilter = (stage: string) => {
+    const newStage = stageFilter === stage ? null : stage;
+    setStageFilter(newStage);
+    if (newStage) {
+      setSearchParams({ stage: newStage });
+    } else {
+      setSearchParams({});
+    }
+  };
 
   const { data: deals = [], isLoading } = useQuery({
     queryKey: ["all-crm-deals"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("crm_deals" as any)
-        .select("*, crm_companies(id, name)")
+        .from("crm_deals")
+        .select("*, crm_companies(id, name), crm_projects(id, name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data || []) as any[];
@@ -57,7 +77,15 @@ export default function DealsPage() {
   const { data: companies = [] } = useQuery({
     queryKey: ["crm-companies-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("crm_companies" as any).select("id, name").order("name");
+      const { data } = await supabase.from("crm_companies").select("id, name").order("name");
+      return (data || []) as any[];
+    },
+  });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ["crm-projects-list"],
+    queryFn: async () => {
+      const { data } = await supabase.from("crm_projects" as any).select("id, name").order("name");
       return (data || []) as any[];
     },
   });
@@ -72,7 +100,6 @@ export default function DealsPage() {
     return result;
   }, [deals, stageFilter, search]);
 
-  // Pipeline chevrons
   const stageTotals = useMemo(() => {
     const map: Record<string, { count: number; value: number }> = {};
     PIPELINE_STAGES.forEach(s => { map[s.value] = { count: 0, value: 0 }; });
@@ -83,8 +110,21 @@ export default function DealsPage() {
     return map;
   }, [deals]);
 
+  const handleLinkProject = async (dealId: string, projectId: string) => {
+    const { error } = await supabase.from("crm_deals").update({ project_id: projectId } as any).eq("id", dealId);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Project linked" });
+    setLinkProjectDealId(null);
+    queryClient.invalidateQueries({ queryKey: ["all-crm-deals"] });
+  };
+
+  const filteredProjects = projects.filter((p: any) =>
+    !projectSearch || p.name?.toLowerCase().includes(projectSearch.toLowerCase())
+  );
+
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
+      <PageBackButton fallback="/home" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Deals</h1>
@@ -99,11 +139,11 @@ export default function DealsPage() {
           const data = stageTotals[s.value];
           const isActive = stageFilter === s.value;
           return (
-            <button key={s.value} onClick={() => setStageFilter(isActive ? null : s.value)}
+            <button key={s.value} onClick={() => handleStageFilter(s.value)}
               className={cn(
-                "relative flex-1 min-w-[120px] py-3 px-4 text-center transition-colors text-sm",
+                "relative flex-1 min-w-[120px] py-3 px-4 text-center transition-all text-sm cursor-pointer",
                 i === 0 ? "rounded-l-lg" : "", i === PIPELINE_STAGES.length - 1 ? "rounded-r-lg" : "",
-                isActive ? `${s.color} text-white` : "bg-muted hover:bg-muted/80 text-foreground",
+                isActive ? `${s.color} text-white ring-2 ring-white ring-offset-2` : "bg-muted hover:brightness-110 text-foreground",
               )}>
               <p className="font-semibold">{s.label}</p>
               <p className={cn("text-xs", isActive ? "text-white/80" : "text-muted-foreground")}>{data.count} · £{(data.value / 1000).toFixed(0)}k</p>
@@ -119,7 +159,7 @@ export default function DealsPage() {
           <Input placeholder="Search deals..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
         </div>
         {stageFilter && (
-          <Button variant="ghost" size="sm" onClick={() => setStageFilter(null)}>Clear filter</Button>
+          <Button variant="ghost" size="sm" onClick={() => handleStageFilter(stageFilter)}>Clear filter</Button>
         )}
       </div>
 
@@ -134,7 +174,8 @@ export default function DealsPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(d => (
-            <Card key={d.id} className="hover:bg-muted/50 transition-colors">
+            <Card key={d.id} className="hover:bg-muted/50 transition-colors cursor-pointer"
+              onClick={() => navigate(`/crm/deals/${d.id}`, { state: { from: '/deals' } })}>
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-semibold text-sm truncate">{d.title}</p>
@@ -144,6 +185,37 @@ export default function DealsPage() {
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{d.crm_companies?.name || "No company"}</span>
                   <span>{d.created_at ? `${differenceInDays(new Date(), parseISO(d.created_at))}d open` : ""}</span>
+                </div>
+                {/* Project link */}
+                <div className="flex items-center gap-2 pt-1" onClick={e => e.stopPropagation()}>
+                  {d.crm_projects?.name ? (
+                    <Badge variant="outline" className="text-xs text-primary cursor-pointer hover:bg-primary/10"
+                      onClick={() => navigate(`/crm/projects/${d.project_id}`, { state: { from: '/deals' } })}>
+                      <Link2 className="h-3 w-3 mr-1" />{d.crm_projects.name}
+                    </Badge>
+                  ) : (
+                    <Popover open={linkProjectDealId === d.id} onOpenChange={v => { setLinkProjectDealId(v ? d.id : null); setProjectSearch(""); }}>
+                      <PopoverTrigger asChild>
+                        <button className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                          <Plus className="h-3 w-3" /> Link Project
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-2" align="start">
+                        <Input placeholder="Search projects..." value={projectSearch} onChange={e => setProjectSearch(e.target.value)} className="h-8 text-xs mb-2" />
+                        <div className="max-h-40 overflow-y-auto space-y-0.5">
+                          {filteredProjects.map((p: any) => (
+                            <button key={p.id} onClick={() => handleLinkProject(d.id, p.id)}
+                              className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-muted truncate">{p.name}</button>
+                          ))}
+                          {filteredProjects.length === 0 && <p className="text-xs text-muted-foreground px-2 py-1">No projects found</p>}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                  {/* Stage prompt for proposal+ without project */}
+                  {!d.project_id && ["proposal", "negotiation", "won"].includes(d.stage) && (
+                    <span className="text-[10px] text-amber-600">No project linked</span>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -171,7 +243,7 @@ function AddDealSheet({ open, onClose, companies, onSaved }: {
     if (!companyId) { toast({ title: "Select a company", variant: "destructive" }); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.from("crm_deals" as any).insert({
+      const { error } = await supabase.from("crm_deals").insert({
         title, value: parseFloat(value) || 0, currency: "GBP",
         status: stage === "won" ? "complete" : stage === "lost" ? "cancelled" : "active",
         stage, company_id: companyId, end_date: endDate || null, notes: notes || null,

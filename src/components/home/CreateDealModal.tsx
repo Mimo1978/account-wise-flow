@@ -50,7 +50,7 @@ export function CreateDealModal({ open, onOpenChange }: Props) {
       await createDeal.mutateAsync({
         workspace_id: currentWorkspace.id,
         company_id: companyId,
-        name: name.trim(),
+        title: name.trim(),
         stage,
         value: parseInt(value) || 0,
         probability: Math.min(100, Math.max(0, parseInt(probability) || 10)),

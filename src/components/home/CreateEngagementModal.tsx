@@ -97,8 +97,8 @@ export function CreateEngagementModal({ open, onOpenChange, prefillCompanyId, pr
       // If created from a deal, link the deal to this engagement
       if (prefillDealId && result?.id) {
         await supabase
-          .from('deals')
-          .update({ engagement_id: result.id })
+          .from('crm_deals')
+          .update({ engagement_id: result.id } as any)
           .eq('id', prefillDealId);
       }
 

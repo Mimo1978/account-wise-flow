@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { PageBackButton } from '@/components/ui/page-back-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +32,7 @@ const ProjectsList = () => {
 
   return (
     <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
+      <PageBackButton fallback="/home" />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Projects</h1>

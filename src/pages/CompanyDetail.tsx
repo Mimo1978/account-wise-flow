@@ -717,10 +717,7 @@ export default function CompanyDetail() {
 
           {/* ─── DOCUMENTS TAB ─── */}
           <TabsContent value="documents">
-            <Card><CardContent className="py-12 text-center">
-              <FileText className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-              <p className="text-muted-foreground mb-3">Document management coming soon.</p>
-            </CardContent></Card>
+            <CompanyDocumentsSection docs={companyDocs} companyName={company.name} companyId={id!} onUpload={() => navigate('/documents')} />
           </TabsContent>
 
           {/* ─── ACTIVITY TAB ─── */}

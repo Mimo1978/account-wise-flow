@@ -78,8 +78,8 @@ export function ReportBuilderPanel({ open, onOpenChange, preselectedType, autoDo
       switch (reportType) {
         case 'pipeline': {
           const { data } = await supabase
-            .from('deals')
-            .select('name, stage, value, currency, probability, expected_close_date')
+            .from('crm_deals')
+            .select('title, stage, value, currency, probability, expected_close_date')
             .eq('workspace_id', wsId)
             .order('stage') as { data: any[] | null };
           rows = (data ?? []).map((d) => ({

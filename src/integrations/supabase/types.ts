@@ -1386,6 +1386,7 @@ export type Database = {
       crm_deals: {
         Row: {
           company_id: string | null
+          contact_id: string | null
           created_at: string
           created_by: string
           currency: string
@@ -1394,7 +1395,9 @@ export type Database = {
           notes: string | null
           opportunity_id: string | null
           payment_terms: string | null
+          project_id: string | null
           signed_date: string | null
+          stage: string
           start_date: string | null
           status: string
           title: string
@@ -1403,6 +1406,7 @@ export type Database = {
         }
         Insert: {
           company_id?: string | null
+          contact_id?: string | null
           created_at?: string
           created_by?: string
           currency?: string
@@ -1411,7 +1415,9 @@ export type Database = {
           notes?: string | null
           opportunity_id?: string | null
           payment_terms?: string | null
+          project_id?: string | null
           signed_date?: string | null
+          stage?: string
           start_date?: string | null
           status?: string
           title: string
@@ -1420,6 +1426,7 @@ export type Database = {
         }
         Update: {
           company_id?: string | null
+          contact_id?: string | null
           created_at?: string
           created_by?: string
           currency?: string
@@ -1428,7 +1435,9 @@ export type Database = {
           notes?: string | null
           opportunity_id?: string | null
           payment_terms?: string | null
+          project_id?: string | null
           signed_date?: string | null
+          stage?: string
           start_date?: string | null
           status?: string
           title?: string
@@ -1444,10 +1453,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "crm_deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "crm_deals_opportunity_id_fkey"
             columns: ["opportunity_id"]
             isOneToOne: false
             referencedRelation: "crm_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "crm_projects"
             referencedColumns: ["id"]
           },
         ]
@@ -1567,6 +1590,7 @@ export type Database = {
           notes: string | null
           paid_at: string | null
           payment_method: string | null
+          project_id: string | null
           status: string
           subtotal: number
           total: number
@@ -1587,6 +1611,7 @@ export type Database = {
           notes?: string | null
           paid_at?: string | null
           payment_method?: string | null
+          project_id?: string | null
           status?: string
           subtotal?: number
           total?: number
@@ -1607,6 +1632,7 @@ export type Database = {
           notes?: string | null
           paid_at?: string | null
           payment_method?: string | null
+          project_id?: string | null
           status?: string
           subtotal?: number
           total?: number
@@ -1627,6 +1653,13 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_invoices_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "crm_projects"
             referencedColumns: ["id"]
           },
         ]
@@ -1712,6 +1745,7 @@ export type Database = {
           created_at: string
           created_by: string
           currency: string
+          deal_id: string | null
           description: string | null
           end_date: string | null
           id: string
@@ -1728,6 +1762,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           currency?: string
+          deal_id?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
@@ -1744,6 +1779,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           currency?: string
+          deal_id?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
@@ -1759,6 +1795,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_projects_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
             referencedColumns: ["id"]
           },
         ]
@@ -3646,6 +3689,80 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string
+          deal_id: string | null
+          id: string
+          notes: string | null
+          source: string
+          status: string
+          title: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string
+          deal_id?: string | null
+          id?: string
+          notes?: string | null
+          source?: string
+          status?: string
+          title: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string
+          deal_id?: string | null
+          id?: string
+          notes?: string | null
+          source?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]

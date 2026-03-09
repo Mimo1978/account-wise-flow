@@ -13,6 +13,7 @@ import {
   Database, 
   Users, 
   Building2,
+  FileText,
   BookOpen,
   LogOut,
   User,

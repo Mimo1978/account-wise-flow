@@ -47,7 +47,10 @@ import { useOrgChartTree } from "@/hooks/use-org-chart-tree";
 
 const Canvas = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const backTo = (location.state as any)?.from || '/companies';
+  const backLabel = (location.state as any)?.fromLabel || 'Companies';
   const {
     showOnboardingModal,
     showTooltips,

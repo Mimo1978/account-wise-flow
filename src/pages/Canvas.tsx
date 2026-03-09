@@ -489,7 +489,7 @@ const Canvas = () => {
         className="gap-2 shrink-0"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span className="hidden sm:inline">Companies</span>
+        <span className="hidden sm:inline">{backLabel}</span>
       </Button>
       <div className="h-6 w-px bg-border shrink-0" />
       <div className="min-w-0 shrink-0">

@@ -40,6 +40,7 @@ import Outreach from "./pages/Outreach";
 import SchemaInventory from "./pages/SchemaInventory";
 import ProjectsList from "./pages/ProjectsList";
 import DealsPage from "./pages/DealsPage";
+import DocumentsHub from "./pages/DocumentsHub";
 import JobsList from "./pages/JobsList";
 import JobDetail from "./pages/JobDetail";
 import PublicJobBoard from "./pages/PublicJobBoard";
@@ -162,6 +163,7 @@ const App = () => {
             <Route path="/database" element={<Navigate to="/companies" replace />} />
             <Route path="/companies" element={<ProtectedRoute><ProductLayout><CompaniesDatabase /></ProductLayout></ProtectedRoute>} />
             <Route path="/deals" element={<ProtectedRoute><ProductLayout><DealsPage /></ProductLayout></ProtectedRoute>} />
+            <Route path="/documents" element={<ProtectedRoute><ProductLayout><DocumentsHub /></ProductLayout></ProtectedRoute>} />
             <Route path="/companies/:id" element={<ProtectedRoute><ProductLayout><CompanyDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/contacts" element={<ProtectedRoute><ProductLayout><ContactsDatabase /></ProductLayout></ProtectedRoute>} />
             <Route path="/talent" element={<ProtectedRoute><ProductLayout><TalentDatabase /></ProductLayout></ProtectedRoute>} />

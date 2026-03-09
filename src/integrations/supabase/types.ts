@@ -857,6 +857,94 @@ export type Database = {
           },
         ]
       }
+      commercial_documents: {
+        Row: {
+          company_id: string | null
+          contact_id: string | null
+          created_at: string | null
+          created_by: string | null
+          currency: string | null
+          deal_id: string | null
+          end_date: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          name: string
+          notes: string | null
+          signed_date: string | null
+          start_date: string | null
+          status: string | null
+          type: string
+          updated_at: string | null
+          value: number | null
+          workspace_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          deal_id?: string | null
+          end_date?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          signed_date?: string | null
+          start_date?: string | null
+          status?: string | null
+          type?: string
+          updated_at?: string | null
+          value?: number | null
+          workspace_id: string
+        }
+        Update: {
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          currency?: string | null
+          deal_id?: string | null
+          end_date?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          signed_date?: string | null
+          start_date?: string | null
+          status?: string | null
+          type?: string
+          updated_at?: string | null
+          value?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commercial_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_documents_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_documents_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           account_manager: string | null

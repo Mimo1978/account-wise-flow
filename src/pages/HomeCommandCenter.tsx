@@ -501,15 +501,49 @@ const HomeCommandCenter = () => {
   const handleMarkOverdue = async (inv: Invoice) => { try { await updateInvoice.mutateAsync({ id: inv.id, status: 'overdue' }); toast.success('Invoice marked as overdue'); } catch { toast.error('Failed to update invoice'); } };
   const handleMarkPaid = async (inv: Invoice) => { try { await updateInvoice.mutateAsync({ id: inv.id, status: 'paid', paid_date: new Date().toISOString().split('T')[0] }); toast.success('Invoice marked as paid'); } catch { toast.error('Failed to update invoice'); } };
 
+  // ── Document expiry alerts ──
+  const { data: expiringDocs = [] } = useQuery({
+    queryKey: ['commercial_documents_expiring', currentWorkspace?.id],
+    queryFn: async () => {
+      if (!currentWorkspace?.id) return [];
+      const { data, error } = await supabase
+        .from('commercial_documents' as any)
+        .select('id, name, type, end_date, status, companies(id, name)')
+        .eq('workspace_id', currentWorkspace.id)
+        .not('end_date', 'is', null)
+        .not('status', 'in', '("cancelled","expired")')
+        .order('end_date');
+      if (error) { console.error('doc expiry query:', error); return []; }
+      return data || [];
+    },
+    enabled: !!currentWorkspace?.id,
+  });
+
   // ── Alerts ──
   const alerts = useMemo(() => {
     const items: { label: string; color: string; onClick: () => void }[] = [];
     if (billing.overdueCount > 0) items.push({ label: `${billing.overdueCount} overdue invoice${billing.overdueCount !== 1 ? 's' : ''} · £${billing.overdueAmount.toLocaleString()}`, color: 'bg-destructive/10 text-destructive hover:bg-destructive/20', onClick: () => setBillingExpanded(true) });
     const renewalsDue30 = buildCriticalDates(sows, [], [], 30).length;
-    if (renewalsDue30 > 0) items.push({ label: `${renewalsDue30} renewal${renewalsDue30 !== 1 ? 's' : ''} due within 30 days`, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 hover:bg-amber-200', onClick: () => setSowsExpanded(true) });
-    // Jobs with no activity in 14 days — use jobsSummary
+    if (renewalsDue30 > 0) items.push({ label: `${renewalsDue30} renewal${renewalsDue30 !== 1 ? 's' : ''} due within 30 days`, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 hover:bg-amber-200', onClick: () => navigate('/documents') });
+
+    // Document expiry alerts
+    const today = startOfDay(new Date());
+    for (const doc of expiringDocs as any[]) {
+      if (!doc.end_date) continue;
+      const endDate = startOfDay(new Date(doc.end_date));
+      const days = differenceInDays(endDate, today);
+      const companyLabel = doc.companies?.name ? ` (${doc.companies.name})` : '';
+      if (days < 0) {
+        items.push({ label: `🔴 ${doc.name} — EXPIRED${companyLabel}`, color: 'bg-destructive/10 text-destructive hover:bg-destructive/20', onClick: () => navigate('/documents') });
+      } else if (days <= 30) {
+        items.push({ label: `🔴 ${doc.name} expiring in ${days}d${companyLabel}`, color: 'bg-destructive/10 text-destructive hover:bg-destructive/20', onClick: () => navigate('/documents') });
+      } else if (days <= 90) {
+        items.push({ label: `🟡 ${doc.name} expiring in ${days}d${companyLabel}`, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 hover:bg-amber-200', onClick: () => navigate('/documents') });
+      }
+    }
+
     return items;
-  }, [billing, sows]);
+  }, [billing, sows, expiringDocs]);
 
   // Auto-expand SOWs if they have entries
   useEffect(() => { if (sows.length > 0) setSowsExpanded(false); }, [sows.length]);
@@ -552,9 +586,22 @@ const HomeCommandCenter = () => {
           <KPICard title="Outstanding Invoices" value={billing.outstandingCount > 0 ? `£${billing.outstandingAmount.toLocaleString()}` : '—'}
             subtitle={billing.outstandingCount > 0 ? `${billing.outstandingCount} unpaid` : 'No outstanding invoices'}
             icon={Receipt} accentClass="bg-warning" />
-          <KPICard title="Renewals & Key Dates" value={renewalCount > 0 ? String(renewalCount) : '—'}
-            subtitle={overdueRenewalCount > 0 ? `${overdueRenewalCount} overdue` : renewalCount > 0 ? `${renewalCount} upcoming` : 'Nothing upcoming'}
-            icon={CalendarClock} accentClass="bg-success" />
+          {(() => {
+            const docExpiringCount = (expiringDocs as any[]).filter((d: any) => {
+              if (!d.end_date) return false;
+              const days = differenceInDays(startOfDay(new Date(d.end_date)), startOfDay(new Date()));
+              return days <= 90;
+            }).length;
+            const totalExpiring = renewalCount + docExpiringCount;
+            const totalOverdue = overdueRenewalCount + (expiringDocs as any[]).filter((d: any) => d.end_date && differenceInDays(startOfDay(new Date(d.end_date)), startOfDay(new Date())) < 0).length;
+            return (
+              <div className="cursor-pointer" onClick={() => navigate('/documents')}>
+                <KPICard title="Renewals & Key Dates" value={totalExpiring > 0 ? String(totalExpiring) : '—'}
+                  subtitle={totalOverdue > 0 ? `${totalOverdue} overdue` : totalExpiring > 0 ? `${totalExpiring} expiring` : 'Nothing upcoming'}
+                  icon={CalendarClock} accentClass="bg-success" />
+              </div>
+            );
+          })()}
         </div>
 
         {/* ═══ 2. PIPELINE SNAPSHOT (hero) ═══ */}
@@ -572,7 +619,7 @@ const HomeCommandCenter = () => {
             <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"><CardContent className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></CardContent></Card>
           ) : deals.length === 0 ? (
             <EmptyPanel title="No deals in pipeline" description="Track consulting and recruitment deals through your sales pipeline."
-              icon={Target} ctas={[{ label: 'Create Deal', onClick: () => setDealOpen(true) }, { label: 'View Companies', to: '/companies', variant: 'outline' }]} />
+              icon={Target} ctas={[{ label: 'Create Deal', onClick: () => setDealOpen(true) }]} />
           ) : (
             <div className="space-y-4">
               <div className="flex items-stretch -space-x-1 overflow-x-auto rounded-xl" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
@@ -758,7 +805,7 @@ const HomeCommandCenter = () => {
             <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"><CardContent className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></CardContent></Card>
           ) : invoices.length === 0 ? (
             <EmptyPanel title="No invoices yet" description="Track outstanding invoices, payments and billing milestones here."
-              icon={Receipt} ctas={[{ label: 'Create Invoice', onClick: () => setInvoiceOpen(true) }, { label: 'View Companies', to: '/companies', variant: 'outline' }]} />
+              icon={Receipt} ctas={[{ label: 'Create Invoice', onClick: () => setInvoiceOpen(true) }]} />
           ) : (
             <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
               {/* Collapsed summary — always visible */}
@@ -824,61 +871,7 @@ const HomeCommandCenter = () => {
           )}
         </section>
 
-        {/* ═══ 8. SOWS & CONTRACTS (collapsible) ═══ */}
-        <section data-jarvis-section="sows-contracts">
-          <SectionHeader title="SOWs & Contracts" icon={FileText} accentColor="bg-muted-foreground">
-            <Button size="sm" className="gap-1.5" onClick={() => setSowOpen(true)} data-jarvis-id="home-add-sow-button">
-              <Plus className="w-3.5 h-3.5" /> Add SOW
-            </Button>
-          </SectionHeader>
-          {sowsLoading ? (
-            <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]"><CardContent className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></CardContent></Card>
-          ) : sows.length === 0 ? (
-            <EmptyPanel title="No SOWs or contracts" description="Add statements of work to track renewals, billing and contract health."
-              icon={FileText} ctas={[{ label: 'Add SOW', onClick: () => setSowOpen(true) }, { label: 'View Companies', to: '/companies', variant: 'outline' }]} />
-          ) : (
-            <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)] overflow-hidden">
-              <button onClick={() => setSowsExpanded(!sowsExpanded)} className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/30 transition-colors">
-                <span className="text-sm font-medium text-foreground">{sows.length} SOW{sows.length !== 1 ? 's' : ''} & contract{sows.length !== 1 ? 's' : ''}</span>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  {sowsExpanded ? 'Collapse' : 'Expand'}
-                  <ChevronDown className={`w-4 h-4 transition-transform ${sowsExpanded ? 'rotate-180' : ''}`} />
-                </div>
-              </button>
-              {sowsExpanded && (
-                <div className="border-t border-border overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/30">
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Ref</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Company</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Billing</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Value</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">End Date</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Renewal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sows.map((sow, i) => (
-                        <tr key={sow.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer ${i % 2 === 1 ? 'bg-muted/10' : ''}`}
-                          onClick={() => openSowDetail(sow)}>
-                          <td className="px-4 py-3 font-medium text-foreground">{sow.sow_ref || '—'}</td>
-                          <td className="px-4 py-3 text-muted-foreground">{sow.companies?.name ?? '—'}</td>
-                          <td className="px-4 py-3"><Badge variant={sow.status === 'signed' ? 'default' : sow.status === 'expired' ? 'destructive' : 'secondary'} className="text-xs capitalize">{sow.status}</Badge></td>
-                          <td className="px-4 py-3"><Badge variant="outline" className="text-xs capitalize">{sow.billing_model.replace('_', ' ')}</Badge></td>
-                          <td className="px-4 py-3 text-muted-foreground">{sow.value > 0 ? `${sow.currency} ${sow.value.toLocaleString()}` : '—'}</td>
-                          <td className="px-4 py-3 text-muted-foreground text-xs">{sow.end_date ? format(new Date(sow.end_date), 'dd MMM yyyy') : '—'}</td>
-                          <td className="px-4 py-3 text-muted-foreground text-xs">{sow.renewal_date ? format(new Date(sow.renewal_date), 'dd MMM yyyy') : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Card>
-          )}
-        </section>
+        {/* SOWs & Contracts section removed — documents now live in /documents hub */}
 
         {/* ═══ MODALS ═══ */}
         <CreateEngagementModal open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) setConvertDeal(null); }}

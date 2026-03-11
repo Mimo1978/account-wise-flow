@@ -80,6 +80,7 @@ interface CascadeResults {
   poolSize: number;
 }
 
+type SearchMode = 'cascade' | 'quick';
 type ModalStep = 'config' | 'searching' | 'results';
 
 /* ═══════════════════════════════════════════════════════════════

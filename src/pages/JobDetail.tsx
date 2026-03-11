@@ -293,7 +293,7 @@ const JobDetail = () => {
                 </button>
               </PopoverTrigger>
               <PopoverContent className="w-64 p-2" align="start">
-                <CompanySearchDropdown
+                <CompanySearchInline
                   search={companySearch}
                   onSearchChange={setCompanySearch}
                   onSelect={handleAssignCompany}

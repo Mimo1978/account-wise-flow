@@ -808,6 +808,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
         onOpenBoardFormat={(board) => { setBoardFormatBoard(board); }}
         existingBoardFormats={existingBoardFormats}
         isGenerating={isGenerating}
+        existingAdverts={new Set(adverts.map(a => a.board).filter(Boolean) as string[])}
       />
 
       {boardFormatBoard && (

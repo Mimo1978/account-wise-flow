@@ -289,7 +289,7 @@ export function ShortlistBuilderModal({
 
       setResults(candidates.slice(0, 20));
       // Auto-select top 10 candidates with score >= 50
-      const autoSelected = new Set(
+      const autoSelected = new Set<string>(
         candidates.filter((c: ScoredCandidate) => c.match_score >= 50).slice(0, 10).map((c: ScoredCandidate) => c.id)
       );
       setSelectedIds(autoSelected);

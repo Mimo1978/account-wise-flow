@@ -499,11 +499,25 @@ const JobDetail = () => {
 
         <TabsContent value="overview" data-jarvis-section="job-brief-box"><OverviewTab job={job} onProjectLinked={handleProjectLinked} /></TabsContent>
         <TabsContent value="adverts" data-jarvis-section="job-adverts-list"><AdvertsTab jobId={job.id} jobTitle={job.title} /></TabsContent>
-        <TabsContent value="shortlist" data-jarvis-section="job-shortlist-table"><ShortlistTab jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} /></TabsContent>
+        <TabsContent value="shortlist" data-jarvis-section="job-shortlist-table"><ShortlistTab jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} onOpenShortlistBuilder={openShortlistBuilder} /></TabsContent>
         <TabsContent value="outreach"><OutreachTab jobId={job.id} jobTitle={job.title} /></TabsContent>
         <TabsContent value="applications" data-jarvis-section="job-applications-table"><ApplicationsTab jobId={job.id} /></TabsContent>
         <TabsContent value="activity"><ActivityTab /></TabsContent>
       </Tabs>
+
+      {/* Shortlist Builder Modal */}
+      <ShortlistBuilderModal
+        open={showShortlistBuilder}
+        onOpenChange={setShowShortlistBuilder}
+        jobId={job.id}
+        jobTitle={job.title}
+        workspaceId={currentWorkspace?.id}
+        projectId={(job as any).project_id || null}
+        fullSpec={job.full_spec || (job as any).spec_content || null}
+        specSeniority={(job as any).spec_seniority}
+        specSectors={(job as any).spec_sectors}
+        specMustHaveSkills={(job as any).spec_must_have_skills}
+      />
     </div>
   );
 };
@@ -724,7 +738,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
                         </div>
                       </div>
                     ) : (
-                      <div className="text-sm text-foreground whitespace-pre-wrap bg-muted/30 rounded-md p-3 max-h-48 overflow-y-auto">
+                      <div className="text-sm text-foreground whitespace-pre-wrap bg-muted/30 rounded-md p-3 overflow-y-auto">
                         {a.content || 'No content'}
                       </div>
                     )}
@@ -763,7 +777,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
 }
 
 // ---------- Shortlist Tab ----------
-function ShortlistTab({ jobId, jobTitle, onProjectLinked }: { jobId: string; jobTitle: string; onProjectLinked?: (projectId: string) => void }) {
+function ShortlistTab({ jobId, jobTitle, onProjectLinked, onOpenShortlistBuilder }: { jobId: string; jobTitle: string; onProjectLinked?: (projectId: string) => void; onOpenShortlistBuilder?: () => void }) {
   const { data: entries = [], isLoading } = useJobShortlist(jobId);
   const removeFromShortlist = useRemoveFromShortlist();
   const runShortlist = useRunShortlist();
@@ -914,15 +928,10 @@ function ShortlistTab({ jobId, jobTitle, onProjectLinked }: { jobId: string; job
           <Button
             variant="outline"
             size="sm"
-            onClick={() => runShortlist.mutate(jobId)}
-            disabled={runShortlist.isPending}
+            onClick={onOpenShortlistBuilder}
             data-jarvis-id="job-run-shortlist-trigger"
           >
-            {runShortlist.isPending ? (
-              <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Matching...</>
-            ) : (
-              <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist</>
-            )}
+            <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist
           </Button>
         </CardHeader>
         <CardContent className="p-0">
@@ -934,14 +943,9 @@ function ShortlistTab({ jobId, jobTitle, onProjectLinked }: { jobId: string; job
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => runShortlist.mutate(jobId)}
-                disabled={runShortlist.isPending}
+                onClick={onOpenShortlistBuilder}
               >
-                {runShortlist.isPending ? (
-                  <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Matching...</>
-                ) : (
-                  <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist</>
-                )}
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist
               </Button>
             </div>
           ) : reviewMode ? (

@@ -67,6 +67,7 @@ import {
 } from '@/hooks/use-job-adverts';
 import { GenerateAdvertsModal } from '@/components/jobs/GenerateAdvertsModal';
 import { BoardFormatModal } from '@/components/jobs/BoardFormatModal';
+import { ShortlistBuilderModal } from '@/components/jobs/ShortlistBuilderModal';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -74,7 +75,7 @@ import {
   Briefcase, FileText, Users, Inbox, Activity, Sparkles, Send, Play,
   Pause, CheckCircle2, XCircle, FileEdit, Copy, Globe, Loader2, Settings2,
   Trash2, Mail, MessageSquare, AlertTriangle, ChevronDown, ChevronUp, GripVertical,
-  ShieldCheck, Archive, ArrowUp, Phone, PhoneCall, Reply, Bell,
+  ShieldCheck, Archive, ArrowUp, Phone, PhoneCall, Reply, Bell, Search,
 } from 'lucide-react';
 import { JobBriefSection } from '@/components/jobs/JobBriefSection';
 import { ProjectLinker, ProjectLinkPrompt, FilledModalLinker } from '@/components/jobs/ProjectLinker';
@@ -83,6 +84,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { useCreateDeal, DEAL_STAGES } from '@/hooks/use-deals';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
+const PIPELINE_TYPE_BADGE: Record<string, { className: string; label: string; border: string }> = {
+  confirmed: { className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', label: 'Confirmed', border: 'border-solid' },
+  speculative: { className: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30', label: 'Speculative', border: 'border-dashed' },
+  internal: { className: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30', label: 'Internal', border: 'border-solid' },
+  proposal: { className: 'bg-violet-500/15 text-violet-700 dark:text-violet-400 border-violet-500/30', label: 'Proposal', border: 'border-dashed' },
+};
 
 const STATUS_BADGE: Record<string, { className: string; label: string }> = {
   draft: { className: 'bg-muted text-muted-foreground', label: 'Draft' },

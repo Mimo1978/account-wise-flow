@@ -154,6 +154,116 @@ export type Database = {
           },
         ]
       }
+      automation_pipelines: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_step: number
+          id: string
+          job_id: string
+          run_by: string | null
+          started_at: string | null
+          status: string
+          steps_completed: Json
+          steps_failed: Json
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          job_id: string
+          run_by?: string | null
+          started_at?: string | null
+          status?: string
+          steps_completed?: Json
+          steps_failed?: Json
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          job_id?: string
+          run_by?: string | null
+          started_at?: string | null
+          status?: string
+          steps_completed?: Json
+          steps_failed?: Json
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_pipelines_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_pipelines_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_steps: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          input_data: Json | null
+          output_data: Json | null
+          pipeline_id: string
+          started_at: string | null
+          status: string
+          step_name: string
+          step_number: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_data?: Json | null
+          output_data?: Json | null
+          pipeline_id: string
+          started_at?: string | null
+          status?: string
+          step_name: string
+          step_number: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          input_data?: Json | null
+          output_data?: Json | null
+          pipeline_id?: string
+          started_at?: string | null
+          status?: string
+          step_name?: string
+          step_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_steps_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "automation_pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_plans: {
         Row: {
           billing_mode: string
@@ -3754,6 +3864,7 @@ export type Database = {
       }
       jobs: {
         Row: {
+          automation_enabled: boolean | null
           company_id: string | null
           created_at: string | null
           created_by: string
@@ -3787,6 +3898,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          automation_enabled?: boolean | null
           company_id?: string | null
           created_at?: string | null
           created_by: string
@@ -3820,6 +3932,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          automation_enabled?: boolean | null
           company_id?: string | null
           created_at?: string | null
           created_by?: string

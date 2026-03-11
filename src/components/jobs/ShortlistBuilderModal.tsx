@@ -1130,7 +1130,14 @@ export function ShortlistBuilderModal({
 
         {/* ═══ FOOTER ═══ */}
         <DialogFooter className="flex-shrink-0 border-t pt-4">
-          {step === 'config' ? (
+          {step === 'config' && searchMode === 'quick' ? (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button onClick={handleLockShortlist} disabled={locking || selectedIds.size === 0} className="gap-1.5">
+                {locking ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Locking…</> : <><Lock className="w-3.5 h-3.5" /> Lock {selectedIds.size} to Shortlist</>}
+              </Button>
+            </>
+          ) : step === 'config' ? (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button onClick={handleRunCascade} disabled={searching || aiLoading} className="gap-1.5">

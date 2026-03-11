@@ -28,11 +28,17 @@ serve(async (req) => {
 }`;
 
     const userPrompt = `Job title: ${job_title || 'Not specified'}
-Job spec: ${spec_text || 'No spec provided'}
+Job spec (PRIMARY SOURCE — extract all terms from this document):
+${spec_text || 'No spec provided'}
+
+Additional recruiter context:
 Seniority: ${seniority || 'Not specified'}
 Sectors: ${(sectors || []).join(', ') || 'Not specified'}
 Must-have skills: ${(must_have_skills || []).join(', ') || 'Not specified'}
 Work type: ${work_type || 'Not specified'}
+Work location: ${work_location || 'Not specified'}
+
+IMPORTANT: The spec text above is the primary RAG source. Extract job titles, skills, and sector terms directly from the spec content — do NOT rely on the job title field alone (it may be a placeholder like "Untitled Job"). If a detailed spec is provided, use it as the definitive source for all search parameters.
 
 Generate the best Boolean search string to find matching candidates in a talent database. Include synonyms, abbreviations, and related role titles. The boolean_string should be ready to use for full-text search. The search_rationale should explain in 2 sentences why you chose these terms.`;
 

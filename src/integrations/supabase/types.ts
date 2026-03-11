@@ -3459,6 +3459,63 @@ export type Database = {
           },
         ]
       }
+      job_searches: {
+        Row: {
+          ai_rationale: string | null
+          boolean_string: string | null
+          id: string
+          job_id: string
+          pool_size: number | null
+          results_by_pass: Json | null
+          run_at: string
+          run_by: string | null
+          search_params: Json
+          total_found: number | null
+          workspace_id: string
+        }
+        Insert: {
+          ai_rationale?: string | null
+          boolean_string?: string | null
+          id?: string
+          job_id: string
+          pool_size?: number | null
+          results_by_pass?: Json | null
+          run_at?: string
+          run_by?: string | null
+          search_params?: Json
+          total_found?: number | null
+          workspace_id: string
+        }
+        Update: {
+          ai_rationale?: string | null
+          boolean_string?: string | null
+          id?: string
+          job_id?: string
+          pool_size?: number | null
+          results_by_pass?: Json | null
+          run_at?: string
+          run_by?: string | null
+          search_params?: Json
+          total_found?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_searches_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_searches_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_shortlist: {
         Row: {
           availability_confirmed: string | null
@@ -3471,6 +3528,7 @@ export type Database = {
           interview_booked_at: string | null
           job_id: string
           match_breakdown: Json | null
+          match_pass: number | null
           match_reasons: string[] | null
           match_score: number | null
           notes: string | null
@@ -3491,6 +3549,7 @@ export type Database = {
           interview_booked_at?: string | null
           job_id: string
           match_breakdown?: Json | null
+          match_pass?: number | null
           match_reasons?: string[] | null
           match_score?: number | null
           notes?: string | null
@@ -3511,6 +3570,7 @@ export type Database = {
           interview_booked_at?: string | null
           job_id?: string
           match_breakdown?: Json | null
+          match_pass?: number | null
           match_reasons?: string[] | null
           match_score?: number | null
           notes?: string | null

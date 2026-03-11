@@ -3340,10 +3340,13 @@ export type Database = {
           content: string | null
           created_at: string | null
           expires_at: string | null
+          generated_at: string | null
           id: string
           job_id: string
+          last_posted_at: string | null
           published_at: string | null
           status: string | null
+          user_edits: string | null
           word_count: number | null
           workspace_id: string
         }
@@ -3354,10 +3357,13 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           expires_at?: string | null
+          generated_at?: string | null
           id?: string
           job_id: string
+          last_posted_at?: string | null
           published_at?: string | null
           status?: string | null
+          user_edits?: string | null
           word_count?: number | null
           workspace_id: string
         }
@@ -3368,10 +3374,13 @@ export type Database = {
           content?: string | null
           created_at?: string | null
           expires_at?: string | null
+          generated_at?: string | null
           id?: string
           job_id?: string
+          last_posted_at?: string | null
           published_at?: string | null
           status?: string | null
+          user_edits?: string | null
           word_count?: number | null
           workspace_id?: string
         }

@@ -504,6 +504,20 @@ const JobDetail = () => {
         <TabsContent value="applications" data-jarvis-section="job-applications-table"><ApplicationsTab jobId={job.id} /></TabsContent>
         <TabsContent value="activity"><ActivityTab /></TabsContent>
       </Tabs>
+
+      {/* Shortlist Builder Modal */}
+      <ShortlistBuilderModal
+        open={showShortlistBuilder}
+        onOpenChange={setShowShortlistBuilder}
+        jobId={job.id}
+        jobTitle={job.title}
+        workspaceId={currentWorkspace?.id}
+        projectId={(job as any).project_id || null}
+        fullSpec={job.full_spec || (job as any).spec_content || null}
+        specSeniority={(job as any).spec_seniority}
+        specSectors={(job as any).spec_sectors}
+        specMustHaveSkills={(job as any).spec_must_have_skills}
+      />
     </div>
   );
 };

@@ -839,7 +839,7 @@ export function ShortlistBuilderModal({
                 </div>
               )}
 
-              {/* Search param chips */}
+              {/* Search param chips with info tooltips */}
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Primary Titles</label>
                 <ChipEditor items={params.titles} onAdd={item => updateParam('titles', [...params.titles, item])} onRemove={item => updateParam('titles', params.titles.filter(t => t !== item))} placeholder="+ Add title" color="bg-blue-500/10 text-blue-700 dark:text-blue-400" />
@@ -853,7 +853,10 @@ export function ShortlistBuilderModal({
               )}
 
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Must-Have Skills</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center">
+                  Must-Have Skills
+                  <InfoTip text="All these skills must appear on the candidate profile. Remove skills to widen the search." />
+                </label>
                 <ChipEditor items={params.skills} onAdd={item => updateParam('skills', [...params.skills, item])} onRemove={item => updateParam('skills', params.skills.filter(t => t !== item))} placeholder="+ Add skill" color="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" />
               </div>
 
@@ -879,38 +882,51 @@ export function ShortlistBuilderModal({
                 <ChipEditor items={params.exclusions} onAdd={item => updateParam('exclusions', [...params.exclusions, item])} onRemove={item => updateParam('exclusions', params.exclusions.filter(t => t !== item))} placeholder="+ Add exclusion" color="bg-destructive/10 text-destructive" />
               </div>
 
-              {/* Boolean string display */}
+              {/* Boolean string display — expandable and editable */}
               <div className="space-y-1.5 pt-2 border-t border-border">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Boolean Search String</label>
-                  <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => generateAISearch()} disabled={aiLoading}>
-                    <RefreshCw className={`w-3 h-3 ${aiLoading ? 'animate-spin' : ''}`} />
-                    Regenerate
-                  </Button>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center">
+                    Boolean Search String
+                    <InfoTip text="A Boolean string uses AND, OR, NOT logic to search your talent database. AND narrows results, OR widens them. Edit directly or adjust the chips above." />
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setBoolExpanded(!boolExpanded)} title={boolExpanded ? 'Collapse' : 'Expand'}>
+                      {boolExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => generateAISearch()} disabled={aiLoading}>
+                      <RefreshCw className={`w-3 h-3 ${aiLoading ? 'animate-spin' : ''}`} />
+                      Regenerate
+                    </Button>
+                  </div>
                 </div>
                 <textarea
                   value={booleanString}
                   onChange={e => setBooleanString(e.target.value)}
-                  className="w-full text-xs font-mono text-muted-foreground bg-muted/50 rounded-md p-2.5 border border-border resize-none min-h-[60px]"
-                  rows={3}
+                  className="w-full font-mono text-xs bg-muted/50 rounded-md p-2.5 border border-border transition-all"
+                  style={{
+                    minHeight: boolExpanded ? '200px' : '80px',
+                    maxHeight: boolExpanded ? '300px' : '120px',
+                    resize: 'vertical',
+                    fontSize: '13px',
+                  }}
                 />
-                {aiRationale && (
-                  <p className="text-[11px] italic text-muted-foreground">
-                    💡 {aiRationale}
-                  </p>
-                )}
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>{booleanString.length} characters</span>
+                  {aiRationale && <span className="italic">💡 {aiRationale}</span>}
+                </div>
               </div>
 
-              {/* Cascade preview */}
+              {/* Cascade preview with info tooltips */}
               <div className="space-y-2 pt-2 border-t border-border">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Search Cascade Pipeline</label>
                 <div className="space-y-1.5">
                   {PASS_CONFIG.map(p => (
                     <div key={p.num} className="flex items-center gap-3 text-xs p-2 rounded-md bg-muted/30 border border-border/50">
                       <span className="text-sm">{p.emoji}</span>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 flex items-center">
                         <span className={`font-medium ${p.color}`}>Pass {p.num} — {p.label}</span>
                         <span className="text-muted-foreground ml-2">{p.desc}</span>
+                        <InfoTip text={p.tip} />
                       </div>
                       <Badge variant="outline" className="text-[10px]">—</Badge>
                     </div>

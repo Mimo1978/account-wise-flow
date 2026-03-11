@@ -10,10 +10,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Sparkles, X, Plus, Loader2, ChevronDown, ChevronUp, UserPlus, Eye, Ban,
   Lock, Save, Upload, Users, Target, Check, Search, Zap, Brain, RefreshCw,
-  AlertTriangle, Lightbulb, Bot, SlidersHorizontal, FileText,
+  AlertTriangle, Lightbulb, Bot, SlidersHorizontal, FileText, HelpCircle,
+  Maximize2, Minimize2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
@@ -78,6 +80,7 @@ interface CascadeResults {
   poolSize: number;
 }
 
+type SearchMode = 'cascade' | 'quick';
 type ModalStep = 'config' | 'searching' | 'results';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -164,12 +167,13 @@ function buildSearchString(params: SearchParams): string {
    CHIP EDITOR
    ═══════════════════════════════════════════════════════════════ */
 
-function ChipEditor({ items, onAdd, onRemove, placeholder, color = 'bg-primary/10 text-primary' }: {
+function ChipEditor({ items, onAdd, onRemove, placeholder, color = 'bg-primary/10 text-primary', tooltip }: {
   items: string[];
   onAdd: (item: string) => void;
   onRemove: (item: string) => void;
   placeholder: string;
   color?: string;
+  tooltip?: string;
 }) {
   const [input, setInput] = useState('');
   const handleAdd = () => {
@@ -195,14 +199,35 @@ function ChipEditor({ items, onAdd, onRemove, placeholder, color = 'bg-primary/1
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   INFO TOOLTIP
+   ═══════════════════════════════════════════════════════════════ */
+
+function InfoTip({ text }: { text: string }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" className="inline-flex ml-1 text-muted-foreground hover:text-foreground transition-colors">
+            <HelpCircle className="w-3.5 h-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs max-w-[250px]">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    PASS INFO
    ═══════════════════════════════════════════════════════════════ */
 
 const PASS_CONFIG = [
-  { num: 1, label: 'Precision', icon: Target, desc: 'Title + ALL skills + Sector', emoji: '🎯', color: 'text-emerald-600' },
-  { num: 2, label: 'Strong', icon: Check, desc: 'Title + must-have skills', emoji: '✅', color: 'text-blue-600' },
-  { num: 3, label: 'Broad', icon: Search, desc: 'Title OR any skill keyword', emoji: '🔍', color: 'text-amber-600' },
-  { num: 4, label: 'Semantic', icon: Brain, desc: 'AI synonyms + related roles', emoji: '🤖', color: 'text-violet-600' },
+  { num: 1, label: 'Precision', icon: Target, desc: 'Title + ALL skills + Sector', emoji: '🎯', color: 'text-emerald-600', tip: 'Strictest search: candidate must match the job title AND all must-have skills AND at least one sector keyword.' },
+  { num: 2, label: 'Strong', icon: Check, desc: 'Title + must-have skills', emoji: '✅', color: 'text-blue-600', tip: 'Removes sector requirement. Finds candidates matching title and skills regardless of industry.' },
+  { num: 3, label: 'Broad', icon: Search, desc: 'Title OR any skill keyword', emoji: '🔍', color: 'text-amber-600', tip: 'Widens the net: candidate matches the title OR any single skill. Catches specialists who don\'t match title exactly.' },
+  { num: 4, label: 'Semantic', icon: Brain, desc: 'AI synonyms + related roles', emoji: '🤖', color: 'text-violet-600', tip: 'Widest search using AI-expanded synonyms and related role titles. Catches candidates using different terminology.' },
 ] as const;
 
 /* ═══════════════════════════════════════════════════════════════
@@ -281,6 +306,11 @@ export function ShortlistBuilderModal({
 
   // State
   const [step, setStep] = useState<ModalStep>('config');
+  const [searchMode, setSearchMode] = useState<SearchMode>('cascade');
+  const [quickSearch, setQuickSearch] = useState('');
+  const [quickResults, setQuickResults] = useState<any[]>([]);
+  const [quickSearching, setQuickSearching] = useState(false);
+  const [boolExpanded, setBoolExpanded] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiRationale, setAiRationale] = useState('');
   const [booleanString, setBooleanString] = useState('');
@@ -618,6 +648,27 @@ export function ShortlistBuilderModal({
     setParams(prev => ({ ...prev, [key]: items }));
   };
 
+  /* ── QUICK SEARCH (debounced) ── */
+  useEffect(() => {
+    if (searchMode !== 'quick' || quickSearch.length < 2) { setQuickResults([]); return; }
+    const timer = setTimeout(async () => {
+      setQuickSearching(true);
+      try {
+        const term = `%${quickSearch}%`;
+        const { data } = await supabase
+          .from('candidates')
+          .select('id, name, current_title, location, email')
+          .eq('tenant_id', workspaceId || '')
+          .or(`name.ilike.${term},current_title.ilike.${term},email.ilike.${term}`)
+          .limit(20);
+        setQuickResults(data || []);
+      } catch { setQuickResults([]); }
+      finally { setQuickSearching(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickSearch, searchMode, workspaceId]);
+
   const scoreColor = (score: number) => {
     if (score >= 80) return 'text-emerald-700 dark:text-emerald-400';
     if (score >= 50) return 'text-amber-700 dark:text-amber-400';
@@ -662,13 +713,37 @@ export function ShortlistBuilderModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="w-4 h-4 text-primary" />
-            Shortlist Builder — {jobTitle}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="w-4 h-4 text-primary" />
+              Shortlist Builder — {jobTitle}
+            </DialogTitle>
+            {step === 'config' && (
+              <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+                <Button
+                  variant={searchMode === 'cascade' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-6 text-xs gap-1 px-2"
+                  onClick={() => setSearchMode('cascade')}
+                >
+                  <Zap className="w-3 h-3" /> Cascade
+                </Button>
+                <Button
+                  variant={searchMode === 'quick' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-6 text-xs gap-1 px-2"
+                  onClick={() => setSearchMode('quick')}
+                >
+                  <Target className="w-3 h-3" /> Quick
+                </Button>
+              </div>
+            )}
+          </div>
           <DialogDescription>
             {step === 'config'
-              ? 'AI-powered search parameters. Review and run cascade search.'
+              ? searchMode === 'quick'
+                ? 'Search by name, skill, or keyword to quickly add candidates.'
+                : 'AI-powered search parameters. Review and run cascade search.'
               : step === 'searching'
               ? 'Running progressive search cascade...'
               : `${totalFound} candidates found across ${cascadeResults.poolSize} in database. ${selectedIds.size} selected.`}
@@ -677,7 +752,41 @@ export function ShortlistBuilderModal({
 
         <ScrollArea className="flex-1 -mx-6 px-6">
           {/* ═══ CONFIG STEP ═══ */}
-          {step === 'config' && (
+          {step === 'config' && searchMode === 'quick' && (
+            <div className="space-y-3 pb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, skill, or keyword..."
+                  value={quickSearch}
+                  onChange={e => setQuickSearch(e.target.value)}
+                  className="pl-9"
+                  autoFocus
+                />
+              </div>
+              {quickSearching && <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Searching...</div>}
+              {quickResults.length === 0 && quickSearch.length >= 2 && !quickSearching && (
+                <p className="text-xs text-muted-foreground text-center py-4">No candidates found for "{quickSearch}"</p>
+              )}
+              {quickResults.map(c => (
+                <div key={c.id} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${selectedIds.has(c.id) ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">{c.current_title || '—'}{c.location ? ` · ${c.location}` : ''}</p>
+                  </div>
+                  <Button variant={selectedIds.has(c.id) ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => toggleSelect(c.id)}>
+                    <UserPlus className="w-3 h-3 mr-1" />
+                    {selectedIds.has(c.id) ? 'Selected' : 'Add'}
+                  </Button>
+                </div>
+              ))}
+              {selectedIds.size > 0 && (
+                <p className="text-xs text-muted-foreground text-center">{selectedIds.size} candidate{selectedIds.size > 1 ? 's' : ''} selected</p>
+              )}
+            </div>
+          )}
+
+          {step === 'config' && searchMode === 'cascade' && (
             <div className="space-y-4 pb-4">
               {/* Spec source preview — collapsible */}
               {fullSpec && (
@@ -730,7 +839,7 @@ export function ShortlistBuilderModal({
                 </div>
               )}
 
-              {/* Search param chips */}
+              {/* Search param chips with info tooltips */}
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Primary Titles</label>
                 <ChipEditor items={params.titles} onAdd={item => updateParam('titles', [...params.titles, item])} onRemove={item => updateParam('titles', params.titles.filter(t => t !== item))} placeholder="+ Add title" color="bg-blue-500/10 text-blue-700 dark:text-blue-400" />
@@ -744,7 +853,10 @@ export function ShortlistBuilderModal({
               )}
 
               <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Must-Have Skills</label>
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center">
+                  Must-Have Skills
+                  <InfoTip text="All these skills must appear on the candidate profile. Remove skills to widen the search." />
+                </label>
                 <ChipEditor items={params.skills} onAdd={item => updateParam('skills', [...params.skills, item])} onRemove={item => updateParam('skills', params.skills.filter(t => t !== item))} placeholder="+ Add skill" color="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" />
               </div>
 
@@ -770,38 +882,51 @@ export function ShortlistBuilderModal({
                 <ChipEditor items={params.exclusions} onAdd={item => updateParam('exclusions', [...params.exclusions, item])} onRemove={item => updateParam('exclusions', params.exclusions.filter(t => t !== item))} placeholder="+ Add exclusion" color="bg-destructive/10 text-destructive" />
               </div>
 
-              {/* Boolean string display */}
+              {/* Boolean string display — expandable and editable */}
               <div className="space-y-1.5 pt-2 border-t border-border">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Boolean Search String</label>
-                  <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => generateAISearch()} disabled={aiLoading}>
-                    <RefreshCw className={`w-3 h-3 ${aiLoading ? 'animate-spin' : ''}`} />
-                    Regenerate
-                  </Button>
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center">
+                    Boolean Search String
+                    <InfoTip text="A Boolean string uses AND, OR, NOT logic to search your talent database. AND narrows results, OR widens them. Edit directly or adjust the chips above." />
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setBoolExpanded(!boolExpanded)} title={boolExpanded ? 'Collapse' : 'Expand'}>
+                      {boolExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+                    </Button>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => generateAISearch()} disabled={aiLoading}>
+                      <RefreshCw className={`w-3 h-3 ${aiLoading ? 'animate-spin' : ''}`} />
+                      Regenerate
+                    </Button>
+                  </div>
                 </div>
                 <textarea
                   value={booleanString}
                   onChange={e => setBooleanString(e.target.value)}
-                  className="w-full text-xs font-mono text-muted-foreground bg-muted/50 rounded-md p-2.5 border border-border resize-none min-h-[60px]"
-                  rows={3}
+                  className="w-full font-mono text-xs bg-muted/50 rounded-md p-2.5 border border-border transition-all"
+                  style={{
+                    minHeight: boolExpanded ? '200px' : '80px',
+                    maxHeight: boolExpanded ? '300px' : '120px',
+                    resize: 'vertical',
+                    fontSize: '13px',
+                  }}
                 />
-                {aiRationale && (
-                  <p className="text-[11px] italic text-muted-foreground">
-                    💡 {aiRationale}
-                  </p>
-                )}
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>{booleanString.length} characters</span>
+                  {aiRationale && <span className="italic">💡 {aiRationale}</span>}
+                </div>
               </div>
 
-              {/* Cascade preview */}
+              {/* Cascade preview with info tooltips */}
               <div className="space-y-2 pt-2 border-t border-border">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Search Cascade Pipeline</label>
                 <div className="space-y-1.5">
                   {PASS_CONFIG.map(p => (
                     <div key={p.num} className="flex items-center gap-3 text-xs p-2 rounded-md bg-muted/30 border border-border/50">
                       <span className="text-sm">{p.emoji}</span>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 flex items-center">
                         <span className={`font-medium ${p.color}`}>Pass {p.num} — {p.label}</span>
                         <span className="text-muted-foreground ml-2">{p.desc}</span>
+                        <InfoTip text={p.tip} />
                       </div>
                       <Badge variant="outline" className="text-[10px]">—</Badge>
                     </div>
@@ -1005,7 +1130,14 @@ export function ShortlistBuilderModal({
 
         {/* ═══ FOOTER ═══ */}
         <DialogFooter className="flex-shrink-0 border-t pt-4">
-          {step === 'config' ? (
+          {step === 'config' && searchMode === 'quick' ? (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button onClick={handleLockShortlist} disabled={locking || selectedIds.size === 0} className="gap-1.5">
+                {locking ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Locking…</> : <><Lock className="w-3.5 h-3.5" /> Lock {selectedIds.size} to Shortlist</>}
+              </Button>
+            </>
+          ) : step === 'config' ? (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button onClick={handleRunCascade} disabled={searching || aiLoading} className="gap-1.5">

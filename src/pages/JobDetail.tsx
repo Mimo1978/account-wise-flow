@@ -78,6 +78,7 @@ import {
   ShieldCheck, Archive, ArrowUp, Phone, PhoneCall, Reply, Bell, Search,
 } from 'lucide-react';
 import { JobBriefSection } from '@/components/jobs/JobBriefSection';
+import { AutomationPipelineTracker } from '@/components/jobs/AutomationPipelineTracker';
 import { ProjectLinker, ProjectLinkPrompt, FilledModalLinker } from '@/components/jobs/ProjectLinker';
 import { useJobProjects } from '@/hooks/use-job-projects';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -528,6 +529,7 @@ const JobDetail = () => {
 function OverviewTab({ job, onProjectLinked }: { job: any; onProjectLinked?: (projectId: string) => void }) {
   const toggleConfidential = useToggleConfidential();
   const isConfidential = job.is_confidential ?? false;
+  const { currentWorkspace } = useWorkspace();
 
   const salaryStr = job.salary_min || job.salary_max
     ? `${job.salary_currency} ${job.salary_min?.toLocaleString() ?? '?'} – ${job.salary_max?.toLocaleString() ?? '?'}`
@@ -535,6 +537,17 @@ function OverviewTab({ job, onProjectLinked }: { job: any; onProjectLinked?: (pr
 
   return (
     <div className="space-y-6">
+      {/* Automation Pipeline Tracker */}
+      {currentWorkspace?.id && (
+        <AutomationPipelineTracker
+          jobId={job.id}
+          workspaceId={currentWorkspace.id}
+          automationEnabled={job.automation_enabled ?? false}
+          specApproved={job.spec_approved}
+          shortlistLocked={job.shortlist_locked}
+        />
+      )}
+
       {/* Job Brief Section — the primary workflow entry point */}
       <JobBriefSection job={job} onProjectLinked={onProjectLinked} />
 

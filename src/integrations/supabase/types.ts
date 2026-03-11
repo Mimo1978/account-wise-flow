@@ -3700,11 +3700,17 @@ export type Database = {
           is_confidential: boolean
           job_type: string | null
           location: string | null
+          pipeline_type: string
           raw_brief: string | null
           remote_policy: string | null
           salary_currency: string | null
           salary_max: number | null
           salary_min: number | null
+          spec_approved: boolean
+          spec_must_have_skills: string[] | null
+          spec_sectors: string[] | null
+          spec_seniority: string | null
+          spec_work_location: string | null
           start_date: string | null
           status: string | null
           title: string
@@ -3721,11 +3727,17 @@ export type Database = {
           is_confidential?: boolean
           job_type?: string | null
           location?: string | null
+          pipeline_type?: string
           raw_brief?: string | null
           remote_policy?: string | null
           salary_currency?: string | null
           salary_max?: number | null
           salary_min?: number | null
+          spec_approved?: boolean
+          spec_must_have_skills?: string[] | null
+          spec_sectors?: string[] | null
+          spec_seniority?: string | null
+          spec_work_location?: string | null
           start_date?: string | null
           status?: string | null
           title: string
@@ -3742,11 +3754,17 @@ export type Database = {
           is_confidential?: boolean
           job_type?: string | null
           location?: string | null
+          pipeline_type?: string
           raw_brief?: string | null
           remote_policy?: string | null
           salary_currency?: string | null
           salary_max?: number | null
           salary_min?: number | null
+          spec_approved?: boolean
+          spec_must_have_skills?: string[] | null
+          spec_sectors?: string[] | null
+          spec_seniority?: string | null
+          spec_work_location?: string | null
           start_date?: string | null
           status?: string | null
           title?: string

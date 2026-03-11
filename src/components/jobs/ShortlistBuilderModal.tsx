@@ -335,6 +335,8 @@ export function ShortlistBuilderModal({
           seniority: specSeniority,
           sectors: specSectors,
           must_have_skills: specMustHaveSkills,
+          work_type: specWorkType,
+          work_location: specWorkLocation,
         },
       });
 

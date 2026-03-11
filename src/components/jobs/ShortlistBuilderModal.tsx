@@ -752,7 +752,41 @@ export function ShortlistBuilderModal({
 
         <ScrollArea className="flex-1 -mx-6 px-6">
           {/* ═══ CONFIG STEP ═══ */}
-          {step === 'config' && (
+          {step === 'config' && searchMode === 'quick' && (
+            <div className="space-y-3 pb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, skill, or keyword..."
+                  value={quickSearch}
+                  onChange={e => setQuickSearch(e.target.value)}
+                  className="pl-9"
+                  autoFocus
+                />
+              </div>
+              {quickSearching && <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Searching...</div>}
+              {quickResults.length === 0 && quickSearch.length >= 2 && !quickSearching && (
+                <p className="text-xs text-muted-foreground text-center py-4">No candidates found for "{quickSearch}"</p>
+              )}
+              {quickResults.map(c => (
+                <div key={c.id} className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${selectedIds.has(c.id) ? 'border-primary bg-primary/5' : 'border-border'}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{c.name}</p>
+                    <p className="text-xs text-muted-foreground">{c.current_title || '—'}{c.location ? ` · ${c.location}` : ''}</p>
+                  </div>
+                  <Button variant={selectedIds.has(c.id) ? 'default' : 'outline'} size="sm" className="h-7 text-xs" onClick={() => toggleSelect(c.id)}>
+                    <UserPlus className="w-3 h-3 mr-1" />
+                    {selectedIds.has(c.id) ? 'Selected' : 'Add'}
+                  </Button>
+                </div>
+              ))}
+              {selectedIds.size > 0 && (
+                <p className="text-xs text-muted-foreground text-center">{selectedIds.size} candidate{selectedIds.size > 1 ? 's' : ''} selected</p>
+              )}
+            </div>
+          )}
+
+          {step === 'config' && searchMode === 'cascade' && (
             <div className="space-y-4 pb-4">
               {/* Spec source preview — collapsible */}
               {fullSpec && (

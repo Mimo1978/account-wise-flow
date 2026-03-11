@@ -306,6 +306,11 @@ export function ShortlistBuilderModal({
 
   // State
   const [step, setStep] = useState<ModalStep>('config');
+  const [searchMode, setSearchMode] = useState<SearchMode>('cascade');
+  const [quickSearch, setQuickSearch] = useState('');
+  const [quickResults, setQuickResults] = useState<any[]>([]);
+  const [quickSearching, setQuickSearching] = useState(false);
+  const [boolExpanded, setBoolExpanded] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiRationale, setAiRationale] = useState('');
   const [booleanString, setBooleanString] = useState('');

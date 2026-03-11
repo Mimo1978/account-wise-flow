@@ -777,7 +777,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
 }
 
 // ---------- Shortlist Tab ----------
-function ShortlistTab({ jobId, jobTitle, onProjectLinked }: { jobId: string; jobTitle: string; onProjectLinked?: (projectId: string) => void }) {
+function ShortlistTab({ jobId, jobTitle, onProjectLinked, onOpenShortlistBuilder }: { jobId: string; jobTitle: string; onProjectLinked?: (projectId: string) => void; onOpenShortlistBuilder?: () => void }) {
   const { data: entries = [], isLoading } = useJobShortlist(jobId);
   const removeFromShortlist = useRemoveFromShortlist();
   const runShortlist = useRunShortlist();

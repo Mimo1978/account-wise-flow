@@ -167,12 +167,13 @@ function buildSearchString(params: SearchParams): string {
    CHIP EDITOR
    ═══════════════════════════════════════════════════════════════ */
 
-function ChipEditor({ items, onAdd, onRemove, placeholder, color = 'bg-primary/10 text-primary' }: {
+function ChipEditor({ items, onAdd, onRemove, placeholder, color = 'bg-primary/10 text-primary', tooltip }: {
   items: string[];
   onAdd: (item: string) => void;
   onRemove: (item: string) => void;
   placeholder: string;
   color?: string;
+  tooltip?: string;
 }) {
   const [input, setInput] = useState('');
   const handleAdd = () => {
@@ -198,14 +199,35 @@ function ChipEditor({ items, onAdd, onRemove, placeholder, color = 'bg-primary/1
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   INFO TOOLTIP
+   ═══════════════════════════════════════════════════════════════ */
+
+function InfoTip({ text }: { text: string }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" className="inline-flex ml-1 text-muted-foreground hover:text-foreground transition-colors">
+            <HelpCircle className="w-3.5 h-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs max-w-[250px]">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    PASS INFO
    ═══════════════════════════════════════════════════════════════ */
 
 const PASS_CONFIG = [
-  { num: 1, label: 'Precision', icon: Target, desc: 'Title + ALL skills + Sector', emoji: '🎯', color: 'text-emerald-600' },
-  { num: 2, label: 'Strong', icon: Check, desc: 'Title + must-have skills', emoji: '✅', color: 'text-blue-600' },
-  { num: 3, label: 'Broad', icon: Search, desc: 'Title OR any skill keyword', emoji: '🔍', color: 'text-amber-600' },
-  { num: 4, label: 'Semantic', icon: Brain, desc: 'AI synonyms + related roles', emoji: '🤖', color: 'text-violet-600' },
+  { num: 1, label: 'Precision', icon: Target, desc: 'Title + ALL skills + Sector', emoji: '🎯', color: 'text-emerald-600', tip: 'Strictest search: candidate must match the job title AND all must-have skills AND at least one sector keyword.' },
+  { num: 2, label: 'Strong', icon: Check, desc: 'Title + must-have skills', emoji: '✅', color: 'text-blue-600', tip: 'Removes sector requirement. Finds candidates matching title and skills regardless of industry.' },
+  { num: 3, label: 'Broad', icon: Search, desc: 'Title OR any skill keyword', emoji: '🔍', color: 'text-amber-600', tip: 'Widens the net: candidate matches the title OR any single skill. Catches specialists who don\'t match title exactly.' },
+  { num: 4, label: 'Semantic', icon: Brain, desc: 'AI synonyms + related roles', emoji: '🤖', color: 'text-violet-600', tip: 'Widest search using AI-expanded synonyms and related role titles. Catches candidates using different terminology.' },
 ] as const;
 
 /* ═══════════════════════════════════════════════════════════════

@@ -648,6 +648,27 @@ export function ShortlistBuilderModal({
     setParams(prev => ({ ...prev, [key]: items }));
   };
 
+  /* ── QUICK SEARCH (debounced) ── */
+  useEffect(() => {
+    if (searchMode !== 'quick' || quickSearch.length < 2) { setQuickResults([]); return; }
+    const timer = setTimeout(async () => {
+      setQuickSearching(true);
+      try {
+        const term = `%${quickSearch}%`;
+        const { data } = await supabase
+          .from('candidates')
+          .select('id, name, current_title, location, email')
+          .eq('tenant_id', workspaceId || '')
+          .or(`name.ilike.${term},current_title.ilike.${term},email.ilike.${term}`)
+          .limit(20);
+        setQuickResults(data || []);
+      } catch { setQuickResults([]); }
+      finally { setQuickSearching(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickSearch, searchMode, workspaceId]);
+
   const scoreColor = (score: number) => {
     if (score >= 80) return 'text-emerald-700 dark:text-emerald-400';
     if (score >= 50) return 'text-amber-700 dark:text-amber-400';

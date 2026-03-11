@@ -64,10 +64,12 @@ import {
   usePublishAdvert,
   useToggleConfidential,
   BOARD_DEFINITIONS,
+  type JobAdvert,
 } from '@/hooks/use-job-adverts';
 import { GenerateAdvertsModal } from '@/components/jobs/GenerateAdvertsModal';
 import { BoardFormatModal } from '@/components/jobs/BoardFormatModal';
 import { ShortlistBuilderModal } from '@/components/jobs/ShortlistBuilderModal';
+import { JarvisInlineHint } from '@/components/jarvis/JarvisHints';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
@@ -86,6 +88,7 @@ import { format } from 'date-fns';
 import { useCreateDeal, DEAL_STAGES } from '@/hooks/use-deals';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 
 /* Inline company search dropdown */

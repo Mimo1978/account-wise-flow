@@ -10,10 +10,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Sparkles, X, Plus, Loader2, ChevronDown, ChevronUp, UserPlus, Eye, Ban,
   Lock, Save, Upload, Users, Target, Check, Search, Zap, Brain, RefreshCw,
-  AlertTriangle, Lightbulb, Bot, SlidersHorizontal, FileText,
+  AlertTriangle, Lightbulb, Bot, SlidersHorizontal, FileText, HelpCircle,
+  Maximize2, Minimize2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';

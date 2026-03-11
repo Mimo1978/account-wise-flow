@@ -92,7 +92,7 @@ export function useSmartImport(context: SmartImportContext) {
   const [step, setStep] = useState<'upload' | 'processing' | 'complete'>('upload');
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
   
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const addDebugLog = useCallback((message: string) => {
     const timestamp = new Date().toLocaleTimeString();

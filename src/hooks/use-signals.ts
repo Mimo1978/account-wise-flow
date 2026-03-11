@@ -181,7 +181,7 @@ function inferSeverity(text: string): SignalSeverity {
  */
 function extractTitle(text: string): string {
   // Take first clause or limit to ~40 chars
-  const firstClause = text.split(/[,\-\:]/).at(0)?.trim() || text;
+  const parts = text.split(/[,\-\:]/); const firstClause = (parts[0] ?? '').trim() || text;
   if (firstClause.length <= 40) return firstClause;
   return firstClause.substring(0, 37) + '...';
 }

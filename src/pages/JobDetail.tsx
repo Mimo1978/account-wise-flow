@@ -943,14 +943,9 @@ function ShortlistTab({ jobId, jobTitle, onProjectLinked, onOpenShortlistBuilder
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => runShortlist.mutate(jobId)}
-                disabled={runShortlist.isPending}
+                onClick={onOpenShortlistBuilder}
               >
-                {runShortlist.isPending ? (
-                  <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Matching...</>
-                ) : (
-                  <><Sparkles className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist</>
-                )}
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist
               </Button>
             </div>
           ) : reviewMode ? (

@@ -601,9 +601,22 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [activeBoard, setActiveBoard] = useState<string | null>(null);
 
   const existingBoardFormats = new Set(boardFormats.map(f => f.board));
   const existingFormat = boardFormatBoard ? boardFormats.find(f => f.board === boardFormatBoard) : null;
+
+  // Set active board tab to first existing advert or first board
+  const boardKeys = Object.keys(BOARD_DEFINITIONS);
+  const advertsByBoard = useMemo(() => {
+    const map: Record<string, JobAdvert> = {};
+    for (const a of adverts) {
+      if (a.board) map[a.board] = a;
+    }
+    return map;
+  }, [adverts]);
+
+  const currentBoard = activeBoard || (adverts.length > 0 ? adverts[0].board : boardKeys[0]) || boardKeys[0];
 
   const handleGenerate = useCallback(async (boards: string[]) => {
     setIsGenerating(true);
@@ -635,12 +648,10 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
     toast.success('Advert text copied to clipboard');
   };
 
-  // Custom publish handler with project link toast (Pause point 2)
   const handlePublish = (advertId: string, board: string) => {
     publishAdvert.mutate({ id: advertId, board }, {
       onSuccess: () => {
         if (jobProjectLinks.length === 0) {
-          // Show toast with link action for pause point 2
           toast.info('This job is live. Link it to a project to track progress in your Command Centre.', {
             duration: 5000,
           });
@@ -650,6 +661,8 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
   };
 
   if (isLoading) return <TableSkeleton />;
+
+  const currentAdvert = advertsByBoard[currentBoard];
 
   return (
     <>
@@ -662,9 +675,20 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
             onClick={() => setShowGenerateModal(true)}
             data-jarvis-id="job-generate-adverts-button"
           >
-            <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Adverts
+            <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Select Boards & Generate
           </Button>
         </CardHeader>
+
+        {/* Jarvis hint when adverts exist but none posted */}
+        {adverts.length > 0 && !adverts.some(a => a.status === 'published' || a.status === 'ready_to_post') && (
+          <div className="px-4 pb-2">
+            <JarvisInlineHint
+              storageKey="jarvis_adverts_post_hint"
+              message='Ready to post? Ask Jarvis "post this job to all boards" or use the Post button on each advert.'
+            />
+          </div>
+        )}
+
         <CardContent className="p-0">
           {adverts.length === 0 ? (
             <div className="text-center py-8 space-y-3">
@@ -675,17 +699,41 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
               </Button>
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {adverts.map(a => {
+            <div>
+              {/* Board tabs */}
+              <div className="flex border-b border-border overflow-x-auto px-4">
+                {boardKeys.map(bk => {
+                  const hasAdvert = !!advertsByBoard[bk];
+                  const boardDef = BOARD_DEFINITIONS[bk];
+                  if (!hasAdvert) return null;
+                  return (
+                    <button
+                      key={bk}
+                      onClick={() => setActiveBoard(bk)}
+                      className={cn(
+                        "px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
+                        currentBoard === bk
+                          ? "border-primary text-foreground"
+                          : "border-transparent text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {boardDef?.label || bk}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Active board advert */}
+              {currentAdvert && (() => {
+                const a = currentAdvert;
                 const statusBadge = ADVERT_STATUS_BADGE[a.status] || ADVERT_STATUS_BADGE.draft;
                 const boardDef = BOARD_DEFINITIONS[a.board || ''];
                 const isEditing = editingId === a.id;
 
                 return (
-                  <div key={a.id} className="p-4 space-y-3">
+                  <div className="p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm capitalize">{boardDef?.label || a.board || '—'}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="outline" className={statusBadge.className}>{statusBadge.label}</Badge>
                         <span className="text-xs text-muted-foreground">
                           {a.word_count ?? 0} words · {a.character_count ?? 0} chars
@@ -700,27 +748,14 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
                       <div className="flex items-center gap-1.5">
                         {!isEditing && (
                           <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => { setEditingId(a.id); setEditContent(a.content || ''); }}
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => { setEditingId(a.id); setEditContent(a.content || ''); }}>
                               <FileEdit className="w-3.5 h-3.5 mr-1" /> Edit
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleCopy(a.content || '')}
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => handleCopy(a.content || '')}>
                               <Copy className="w-3.5 h-3.5 mr-1" /> Copy
                             </Button>
                             {a.status === 'draft' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handlePublish(a.id, a.board || '')}
-                                data-jarvis-id="job-publish-button"
-                              >
+                              <Button variant="outline" size="sm" onClick={() => handlePublish(a.id, a.board || '')} data-jarvis-id="job-publish-button">
                                 {a.board === 'internal' ? (
                                   <><Globe className="w-3.5 h-3.5 mr-1" /> Publish</>
                                 ) : (
@@ -734,26 +769,19 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
                     </div>
                     {isEditing ? (
                       <div className="space-y-2">
-                        <Textarea
-                          value={editContent}
-                          onChange={e => setEditContent(e.target.value)}
-                          rows={12}
-                          className="text-sm font-mono"
-                        />
+                        <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} rows={12} className="text-sm font-mono resize-y" />
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground">
                             {editContent.trim().split(/\s+/).filter(Boolean).length} words · {editContent.length} chars
                           </span>
                           <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
-                            <Button size="sm" onClick={() => handleSaveEdit(a.id)} disabled={updateAdvert.isPending}>
-                              Save Changes
-                            </Button>
+                            <Button size="sm" onClick={() => handleSaveEdit(a.id)} disabled={updateAdvert.isPending}>Save Changes</Button>
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="text-sm text-foreground whitespace-pre-wrap bg-muted/30 rounded-md p-3 overflow-y-auto">
+                      <div className="text-sm text-foreground whitespace-pre-wrap bg-muted/30 rounded-md p-3 overflow-y-auto max-h-[500px]">
                         {a.content || 'No content'}
                       </div>
                     )}
@@ -764,7 +792,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
                     )}
                   </div>
                 );
-              })}
+              })()}
             </div>
           )}
         </CardContent>

@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Sparkles, X, Plus, Loader2, ChevronDown, ChevronUp, UserPlus, Eye, Ban,
   Lock, Save, Upload, Users, Target, Check, Search, Zap, Brain, RefreshCw,
-  AlertTriangle, Lightbulb, Bot, SlidersHorizontal,
+  AlertTriangle, Lightbulb, Bot, SlidersHorizontal, FileText,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';

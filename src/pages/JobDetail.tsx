@@ -139,11 +139,23 @@ const ADVERT_STATUS_BADGE: Record<string, { className: string; label: string }> 
 const JobDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: job, isLoading } = useJob(id);
   const updateStatus = useUpdateJobStatus();
   const { data: jobProjectLinks = [] } = useJobProjects(id);
   const [showFilledModal, setShowFilledModal] = useState(false);
   const { currentWorkspace } = useWorkspace();
+
+  // Inline title edit
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+
+  // Shortlist builder modal
+  const [showShortlistBuilder, setShowShortlistBuilder] = useState(false);
+
+  // Company assignment
+  const [showCompanySearch, setShowCompanySearch] = useState(false);
+  const [companySearch, setCompanySearch] = useState('');
 
   // Deal creation prompt state
   const [showDealPrompt, setShowDealPrompt] = useState(false);
@@ -182,6 +194,34 @@ const JobDetail = () => {
     });
   };
 
+  const handleSaveTitle = useCallback(async () => {
+    if (!job || !titleDraft.trim() || titleDraft.trim() === job.title) {
+      setEditingTitle(false);
+      return;
+    }
+    const { error } = await supabase.from('jobs').update({ title: titleDraft.trim() } as any).eq('id', job.id);
+    if (error) {
+      toast.error('Failed to update title');
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['jobs', job.id] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      toast.success('Title updated');
+    }
+    setEditingTitle(false);
+  }, [job, titleDraft, queryClient]);
+
+  const handleAssignCompany = useCallback(async (companyId: string) => {
+    if (!job) return;
+    const { error } = await supabase.from('jobs').update({ company_id: companyId } as any).eq('id', job.id);
+    if (error) {
+      toast.error('Failed to assign company');
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['jobs', job.id] });
+      toast.success('Company assigned');
+    }
+    setShowCompanySearch(false);
+  }, [job, queryClient]);
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-6 py-8 max-w-5xl space-y-6">
@@ -204,14 +244,17 @@ const JobDetail = () => {
   }
 
   const badge = STATUS_BADGE[job.status] || STATUS_BADGE.draft;
+  const pipelineType = (job as any).pipeline_type || 'confirmed';
+  const ptBadge = PIPELINE_TYPE_BADGE[pipelineType] || PIPELINE_TYPE_BADGE.confirmed;
   const hasLinkedProject = jobProjectLinks.length > 0;
   const handleStatusChange = (newStatus: string) => {
     updateStatus.mutate({ id: job.id, status: newStatus });
-    // Pause point 4: show modal when filled and no project linked
     if (newStatus === 'filled' && !hasLinkedProject) {
       setShowFilledModal(true);
     }
   };
+
+  const openShortlistBuilder = () => setShowShortlistBuilder(true);
 
   return (
     <div className="container mx-auto px-6 py-8 max-w-5xl space-y-6">
@@ -221,11 +264,42 @@ const JobDetail = () => {
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">{job.title}</h1>
+            {editingTitle ? (
+              <Input
+                autoFocus
+                value={titleDraft}
+                onChange={e => setTitleDraft(e.target.value)}
+                onBlur={handleSaveTitle}
+                onKeyDown={e => { if (e.key === 'Enter') handleSaveTitle(); if (e.key === 'Escape') setEditingTitle(false); }}
+                className="text-2xl font-bold h-auto py-0 px-1 border-primary"
+              />
+            ) : (
+              <h1
+                className="text-2xl font-bold text-foreground tracking-tight cursor-pointer hover:text-primary/80 transition-colors"
+                onClick={() => { setTitleDraft(job.title); setEditingTitle(true); }}
+                title="Click to edit title"
+              >
+                {job.title}
+              </h1>
+            )}
             <Badge variant="outline" className={badge.className}>{badge.label}</Badge>
+            <Badge variant="outline" className={ptBadge.className}>{ptBadge.label}</Badge>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
-            <span>{(job as any).companies?.name || 'No company'}</span>
+            <Popover open={showCompanySearch} onOpenChange={setShowCompanySearch}>
+              <PopoverTrigger asChild>
+                <button className="hover:text-foreground transition-colors hover:underline">
+                  {(job as any).companies?.name || 'No company — click to assign'}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-2" align="start">
+                <CompanySearchDropdown
+                  search={companySearch}
+                  onSearchChange={setCompanySearch}
+                  onSelect={handleAssignCompany}
+                />
+              </PopoverContent>
+            </Popover>
             {job.location && <><span>·</span><span>{job.location}</span></>}
             {job.job_type && <><span>·</span><span>{job.job_type}</span></>}
             <span>·</span>
@@ -236,7 +310,7 @@ const JobDetail = () => {
           <Button variant="outline" size="sm" data-jarvis-id="job-generate-spec-button">
             <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Spec
           </Button>
-          <Button variant="outline" size="sm" data-jarvis-id="job-run-shortlist-button">
+          <Button variant="outline" size="sm" onClick={openShortlistBuilder} data-jarvis-id="job-run-shortlist-button">
             <Users className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist
           </Button>
         </div>

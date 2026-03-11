@@ -293,6 +293,7 @@ export function ShortlistBuilderModal({
   const [saving, setSaving] = useState(false);
   const [minScore, setMinScore] = useState([40]);
   const [passFilters, setPassFilters] = useState({ pass1: true, pass2: true, pass3: false, pass4: false });
+  const [specPreviewOpen, setSpecPreviewOpen] = useState(false);
 
   const [params, setParams] = useState<SearchParams>(() =>
     extractSearchParams(fullSpec, jobTitle, specSeniority, specSectors, specMustHaveSkills)

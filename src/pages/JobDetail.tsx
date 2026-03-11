@@ -513,10 +513,12 @@ const JobDetail = () => {
         jobTitle={job.title}
         workspaceId={currentWorkspace?.id}
         projectId={(job as any).project_id || null}
-        fullSpec={job.full_spec || (job as any).spec_content || null}
-        specSeniority={(job as any).spec_seniority}
-        specSectors={(job as any).spec_sectors}
-        specMustHaveSkills={(job as any).spec_must_have_skills}
+        fullSpec={job.full_spec || job.raw_brief || null}
+        specSeniority={job.spec_seniority}
+        specSectors={job.spec_sectors}
+        specMustHaveSkills={job.spec_must_have_skills}
+        specWorkType={(job as any).spec_work_type || null}
+        specWorkLocation={job.spec_work_location || null}
       />
     </div>
   );

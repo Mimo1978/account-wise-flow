@@ -22,6 +22,19 @@ export interface Job {
   created_by: string;
   created_at: string;
   updated_at: string;
+  is_confidential: boolean;
+  pipeline_type: string;
+  spec_approved: boolean;
+  spec_seniority: string | null;
+  spec_sectors: string[] | null;
+  spec_must_have_skills: string[] | null;
+  spec_work_location: string | null;
+  shortlist_count: number;
+  shortlist_locked: boolean;
+  shortlist_locked_at: string | null;
+  shortlist_search_string: string | null;
+  shortlist_params: any;
+  shortlist_run_at: string | null;
   companies?: { name: string } | null;
 }
 

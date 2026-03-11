@@ -35,6 +35,8 @@ interface ShortlistBuilderModalProps {
   specSeniority?: string | null;
   specSectors?: string[] | null;
   specMustHaveSkills?: string[] | null;
+  specWorkType?: string | null;
+  specWorkLocation?: string | null;
 }
 
 interface SearchParams {

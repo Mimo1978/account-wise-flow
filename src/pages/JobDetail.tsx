@@ -724,7 +724,7 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
                         </div>
                       </div>
                     ) : (
-                      <div className="text-sm text-foreground whitespace-pre-wrap bg-muted/30 rounded-md p-3 max-h-48 overflow-y-auto">
+                      <div className="text-sm text-foreground whitespace-pre-wrap bg-muted/30 rounded-md p-3 overflow-y-auto">
                         {a.content || 'No content'}
                       </div>
                     )}

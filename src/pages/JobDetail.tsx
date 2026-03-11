@@ -85,7 +85,7 @@ import { format } from 'date-fns';
 import { useCreateDeal, DEAL_STAGES } from '@/hooks/use-deals';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useQuery } from '@tanstack/react-query';
+
 
 /* Inline company search dropdown */
 function CompanySearchInline({ search, onSearchChange, onSelect }: { search: string; onSearchChange: (v: string) => void; onSelect: (id: string) => void }) {

@@ -85,6 +85,47 @@ import { format } from 'date-fns';
 import { useCreateDeal, DEAL_STAGES } from '@/hooks/use-deals';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useQuery } from '@tanstack/react-query';
+
+/* Inline company search dropdown */
+function CompanySearchInline({ search, onSearchChange, onSelect }: { search: string; onSearchChange: (v: string) => void; onSelect: (id: string) => void }) {
+  const { data: companies = [] } = useQuery({
+    queryKey: ['companies-search', search],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('companies')
+        .select('id, name')
+        .ilike('name', `%${search}%`)
+        .limit(10);
+      return (data || []) as { id: string; name: string }[];
+    },
+  });
+  return (
+    <div className="space-y-1">
+      <Input
+        placeholder="Search companies…"
+        value={search}
+        onChange={e => onSearchChange(e.target.value)}
+        className="h-8 text-sm"
+        autoFocus
+      />
+      <div className="max-h-40 overflow-y-auto">
+        {companies.map(c => (
+          <button
+            key={c.id}
+            className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent transition-colors"
+            onClick={() => onSelect(c.id)}
+          >
+            {c.name}
+          </button>
+        ))}
+        {companies.length === 0 && search && (
+          <p className="text-xs text-muted-foreground px-2 py-1">No companies found</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const PIPELINE_TYPE_BADGE: Record<string, { className: string; label: string; border: string }> = {
   confirmed: { className: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30', label: 'Confirmed', border: 'border-solid' },

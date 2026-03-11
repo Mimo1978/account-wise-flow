@@ -274,7 +274,7 @@ function extractSkillsText(skills: any): string {
 
 export function ShortlistBuilderModal({
   open, onOpenChange, jobId, jobTitle, workspaceId, projectId, fullSpec,
-  specSeniority, specSectors, specMustHaveSkills,
+  specSeniority, specSectors, specMustHaveSkills, specWorkType, specWorkLocation,
 }: ShortlistBuilderModalProps) {
   const qc = useQueryClient();
   const navigate = useNavigate();

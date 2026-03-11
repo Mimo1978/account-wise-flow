@@ -713,13 +713,37 @@ export function ShortlistBuilderModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <Sparkles className="w-4 h-4 text-primary" />
-            Shortlist Builder — {jobTitle}
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="w-4 h-4 text-primary" />
+              Shortlist Builder — {jobTitle}
+            </DialogTitle>
+            {step === 'config' && (
+              <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+                <Button
+                  variant={searchMode === 'cascade' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-6 text-xs gap-1 px-2"
+                  onClick={() => setSearchMode('cascade')}
+                >
+                  <Zap className="w-3 h-3" /> Cascade
+                </Button>
+                <Button
+                  variant={searchMode === 'quick' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="h-6 text-xs gap-1 px-2"
+                  onClick={() => setSearchMode('quick')}
+                >
+                  <Target className="w-3 h-3" /> Quick
+                </Button>
+              </div>
+            )}
+          </div>
           <DialogDescription>
             {step === 'config'
-              ? 'AI-powered search parameters. Review and run cascade search.'
+              ? searchMode === 'quick'
+                ? 'Search by name, skill, or keyword to quickly add candidates.'
+                : 'AI-powered search parameters. Review and run cascade search.'
               : step === 'searching'
               ? 'Running progressive search cascade...'
               : `${totalFound} candidates found across ${cascadeResults.poolSize} in database. ${selectedIds.size} selected.`}

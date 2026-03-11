@@ -3470,6 +3470,7 @@ export type Database = {
           id: string
           interview_booked_at: string | null
           job_id: string
+          match_breakdown: Json | null
           match_reasons: string[] | null
           match_score: number | null
           notes: string | null
@@ -3489,6 +3490,7 @@ export type Database = {
           id?: string
           interview_booked_at?: string | null
           job_id: string
+          match_breakdown?: Json | null
           match_reasons?: string[] | null
           match_score?: number | null
           notes?: string | null
@@ -3508,6 +3510,7 @@ export type Database = {
           id?: string
           interview_booked_at?: string | null
           job_id?: string
+          match_breakdown?: Json | null
           match_reasons?: string[] | null
           match_score?: number | null
           notes?: string | null
@@ -3706,6 +3709,12 @@ export type Database = {
           salary_currency: string | null
           salary_max: number | null
           salary_min: number | null
+          shortlist_count: number
+          shortlist_locked: boolean
+          shortlist_locked_at: string | null
+          shortlist_params: Json | null
+          shortlist_run_at: string | null
+          shortlist_search_string: string | null
           spec_approved: boolean
           spec_must_have_skills: string[] | null
           spec_sectors: string[] | null
@@ -3733,6 +3742,12 @@ export type Database = {
           salary_currency?: string | null
           salary_max?: number | null
           salary_min?: number | null
+          shortlist_count?: number
+          shortlist_locked?: boolean
+          shortlist_locked_at?: string | null
+          shortlist_params?: Json | null
+          shortlist_run_at?: string | null
+          shortlist_search_string?: string | null
           spec_approved?: boolean
           spec_must_have_skills?: string[] | null
           spec_sectors?: string[] | null
@@ -3760,6 +3775,12 @@ export type Database = {
           salary_currency?: string | null
           salary_max?: number | null
           salary_min?: number | null
+          shortlist_count?: number
+          shortlist_locked?: boolean
+          shortlist_locked_at?: string | null
+          shortlist_params?: Json | null
+          shortlist_run_at?: string | null
+          shortlist_search_string?: string | null
           spec_approved?: boolean
           spec_must_have_skills?: string[] | null
           spec_sectors?: string[] | null

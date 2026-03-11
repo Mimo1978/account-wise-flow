@@ -70,7 +70,7 @@ import { BoardFormatModal } from '@/components/jobs/BoardFormatModal';
 import { ShortlistBuilderModal } from '@/components/jobs/ShortlistBuilderModal';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import {
   Briefcase, FileText, Users, Inbox, Activity, Sparkles, Send, Play,
   Pause, CheckCircle2, XCircle, FileEdit, Copy, Globe, Loader2, Settings2,

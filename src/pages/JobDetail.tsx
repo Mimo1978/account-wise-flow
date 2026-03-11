@@ -78,6 +78,7 @@ import {
   ShieldCheck, Archive, ArrowUp, Phone, PhoneCall, Reply, Bell, Search,
 } from 'lucide-react';
 import { JobBriefSection } from '@/components/jobs/JobBriefSection';
+import { AutomationPipelineTracker } from '@/components/jobs/AutomationPipelineTracker';
 import { ProjectLinker, ProjectLinkPrompt, FilledModalLinker } from '@/components/jobs/ProjectLinker';
 import { useJobProjects } from '@/hooks/use-job-projects';
 import { Checkbox } from '@/components/ui/checkbox';

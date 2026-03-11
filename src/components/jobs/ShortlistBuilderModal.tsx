@@ -679,18 +679,54 @@ export function ShortlistBuilderModal({
           {/* ═══ CONFIG STEP ═══ */}
           {step === 'config' && (
             <div className="space-y-4 pb-4">
+              {/* Spec source preview — collapsible */}
+              {fullSpec && (
+                <div className="rounded-lg border border-border bg-muted/30">
+                  <button
+                    type="button"
+                    className="w-full flex items-center gap-2 p-2.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setSpecPreviewOpen(!specPreviewOpen)}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    📄 Source spec used for search generation
+                    {specPreviewOpen ? <ChevronUp className="w-3 h-3 ml-auto" /> : <ChevronDown className="w-3 h-3 ml-auto" />}
+                  </button>
+                  {specPreviewOpen && (
+                    <div className="px-3 pb-3 text-xs text-muted-foreground whitespace-pre-wrap max-h-40 overflow-y-auto border-t border-border pt-2">
+                      {fullSpec}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* AI loading skeleton */}
               {aiLoading && (
                 <div className="space-y-2 p-3 rounded-lg border border-primary/20 bg-primary/5">
                   <div className="flex items-center gap-2 text-xs text-primary font-medium">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    AI is building your search string…
+                    <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                    Reading your job spec and building search string…
                   </div>
                   <div className="space-y-1.5">
                     <Skeleton className="h-5 w-3/4" />
                     <Skeleton className="h-5 w-1/2" />
                     <Skeleton className="h-5 w-2/3" />
                   </div>
+                </div>
+              )}
+
+              {/* AI success banner */}
+              {!aiLoading && aiRationale && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-700 dark:text-emerald-400">
+                  <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                  Search string built from your job spec — review the terms below and adjust if needed, then run.
+                </div>
+              )}
+
+              {/* No spec warning */}
+              {!aiLoading && !fullSpec && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-400">
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                  No job spec found — add search terms manually above. Write a spec first for AI-powered search generation.
                 </div>
               )}
 

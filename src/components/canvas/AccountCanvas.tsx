@@ -117,7 +117,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
   // ── Company node refs (pan behaviour) ──
   const companyNodeRef = useRef<Group | null>(null);
-  const companyHoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const companyHoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isCompanyDraggingRef = useRef(false);
   const companyDragStartPosRef = useRef<{ x: number; y: number } | null>(null);
 

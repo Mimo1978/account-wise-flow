@@ -162,7 +162,7 @@ export const AIImportModal = ({
     failed: number;
     status: string;
   } | null>(null);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Company assignment state
   const [companyAssignment, setCompanyAssignment] = useState<CompanyAssignment>('existing');

@@ -1180,11 +1180,58 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 }
 
 /* ------------------------------------------------------------------ */
-/*  Floating action button                                             */
+/*  Floating action button with command palette                        */
 /* ------------------------------------------------------------------ */
 export function JarvisFloatingButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [isActive, setIsActive] = useState(false);
+  const [showPalette, setShowPalette] = useState(false);
+  const [idlePulse, setIdlePulse] = useState(false);
+
+  // Ctrl+K / Cmd+K shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowPalette(p => !p);
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  // Idle pulse after 30s of no interaction
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const resetIdle = () => {
+      setIdlePulse(false);
+      clearTimeout(timer);
+      timer = setTimeout(() => setIdlePulse(true), 30000);
+    };
+    resetIdle();
+    document.addEventListener('click', resetIdle);
+    document.addEventListener('keydown', resetIdle);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', resetIdle);
+      document.removeEventListener('keydown', resetIdle);
+    };
+  }, []);
+
+  // Lazy import palette
+  const [PaletteComponent, setPaletteComponent] = useState<any>(null);
+  useEffect(() => {
+    if (showPalette && !PaletteComponent) {
+      import('@/components/jarvis/JarvisCommandPalette').then(m => {
+        setPaletteComponent(() => m.JarvisCommandPalette);
+      });
+    }
+  }, [showPalette, PaletteComponent]);
+
+  const handleJarvisMessage = useCallback((message: string) => {
+    setIsOpen(true);
+    // The chat panel will pick up via sendMessage if exposed; for now just open
+  }, []);
 
   return (
     <>
@@ -1193,6 +1240,32 @@ export function JarvisFloatingButton() {
           onClose={() => setIsOpen(false)}
           onActiveChange={setIsActive}
         />
+      )}
+
+      {PaletteComponent && (
+        <PaletteComponent
+          open={showPalette}
+          onOpenChange={setShowPalette}
+          onJarvisMessage={handleJarvisMessage}
+        />
+      )}
+
+      {/* ? button for command palette */}
+      {!isOpen && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setShowPalette(true)}
+              className="fixed bottom-6 right-[5.5rem] z-[59] h-9 w-9 rounded-full flex items-center justify-center bg-muted text-muted-foreground border border-border shadow-md hover:bg-accent transition-colors"
+              aria-label="Jarvis Commands"
+            >
+              <span className="text-sm font-bold">?</span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            Commands <kbd className="ml-1 text-[10px] px-1 py-0.5 rounded bg-background font-mono">⌘K</kbd>
+          </TooltipContent>
+        </Tooltip>
       )}
 
       <Tooltip>
@@ -1204,7 +1277,8 @@ export function JarvisFloatingButton() {
               "bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-shadow",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               !isOpen && "jarvis-pulse-ring",
-              isActive && isOpen && "jarvis-active-ring"
+              isActive && isOpen && "jarvis-active-ring",
+              idlePulse && !isOpen && "animate-pulse"
             )}
             aria-label="Ask Jarvis"
           >
@@ -1216,7 +1290,9 @@ export function JarvisFloatingButton() {
           </button>
         </TooltipTrigger>
         {!isOpen && (
-          <TooltipContent side="left">Ask Jarvis</TooltipContent>
+          <TooltipContent side="left">
+            Ask Jarvis — or press <kbd className="text-[10px] px-1 py-0.5 rounded bg-background font-mono ml-1">⌘K</kbd> for commands
+          </TooltipContent>
         )}
       </Tooltip>
     </>

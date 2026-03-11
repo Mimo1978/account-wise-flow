@@ -142,10 +142,10 @@ serve(async (req) => {
         const wordCount = content.trim().split(/\s+/).filter(Boolean).length;
         const charCount = content.length;
 
-        // Insert advert
+        // Upsert advert (one per job per board)
         const { data: advert, error: insertErr } = await supabaseAdmin
           .from("job_adverts")
-          .insert({
+          .upsert({
             job_id,
             workspace_id: job.workspace_id,
             board,
@@ -153,7 +153,9 @@ serve(async (req) => {
             word_count: wordCount,
             character_count: charCount,
             status: "draft",
-          })
+            generated_at: new Date().toISOString(),
+            user_edits: null, // clear user edits on regeneration
+          }, { onConflict: "job_id,board" })
           .select("id, board, word_count, character_count, status")
           .single();
 

@@ -13,9 +13,10 @@ interface Props {
   onOpenBoardFormat: (board: string) => void;
   existingBoardFormats: Set<string>;
   isGenerating: boolean;
+  existingAdverts?: Set<string>; // boards that already have adverts
 }
 
-export function GenerateAdvertsModal({ open, onOpenChange, onGenerate, onOpenBoardFormat, existingBoardFormats, isGenerating }: Props) {
+export function GenerateAdvertsModal({ open, onOpenChange, onGenerate, onOpenBoardFormat, existingBoardFormats, isGenerating, existingAdverts = new Set() }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const toggle = (board: string) => {
@@ -34,43 +35,59 @@ export function GenerateAdvertsModal({ open, onOpenChange, onGenerate, onOpenBoa
     onOpenChange(false);
   };
 
+  // Pre-select boards without existing adverts when modal opens
+  const boardEntries = Object.entries(BOARD_DEFINITIONS);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Generate Adverts</DialogTitle>
+          <DialogTitle>Select Boards & Generate</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">Select which job boards to generate adverts for:</p>
         <div className="space-y-3 pt-2">
-          {Object.entries(BOARD_DEFINITIONS).map(([key, def]) => (
-            <div key={key} className="flex items-start gap-3">
-              <Checkbox
-                id={`board-${key}`}
-                checked={selected.has(key)}
-                onCheckedChange={() => toggle(key)}
-                disabled={isGenerating}
-              />
-              <div className="flex-1">
-                <Label htmlFor={`board-${key}`} className="text-sm font-medium cursor-pointer">
-                  {def.label}
-                </Label>
-                <p className="text-xs text-muted-foreground">{def.description}</p>
+          {boardEntries.map(([key, def]) => {
+            const hasExisting = existingAdverts.has(key);
+            return (
+              <div key={key} className="flex items-start gap-3">
+                <Checkbox
+                  id={`board-${key}`}
+                  checked={selected.has(key)}
+                  onCheckedChange={() => toggle(key)}
+                  disabled={isGenerating}
+                />
+                <div className="flex-1">
+                  <Label htmlFor={`board-${key}`} className="text-sm font-medium cursor-pointer">
+                    {def.label}
+                    {hasExisting && (
+                      <span className="ml-2 text-[10px] text-amber-600 dark:text-amber-400 font-normal">
+                        ✓ Exists — will regenerate
+                      </span>
+                    )}
+                  </Label>
+                  <p className="text-xs text-muted-foreground">{def.description}</p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => onOpenBoardFormat(key)}
+                  title="Format settings"
+                >
+                  <Settings2 className="w-3.5 h-3.5 text-muted-foreground" />
+                </Button>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => onOpenBoardFormat(key)}
-                title="Format settings"
-              >
-                <Settings2 className="w-3.5 h-3.5 text-muted-foreground" />
-              </Button>
-              {existingBoardFormats.has(key) && (
-                <span className="text-[10px] text-emerald-600 font-medium mt-0.5">Saved</span>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
+
+        {/* Warning if regenerating existing adverts */}
+        {Array.from(selected).some(b => existingAdverts.has(b)) && (
+          <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-3 py-2 rounded-md">
+            ⚠️ Regenerating will replace existing advert content. Any manual edits will be lost.
+          </p>
+        )}
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isGenerating}>Cancel</Button>
           <Button onClick={handleGenerate} disabled={selected.size === 0 || isGenerating}>

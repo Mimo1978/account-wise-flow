@@ -75,6 +75,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   '/admin/overview': 'Overview',
   '/admin/access': 'Workspace & Roles',
   '/admin/roles': 'Workspace & Roles',
+  '/admin/governance': 'Data Governance',
   '/admin/data-quality': 'Data Quality',
   '/admin/outreach': 'Outreach Defaults',
   '/admin/schema': 'Schema Inventory',

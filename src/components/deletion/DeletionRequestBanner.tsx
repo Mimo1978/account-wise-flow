@@ -20,7 +20,8 @@ export function DeletionRequestBanner({ recordType, recordId }: DeletionRequestB
         .eq("status", "pending")
         .order("requested_at", { ascending: false })
         .limit(1);
-      return data?.[0] || null;
+      const row = (data as any)?.[0] || null;
+      return row as { requested_at: string; reason: string } | null;
     },
   });
 

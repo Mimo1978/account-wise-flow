@@ -102,10 +102,14 @@ export default function CrmProjectsPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
             ) : sorted.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No projects found</TableCell></TableRow>
-            ) : sorted.map(p => (
+              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No projects found</TableCell></TableRow>
+            ) : sorted.map(p => {
+              const wfStage = (p as any).workflow_stage;
+              const stages = getWorkflowStages(p.project_type);
+              const stageDef = wfStage ? stages.find(s => s.id === wfStage) : null;
+              return (
               <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/crm/projects/${p.id}`)}>
                 <TableCell className="font-medium text-primary">{p.name}</TableCell>
                 <TableCell>
@@ -117,6 +121,17 @@ export default function CrmProjectsPage() {
                 </TableCell>
                 <TableCell className="capitalize">{p.project_type || "—"}</TableCell>
                 <TableCell>
+                  {stageDef ? (
+                    <Badge
+                      variant="secondary"
+                      className="text-xs text-white border-0"
+                      style={{ backgroundColor: stageDef.colour }}
+                    >
+                      {stageDef.label}
+                    </Badge>
+                  ) : <span className="text-xs text-muted-foreground">—</span>}
+                </TableCell>
+                <TableCell>
                   <Badge className={STATUS_COLORS[p.status] || ""} variant="secondary">{p.status}</Badge>
                 </TableCell>
                 <TableCell>{p.budget != null ? `${currencySymbol(p.currency)}${p.budget.toLocaleString()}` : "—"}</TableCell>
@@ -124,7 +139,8 @@ export default function CrmProjectsPage() {
                 <TableCell>{p.start_date ? format(new Date(p.start_date), "dd MMM yyyy") : "—"}</TableCell>
                 <TableCell>{p.end_date ? format(new Date(p.end_date), "dd MMM yyyy") : "—"}</TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
       </div>

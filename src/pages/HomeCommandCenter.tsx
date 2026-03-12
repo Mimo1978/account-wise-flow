@@ -527,28 +527,12 @@ const HomeCommandCenter = () => {
     }));
   }, [outreachMetrics]);
 
-  // My Work: actionable items, not just invoices
+  // My Work: actionable items — NO invoices here (they live in Billing Snapshot)
   const myWorkItems = useMemo(() => {
     const items: CriticalDateItem[] = [];
     const today = startOfDay(new Date());
-    const next7 = addDays(today, 7);
 
-    // 1. Overdue invoices
-    for (const inv of invoices) {
-      if (inv.status === 'paid' || inv.status === 'void' || inv.status === 'draft') continue;
-      if (!inv.due_date) continue;
-      const d = startOfDay(new Date(inv.due_date));
-      if (isBefore(d, today) && !inv.paid_date) {
-        items.push({
-          id: `inv-overdue-${inv.id}`, type: 'invoice_overdue', date: d,
-          label: `⚠️ Invoice ${inv.invoice_number || '#' + inv.id.slice(0, 6)} overdue — ${inv.companies?.name ?? 'Unknown'}`,
-          companyName: inv.companies?.name ?? 'Unknown', sowRef: inv.invoice_number, invoice: inv, overdue: true,
-          daysUntil: differenceInDays(d, today),
-        });
-      }
-    }
-
-    // 2. Deals closing in next 7 days
+    // 1. Deals closing in next 7 days
     for (const deal of deals) {
       if (deal.stage === 'won' || deal.stage === 'lost' || !deal.expected_close_date) continue;
       const d = startOfDay(new Date(deal.expected_close_date));
@@ -562,16 +546,16 @@ const HomeCommandCenter = () => {
       }
     }
 
-    // 3. Job work items (shortlists, outreach, applications)
+    // 2. Job work items (shortlists, outreach, applications)
     items.push(...jobWorkItems);
 
-    // 4. Outreach work items
+    // 3. Outreach work items
     items.push(...outreachWorkItems);
 
     // Sort: overdue first, then by date
     items.sort((a, b) => { if (a.overdue !== b.overdue) return a.overdue ? -1 : 1; return a.date.getTime() - b.date.getTime(); });
     return items.slice(0, 8);
-  }, [invoices, deals, jobWorkItems, outreachWorkItems]);
+  }, [deals, jobWorkItems, outreachWorkItems]);
 
   const renewalItems = useMemo(() => buildCriticalDates(sows, [], [], 60), [sows]);
   const renewalCount = renewalItems.length;

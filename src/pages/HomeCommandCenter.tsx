@@ -581,8 +581,10 @@ const HomeCommandCenter = () => {
   const handleRefresh = async () => { sessionStorage.removeItem('pipeline_cascade_done'); setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
   const openSowDetail = (sow: Sow) => { setSelectedSow(sow); setSowSheetOpen(true); };
   const handleItemClick = (item: CriticalDateItem) => {
+    if (item.deal) { navigate(`/deals`); return; }
     if (item.sow) { if (item.sow.engagement_id) { navigate(`/projects/${item.sow.engagement_id}`); return; } openSowDetail(item.sow); return; }
     if (item.invoice?.engagement_id) navigate(`/projects/${item.invoice.engagement_id}`);
+    else if (item.invoice) navigate('/accounts?filter=outstanding');
   };
   const handleMarkOverdue = async (inv: Invoice) => { try { await updateInvoice.mutateAsync({ id: inv.id, status: 'overdue' }); toast.success('Invoice marked as overdue'); } catch { toast.error('Failed to update invoice'); } };
   const handleMarkPaid = async (inv: Invoice) => { try { await updateInvoice.mutateAsync({ id: inv.id, status: 'paid', paid_date: new Date().toISOString().split('T')[0] }); toast.success('Invoice marked as paid'); } catch { toast.error('Failed to update invoice'); } };

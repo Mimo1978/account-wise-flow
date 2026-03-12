@@ -380,6 +380,9 @@ export function CreateCompanyModal({ open, onOpenChange, onCompanyCreated, openR
               )}
             />
 
+            {/* First Contact quick-add */}
+            <FirstContactSection />
+
             <DialogFooter className="pt-4">
               <Button
                 type="button"

@@ -519,6 +519,9 @@ export function useJarvisNavigation() {
               scrollToElement(el);
               el.classList.add(HIGHLIGHT_CLASS);
               if (step.speak) showTooltip(el, step.speak);
+              // Emit event so Jarvis panel can auto-dodge
+              const rect = el.getBoundingClientRect();
+              window.dispatchEvent(new CustomEvent("jarvis-highlight", { detail: { rect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } }));
               setTimeout(() => {
                 el.click();
                 setTimeout(() => {

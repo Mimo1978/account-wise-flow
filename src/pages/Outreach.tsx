@@ -340,7 +340,7 @@ export default function OutreachPage() {
           </div>
 
           {/* ─── Target Queue Tab ─── */}
-          <TabsContent value="queue" className="mt-0">
+          <TabsContent value="queue" className="mt-0" data-jarvis-id="outreach-panel-queue">
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <div className="relative flex-1 min-w-[200px] max-w-xs">
@@ -445,7 +445,7 @@ export default function OutreachPage() {
             )}
 
             {/* Table */}
-            <div className="rounded-xl border border-border bg-card" style={{ borderLeft: '4px solid hsl(var(--accent))' }}>
+            <div className="rounded-xl border border-border bg-card" style={{ borderLeft: '4px solid hsl(var(--accent))' }} data-jarvis-id="outreach-queue-table">
               {targetsLoading ? (
                 <div className="p-6 space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -524,7 +524,7 @@ export default function OutreachPage() {
           </TabsContent>
 
           {/* ─── Campaigns Tab ─── */}
-          <TabsContent value="campaigns" className="mt-0">
+          <TabsContent value="campaigns" className="mt-0" data-jarvis-id="outreach-panel-campaigns">
             {campaignsLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -549,7 +549,7 @@ export default function OutreachPage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3" data-jarvis-id="outreach-campaigns-list">
                 {campaigns.map((campaign) => (
                   <div
                     key={campaign.id}
@@ -682,7 +682,7 @@ export default function OutreachPage() {
           </TabsContent>
 
           {/* ─── Scripts Tab ─── */}
-          <TabsContent value="scripts" className="mt-0">
+          <TabsContent value="scripts" className="mt-0" data-jarvis-id="outreach-panel-scripts">
             {scriptsLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -707,7 +707,7 @@ export default function OutreachPage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2" data-jarvis-id="outreach-scripts-list">
                 {scripts.map((script) => (
                   <div
                     key={script.id}

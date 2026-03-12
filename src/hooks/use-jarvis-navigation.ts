@@ -186,6 +186,89 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isTabTrigger(el: HTMLElement): boolean {
+  return el.getAttribute("role") === "tab";
+}
+
+function isTabActive(el: HTMLElement): boolean {
+  if (!isTabTrigger(el)) return true;
+  return el.getAttribute("aria-selected") === "true" || el.getAttribute("data-state") === "active";
+}
+
+function dispatchPointerAndClick(el: HTMLElement) {
+  const mouseInit: MouseEventInit = { bubbles: true, cancelable: true, button: 0 };
+  const pointerInit: PointerEventInit = {
+    bubbles: true,
+    cancelable: true,
+    pointerId: 1,
+    pointerType: "mouse",
+    button: 0,
+  };
+
+  if (typeof PointerEvent !== "undefined") {
+    el.dispatchEvent(new PointerEvent("pointerdown", pointerInit));
+    el.dispatchEvent(new PointerEvent("pointerup", pointerInit));
+  }
+
+  el.dispatchEvent(new MouseEvent("mousedown", mouseInit));
+  el.dispatchEvent(new MouseEvent("mouseup", mouseInit));
+  el.dispatchEvent(new MouseEvent("click", mouseInit));
+}
+
+function dispatchKeyboardActivate(el: HTMLElement) {
+  el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+  el.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true, cancelable: true }));
+}
+
+async function waitForTabPanelToOpen(el: HTMLElement, timeoutMs = 900) {
+  if (!isTabTrigger(el)) return;
+
+  const panelId = el.getAttribute("aria-controls");
+  if (!panelId) return;
+
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const panel = document.getElementById(panelId);
+    if (!panel) {
+      await wait(50);
+      continue;
+    }
+
+    const hidden =
+      panel.hasAttribute("hidden") ||
+      panel.getAttribute("aria-hidden") === "true" ||
+      panel.getAttribute("data-state") === "inactive";
+
+    if (!hidden) return;
+    await wait(50);
+  }
+}
+
+async function activateInteractiveElement(el: HTMLElement) {
+  const maxAttempts = isTabTrigger(el) ? 4 : 2;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
+
+    dispatchPointerAndClick(el);
+    if (isTabActive(el)) break;
+
+    dispatchKeyboardActivate(el);
+    if (isTabActive(el)) break;
+
+    el.click();
+    if (isTabActive(el)) break;
+
+    await wait(100);
+  }
+
+  await waitForTabPanelToOpen(el);
+}
+
 /** Map route paths to human-friendly page names */
 function getPageName(pathname: string): string {
   const map: Record<string, string> = {
@@ -285,15 +368,17 @@ export function useJarvisNavigation() {
         scrollToElement(el);
         el.classList.add(HIGHLIGHT_CLASS);
         if (label) showTooltip(el, label);
+
         track(
           setTimeout(() => {
-            el.click();
-            track(
-              setTimeout(() => {
-                el.classList.remove(HIGHLIGHT_CLASS);
-                document.getElementById(TOOLTIP_ID)?.remove();
-              }, 1500)
-            );
+            void activateInteractiveElement(el).finally(() => {
+              track(
+                setTimeout(() => {
+                  el.classList.remove(HIGHLIGHT_CLASS);
+                  document.getElementById(TOOLTIP_ID)?.remove();
+                }, 1500)
+              );
+            });
           }, 700)
         );
       });
@@ -462,6 +547,12 @@ export function useJarvisNavigation() {
         document.querySelectorAll(`.${SECTION_GLOW_CLASS}`).forEach((e) =>
           e.classList.remove(SECTION_GLOW_CLASS)
         );
+        document.querySelectorAll(".jarvis-nav-highlight").forEach((e) =>
+          e.classList.remove("jarvis-nav-highlight")
+        );
+        document.querySelectorAll(".jarvis-spotlight").forEach((e) =>
+          e.classList.remove("jarvis-spotlight")
+        );
         document.getElementById(TOOLTIP_ID)?.remove();
 
         if (tourAbortRef.current) break;
@@ -485,20 +576,42 @@ export function useJarvisNavigation() {
         // --- clickAndOpen: click element (e.g. tab) to open it, keep it glowing ---
         if (step.clickAndOpen) {
           await new Promise<void>((resolve) => {
+            let settled = false;
+            const finish = () => {
+              if (settled) return;
+              settled = true;
+              resolve();
+            };
+
             findElement(step.clickAndOpen!, 10, (el) => {
-              scrollToElement(el);
-              el.classList.add(HIGHLIGHT_CLASS);
-              // Emit dodge event
-              const rect = el.getBoundingClientRect();
-              window.dispatchEvent(new CustomEvent("jarvis-highlight", { detail: { rect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } }));
-              // Click to open the tab/section
-              setTimeout(() => {
-                el.click();
-                // Wait for content to render
-                setTimeout(resolve, 400);
-              }, 300);
+              void (async () => {
+                scrollToElement(el);
+                el.classList.add(HIGHLIGHT_CLASS);
+
+                const rect = el.getBoundingClientRect();
+                window.dispatchEvent(
+                  new CustomEvent("jarvis-highlight", {
+                    detail: {
+                      rect: {
+                        top: rect.top,
+                        left: rect.left,
+                        right: rect.right,
+                        bottom: rect.bottom,
+                        width: rect.width,
+                        height: rect.height,
+                      },
+                    },
+                  })
+                );
+
+                await wait(120);
+                await activateInteractiveElement(el);
+                await wait(260);
+                finish();
+              })();
             });
-            setTimeout(resolve, 3000);
+
+            setTimeout(finish, 3500);
           });
         }
 

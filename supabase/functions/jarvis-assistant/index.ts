@@ -861,19 +861,22 @@ Outreach intents:
 - "show me the campaigns tab" / "explain campaigns" / "how do campaigns work" / "walk me through outreach":
   <guided_tour>[
     {"navigate":"/outreach","speak":"Let me take you to the Outreach page.","delay":500},
-    {"clickAndOpen":"outreach-tab-queue","speak":"This is the Target Queue tab. It shows every person queued for outreach with quick-action buttons for email, SMS, and AI calls.","delay":3500},
+    {"clickAndOpen":"outreach-tab-queue","speak":"This is the Target Queue tab. I am opening it now so you can see it clearly.","delay":2200},
+    {"highlight":"outreach-panel-queue","speak":"Inside this panel, you can filter targets and run outreach actions like Email, SMS, Manual Call, and AI Call.","delay":3200},
     {"highlight":"add-targets-button","speak":"Use this button to add new targets to your outreach queue.","delay":2500},
-    {"clickAndOpen":"outreach-tab-campaigns","speak":"Now let me open the Campaigns tab. Campaigns group your targets together so you can track performance and conversion rates.","delay":3500},
-    {"highlight":"new-campaign-button","speak":"Click here to create a new campaign. Give it a name, select your targets, and choose your outreach channels.","delay":3000},
-    {"clickAndOpen":"outreach-tab-scripts","speak":"This is the Scripts tab. Scripts are pre-written templates for AI calls. The AI follows these during automated phone outreach.","delay":3500},
-    {"highlight":"new-script-button","speak":"Create a new script here. You can set the purpose, tone, and key questions the AI should ask.","delay":3000},
-    {"clickAndOpen":"outreach-tab-queue","speak":"Back to the queue. From here, you can email, text, or call each target directly. The system logs every interaction automatically.","delay":3000}
+    {"clickAndOpen":"outreach-tab-campaigns","speak":"Now I am opening the Campaigns tab.","delay":2200},
+    {"highlight":"outreach-campaigns-list","speak":"These campaign cards show status, channel, volume, and conversion so you can manage performance quickly.","delay":3200},
+    {"highlight":"new-campaign-button","speak":"Click here to create a new campaign and choose your channel strategy.","delay":2800},
+    {"clickAndOpen":"outreach-tab-scripts","speak":"Now I am opening the Scripts tab.","delay":2200},
+    {"highlight":"outreach-scripts-list","speak":"This area contains your reusable script templates for calls, email, and SMS.","delay":3000},
+    {"highlight":"new-script-button","speak":"Create a new script here. Set the purpose, tone, and key questions for the AI.","delay":2800},
+    {"clickAndOpen":"outreach-tab-queue","speak":"I will return to the queue so you can launch outreach actions immediately.","delay":2600}
   ]</guided_tour>
 - "explain the target queue" / "how does the queue work" / "what is the target queue":
   <guided_tour>[
     {"navigate":"/outreach","speak":"Let me show you the Target Queue.","delay":500},
-    {"clickAndOpen":"outreach-tab-queue","speak":"The Target Queue shows every contact queued for outreach. Each row has the contact name, company, campaign, and status.","delay":3500},
-    {"speak":"On the right of each row, you'll see action buttons: Email, SMS, Manual Call, and AI Bot. Click any to start that channel immediately.","delay":3500},
+    {"clickAndOpen":"outreach-tab-queue","speak":"I am opening the Target Queue now.","delay":2200},
+    {"highlight":"outreach-panel-queue","speak":"The Target Queue shows every contact queued for outreach with status, campaign, and fast action controls.","delay":3500},
     {"highlight":"add-targets-button","speak":"Use this button to add more targets to your active campaign. You can search contacts or import a list.","delay":3000}
   ]</guided_tour>
 

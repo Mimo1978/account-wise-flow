@@ -166,7 +166,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 gap-0" data-jarvis-id="outreach-script-modal">
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/50 shrink-0">
           <div className="flex items-center justify-between gap-4">
             <DialogTitle className="text-base font-semibold">
@@ -208,11 +208,12 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Script name (required)"
                 className="h-8 text-sm"
+                data-jarvis-id="script-name-input"
               />
             </div>
             <div>
               <Select value={channel} onValueChange={(v) => handleChannelChange(v as ScriptChannel)}>
-                <SelectTrigger className="h-8 w-[130px] text-sm">
+                <SelectTrigger className="h-8 w-[130px] text-sm" data-jarvis-id="script-channel-select">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -232,10 +233,10 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
           className="flex flex-col flex-1 min-h-0"
         >
           <TabsList className="mx-6 mt-3 mb-0 shrink-0 w-fit">
-            <TabsTrigger value="editor" className="gap-1.5 text-xs">
+            <TabsTrigger value="editor" className="gap-1.5 text-xs" data-jarvis-id="script-tab-editor">
               <Layers className="w-3.5 h-3.5" /> Editor
             </TabsTrigger>
-            <TabsTrigger value="guardrails" className="gap-1.5 text-xs">
+            <TabsTrigger value="guardrails" className="gap-1.5 text-xs" data-jarvis-id="script-tab-guardrails">
               <AlertTriangle className="w-3.5 h-3.5" />
               Guardrails
               {violations.length > 0 && (
@@ -249,13 +250,13 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="simulate" className="gap-1.5 text-xs">
+            <TabsTrigger value="simulate" className="gap-1.5 text-xs" data-jarvis-id="script-tab-simulate">
               <FlaskConical className="w-3.5 h-3.5" /> Simulate
             </TabsTrigger>
           </TabsList>
 
           {/* ── EDITOR TAB ── */}
-          <TabsContent value="editor" className="flex-1 min-h-0 mt-0 px-6 pb-0">
+          <TabsContent value="editor" className="flex-1 min-h-0 mt-0 px-6 pb-0" data-jarvis-id="script-editor-panel">
             <ScrollArea className="h-full pr-1">
               <div className="py-4 space-y-4">
                 {channel === "email" && (

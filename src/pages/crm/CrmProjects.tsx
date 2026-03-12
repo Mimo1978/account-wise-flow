@@ -92,6 +92,7 @@ export default function CrmProjectsPage() {
               <SortHeader label="Project Name" k="name" />
               <TableHead>Company</TableHead>
               <SortHeader label="Type" k="project_type" />
+              <TableHead>Workflow Stage</TableHead>
               <SortHeader label="Status" k="status" />
               <SortHeader label="Budget" k="budget" />
               <TableHead>Assigned To</TableHead>

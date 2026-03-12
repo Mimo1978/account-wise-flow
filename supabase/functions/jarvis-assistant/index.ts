@@ -813,10 +813,30 @@ Talent intents:
   ]</guided_tour>
 
 Admin/Settings intents:
-- "where do I set up email" / "configure email integration" / "set up Resend":
+- "where do I set up email" / "configure email integration" / "set up Resend" / "how do I send emails":
   <guided_tour>[
     {"navigate":"/admin/integrations","speak":"Let me take you to the Integrations settings.","delay":500},
-    {"highlight":"admin-integrations","speak":"This is where you configure all your integrations including email via Resend, SMS via Twilio, and voice via ElevenLabs.","delay":3000}
+    {"highlight":"admin-integrations","speak":"This is where you configure all your API keys. To send emails, you need a Resend API key. Click on the Resend section.","delay":3500},
+    {"speak":"You'll need to sign up at resend.com, create an API key, and paste it here. Once set, you can send emails from the CRM, outreach campaigns, and contact pages.","delay":4000}
+  ]</guided_tour>
+- "where do I set up SMS" / "configure SMS" / "set up Twilio" / "how do I send text messages":
+  <guided_tour>[
+    {"navigate":"/admin/integrations","speak":"Let me take you to Integrations.","delay":500},
+    {"highlight":"admin-integrations","speak":"For SMS, you need a Twilio API key. Twilio provides the phone number and messaging service.","delay":3500},
+    {"speak":"Sign up at twilio.com, get your Account SID and Auth Token, then paste them here. Once configured, you can send SMS from outreach and contact pages.","delay":4000}
+  ]</guided_tour>
+- "where do I set up AI calls" / "configure AI calling" / "set up ElevenLabs" / "how do AI voice calls work":
+  <guided_tour>[
+    {"navigate":"/admin/integrations","speak":"Let me show you the AI Calling setup.","delay":500},
+    {"highlight":"admin-integrations","speak":"AI Calling requires two integrations: Twilio for phone calls and ElevenLabs for the AI voice. Both API keys go here.","delay":4000},
+    {"speak":"Once both are configured, you can make AI-powered calls from the outreach queue. The AI follows scripts you create in the Scripts tab and logs outcomes automatically.","delay":4500}
+  ]</guided_tour>
+- "how do I set up all integrations" / "walk me through API keys" / "what API keys do I need":
+  <guided_tour>[
+    {"navigate":"/admin/integrations","speak":"Let me walk you through all the integrations.","delay":500},
+    {"highlight":"admin-integrations","speak":"This page has four integrations. Resend for email, Twilio for SMS and phone calls, ElevenLabs for AI voice, and Anthropic for advanced AI features.","delay":4500},
+    {"speak":"Each one needs an API key from the provider. I recommend setting up Resend first for email, then Twilio for SMS. ElevenLabs is optional but enables realistic AI voice calls.","delay":4500},
+    {"speak":"Once your keys are saved, the features unlock automatically across the CRM. You'll see email, SMS, and call buttons appear on contact and outreach pages.","delay":4000}
   ]</guided_tour>
 - "how do I invite a team member" / "add someone to my workspace" / "manage roles":
   <guided_tour>[
@@ -831,6 +851,23 @@ Home/Dashboard intents:
 Outreach intents:
 - "create a new outreach script" / "write a call script" → navigate to /outreach, click new-script-button
 - "add targets to my campaign" / "add people to outreach" → navigate to /outreach, highlight add-targets-button
+- "show me the campaigns tab" / "explain campaigns" / "how do campaigns work" / "walk me through outreach":
+  <guided_tour>[
+    {"navigate":"/outreach","speak":"Let me take you to the Outreach page.","delay":500},
+    {"highlight":"outreach-tab-queue","speak":"This is the Target Queue. It shows every person queued for outreach with quick-action buttons for email, SMS, and AI calls.","delay":3500},
+    {"click":"outreach-tab-campaigns","speak":"Now let me open the Campaigns tab. Campaigns group your targets together so you can track performance and conversion rates.","delay":3500},
+    {"highlight":"new-campaign-button","speak":"Click here to create a new campaign. Give it a name, select your targets, and choose your outreach channels.","delay":3000},
+    {"click":"outreach-tab-scripts","speak":"This is the Scripts tab. Scripts are pre-written templates for AI calls. The AI follows these during automated phone outreach.","delay":3500},
+    {"highlight":"new-script-button","speak":"Create a new script here. You can set the purpose, tone, and key questions the AI should ask.","delay":3000},
+    {"click":"outreach-tab-queue","speak":"Back to the queue. From here, you can email, text, or call each target directly. The system logs every interaction automatically.","delay":3000}
+  ]</guided_tour>
+- "explain the target queue" / "how does the queue work" / "what is the target queue":
+  <guided_tour>[
+    {"navigate":"/outreach","speak":"Let me show you the Target Queue.","delay":500},
+    {"click":"outreach-tab-queue","speak":"The Target Queue shows every contact queued for outreach. Each row has the contact name, company, campaign, and status.","delay":3500},
+    {"speak":"On the right of each row, you'll see action buttons: Email, SMS, Manual Call, and AI Bot. Click any to start that channel immediately.","delay":3500},
+    {"highlight":"add-targets-button","speak":"Use this button to add more targets to your active campaign. You can search contacts or import a list.","delay":3000}
+  ]</guided_tour>
 
 LOST USER intent ("I'm lost", "help me", "help", "where am I", "what can you do", "I don't know where I am"):
 - Navigate to /home and offer a menu of common tasks using SHOW_MENU action.

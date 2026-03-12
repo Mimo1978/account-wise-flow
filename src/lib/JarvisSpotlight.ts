@@ -69,6 +69,19 @@ const autoSpotlightMap: SpotlightMapping[] = [
   { keywords: ["pull report", "report builder"], targets: ["pull-report"] },
   { keywords: ["take the tour", "guided tour"], targets: ["home-tour-button"] },
   { keywords: ["job brief"], targets: [], sections: ["job-brief-box"] },
+  // Tab spotlights
+  { keywords: ["target queue"], targets: ["outreach-tab-queue"] },
+  { keywords: ["campaigns tab"], targets: ["outreach-tab-campaigns"] },
+  { keywords: ["scripts tab", "call scripts"], targets: ["outreach-tab-scripts"] },
+  { keywords: ["new campaign", "create campaign"], targets: ["new-campaign-button"] },
+  { keywords: ["new script", "create script"], targets: ["new-script-button"] },
+  { keywords: ["add targets"], targets: ["add-targets-button"] },
+  // Integration/setup spotlights
+  { keywords: ["integrations", "api keys", "resend", "twilio", "elevenlabs"], targets: ["admin-integrations"], navTargets: ["nav-admin"] },
+  { keywords: ["email setup", "configure email", "set up email"], targets: ["admin-integrations"] },
+  { keywords: ["sms setup", "configure sms", "set up sms", "text messages"], targets: ["admin-integrations"] },
+  { keywords: ["ai calling", "ai calls", "voice calls", "configure calls"], targets: ["admin-integrations"] },
+  { keywords: ["workspace", "team management", "invite", "roles"], targets: ["admin-workspace-roles"] },
 ];
 
 /* ------------------------------------------------------------------ */
@@ -163,19 +176,23 @@ class JarvisSpotlightManager {
     el.classList.add(HIGHLIGHT_CLASS);
     this._activeElements.push(el);
     if (label && this._settings.tooltip_labels_enabled) showTooltipAbove(el, label);
+    this._emitHighlightEvent(el);
     this._scheduleAutoClear(duration);
   }
 
   /** Highlight multiple targets at once */
   highlightMany(ids: string[], duration = 4000): void {
     if (!this._settings.spotlight_enabled) return;
+    let firstEl: HTMLElement | null = null;
     for (const id of ids) {
       const el = findEl(id);
       if (!el) continue;
       this._scrollTo(el);
       el.classList.add(HIGHLIGHT_CLASS);
       this._activeElements.push(el);
+      if (!firstEl) firstEl = el;
     }
+    if (firstEl) this._emitHighlightEvent(firstEl);
     this._scheduleAutoClear(duration);
   }
 
@@ -271,6 +288,12 @@ class JarvisSpotlightManager {
   }
 
   /* ---- private ---- */
+  /** Emit a custom event so the Jarvis panel can auto-dodge */
+  private _emitHighlightEvent(el: HTMLElement): void {
+    const rect = el.getBoundingClientRect();
+    window.dispatchEvent(new CustomEvent("jarvis-highlight", { detail: { rect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } }));
+  }
+
   private _scheduleAutoClear(duration: number): void {
     if (this._autoClearTimer) clearTimeout(this._autoClearTimer);
     this._autoClearTimer = setTimeout(() => {

@@ -608,6 +608,50 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     }
   }, [panelPos, isDragging, isMobile]);
 
+  // Auto-dodge: reposition panel when a highlighted element overlaps with it
+  const savedPosBeforeDodge = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (isMobile) return;
+    const handleHighlight = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail?.rect) return;
+      const hlRect = detail.rect as DOMRect;
+      // Check if panel overlaps the highlighted element
+      const panelRect = { left: panelPos.x, top: panelPos.y, right: panelPos.x + PANEL_W, bottom: panelPos.y + PANEL_H };
+      const overlaps = !(panelRect.right < hlRect.left || panelRect.left > hlRect.right || panelRect.bottom < hlRect.top || panelRect.top > hlRect.bottom);
+      if (!overlaps) return;
+      // Save current position so we can restore later
+      if (!savedPosBeforeDodge.current) {
+        savedPosBeforeDodge.current = { ...panelPos };
+      }
+      // Try to move panel: prefer left side if highlighted element is on right, vice versa
+      const viewW = window.innerWidth;
+      const viewH = window.innerHeight;
+      let newX = panelPos.x;
+      let newY = panelPos.y;
+      // If element is on the right half, move panel to left
+      if (hlRect.left > viewW / 2) {
+        newX = Math.max(16, hlRect.left - PANEL_W - 32);
+      } else {
+        // Element is on the left, move panel to right
+        newX = Math.min(viewW - PANEL_W - 16, hlRect.right + 32);
+      }
+      // If still overlapping vertically, also adjust Y
+      if (newY + PANEL_H > hlRect.top && newY < hlRect.bottom) {
+        if (hlRect.top > PANEL_H + 32) {
+          newY = hlRect.top - PANEL_H - 32;
+        } else {
+          newY = Math.min(viewH - PANEL_H - 16, hlRect.bottom + 32);
+        }
+      }
+      newX = Math.max(0, Math.min(viewW - PANEL_W, newX));
+      newY = Math.max(0, Math.min(viewH - PANEL_H, newY));
+      setPanelPos({ x: newX, y: newY });
+    };
+    window.addEventListener("jarvis-highlight", handleHighlight);
+    return () => window.removeEventListener("jarvis-highlight", handleHighlight);
+  }, [panelPos, isMobile]);
+
   // Show drag hint during tours
   useEffect(() => {
     if (jarvisNav.tourState.status === "running" && !isMobile) {

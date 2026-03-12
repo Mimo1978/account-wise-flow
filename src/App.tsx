@@ -57,6 +57,7 @@ import AdminJarvisSettings from "./pages/admin/AdminJarvisSettings";
 import AdminEmailGuide from "./pages/admin/AdminEmailGuide";
 import AdminSmsGuide from "./pages/admin/AdminSmsGuide";
 import AdminAiCallingGuide from "./pages/admin/AdminAiCallingGuide";
+import AccountsBillingHub from "./pages/AccountsBillingHub";
 import CrmContacts from "./pages/crm/CrmContacts";
 import CrmContactDetail from "./pages/crm/CrmContactDetail";
 import CrmProjects from "./pages/crm/CrmProjects";
@@ -165,6 +166,7 @@ const App = () => {
             <Route path="/companies" element={<ProtectedRoute><ProductLayout><CompaniesDatabase /></ProductLayout></ProtectedRoute>} />
             <Route path="/deals" element={<ProtectedRoute><ProductLayout><DealsPage /></ProductLayout></ProtectedRoute>} />
             <Route path="/documents" element={<ProtectedRoute><ProductLayout><DocumentsHub /></ProductLayout></ProtectedRoute>} />
+            <Route path="/accounts" element={<ProtectedRoute><ProductLayout><AccountsBillingHub /></ProductLayout></ProtectedRoute>} />
             <Route path="/companies/:id" element={<ProtectedRoute><ProductLayout><CompanyDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/contacts" element={<ProtectedRoute><ProductLayout><ContactsDatabase /></ProductLayout></ProtectedRoute>} />
             <Route path="/talent" element={<ProtectedRoute><ProductLayout><TalentDatabase /></ProductLayout></ProtectedRoute>} />

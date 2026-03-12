@@ -527,12 +527,51 @@ const HomeCommandCenter = () => {
     }));
   }, [outreachMetrics]);
 
+  // My Work: actionable items, not just invoices
   const myWorkItems = useMemo(() => {
-    const base = buildCriticalDates(sows, invoices, deals, 30);
-    const all = [...base, ...outreachWorkItems, ...jobWorkItems];
-    all.sort((a, b) => { if (a.overdue !== b.overdue) return a.overdue ? -1 : 1; return a.date.getTime() - b.date.getTime(); });
-    return all.slice(0, 6);
-  }, [sows, invoices, deals, outreachWorkItems, jobWorkItems]);
+    const items: CriticalDateItem[] = [];
+    const today = startOfDay(new Date());
+    const next7 = addDays(today, 7);
+
+    // 1. Overdue invoices
+    for (const inv of invoices) {
+      if (inv.status === 'paid' || inv.status === 'void' || inv.status === 'draft') continue;
+      if (!inv.due_date) continue;
+      const d = startOfDay(new Date(inv.due_date));
+      if (isBefore(d, today) && !inv.paid_date) {
+        items.push({
+          id: `inv-overdue-${inv.id}`, type: 'invoice_overdue', date: d,
+          label: `⚠️ Invoice ${inv.invoice_number || '#' + inv.id.slice(0, 6)} overdue — ${inv.companies?.name ?? 'Unknown'}`,
+          companyName: inv.companies?.name ?? 'Unknown', sowRef: inv.invoice_number, invoice: inv, overdue: true,
+          daysUntil: differenceInDays(d, today),
+        });
+      }
+    }
+
+    // 2. Deals closing in next 7 days
+    for (const deal of deals) {
+      if (deal.stage === 'won' || deal.stage === 'lost' || !deal.expected_close_date) continue;
+      const d = startOfDay(new Date(deal.expected_close_date));
+      const diff = differenceInDays(d, today);
+      if (diff >= 0 && diff <= 7) {
+        items.push({
+          id: `deal-close-${deal.id}`, type: 'deal_next_step', date: d,
+          label: `💼 ${deal.name} closing in ${diff} day${diff !== 1 ? 's' : ''}`,
+          companyName: deal.companies?.name ?? 'Unknown', sowRef: null, deal, overdue: false, daysUntil: diff,
+        });
+      }
+    }
+
+    // 3. Job work items (shortlists, outreach, applications)
+    items.push(...jobWorkItems);
+
+    // 4. Outreach work items
+    items.push(...outreachWorkItems);
+
+    // Sort: overdue first, then by date
+    items.sort((a, b) => { if (a.overdue !== b.overdue) return a.overdue ? -1 : 1; return a.date.getTime() - b.date.getTime(); });
+    return items.slice(0, 8);
+  }, [invoices, deals, jobWorkItems, outreachWorkItems]);
 
   const renewalItems = useMemo(() => buildCriticalDates(sows, [], [], 60), [sows]);
   const renewalCount = renewalItems.length;
@@ -542,8 +581,10 @@ const HomeCommandCenter = () => {
   const handleRefresh = async () => { sessionStorage.removeItem('pipeline_cascade_done'); setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
   const openSowDetail = (sow: Sow) => { setSelectedSow(sow); setSowSheetOpen(true); };
   const handleItemClick = (item: CriticalDateItem) => {
+    if (item.deal) { navigate(`/deals`); return; }
     if (item.sow) { if (item.sow.engagement_id) { navigate(`/projects/${item.sow.engagement_id}`); return; } openSowDetail(item.sow); return; }
     if (item.invoice?.engagement_id) navigate(`/projects/${item.invoice.engagement_id}`);
+    else if (item.invoice) navigate('/accounts?filter=outstanding');
   };
   const handleMarkOverdue = async (inv: Invoice) => { try { await updateInvoice.mutateAsync({ id: inv.id, status: 'overdue' }); toast.success('Invoice marked as overdue'); } catch { toast.error('Failed to update invoice'); } };
   const handleMarkPaid = async (inv: Invoice) => { try { await updateInvoice.mutateAsync({ id: inv.id, status: 'paid', paid_date: new Date().toISOString().split('T')[0] }); toast.success('Invoice marked as paid'); } catch { toast.error('Failed to update invoice'); } };
@@ -756,8 +797,13 @@ const HomeCommandCenter = () => {
               <Badge variant="secondary" className="text-xs">{myWorkItems.length} items</Badge>
             </SectionHeader>
             {myWorkItems.length === 0 ? (
-              <EmptyPanel title="No tasks or critical dates" description="Upcoming renewals, invoice due dates and overdue items will appear here."
-                icon={Clock} ctas={[{ label: 'Add SOW', onClick: () => setSowOpen(true) }, { label: 'Create Invoice', onClick: () => setInvoiceOpen(true), variant: 'outline' }]} />
+              <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[180px] border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
+                  <CheckSquare className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <h3 className="text-sm font-semibold text-foreground">✓ All clear</h3>
+                <p className="text-xs text-muted-foreground mt-1">Nothing needs your attention right now</p>
+              </Card>
             ) : (
               <Card className="divide-y divide-border/50 border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                 {myWorkItems.map((item) => <CriticalDateRow key={item.id} item={item} onClick={() => handleItemClick(item)} />)}

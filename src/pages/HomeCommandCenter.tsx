@@ -432,7 +432,47 @@ const HomeCommandCenter = () => {
     return items.slice(0, 8);
   }, [invoices, deals, jobsSummary?.jobWorkItems]);
 
-  const handleRefresh = async () => { sessionStorage.removeItem('pipeline_cascade_done'); setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
+  // ── Pipeline cascade animation ──
+  const [litStages, setLitStages] = useState<string[]>([]);
+  const animationTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const runChevronAnimation = useCallback(() => {
+    const stages = DEAL_STAGES as readonly string[];
+    // Clear previous timers
+    animationTimers.current.forEach(clearTimeout);
+    animationTimers.current = [];
+    // Reset
+    setLitStages([]);
+
+    // First pass
+    stages.forEach((stage, index) => {
+      const t = setTimeout(() => {
+        setLitStages(prev => [...prev, stage]);
+      }, 400 + index * 200);
+      animationTimers.current.push(t);
+    });
+
+    // Second pass
+    const firstPassDuration = 400 + stages.length * 200 + 300;
+    const tReset = setTimeout(() => setLitStages([]), firstPassDuration);
+    animationTimers.current.push(tReset);
+
+    stages.forEach((stage, index) => {
+      const t = setTimeout(() => {
+        setLitStages(prev => [...prev, stage]);
+      }, firstPassDuration + 200 + index * 200);
+      animationTimers.current.push(t);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (location.pathname === '/home' || location.pathname === '/') {
+      runChevronAnimation();
+    }
+    return () => { animationTimers.current.forEach(clearTimeout); };
+  }, [location.pathname, runChevronAnimation]);
+
+  const handleRefresh = async () => { runChevronAnimation(); setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
 
   return (
     <div className="min-h-screen" style={{ background: DARK.page }}>

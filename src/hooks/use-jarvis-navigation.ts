@@ -497,6 +497,10 @@ export function useJarvisNavigation() {
 
               // Use section glow for data-jarvis-section elements, highlight for others
               el.classList.add(isSection ? SECTION_GLOW_CLASS : HIGHLIGHT_CLASS);
+
+              // Emit event so Jarvis panel can auto-dodge
+              const rect = el.getBoundingClientRect();
+              window.dispatchEvent(new CustomEvent("jarvis-highlight", { detail: { rect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } }));
               resolve();
             });
             setTimeout(resolve, 3000);

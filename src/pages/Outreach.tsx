@@ -707,7 +707,7 @@ export default function OutreachPage() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-2" data-jarvis-id="outreach-scripts-list">
                 {scripts.map((script) => (
                   <div
                     key={script.id}

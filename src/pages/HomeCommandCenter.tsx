@@ -19,7 +19,7 @@ import { useJarvisNavigation } from '@/hooks/use-jarvis-navigation';
 import { GuidedTourPlayer } from '@/components/jarvis/GuidedTourPlayer';
 import type { GuidedTourStep } from '@/hooks/use-jarvis';
 
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   RefreshCw, Briefcase, TrendingUp, FileText, CalendarClock,
   Plus, Building2, ArrowRight, LayoutGrid, Clock, Receipt, Loader2,
@@ -132,38 +132,19 @@ const CHEVRON_COLORS: Record<string, string> = {
   negotiation: '#F97316', won: '#22C55E', lost: '#EF4444',
 };
 
-function PipelineChevron({ stage, label, count, total, isFirst, isLast, isActive, onClick, cascadeIndex }: {
-  stage: string; label: string; count: number; total: number; isFirst: boolean; isLast: boolean; isActive: boolean; onClick: () => void; cascadeIndex?: number;
+function PipelineChevron({ stage, label, count, total, isFirst, isLast, isActive, onClick, isLit }: {
+  stage: string; label: string; count: number; total: number; isFirst: boolean; isLast: boolean; isActive: boolean; onClick: () => void; isLit: boolean;
 }) {
   const color = CHEVRON_COLORS[stage] ?? '#6B7280';
-  const ref = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (cascadeIndex === undefined) return;
-    const already = sessionStorage.getItem('pipeline_cascade_done');
-    if (already) return;
-    const el = ref.current;
-    if (!el) return;
-    el.style.filter = 'brightness(0.6)';
-    el.style.transition = 'filter 0.25s ease, transform 0.25s ease';
-    const t1 = setTimeout(() => {
-      el.style.filter = 'brightness(1.4) saturate(1.3)';
-      el.style.transform = 'scale(1.04)';
-      const countEl = el.querySelector('[data-chevron-count]') as HTMLElement;
-      if (countEl) { countEl.style.transition = 'transform 0.2s ease'; countEl.style.transform = 'scale(1.3)'; setTimeout(() => { countEl.style.transform = 'scale(1)'; }, 200); }
-    }, cascadeIndex * 180);
-    const t2 = setTimeout(() => {
-      el.style.filter = count > 0 ? 'brightness(1.05)' : 'brightness(0.85)';
-      el.style.transform = 'scale(1)';
-      el.style.opacity = count > 0 ? '1' : '0.7';
-    }, cascadeIndex * 180 + 400);
-    const t3 = setTimeout(() => { sessionStorage.setItem('pipeline_cascade_done', 'true'); }, 6 * 180 + 500);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [cascadeIndex, count]);
 
   return (
-    <button ref={ref} onClick={onClick} className="relative flex-1 min-w-[130px] transition-all duration-200 group"
-      style={{ filter: isActive ? 'brightness(1)' : 'brightness(0.85)', opacity: isActive ? 1 : 0.75 }}>
+    <button onClick={onClick} className="relative flex-1 min-w-[130px] group"
+      style={{
+        filter: isLit ? (isActive ? 'brightness(1)' : 'brightness(0.85)') : 'brightness(0.6)',
+        opacity: isLit ? (isActive ? 1 : 0.75) : 0.35,
+        transform: isLit ? 'scale(1)' : 'scale(0.97)',
+        transition: 'filter 0.15s ease-out, opacity 0.15s ease-out, transform 0.15s ease-out',
+      }}>
       <svg viewBox="0 0 200 56" preserveAspectRatio="none" className="w-full h-14" aria-hidden>
         <polygon
           points={isFirst ? '0,0 180,0 200,28 180,56 0,56' : isLast ? '0,0 180,0 200,0 200,56 180,56 0,56 20,28' : '0,0 180,0 200,28 180,56 0,56 20,28'}
@@ -172,7 +153,7 @@ function PipelineChevron({ stage, label, count, total, isFirst, isLast, isActive
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2">
         <span className="text-[10px] font-semibold text-white uppercase tracking-wider leading-none">{label}</span>
-        <span data-chevron-count className="text-lg font-bold text-white leading-tight mt-0.5">{count}</span>
+        <span className="text-lg font-bold text-white leading-tight mt-0.5">{count}</span>
         <span className="text-[9px] text-white/80 leading-none">£{total.toLocaleString()}</span>
       </div>
     </button>
@@ -331,6 +312,7 @@ const COMMAND_CENTRE_TOUR: GuidedTourStep[] = [
 /* ═══════════════════════════════════════════════════════════════ */
 const HomeCommandCenter = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentWorkspace, refreshWorkspaces } = useWorkspace();
   const [refreshing, setRefreshing] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -450,7 +432,47 @@ const HomeCommandCenter = () => {
     return items.slice(0, 8);
   }, [invoices, deals, jobsSummary?.jobWorkItems]);
 
-  const handleRefresh = async () => { sessionStorage.removeItem('pipeline_cascade_done'); setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
+  // ── Pipeline cascade animation ──
+  const [litStages, setLitStages] = useState<string[]>([]);
+  const animationTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const runChevronAnimation = useCallback(() => {
+    const stages = DEAL_STAGES as readonly string[];
+    // Clear previous timers
+    animationTimers.current.forEach(clearTimeout);
+    animationTimers.current = [];
+    // Reset
+    setLitStages([]);
+
+    // First pass
+    stages.forEach((stage, index) => {
+      const t = setTimeout(() => {
+        setLitStages(prev => [...prev, stage]);
+      }, 400 + index * 200);
+      animationTimers.current.push(t);
+    });
+
+    // Second pass
+    const firstPassDuration = 400 + stages.length * 200 + 300;
+    const tReset = setTimeout(() => setLitStages([]), firstPassDuration);
+    animationTimers.current.push(tReset);
+
+    stages.forEach((stage, index) => {
+      const t = setTimeout(() => {
+        setLitStages(prev => [...prev, stage]);
+      }, firstPassDuration + 200 + index * 200);
+      animationTimers.current.push(t);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (location.pathname === '/home' || location.pathname === '/') {
+      runChevronAnimation();
+    }
+    return () => { animationTimers.current.forEach(clearTimeout); };
+  }, [location.pathname, runChevronAnimation]);
+
+  const handleRefresh = async () => { runChevronAnimation(); setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
 
   return (
     <div className="min-h-screen" style={{ background: DARK.page }}>
@@ -540,7 +562,7 @@ const HomeCommandCenter = () => {
                   const isActive = pipelineFilter === null || pipelineFilter === stage;
                   return <PipelineChevron key={stage} stage={stage} label={DEAL_STAGE_LABELS[stage]} count={stageDeals.length} total={stageTotal}
                     isFirst={idx === 0} isLast={idx === DEAL_STAGES.length - 1} isActive={isActive}
-                    cascadeIndex={idx}
+                    isLit={litStages.includes(stage)}
                     onClick={() => setPipelineFilter(pipelineFilter === stage ? null : stage)} />;
                 })}
               </div>

@@ -167,7 +167,7 @@ export default function DealsPage() {
       {isLoading ? (
         <p className="text-muted-foreground text-center py-12">Loading deals...</p>
       ) : filtered.length === 0 ? (
-        <Card><CardContent className="py-12 text-center">
+        <Card className="border border-border rounded-xl"><CardContent className="py-12 text-center">
           <DollarSign className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
           <p className="text-muted-foreground">{search || stageFilter ? "No deals match your filters." : "No deals yet. Create your first deal."}</p>
         </CardContent></Card>

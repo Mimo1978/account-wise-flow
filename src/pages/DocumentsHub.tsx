@@ -299,7 +299,7 @@ export default function DocumentsHub() {
             <Button className="mt-4 gap-1.5" onClick={() => openUpload()}><Plus className="w-3.5 h-3.5" /> Upload Document</Button>
           </Card>
         ) : (
-          <Card className="border-0 shadow-sm overflow-hidden">
+          <Card className="border border-border rounded-xl overflow-hidden" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

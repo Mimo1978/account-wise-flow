@@ -389,11 +389,17 @@ function useElevenLabsTTS(
   }, [voiceGender]);
 
   const speakBrowserFallback = useCallback(
-    (text: string, onDone?: () => void) => {
+    (text: string, onDone?: () => void, options?: SpeakOptions) => {
       if (typeof window === "undefined" || !window.speechSynthesis) {
         onDone?.();
         return;
       }
+
+      const resolved = {
+        autoSpotlight: options?.autoSpotlight ?? true,
+        clearSpotlightOnEnd: options?.clearSpotlightOnEnd ?? true,
+      };
+
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = speed ?? 1.0;
@@ -402,8 +408,16 @@ function useElevenLabsTTS(
       const voice = getPreferredVoice();
       if (voice) utterance.voice = voice;
       utterance.onstart = () => setIsSpeaking(true);
-      utterance.onend = () => { setIsSpeaking(false); jarvisSpotlight.clearAll(); onDone?.(); };
-      utterance.onerror = () => { setIsSpeaking(false); jarvisSpotlight.clearAll(); onDone?.(); };
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        if (resolved.clearSpotlightOnEnd) jarvisSpotlight.clearAll();
+        onDone?.();
+      };
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        if (resolved.clearSpotlightOnEnd) jarvisSpotlight.clearAll();
+        onDone?.();
+      };
       window.speechSynthesis.speak(utterance);
     },
     [getPreferredVoice, speed, volume]

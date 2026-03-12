@@ -150,6 +150,14 @@ export default function CrmProjectDetail() {
 
       <AddEditProjectPanel open={editOpen} onOpenChange={setEditOpen} project={project} navigateOnCreate={false} />
       <AddEditOpportunityPanel open={oppPanelOpen} onOpenChange={setOppPanelOpen} defaultCompanyId={project.company_id || undefined} defaultProjectId={project.id} />
+      <DeleteRecordModal
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        recordType="crm_projects"
+        recordId={project.id}
+        recordName={project.name}
+        onDeleted={() => navigate("/crm/projects")}
+      />
     </div>
   );
 }

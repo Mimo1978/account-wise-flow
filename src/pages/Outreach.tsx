@@ -340,7 +340,7 @@ export default function OutreachPage() {
           </div>
 
           {/* ─── Target Queue Tab ─── */}
-          <TabsContent value="queue" className="mt-0">
+          <TabsContent value="queue" className="mt-0" data-jarvis-id="outreach-panel-queue">
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <div className="relative flex-1 min-w-[200px] max-w-xs">

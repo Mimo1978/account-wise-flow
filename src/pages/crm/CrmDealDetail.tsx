@@ -28,6 +28,8 @@ export default function CrmDealDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const perm = useDeletionPermission();
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   if (!deal) return <div className="p-6 text-muted-foreground">Deal not found</div>;

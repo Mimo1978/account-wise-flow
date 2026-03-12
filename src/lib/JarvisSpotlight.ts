@@ -183,13 +183,16 @@ class JarvisSpotlightManager {
   /** Highlight multiple targets at once */
   highlightMany(ids: string[], duration = 4000): void {
     if (!this._settings.spotlight_enabled) return;
+    let firstEl: HTMLElement | null = null;
     for (const id of ids) {
       const el = findEl(id);
       if (!el) continue;
       this._scrollTo(el);
       el.classList.add(HIGHLIGHT_CLASS);
       this._activeElements.push(el);
+      if (!firstEl) firstEl = el;
     }
+    if (firstEl) this._emitHighlightEvent(firstEl);
     this._scheduleAutoClear(duration);
   }
 

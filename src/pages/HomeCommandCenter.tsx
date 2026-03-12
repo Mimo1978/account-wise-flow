@@ -677,7 +677,7 @@ const HomeCommandCenter = () => {
           <KPICard title="Outstanding Invoices" value={billing.outstandingCount > 0 ? `£${billing.outstandingAmount.toLocaleString()}` : '—'}
             subtitle={billing.outstandingCount > 0 ? `${billing.outstandingCount} unpaid` : 'No outstanding invoices'}
             icon={Receipt} accentClass="bg-warning"
-            onClick={() => navigate('/accounts?filter=outstanding')} data-jarvis-id="accounts-kpi-outstanding" />
+            onClick={() => navigate('/accounts?filter=outstanding')} />
           {(() => {
             const docExpiringCount = (expiringDocs as any[]).filter((d: any) => {
               if (!d.end_date) return false;

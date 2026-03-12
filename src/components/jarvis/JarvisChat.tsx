@@ -343,6 +343,11 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
 /* ------------------------------------------------------------------ */
 /*  ElevenLabs TTS with browser fallback                               */
 /* ------------------------------------------------------------------ */
+interface SpeakOptions {
+  autoSpotlight?: boolean;
+  clearSpotlightOnEnd?: boolean;
+}
+
 function useElevenLabsTTS(
   voiceGender?: 'male' | 'female',
   speed?: number,

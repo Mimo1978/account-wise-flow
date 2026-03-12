@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,7 +9,7 @@ import { useRevenueIntelligence, type CompanyRiskProfile, type SalesMomentum } f
 import { useDeals, DEAL_STAGE_LABELS } from '@/hooks/use-deals';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend, CartesianGrid } from 'recharts';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -21,6 +20,20 @@ import {
 } from 'lucide-react';
 import { startOfDay, subDays, addMonths, startOfMonth, endOfMonth, format, differenceInDays } from 'date-fns';
 import { PageBackButton } from '@/components/ui/page-back-button';
+
+/* ─── Dark theme constants (matching Command Centre) ─── */
+const D = {
+  page: '#0F1117',
+  card: '#1A1F2E',
+  border: '#2D3748',
+  text: '#F8FAFC',
+  muted: '#94A3B8',
+  hover: '#252B3B',
+};
+
+const TOOLTIP_STYLE = { background: D.card, border: `1px solid ${D.border}`, color: D.text, borderRadius: 8, fontSize: 12 };
+const AXIS_TICK = { fontSize: 11, fill: D.muted };
+const LEGEND_STYLE = { color: D.muted, fontSize: 12 };
 
 // ── Lazy Section (Intersection Observer) ──
 function LazySection({ children, height = 300, id }: { children: React.ReactNode; height?: number; id?: string }) {
@@ -68,24 +81,22 @@ function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLab
     <div
       id={id}
       data-jarvis-id={dataJarvisId}
-      className="rounded-xl bg-card shadow-[0_1px_3px_hsl(0_0%_0%/0.08),0_1px_2px_hsl(0_0%_0%/0.04)] overflow-hidden"
-      style={{ borderLeft: `4px solid ${borderColor}` }}
+      className="rounded-xl overflow-hidden"
+      style={{ background: D.card, border: `1px solid ${D.border}`, borderLeft: `4px solid ${borderColor}` }}
     >
-      {/* Card Header */}
-      <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border/50">
+      <div className="flex items-center justify-between px-5 pt-5 pb-3" style={{ borderBottom: `1px solid ${D.border}` }}>
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${borderColor}15` }}>
             <Icon className="w-3.5 h-3.5" style={{ color: borderColor }} />
           </div>
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <h3 className="text-sm font-semibold" style={{ color: D.text }}>{title}</h3>
         </div>
         {viewAllHref && (
-          <Link to={viewAllHref} className="text-xs font-medium text-primary hover:underline flex items-center gap-0.5">
+          <Link to={viewAllHref} className="text-xs font-medium flex items-center gap-0.5 transition-colors" style={{ color: D.muted }} onMouseEnter={e => (e.currentTarget.style.color = D.text)} onMouseLeave={e => (e.currentTarget.style.color = D.muted)}>
             {viewAllLabel} <ChevronRight className="w-3 h-3" />
           </Link>
         )}
       </div>
-      {/* Card Body */}
       <div className="px-5 py-4">{children}</div>
     </div>
   );
@@ -125,17 +136,19 @@ function StickyNav() {
   };
 
   return (
-    <div className="sticky top-0 z-40 bg-card/95 backdrop-blur-sm border-b border-border/60 -mx-6 px-6">
+    <div className="sticky top-0 z-40 backdrop-blur-sm -mx-6 px-6" style={{ background: `${D.page}ee`, borderBottom: `1px solid ${D.border}` }}>
       <nav className="flex gap-1 overflow-x-auto py-2 no-scrollbar">
         {SECTIONS.map(s => (
           <button
             key={s.id}
             onClick={() => scrollTo(s.id)}
-            className={`px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
-              active === s.id
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}
+            className="px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors"
+            style={active === s.id
+              ? { background: '#3B82F6', color: '#FFFFFF' }
+              : { color: D.muted, background: 'transparent' }
+            }
+            onMouseEnter={e => { if (active !== s.id) { e.currentTarget.style.background = D.hover; e.currentTarget.style.color = D.text; } }}
+            onMouseLeave={e => { if (active !== s.id) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = D.muted; } }}
           >
             {s.label}
           </button>
@@ -164,7 +177,6 @@ const ExecutiveInsights = () => {
 
   const { atRiskCount = 0, singleThreadedCount = 0, dormantCount = 0, avgRsi = 0, rsiDistribution = { high: 0, medium: 0, low: 0 }, salesMomentum, companies = [] } = riData || {};
 
-  // Documents expiring
   const { data: expiringDocsCount = 0 } = useQuery({
     queryKey: ['analytics-docs-expiring', currentWorkspace?.id],
     queryFn: async () => {
@@ -179,7 +191,6 @@ const ExecutiveInsights = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // KPI card color accents
   const kpiCards = [
     { label: 'Total Pipeline', value: `£${totalPipeline.toLocaleString()}`, subtitle: `${activeDeals.length} active deals`, icon: TrendingUp, accent: '#3B82F6', onClick: () => document.getElementById('sec-pipeline')?.scrollIntoView({ behavior: 'smooth' }) },
     { label: 'Win Rate', value: `${winRate}%`, subtitle: `${wonDeals.length} won / ${wonDeals.length + lostDeals.length} closed`, icon: Target, accent: '#10B981', onClick: () => document.getElementById('sec-sales')?.scrollIntoView({ behavior: 'smooth' }) },
@@ -188,36 +199,36 @@ const ExecutiveInsights = () => {
   ];
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'hsl(210 40% 98%)' }}>
+    <div className="min-h-screen" style={{ background: D.page }}>
       <div className="container mx-auto px-6 py-8 max-w-7xl space-y-5">
         <PageBackButton />
 
         {/* ═══ HEADER ═══ */}
         <div className="flex items-center justify-between" data-jarvis-id="analytics-date-range">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/10">
-              <BarChart3 className="w-5 h-5 text-primary" />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#3B82F615' }}>
+              <BarChart3 className="w-5 h-5" style={{ color: '#3B82F6' }} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">Analytics & Intelligence</h1>
-              <p className="text-sm text-muted-foreground">Performance data across your entire workspace</p>
+              <h1 className="text-2xl font-bold tracking-tight" style={{ color: D.text }}>Analytics & Intelligence</h1>
+              <p className="text-sm" style={{ color: D.muted }}>Performance data across your entire workspace</p>
             </div>
           </div>
           <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRange)}>
-            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-              <SelectItem value="year">This year</SelectItem>
+            <SelectTrigger className="w-[160px]" style={{ background: D.card, border: `1px solid ${D.border}`, color: D.text }}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent style={{ background: D.card, border: `1px solid ${D.border}`, color: D.text }}>
+              <SelectItem value="7d" className="focus:bg-[#252B3B] text-[#F8FAFC]">Last 7 days</SelectItem>
+              <SelectItem value="30d" className="focus:bg-[#252B3B] text-[#F8FAFC]">Last 30 days</SelectItem>
+              <SelectItem value="90d" className="focus:bg-[#252B3B] text-[#F8FAFC]">Last 90 days</SelectItem>
+              <SelectItem value="year" className="focus:bg-[#252B3B] text-[#F8FAFC]">This year</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
-        {/* Subtitle hint */}
-        <p className="text-xs text-muted-foreground -mt-2">Click any section to explore the detail. All data updates with the date range selector above.</p>
+        <p className="text-xs -mt-2" style={{ color: D.muted }}>Click any section to explore the detail. All data updates with the date range selector above.</p>
 
-        {/* ═══ STICKY NAV ═══ */}
         <StickyNav />
 
         {/* ═══ ROW 1: 4 KPI HEADLINE CARDS ═══ */}
@@ -226,17 +237,18 @@ const ExecutiveInsights = () => {
             <div
               key={kpi.label}
               onClick={kpi.onClick}
-              className="rounded-xl bg-card shadow-[0_1px_3px_hsl(0_0%_0%/0.08),0_1px_2px_hsl(0_0%_0%/0.04)] cursor-pointer hover:shadow-md transition-shadow overflow-hidden"
+              className="rounded-xl cursor-pointer transition-all duration-150 overflow-hidden hover:scale-[1.02]"
+              style={{ background: D.card, border: `1px solid ${D.border}` }}
             >
               <div className="p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="p-2 rounded-lg" style={{ backgroundColor: `${kpi.accent}15` }}>
                     <kpi.icon className="w-4 h-4" style={{ color: kpi.accent }} />
                   </div>
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{kpi.label}</span>
+                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: D.muted }}>{kpi.label}</span>
                 </div>
-                <div className="text-2xl font-bold tracking-tight text-foreground">{kpi.value}</div>
-                <div className="text-xs text-muted-foreground mt-1">{kpi.subtitle}</div>
+                <div className="text-2xl font-bold tracking-tight" style={{ color: D.text }}>{kpi.value}</div>
+                <div className="text-xs mt-1" style={{ color: D.muted }}>{kpi.subtitle}</div>
               </div>
               <div className="h-1" style={{ backgroundColor: kpi.accent }} />
             </div>
@@ -314,24 +326,22 @@ export default ExecutiveInsights;
 function IntelCard({ label, description, count, icon: Icon, severity, onClick }: {
   label: string; description: string; count: number; icon: React.ElementType; severity: 'danger' | 'warning' | 'positive'; onClick?: () => void;
 }) {
-  const colors = {
-    danger: { bg: 'hsl(0 84% 60% / 0.08)', iconBg: 'hsl(0 84% 60% / 0.15)', iconColor: 'hsl(0 84% 60%)' },
-    warning: { bg: 'hsl(38 92% 50% / 0.08)', iconBg: 'hsl(38 92% 50% / 0.15)', iconColor: 'hsl(38 92% 50%)' },
-    positive: { bg: 'hsl(142 71% 45% / 0.08)', iconBg: 'hsl(142 71% 45% / 0.15)', iconColor: 'hsl(142 71% 45%)' },
-  };
-  const c = colors[severity];
+  const iconColors = { danger: '#EF4444', warning: '#F59E0B', positive: '#22C55E' };
+  const ic = iconColors[severity];
   return (
     <div
       onClick={onClick}
-      className="rounded-lg p-4 cursor-pointer hover:shadow-md transition-all border border-border/30"
-      style={{ backgroundColor: c.bg }}
+      className="rounded-lg p-4 cursor-pointer transition-all"
+      style={{ background: D.hover, border: `1px solid ${D.border}` }}
+      onMouseEnter={e => (e.currentTarget.style.background = '#2D3748')}
+      onMouseLeave={e => (e.currentTarget.style.background = D.hover)}
     >
-      <div className="p-2 rounded-lg w-fit mb-2" style={{ backgroundColor: c.iconBg }}>
-        <Icon className="w-4 h-4" style={{ color: c.iconColor }} />
+      <div className="p-2 rounded-lg w-fit mb-2" style={{ backgroundColor: `${ic}20` }}>
+        <Icon className="w-4 h-4" style={{ color: ic }} />
       </div>
-      <div className="text-3xl font-bold tracking-tight text-foreground">{count}</div>
-      <div className="text-xs font-medium text-foreground/80 mt-1 flex items-center gap-1">{label} <ChevronRight className="w-3 h-3" /></div>
-      <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{description}</div>
+      <div className="text-3xl font-bold tracking-tight" style={{ color: D.text }}>{count}</div>
+      <div className="text-xs font-medium mt-1 flex items-center gap-1" style={{ color: D.text }}>{label} <ChevronRight className="w-3 h-3" /></div>
+      <div className="text-[10px] mt-0.5 leading-tight" style={{ color: D.muted }}>{description}</div>
     </div>
   );
 }
@@ -358,16 +368,17 @@ function PipelineByStageChart({ data, isLoading }: { data: PipelineByStage[]; is
       viewAllLabel="View All Deals"
       dataJarvisId="analytics-pipeline-chart"
     >
-      {totalDeals > 0 && <p className="text-xs text-muted-foreground mb-3">Total pipeline: £{totalValue.toLocaleString()} across {totalDeals} deals</p>}
+      {totalDeals > 0 && <p className="text-xs mb-3" style={{ color: D.muted }}>Total pipeline: £{totalValue.toLocaleString()} across {totalDeals} deals</p>}
       {data.length === 0 ? (
-        <div className="text-center py-12 text-sm text-muted-foreground">No deals yet. Create deals to see pipeline analytics.</div>
+        <div className="text-center py-12 text-sm" style={{ color: D.muted }}>No deals yet. Create deals to see pipeline analytics.</div>
       ) : (
         <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={formatted} barGap={4}>
-            <XAxis dataKey="label" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `£${v}k`} />
-            <Tooltip formatter={(value: number, name: string) => [`£${value}k`, name === 'totalK' ? 'Total' : 'Weighted']} contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-            <Legend formatter={(v: string) => v === 'totalK' ? 'Total Value' : 'Weighted Value'} />
+          <BarChart data={formatted} barGap={4} style={{ background: 'transparent' }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={D.border} vertical={false} />
+            <XAxis dataKey="label" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+            <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={(v: number) => `£${v}k`} />
+            <Tooltip formatter={(value: number, name: string) => [`£${value}k`, name === 'totalK' ? 'Total' : 'Weighted']} contentStyle={TOOLTIP_STYLE} />
+            <Legend formatter={(v: string) => v === 'totalK' ? 'Total Value' : 'Weighted Value'} wrapperStyle={LEGEND_STYLE} />
             <Bar dataKey="totalK" radius={[4, 4, 0, 0]} cursor="pointer" onClick={(entry: any) => entry?.stage && navigate(`/deals?stage=${entry.stage}`)}>
               {formatted.map((entry) => <Cell key={entry.stage} fill={`${STAGE_COLORS[entry.label] || '#6B7280'}40`} />)}
             </Bar>
@@ -429,41 +440,41 @@ function RevenueForecast({ deals, workspaceId }: { deals: any[]; workspaceId?: s
     >
       <div className="space-y-3">
         {months.map((m, i) => (
-          <div key={i} className="rounded-lg border border-border/40 p-4 bg-muted/20">
+          <div key={i} className="rounded-lg p-4" style={{ background: D.hover, border: `1px solid ${D.border}` }}>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-semibold text-foreground">{m.label}</span>
-              {m.isCurrentMonth && <Badge variant="secondary" className="text-[10px]">Current</Badge>}
+              <span className="text-sm font-semibold" style={{ color: D.text }}>{m.label}</span>
+              {m.isCurrentMonth && <Badge className="text-[10px] border-none" style={{ background: '#3B82F620', color: '#60A5FA' }}>Current</Badge>}
             </div>
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div>
-                <span className="text-muted-foreground">Expected</span>
-                <div className="text-lg font-bold text-foreground">£{m.expected.toLocaleString()}</div>
+                <span style={{ color: D.muted }}>Expected</span>
+                <div className="text-lg font-bold" style={{ color: D.text }}>£{m.expected.toLocaleString()}</div>
               </div>
               <div>
-                <span className="text-muted-foreground">Weighted</span>
-                <div className="text-lg font-bold text-primary">£{m.weighted.toLocaleString()}</div>
+                <span style={{ color: D.muted }}>Weighted</span>
+                <div className="text-lg font-bold" style={{ color: '#3B82F6' }}>£{m.weighted.toLocaleString()}</div>
               </div>
             </div>
             {m.isCurrentMonth && (
-              <div className="mt-2 pt-2 border-t border-border/40">
-                <span className="text-xs text-muted-foreground">Invoiced: </span>
-                <span className="text-xs font-semibold text-foreground">£{invoicedThisMonth.toLocaleString()}</span>
+              <div className="mt-2 pt-2" style={{ borderTop: `1px solid ${D.border}` }}>
+                <span className="text-xs" style={{ color: D.muted }}>Invoiced: </span>
+                <span className="text-xs font-semibold" style={{ color: D.text }}>£{invoicedThisMonth.toLocaleString()}</span>
               </div>
             )}
-            <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden flex">
-              {m.expected > 0 && <div className="h-full rounded-full" style={{ backgroundColor: '#10B98140', width: `${Math.min(100, (m.weighted / Math.max(m.expected, 1)) * 100)}%` }} />}
+            <div className="mt-2 h-2 rounded-full overflow-hidden flex" style={{ background: D.border }}>
+              {m.expected > 0 && <div className="h-full rounded-full" style={{ backgroundColor: '#10B98160', width: `${Math.min(100, (m.weighted / Math.max(m.expected, 1)) * 100)}%` }} />}
               {m.expected > 0 && <div className="h-full rounded-full" style={{ backgroundColor: '#10B981', width: `${Math.max(0, 100 - (m.weighted / Math.max(m.expected, 1)) * 100)}%` }} />}
             </div>
           </div>
         ))}
-        <p className="text-[10px] text-muted-foreground text-center">Forecast based on open deals and their pipeline stage probability.</p>
+        <p className="text-[10px] text-center" style={{ color: D.muted }}>Forecast based on open deals and their pipeline stage probability.</p>
       </div>
     </AnalyticsCard>
   );
 }
 
 // ══════════════════════════════════════════
-// Invoices Due / Overdue (8 Weeks) — wrapped in AnalyticsCard
+// Invoices Due / Overdue (8 Weeks)
 // ══════════════════════════════════════════
 function InvoicesByWeekCard({ data, isLoading }: { data: InvoiceWeek[]; isLoading: boolean }) {
   if (isLoading) return <AnalyticsCard borderColor="#EF4444" icon={Receipt} title="Invoice Timeline — Due & Overdue (8 Weeks)" viewAllHref="/documents" dataJarvisId="analytics-invoice-timeline"><Skeleton className="h-[260px] rounded-xl" /></AnalyticsCard>;
@@ -474,21 +485,22 @@ function InvoicesByWeekCard({ data, isLoading }: { data: InvoiceWeek[]; isLoadin
   return (
     <AnalyticsCard borderColor="#EF4444" icon={Receipt} title="Invoice Timeline — Due & Overdue (8 Weeks)" viewAllHref="/documents" viewAllLabel="View All Documents" dataJarvisId="analytics-invoice-timeline">
       {hasData && (
-        <p className="text-xs text-muted-foreground mb-3">
-          Due: <span className="font-semibold text-foreground">{totalDue}</span> | Overdue: <span className="font-semibold text-destructive">{totalOverdue}</span>
+        <p className="text-xs mb-3" style={{ color: D.muted }}>
+          Due: <span className="font-semibold" style={{ color: D.text }}>{totalDue}</span> | Overdue: <span className="font-semibold" style={{ color: '#EF4444' }}>{totalOverdue}</span>
         </p>
       )}
       {!hasData ? (
-        <div className="text-center py-12 text-sm text-muted-foreground">No invoices due in the next 8 weeks.</div>
+        <div className="text-center py-12 text-sm" style={{ color: D.muted }}>No invoices due in the next 8 weeks.</div>
       ) : (
         <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data} barGap={2}>
-            <XAxis dataKey="weekLabel" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-            <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-            <Legend />
-            <Bar dataKey="due" name="Due" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="overdue" name="Overdue" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+          <BarChart data={data} barGap={2} style={{ background: 'transparent' }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={D.border} vertical={false} />
+            <XAxis dataKey="weekLabel" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+            <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} />
+            <Legend wrapperStyle={LEGEND_STYLE} />
+            <Bar dataKey="due" name="Due" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="overdue" name="Overdue" fill="#EF4444" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       )}
@@ -497,42 +509,44 @@ function InvoicesByWeekCard({ data, isLoading }: { data: InvoiceWeek[]; isLoadin
 }
 
 // ══════════════════════════════════════════
-// Outreach Outcomes (content only — inside AnalyticsCard)
+// Outreach Outcomes
 // ══════════════════════════════════════════
 function OutreachOutcomesContent({ data, isLoading }: { data: OutreachOutcomeData; isLoading: boolean }) {
   if (isLoading) return <Skeleton className="h-[300px] rounded-xl" />;
   const hasTargets = data.targetsByState.length > 0;
   const hasCalls = data.callOutcomesByType.length > 0;
-  const STATE_COLORS = ['hsl(var(--primary))', '#22C55E', '#F59E0B', '#EF4444', 'hsl(var(--muted-foreground))'];
+  const STATE_COLORS_ARR = ['#3B82F6', '#22C55E', '#F59E0B', '#EF4444', '#94A3B8'];
 
   if (!hasTargets && !hasCalls) {
-    return <div className="text-center py-12 text-sm text-muted-foreground">No outreach activity in the last 30 days.</div>;
+    return <div className="text-center py-12 text-sm" style={{ color: D.muted }}>No outreach activity in the last 30 days.</div>;
   }
 
   return (
     <div className="space-y-4">
       {hasTargets && (
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2">Targets by State</p>
+          <p className="text-xs font-medium mb-2" style={{ color: D.muted }}>Targets by State</p>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={data.targetsByState} layout="vertical" barSize={18}>
-              <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <YAxis type="category" dataKey="state" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
-              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]}>{data.targetsByState.map((_, i) => <Cell key={i} fill={STATE_COLORS[i % STATE_COLORS.length]} />)}</Bar>
+            <BarChart data={data.targetsByState} layout="vertical" barSize={18} style={{ background: 'transparent' }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={D.border} horizontal={false} />
+              <XAxis type="number" tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+              <YAxis type="category" dataKey="state" tick={AXIS_TICK} axisLine={false} tickLine={false} width={90} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} />
+              <Bar dataKey="count" radius={[0, 4, 4, 0]}>{data.targetsByState.map((_, i) => <Cell key={i} fill={STATE_COLORS_ARR[i % STATE_COLORS_ARR.length]} />)}</Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
       {hasCalls && (
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2">Call Outcomes</p>
+          <p className="text-xs font-medium mb-2" style={{ color: D.muted }}>Call Outcomes</p>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={data.callOutcomesByType} layout="vertical" barSize={18}>
-              <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <YAxis type="category" dataKey="outcome" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} width={100} />
-              <Tooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]}>{data.callOutcomesByType.map((_, i) => <Cell key={i} fill={STATE_COLORS[i % STATE_COLORS.length]} />)}</Bar>
+            <BarChart data={data.callOutcomesByType} layout="vertical" barSize={18} style={{ background: 'transparent' }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={D.border} horizontal={false} />
+              <XAxis type="number" tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+              <YAxis type="category" dataKey="outcome" tick={AXIS_TICK} axisLine={false} tickLine={false} width={100} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} />
+              <Bar dataKey="count" radius={[0, 4, 4, 0]}>{data.callOutcomesByType.map((_, i) => <Cell key={i} fill={STATE_COLORS_ARR[i % STATE_COLORS_ARR.length]} />)}</Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -542,36 +556,42 @@ function OutreachOutcomesContent({ data, isLoading }: { data: OutreachOutcomeDat
 }
 
 // ══════════════════════════════════════════
-// Sales Momentum (content only — inside AnalyticsCard)
+// Sales Momentum
 // ══════════════════════════════════════════
 function SalesMomentumContent({ momentum, isLoading }: { momentum?: SalesMomentum; isLoading: boolean }) {
   if (isLoading) return <Skeleton className="h-[300px] rounded-xl" />;
   if (!momentum || (momentum.totalTargets === 0 && momentum.totalCalls === 0)) {
-    return <div className="text-center py-12 text-sm text-muted-foreground">Create campaigns and log calls to track sales momentum.</div>;
+    return <div className="text-center py-12 text-sm" style={{ color: D.muted }}>Create campaigns and log calls to track sales momentum.</div>;
   }
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <MomentumKpi label="Response Rate" value={`${momentum.responseRate}%`} detail={`${momentum.totalTargets} targets`} icon={Zap} />
-        <MomentumKpi label="Booking Rate" value={`${momentum.bookingRate}%`} detail={`${momentum.totalTargets} targets`} icon={CalendarCheck} />
-        <MomentumKpi label="Interest Rate" value={`${momentum.interestRate}%`} detail={`${momentum.totalCalls} calls`} icon={Target} />
-        <div className="rounded-lg border border-border/40 p-4 bg-muted/20">
-          <div className="p-2 rounded-lg bg-muted w-fit mb-2"><Timer className="w-4 h-4 text-muted-foreground" /></div>
-          <div className="text-2xl font-bold text-foreground">{momentum.avgFollowUpDelayDays !== null ? `${momentum.avgFollowUpDelayDays}d` : '—'}</div>
-          <div className="text-xs text-muted-foreground mt-1">Avg Follow-Up Delay</div>
+        <MomentumKpi label="Response Rate" value={`${momentum.responseRate}%`} detail={`${momentum.totalTargets} targets`} icon={Zap} accent="#8B5CF6" />
+        <MomentumKpi label="Booking Rate" value={`${momentum.bookingRate}%`} detail={`${momentum.totalTargets} targets`} icon={CalendarCheck} accent="#22C55E" />
+        <MomentumKpi label="Interest Rate" value={`${momentum.interestRate}%`} detail={`${momentum.totalCalls} calls`} icon={Target} accent="#3B82F6" />
+        <div className="rounded-lg p-4" style={{ background: D.hover, border: `1px solid ${D.border}` }}>
+          <div className="p-2 rounded-lg w-fit mb-2" style={{ background: `${D.border}` }}>
+            <Timer className="w-4 h-4" style={{ color: D.muted }} />
+          </div>
+          <div className="text-2xl font-bold" style={{ color: D.text }}>{momentum.avgFollowUpDelayDays !== null ? `${momentum.avgFollowUpDelayDays}d` : '—'}</div>
+          <div className="text-xs mt-1" style={{ color: D.muted }}>Avg Follow-Up Delay</div>
         </div>
       </div>
       {momentum.highlightCampaigns.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-2">Top Performing Sequences</p>
+          <p className="text-xs font-medium mb-2" style={{ color: D.muted }}>Top Performing Sequences</p>
           <div className="space-y-2">
             {momentum.highlightCampaigns.map(c => (
-              <Link key={c.id} to="/outreach" className="flex items-center justify-between p-3 rounded-lg border border-border/40 hover:border-primary/30 hover:bg-muted/30 transition-all">
-                <span className="font-medium text-sm truncate">{c.name}</span>
+              <Link key={c.id} to="/outreach" className="flex items-center justify-between p-3 rounded-lg transition-all"
+                style={{ border: `1px solid ${D.border}`, background: 'transparent' }}
+                onMouseEnter={e => (e.currentTarget.style.background = D.hover)}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <span className="font-medium text-sm truncate" style={{ color: D.text }}>{c.name}</span>
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs">{c.responseRate}% resp</Badge>
-                  <Badge variant="outline" className="text-xs">{c.bookingRate}% book</Badge>
+                  <Badge className="text-xs border-none" style={{ background: '#8B5CF620', color: '#A78BFA' }}>{c.responseRate}% resp</Badge>
+                  <Badge className="text-xs border-none" style={{ background: '#22C55E20', color: '#4ADE80' }}>{c.bookingRate}% book</Badge>
                 </div>
               </Link>
             ))}
@@ -582,19 +602,21 @@ function SalesMomentumContent({ momentum, isLoading }: { momentum?: SalesMomentu
   );
 }
 
-function MomentumKpi({ label, value, detail, icon: Icon }: { label: string; value: string; detail: string; icon: React.ElementType }) {
+function MomentumKpi({ label, value, detail, icon: Icon, accent }: { label: string; value: string; detail: string; icon: React.ElementType; accent: string }) {
   return (
-    <div className="rounded-lg border border-border/40 p-4 bg-muted/20">
-      <div className="p-2 rounded-lg bg-primary/10 w-fit mb-2"><Icon className="w-4 h-4 text-primary" /></div>
-      <div className="text-2xl font-bold tracking-tight text-foreground">{value}</div>
-      <div className="text-xs text-muted-foreground mt-1">{label}</div>
-      <div className="text-xs text-muted-foreground">{detail}</div>
+    <div className="rounded-lg p-4" style={{ background: D.hover, border: `1px solid ${D.border}` }}>
+      <div className="p-2 rounded-lg w-fit mb-2" style={{ background: `${accent}20` }}>
+        <Icon className="w-4 h-4" style={{ color: accent }} />
+      </div>
+      <div className="text-2xl font-bold tracking-tight" style={{ color: D.text }}>{value}</div>
+      <div className="text-xs mt-1" style={{ color: D.muted }}>{label}</div>
+      <div className="text-xs" style={{ color: D.muted }}>{detail}</div>
     </div>
   );
 }
 
 // ══════════════════════════════════════════
-// Relationship Strength Index — wrapped in AnalyticsCard
+// Relationship Strength Index
 // ══════════════════════════════════════════
 function RelationshipStrengthCard({ avgRsi, distribution, companies, isLoading }: {
   avgRsi: number; distribution: { high: number; medium: number; low: number }; companies: CompanyRiskProfile[]; isLoading: boolean;
@@ -610,25 +632,29 @@ function RelationshipStrengthCard({ avgRsi, distribution, companies, isLoading }
     <AnalyticsCard borderColor="#6366F1" icon={Network} title="Relationship Strength Index" viewAllHref="/companies?sort=rsi" viewAllLabel="View All Companies" dataJarvisId="analytics-rsi">
       {companies.length < 3 ? (
         <div className="flex items-center gap-4 py-4 justify-center max-h-[120px]">
-          <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center shrink-0"><Users className="w-6 h-6 text-muted-foreground" /></div>
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: D.border }}>
+            <Users className="w-6 h-6" style={{ color: D.muted }} />
+          </div>
           <div>
-            <p className="text-sm text-muted-foreground">Add more companies and log activities to see your relationship health scores.</p>
-            <Button size="sm" className="mt-2" asChild><Link to="/companies">Add Companies</Link></Button>
+            <p className="text-sm" style={{ color: D.muted }}>Add more companies and log activities to see your relationship health scores.</p>
+            <Button size="sm" className="mt-2 bg-blue-600 hover:bg-blue-500 text-white" asChild><Link to="/companies">Add Companies</Link></Button>
           </div>
         </div>
       ) : (
         <div className="grid md:grid-cols-3 gap-4">
-          <div className="rounded-lg p-4 bg-primary/5">
-            <div className="text-sm text-muted-foreground mb-2">Average RSI</div>
-            <div className="text-4xl font-bold text-foreground">{avgRsi}<span className="text-lg text-muted-foreground font-normal">/100</span></div>
-            <Progress value={avgRsi} className="mt-3 h-2.5" />
+          <div className="rounded-lg p-4" style={{ background: D.hover, border: `1px solid ${D.border}` }}>
+            <div className="text-sm mb-2" style={{ color: D.muted }}>Average RSI</div>
+            <div className="text-4xl font-bold" style={{ color: D.text }}>{avgRsi}<span className="text-lg font-normal" style={{ color: D.muted }}>/100</span></div>
+            <div className="mt-3 h-2.5 rounded-full overflow-hidden" style={{ background: D.border }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${avgRsi}%`, background: '#6366F1' }} />
+            </div>
           </div>
-          <div className="md:col-span-2 rounded-lg border border-border/40 p-4">
-            <div className="text-sm text-muted-foreground mb-3">Distribution</div>
+          <div className="md:col-span-2 rounded-lg p-4" style={{ background: D.hover, border: `1px solid ${D.border}` }}>
+            <div className="text-sm mb-3" style={{ color: D.muted }}>Distribution</div>
             <div className="flex gap-3">
               <DistBar label="High (70+)" count={distribution.high} pct={highPct} color="#22C55E" />
               <DistBar label="Medium (40–69)" count={distribution.medium} pct={medPct} color="#F59E0B" />
-              <DistBar label="Low (<40)" count={distribution.low} pct={lowPct} color="hsl(var(--destructive))" />
+              <DistBar label="Low (<40)" count={distribution.low} pct={lowPct} color="#EF4444" />
             </div>
           </div>
         </div>
@@ -641,10 +667,10 @@ function DistBar({ label, count, pct, color }: { label: string; count: number; p
   return (
     <div className="flex-1">
       <div className="flex items-center justify-between text-xs mb-1">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium text-foreground">{count}</span>
+        <span style={{ color: D.muted }}>{label}</span>
+        <span className="font-medium" style={{ color: D.text }}>{count}</span>
       </div>
-      <div className="h-6 bg-muted rounded-md overflow-hidden">
+      <div className="h-6 rounded-md overflow-hidden" style={{ background: D.border }}>
         <div className="h-full rounded-md transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>

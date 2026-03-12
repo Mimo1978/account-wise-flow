@@ -368,15 +368,17 @@ export function useJarvisNavigation() {
         scrollToElement(el);
         el.classList.add(HIGHLIGHT_CLASS);
         if (label) showTooltip(el, label);
+
         track(
           setTimeout(() => {
-            el.click();
-            track(
-              setTimeout(() => {
-                el.classList.remove(HIGHLIGHT_CLASS);
-                document.getElementById(TOOLTIP_ID)?.remove();
-              }, 1500)
-            );
+            void activateInteractiveElement(el).finally(() => {
+              track(
+                setTimeout(() => {
+                  el.classList.remove(HIGHLIGHT_CLASS);
+                  document.getElementById(TOOLTIP_ID)?.remove();
+                }, 1500)
+              );
+            });
           }, 700)
         );
       });

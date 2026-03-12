@@ -47,7 +47,7 @@ const ProjectsList = () => {
       </div>
 
       {isLoading ? (
-        <Card>
+        <Card className="border border-border rounded-xl">
           <CardContent className="flex items-center justify-center py-16">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </CardContent>

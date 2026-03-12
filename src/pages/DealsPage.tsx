@@ -174,7 +174,7 @@ export default function DealsPage() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(d => (
-            <Card key={d.id} className="hover:bg-muted/50 transition-colors cursor-pointer"
+            <Card key={d.id} className="hover:bg-muted/50 transition-colors cursor-pointer border border-border rounded-xl" style={{ borderLeft: '4px solid hsl(221 83% 53%)' }}
               onClick={() => navigate(`/crm/deals/${d.id}`, { state: { from: '/deals' } })}>
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">

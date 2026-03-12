@@ -67,7 +67,7 @@ const ProjectsList = () => {
           </Button>
         </Card>
       ) : (
-        <Card>
+        <Card className="border border-border rounded-xl overflow-hidden" style={{ borderLeft: '4px solid hsl(142 71% 45%)' }}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

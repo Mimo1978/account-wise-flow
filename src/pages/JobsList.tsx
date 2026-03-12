@@ -198,7 +198,7 @@ const JobsList = () => {
           </Button>
         </Card>
       ) : (
-        <Card>
+        <Card className="border border-border rounded-xl overflow-hidden" style={{ borderLeft: '4px solid hsl(38 92% 50%)' }}>
           <CardContent className="p-0">
             <Table>
               <TableHeader>

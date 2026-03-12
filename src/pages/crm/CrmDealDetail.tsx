@@ -242,6 +242,14 @@ export default function CrmDealDetail() {
       <AddEditDealPanel open={editOpen} onOpenChange={setEditOpen} deal={deal} />
       <CrmDocumentUploadModal open={uploadOpen} onOpenChange={setUploadOpen} defaultDealId={id} defaultCompanyId={deal.company_id || undefined} />
       <CreateCrmInvoicePanel open={invoiceOpen} onOpenChange={setInvoiceOpen} defaultDealId={id} />
+      <DeleteRecordModal
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        recordType="crm_deals"
+        recordId={deal.id}
+        recordName={deal.title}
+        onDeleted={() => navigate("/crm/deals")}
+      />
     </div>
   );
 }

@@ -308,11 +308,12 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
                       rows={channel === "sms" ? 4 : 14}
                       className="font-mono text-sm resize-none"
                       placeholder="Write your script here..."
+                      data-jarvis-id="script-body-input"
                     />
                   </div>
                 ) : (
                   /* Call blocks */
-                  <div className="space-y-2">
+                  <div className="space-y-2" data-jarvis-id="script-call-blocks">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">Call Blocks</Label>
                       <button
@@ -347,7 +348,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
           </TabsContent>
 
           {/* ── GUARDRAILS TAB ── */}
-          <TabsContent value="guardrails" className="flex-1 min-h-0 mt-0 px-6 pb-0">
+          <TabsContent value="guardrails" className="flex-1 min-h-0 mt-0 px-6 pb-0" data-jarvis-id="script-guardrails-list">
             <ScrollArea className="h-full pr-1">
               <div className="py-4 space-y-4">
                 <p className="text-xs text-muted-foreground">

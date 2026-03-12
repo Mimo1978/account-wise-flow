@@ -589,13 +589,30 @@ const HomeCommandCenter = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-jarvis-id="home-kpi-row" data-jarvis-section="stat-cards">
           <KPICard title="Active Projects" value={activeCount > 0 ? String(activeCount) : '—'}
             subtitle={activeCount > 0 ? `${activeCount} active${activeJobCount > 0 ? ` · ${activeJobCount} open role${activeJobCount !== 1 ? 's' : ''}` : ''}` : 'No projects yet'}
-            icon={Briefcase} accentClass="bg-primary" />
+            icon={Briefcase} accentClass="bg-primary"
+            onClick={() => {
+              const section = document.querySelector('[data-jarvis-section="active-projects"]');
+              if (section) {
+                section.scrollIntoView({ behavior: 'smooth' });
+                const header = section.querySelector('h2');
+                if (header) {
+                  header.style.outline = '2px solid hsl(var(--primary))';
+                  header.style.outlineOffset = '4px';
+                  header.style.borderRadius = '4px';
+                  header.style.transition = 'outline-color 0.6s ease-out';
+                  setTimeout(() => { header.style.outlineColor = 'transparent'; }, 1500);
+                  setTimeout(() => { header.style.outline = 'none'; }, 2100);
+                }
+              }
+            }} />
           <KPICard title="Deal Pipeline" value={activeDeals.length > 0 ? `£${totalPipelineValue.toLocaleString()}` : '—'}
             subtitle={activeDeals.length > 0 ? `${activeDeals.length} deals · £${weightedPipelineValue.toLocaleString()} weighted` : 'No deals yet'}
-            icon={TrendingUp} accentClass="bg-accent" />
+            icon={TrendingUp} accentClass="bg-accent"
+            onClick={() => navigate('/deals')} />
           <KPICard title="Outstanding Invoices" value={billing.outstandingCount > 0 ? `£${billing.outstandingAmount.toLocaleString()}` : '—'}
             subtitle={billing.outstandingCount > 0 ? `${billing.outstandingCount} unpaid` : 'No outstanding invoices'}
-            icon={Receipt} accentClass="bg-warning" />
+            icon={Receipt} accentClass="bg-warning"
+            onClick={() => navigate('/accounts?filter=outstanding')} />
           {(() => {
             const docExpiringCount = (expiringDocs as any[]).filter((d: any) => {
               if (!d.end_date) return false;

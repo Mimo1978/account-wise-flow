@@ -795,8 +795,13 @@ const HomeCommandCenter = () => {
               <Badge variant="secondary" className="text-xs">{myWorkItems.length} items</Badge>
             </SectionHeader>
             {myWorkItems.length === 0 ? (
-              <EmptyPanel title="No tasks or critical dates" description="Upcoming renewals, invoice due dates and overdue items will appear here."
-                icon={Clock} ctas={[{ label: 'Add SOW', onClick: () => setSowOpen(true) }, { label: 'Create Invoice', onClick: () => setInvoiceOpen(true), variant: 'outline' }]} />
+              <Card className="flex flex-col items-center justify-center text-center p-8 min-h-[180px] border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
+                  <CheckSquare className="w-6 h-6 text-muted-foreground" />
+                </div>
+                <h3 className="text-sm font-semibold text-foreground">✓ All clear</h3>
+                <p className="text-xs text-muted-foreground mt-1">Nothing needs your attention right now</p>
+              </Card>
             ) : (
               <Card className="divide-y divide-border/50 border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                 {myWorkItems.map((item) => <CriticalDateRow key={item.id} item={item} onClick={() => handleItemClick(item)} />)}

@@ -176,6 +176,7 @@ class JarvisSpotlightManager {
     el.classList.add(HIGHLIGHT_CLASS);
     this._activeElements.push(el);
     if (label && this._settings.tooltip_labels_enabled) showTooltipAbove(el, label);
+    this._emitHighlightEvent(el);
     this._scheduleAutoClear(duration);
   }
 

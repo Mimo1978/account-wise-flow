@@ -424,17 +424,24 @@ function useElevenLabsTTS(
   );
 
   const speak = useCallback(
-    async (text: string, onDone?: () => void) => {
+    async (text: string, onDone?: () => void, options?: SpeakOptions) => {
       if (!enabled || !text || !text.trim()) {
         onDone?.();
         return;
       }
 
+      const resolved = {
+        autoSpotlight: options?.autoSpotlight ?? true,
+        clearSpotlightOnEnd: options?.clearSpotlightOnEnd ?? true,
+      };
+
       onDoneRef.current = onDone || null;
       setIsSpeaking(true);
 
-      // Auto-spotlight any elements mentioned in the speech
-      jarvisSpotlight.autoSpotlight(text);
+      // Auto-spotlight any elements mentioned in normal speech (disabled for guided tours)
+      if (resolved.autoSpotlight) {
+        jarvisSpotlight.autoSpotlight(text);
+      }
 
       try {
         // Try ElevenLabs first
@@ -446,7 +453,8 @@ function useElevenLabsTTS(
           // Fallback to browser TTS
           console.log("[Jarvis] ElevenLabs unavailable, using browser TTS");
           setIsSpeaking(false);
-          speakBrowserFallback(text, onDone);
+          onDoneRef.current = null;
+          speakBrowserFallback(text, onDone, resolved);
           return;
         }
 
@@ -459,22 +467,24 @@ function useElevenLabsTTS(
         audio.onended = () => {
           setIsSpeaking(false);
           audioRef.current = null;
-          jarvisSpotlight.clearAll();
+          if (resolved.clearSpotlightOnEnd) jarvisSpotlight.clearAll();
           onDoneRef.current?.();
           onDoneRef.current = null;
         };
         audio.onerror = () => {
           setIsSpeaking(false);
           audioRef.current = null;
+          onDoneRef.current = null;
           // Fallback on audio play error
-          speakBrowserFallback(text, onDone);
+          speakBrowserFallback(text, onDone, resolved);
         };
 
         await audio.play();
       } catch (e) {
         console.warn("[Jarvis] ElevenLabs error, falling back:", e);
         setIsSpeaking(false);
-        speakBrowserFallback(text, onDone);
+        onDoneRef.current = null;
+        speakBrowserFallback(text, onDone, resolved);
       }
     },
     [enabled, elevenLabsVoiceId, volume, speakBrowserFallback]

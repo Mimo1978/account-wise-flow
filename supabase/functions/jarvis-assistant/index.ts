@@ -742,6 +742,13 @@ HIGHLIGHT intents (phrases like "where is X", "where do I find X"):
 GUIDED TOUR intents (phrases like "how do I X", "walk me through X", "show me how to X", "I want to add X"):
 - Instead of just navigating, return a structured guided_tour in your response.
 - Format your response as a conversational message, then on a new line add a JSON block wrapped in <guided_tour>...</guided_tour> tags.
+- CRITICAL TOUR RULES:
+  1. ONE GLOW AT A TIME — each step automatically clears the previous highlight. Never worry about overlapping.
+  2. USE "clickAndOpen" for tabs — when showing a tab (e.g. Campaigns, Scripts), use "clickAndOpen" to click it open AND keep it glowing while you speak about it. This lets the user see what's INSIDE the tab.
+  3. After opening a tab with clickAndOpen, highlight individual elements INSIDE that tab in subsequent steps.
+  4. Speak happens AFTER the highlight/click, so the user sees the element before hearing about it.
+  5. The highlight stays active until the next step starts.
+- Available step properties: navigate (path), highlight (element ID — glow only), click (glow briefly then click, clears glow after), clickAndOpen (click to open AND keep glowing), speak (text), delay (ms).
 - Example for "show me how to add a company":
   Response: "I'll show you how to add a company. Watch the screen."
   <guided_tour>[
@@ -854,17 +861,18 @@ Outreach intents:
 - "show me the campaigns tab" / "explain campaigns" / "how do campaigns work" / "walk me through outreach":
   <guided_tour>[
     {"navigate":"/outreach","speak":"Let me take you to the Outreach page.","delay":500},
-    {"highlight":"outreach-tab-queue","speak":"This is the Target Queue. It shows every person queued for outreach with quick-action buttons for email, SMS, and AI calls.","delay":3500},
-    {"click":"outreach-tab-campaigns","speak":"Now let me open the Campaigns tab. Campaigns group your targets together so you can track performance and conversion rates.","delay":3500},
+    {"clickAndOpen":"outreach-tab-queue","speak":"This is the Target Queue tab. It shows every person queued for outreach with quick-action buttons for email, SMS, and AI calls.","delay":3500},
+    {"highlight":"add-targets-button","speak":"Use this button to add new targets to your outreach queue.","delay":2500},
+    {"clickAndOpen":"outreach-tab-campaigns","speak":"Now let me open the Campaigns tab. Campaigns group your targets together so you can track performance and conversion rates.","delay":3500},
     {"highlight":"new-campaign-button","speak":"Click here to create a new campaign. Give it a name, select your targets, and choose your outreach channels.","delay":3000},
-    {"click":"outreach-tab-scripts","speak":"This is the Scripts tab. Scripts are pre-written templates for AI calls. The AI follows these during automated phone outreach.","delay":3500},
+    {"clickAndOpen":"outreach-tab-scripts","speak":"This is the Scripts tab. Scripts are pre-written templates for AI calls. The AI follows these during automated phone outreach.","delay":3500},
     {"highlight":"new-script-button","speak":"Create a new script here. You can set the purpose, tone, and key questions the AI should ask.","delay":3000},
-    {"click":"outreach-tab-queue","speak":"Back to the queue. From here, you can email, text, or call each target directly. The system logs every interaction automatically.","delay":3000}
+    {"clickAndOpen":"outreach-tab-queue","speak":"Back to the queue. From here, you can email, text, or call each target directly. The system logs every interaction automatically.","delay":3000}
   ]</guided_tour>
 - "explain the target queue" / "how does the queue work" / "what is the target queue":
   <guided_tour>[
     {"navigate":"/outreach","speak":"Let me show you the Target Queue.","delay":500},
-    {"click":"outreach-tab-queue","speak":"The Target Queue shows every contact queued for outreach. Each row has the contact name, company, campaign, and status.","delay":3500},
+    {"clickAndOpen":"outreach-tab-queue","speak":"The Target Queue shows every contact queued for outreach. Each row has the contact name, company, campaign, and status.","delay":3500},
     {"speak":"On the right of each row, you'll see action buttons: Email, SMS, Manual Call, and AI Bot. Click any to start that channel immediately.","delay":3500},
     {"highlight":"add-targets-button","speak":"Use this button to add more targets to your active campaign. You can search contacts or import a list.","delay":3000}
   ]</guided_tour>

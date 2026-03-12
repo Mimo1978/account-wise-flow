@@ -16,6 +16,8 @@ export interface GuidedTourStep {
   navigate?: string;
   highlight?: string;
   click?: string;
+  /** Click element to open it (e.g. a tab) AND keep it highlighted while speaking */
+  clickAndOpen?: string;
   speak?: string;
   delay?: number;
 }

@@ -2763,30 +2763,123 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
     // Extract text response
     let responseText = aiResponse.choices?.[0]?.message?.content || "";
 
-    // Parse structured <action> block from response
-    let actionPayload: Record<string, unknown> | null = null;
-    const actionMatch = responseText.match(/<action>([\s\S]*?)<\/action>/);
-    if (actionMatch) {
+    const parseJsonValue = (raw: string): unknown | null => {
       try {
-        actionPayload = JSON.parse(actionMatch[1]);
-        responseText = responseText.replace(/<action>[\s\S]*?<\/action>/, '').trim();
-      } catch (e) {
-        console.warn("[jarvis] Failed to parse action:", e);
+        return JSON.parse(raw);
+      } catch {
+        return null;
       }
-    }
+    };
 
-    // Parse guided_tour from response text if present (legacy format, also check action payload)
+    const extractBalanced = (
+      source: string,
+      startIndex: number,
+      openChar: "{" | "[",
+      closeChar: "}" | "]"
+    ): { value: string | null; endIndex: number } => {
+      const begin = source.indexOf(openChar, startIndex);
+      if (begin === -1) return { value: null, endIndex: startIndex };
+
+      let depth = 0;
+      let inString = false;
+      let escaped = false;
+
+      for (let i = begin; i < source.length; i++) {
+        const ch = source[i];
+
+        if (inString) {
+          if (escaped) {
+            escaped = false;
+            continue;
+          }
+          if (ch === "\\") {
+            escaped = true;
+            continue;
+          }
+          if (ch === '"') {
+            inString = false;
+          }
+          continue;
+        }
+
+        if (ch === '"') {
+          inString = true;
+          continue;
+        }
+
+        if (ch === openChar) depth += 1;
+        if (ch === closeChar) depth -= 1;
+
+        if (depth === 0) {
+          return { value: source.slice(begin, i + 1), endIndex: i + 1 };
+        }
+      }
+
+      return { value: null, endIndex: startIndex };
+    };
+
+    const extractActionPayload = (text: string): { payload: Record<string, unknown> | null; cleanedText: string } => {
+      const lower = text.toLowerCase();
+      const openIndex = lower.indexOf("<action>");
+      if (openIndex === -1) return { payload: null, cleanedText: text };
+
+      const afterOpen = openIndex + "<action>".length;
+      const closeIndex = lower.indexOf("</action>", afterOpen);
+
+      let payload: Record<string, unknown> | null = null;
+      let removeEnd = closeIndex !== -1 ? closeIndex + "</action>".length : afterOpen;
+
+      if (closeIndex !== -1) {
+        const explicitPayload = parseJsonValue(text.slice(afterOpen, closeIndex).trim());
+        if (explicitPayload && typeof explicitPayload === "object" && !Array.isArray(explicitPayload)) {
+          payload = explicitPayload as Record<string, unknown>;
+        } else {
+          const fallbackObject = extractBalanced(text, afterOpen, "{", "}");
+          const fallbackPayload = fallbackObject.value ? parseJsonValue(fallbackObject.value) : null;
+          if (fallbackPayload && typeof fallbackPayload === "object" && !Array.isArray(fallbackPayload)) {
+            payload = fallbackPayload as Record<string, unknown>;
+            removeEnd = Math.max(removeEnd, fallbackObject.endIndex);
+          }
+        }
+      } else {
+        const fallbackObject = extractBalanced(text, afterOpen, "{", "}");
+        const fallbackPayload = fallbackObject.value ? parseJsonValue(fallbackObject.value) : null;
+        if (fallbackPayload && typeof fallbackPayload === "object" && !Array.isArray(fallbackPayload)) {
+          payload = fallbackPayload as Record<string, unknown>;
+          removeEnd = fallbackObject.endIndex;
+        }
+      }
+
+      let cleanedText = `${text.slice(0, openIndex)} ${text.slice(removeEnd)}`;
+      cleanedText = cleanedText.replace(/^\s*<\/guided_tour>\s*/i, "");
+      return { payload, cleanedText: cleanedText.trim() };
+    };
+
+    const { payload: actionPayload, cleanedText } = extractActionPayload(responseText);
+    responseText = cleanedText;
+
+    // Parse guided_tour from action payload first, then legacy tags
     let guidedTour: any[] | null = null;
-    if (actionPayload?.type === 'GUIDED_TOUR' && actionPayload?.steps) {
+    if (actionPayload?.type === "GUIDED_TOUR" && Array.isArray(actionPayload?.steps)) {
       guidedTour = actionPayload.steps as any[];
     }
-    const tourMatch = responseText.match(/<guided_tour>([\s\S]*?)<\/guided_tour>/);
-    if (tourMatch) {
-      try {
-        guidedTour = JSON.parse(tourMatch[1]);
-        responseText = responseText.replace(/<guided_tour>[\s\S]*?<\/guided_tour>/, '').trim();
-      } catch (e) {
-        console.warn("[jarvis] Failed to parse guided_tour:", e);
+
+    const tourMatch = responseText.match(/<guided_tour>([\s\S]*?)<\/guided_tour>/i);
+    if (!guidedTour && tourMatch) {
+      const parsedTour = parseJsonValue(tourMatch[1]);
+      if (Array.isArray(parsedTour)) {
+        guidedTour = parsedTour as any[];
+      }
+      responseText = responseText.replace(/<guided_tour>[\s\S]*?<\/guided_tour>/i, "").trim();
+    }
+
+    const legacyTourOpenIndex = responseText.toLowerCase().indexOf("<guided_tour>");
+    if (!guidedTour && legacyTourOpenIndex !== -1) {
+      const fallbackArray = extractBalanced(responseText, legacyTourOpenIndex, "[", "]");
+      const parsedFallback = fallbackArray.value ? parseJsonValue(fallbackArray.value) : null;
+      if (Array.isArray(parsedFallback)) {
+        guidedTour = parsedFallback as any[];
+        responseText = `${responseText.slice(0, legacyTourOpenIndex)} ${responseText.slice(fallbackArray.endIndex)}`.trim();
       }
     }
 
@@ -2816,6 +2909,13 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
         console.warn("[jarvis] Failed to parse suggestions:", e);
       }
     }
+
+    // Strip any malformed control tags from user-facing response text
+    responseText = responseText
+      .replace(/<\/?action>/gi, "")
+      .replace(/<\/?guided_tour>/gi, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
 
     // Extract navigation + target action from action payload or executed tool results
     let navigationPath: string | null = null;

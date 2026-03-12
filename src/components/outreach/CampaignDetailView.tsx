@@ -287,6 +287,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                 size="sm"
                 className="gap-2"
                 onClick={() => openScriptBuilder()}
+                data-jarvis-id="new-script-button"
               >
                 <FileText className="w-3.5 h-3.5" />
                 New Script
@@ -295,6 +296,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                 size="sm"
                 className="gap-2"
                 onClick={() => setAddTargetsOpen(true)}
+                data-jarvis-id="add-targets-button"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Targets
@@ -332,7 +334,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
       <div className="container mx-auto px-6 py-6">
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList className="mb-4">
-            <TabsTrigger value="targets" className="gap-2">
+            <TabsTrigger value="targets" className="gap-2" data-jarvis-id="outreach-tab-queue">
               <Users className="w-3.5 h-3.5" />
               Targets
               {targets.length > 0 && (
@@ -341,19 +343,19 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="responses" className="gap-2">
+            <TabsTrigger value="responses" className="gap-2" data-jarvis-id="outreach-tab-responses">
               <Inbox className="w-3.5 h-3.5" />
               Responses
             </TabsTrigger>
-            <TabsTrigger value="scripts" className="gap-2">
+            <TabsTrigger value="scripts" className="gap-2" data-jarvis-id="outreach-tab-scripts">
               <FileText className="w-3.5 h-3.5" />
               Scripts
             </TabsTrigger>
-            <TabsTrigger value="automation" className="gap-2">
+            <TabsTrigger value="automation" className="gap-2" data-jarvis-id="outreach-tab-automation">
               <Bot className="w-3.5 h-3.5" />
               Automation
             </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2">
+            <TabsTrigger value="settings" className="gap-2" data-jarvis-id="outreach-tab-settings">
               <Settings className="w-3.5 h-3.5" />
               Settings
             </TabsTrigger>
@@ -454,9 +456,9 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
           </TabsContent>
 
           {/* ── Scripts Tab ── */}
-          <TabsContent value="scripts" className="mt-0 space-y-6">
+          <TabsContent value="scripts" className="mt-0 space-y-6" data-jarvis-id="outreach-panel-scripts">
             {/* Script assignment section */}
-            <div className="rounded-lg border border-border/50 bg-card p-5 space-y-5">
+            <div className="rounded-lg border border-border/50 bg-card p-5 space-y-5" data-jarvis-id="outreach-script-assignment">
               <div>
                 <h3 className="text-sm font-semibold mb-1">Assigned Scripts</h3>
                 <p className="text-xs text-muted-foreground">
@@ -544,6 +546,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                   size="sm"
                   onClick={saveSettings}
                   disabled={isUpdating}
+                  data-jarvis-id="script-save-assignments-button"
                 >
                   {isUpdating ? "Saving…" : "Save Script Assignments"}
                 </Button>
@@ -551,7 +554,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
             </div>
 
             {/* Campaign-specific scripts list */}
-            <div>
+            <div data-jarvis-id="outreach-scripts-list">
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h3 className="text-sm font-semibold">Campaign Scripts</h3>
@@ -564,6 +567,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                   variant="outline"
                   className="gap-2"
                   onClick={() => openScriptBuilder()}
+                  data-jarvis-id="new-script-button"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   New Script

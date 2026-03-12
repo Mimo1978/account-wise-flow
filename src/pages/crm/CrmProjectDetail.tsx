@@ -13,6 +13,8 @@ import { AddEditOpportunityPanel } from "@/components/crm/AddEditOpportunityPane
 import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
 import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBanner";
 import { useDeletionPermission } from "@/hooks/use-deletion";
+import { ProjectWorkflowTracker } from "@/components/projects/ProjectWorkflowTracker";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Pencil, Plus, ArrowLeft, Loader2, ExternalLink, ChevronLeft, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 

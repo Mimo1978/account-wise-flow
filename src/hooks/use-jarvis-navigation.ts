@@ -576,20 +576,42 @@ export function useJarvisNavigation() {
         // --- clickAndOpen: click element (e.g. tab) to open it, keep it glowing ---
         if (step.clickAndOpen) {
           await new Promise<void>((resolve) => {
+            let settled = false;
+            const finish = () => {
+              if (settled) return;
+              settled = true;
+              resolve();
+            };
+
             findElement(step.clickAndOpen!, 10, (el) => {
-              scrollToElement(el);
-              el.classList.add(HIGHLIGHT_CLASS);
-              // Emit dodge event
-              const rect = el.getBoundingClientRect();
-              window.dispatchEvent(new CustomEvent("jarvis-highlight", { detail: { rect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } }));
-              // Click to open the tab/section
-              setTimeout(() => {
-                el.click();
-                // Wait for content to render
-                setTimeout(resolve, 400);
-              }, 300);
+              void (async () => {
+                scrollToElement(el);
+                el.classList.add(HIGHLIGHT_CLASS);
+
+                const rect = el.getBoundingClientRect();
+                window.dispatchEvent(
+                  new CustomEvent("jarvis-highlight", {
+                    detail: {
+                      rect: {
+                        top: rect.top,
+                        left: rect.left,
+                        right: rect.right,
+                        bottom: rect.bottom,
+                        width: rect.width,
+                        height: rect.height,
+                      },
+                    },
+                  })
+                );
+
+                await wait(120);
+                await activateInteractiveElement(el);
+                await wait(260);
+                finish();
+              })();
             });
-            setTimeout(resolve, 3000);
+
+            setTimeout(finish, 3500);
           });
         }
 

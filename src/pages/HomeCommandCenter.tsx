@@ -75,21 +75,27 @@ function SectionHeader({
 }
 
 /* ─── KPI Card ─── */
-function KPICard({ title, value, subtitle, icon: Icon, accentClass }: {
-  title: string; value: string; subtitle: string; icon: React.ElementType; accentClass: string;
+function KPICard({ title, value, subtitle, icon: Icon, accentClass, onClick }: {
+  title: string; value: string; subtitle: string; icon: React.ElementType; accentClass: string; onClick?: () => void;
 }) {
   return (
-    <Card className="relative overflow-hidden group hover:shadow-md transition-shadow border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+    <Card
+      className={`relative overflow-hidden group border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-150 ${onClick ? 'cursor-pointer hover:scale-[1.02] hover:shadow-md' : ''}`}
+      onClick={onClick}
+    >
       <div className={`absolute inset-y-0 left-0 w-1 ${accentClass}`} />
       <CardContent className="p-5 flex items-start gap-4">
         <div className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${accentClass} bg-opacity-10`}>
           <Icon className="w-5 h-5 text-primary-foreground" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
           <p className="text-2xl font-bold text-foreground mt-0.5">{value}</p>
           <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
         </div>
+        {onClick && (
+          <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-3 right-3" />
+        )}
       </CardContent>
     </Card>
   );

@@ -445,7 +445,7 @@ export default function OutreachPage() {
             )}
 
             {/* Table */}
-            <div className="rounded-xl border border-border bg-card" style={{ borderLeft: '4px solid hsl(var(--accent))' }}>
+            <div className="rounded-xl border border-border bg-card" style={{ borderLeft: '4px solid hsl(var(--accent))' }} data-jarvis-id="outreach-queue-table">
               {targetsLoading ? (
                 <div className="p-6 space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (

@@ -10,8 +10,11 @@ import { useCrmInvoices, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS, getDispla
 import { AddEditDealPanel } from "@/components/crm/AddEditDealPanel";
 import { CrmDocumentUploadModal } from "@/components/crm/CrmDocumentUploadModal";
 import { CreateCrmInvoicePanel } from "@/components/crm/CreateCrmInvoicePanel";
+import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
+import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBanner";
+import { useDeletionPermission } from "@/hooks/use-deletion";
 import { toast } from "@/hooks/use-toast";
-import { Pencil, ArrowLeft, Loader2, ExternalLink, Upload, Send, CheckCircle, FileText, Download, Plus, ChevronLeft } from "lucide-react";
+import { Pencil, ArrowLeft, Loader2, ExternalLink, Upload, Send, CheckCircle, FileText, Download, Plus, ChevronLeft, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 

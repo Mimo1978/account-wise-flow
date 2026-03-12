@@ -455,10 +455,14 @@ export function useJarvisNavigation() {
         setTourState({ steps, currentStep: i, status: "running" });
         const step = steps[i];
 
-        // --- Speak first (so user knows what's about to happen) ---
-        if (step.speak && speakFn && !tourSkipRef.current) {
-          await speakFn(step.speak);
-        }
+        // ═══ CLEAR previous highlights before every step (one-at-a-time) ═══
+        document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((e) =>
+          e.classList.remove(HIGHLIGHT_CLASS)
+        );
+        document.querySelectorAll(`.${SECTION_GLOW_CLASS}`).forEach((e) =>
+          e.classList.remove(SECTION_GLOW_CLASS)
+        );
+        document.getElementById(TOOLTIP_ID)?.remove();
 
         if (tourAbortRef.current) break;
         if (tourSkipRef.current) continue;
@@ -478,27 +482,38 @@ export function useJarvisNavigation() {
         if (tourAbortRef.current) break;
         if (tourSkipRef.current) continue;
 
-        // --- Highlight element ---
+        // --- clickAndOpen: click element (e.g. tab) to open it, keep it glowing ---
+        if (step.clickAndOpen) {
+          await new Promise<void>((resolve) => {
+            findElement(step.clickAndOpen!, 10, (el) => {
+              scrollToElement(el);
+              el.classList.add(HIGHLIGHT_CLASS);
+              // Emit dodge event
+              const rect = el.getBoundingClientRect();
+              window.dispatchEvent(new CustomEvent("jarvis-highlight", { detail: { rect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } }));
+              // Click to open the tab/section
+              setTimeout(() => {
+                el.click();
+                // Wait for content to render
+                setTimeout(resolve, 400);
+              }, 300);
+            });
+            setTimeout(resolve, 3000);
+          });
+        }
+
+        if (tourAbortRef.current) break;
+        if (tourSkipRef.current) continue;
+
+        // --- Highlight element (stays glowing until next step clears it) ---
         if (step.highlight) {
           await new Promise<void>((resolve) => {
             findElement(step.highlight!, 10, (el) => {
-              // Clear previous highlights but keep page glow
-              document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((e) =>
-                e.classList.remove(HIGHLIGHT_CLASS)
-              );
-              document.querySelectorAll(`.${SECTION_GLOW_CLASS}`).forEach((e) =>
-                e.classList.remove(SECTION_GLOW_CLASS)
-              );
-              document.getElementById(TOOLTIP_ID)?.remove();
-
-              // Scroll into view before applying glow
               const isSection = el.hasAttribute("data-jarvis-section");
               scrollToElement(el, isSection);
-
-              // Use section glow for data-jarvis-section elements, highlight for others
               el.classList.add(isSection ? SECTION_GLOW_CLASS : HIGHLIGHT_CLASS);
-
-              // Emit event so Jarvis panel can auto-dodge
+              if (step.speak) showTooltip(el, step.speak.slice(0, 60));
+              // Emit dodge event
               const rect = el.getBoundingClientRect();
               window.dispatchEvent(new CustomEvent("jarvis-highlight", { detail: { rect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } }));
               resolve();
@@ -507,19 +522,23 @@ export function useJarvisNavigation() {
           });
         }
 
-        // --- Click element ---
+        if (tourAbortRef.current) break;
+        if (tourSkipRef.current) continue;
+
+        // --- Speak AFTER highlighting/opening so user sees what Jarvis describes ---
+        if (step.speak && speakFn && !tourSkipRef.current) {
+          await speakFn(step.speak);
+        }
+
+        if (tourAbortRef.current) break;
+        if (tourSkipRef.current) continue;
+
+        // --- Click element (legacy — highlight briefly then click) ---
         if (step.click) {
           await new Promise<void>((resolve) => {
             findElement(step.click!, 10, (el) => {
-              document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((e) =>
-                e.classList.remove(HIGHLIGHT_CLASS)
-              );
-              document.getElementById(TOOLTIP_ID)?.remove();
-
               scrollToElement(el);
               el.classList.add(HIGHLIGHT_CLASS);
-              if (step.speak) showTooltip(el, step.speak);
-              // Emit event so Jarvis panel can auto-dodge
               const rect = el.getBoundingClientRect();
               window.dispatchEvent(new CustomEvent("jarvis-highlight", { detail: { rect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } }));
               setTimeout(() => {

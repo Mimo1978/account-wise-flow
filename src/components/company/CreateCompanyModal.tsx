@@ -33,9 +33,79 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Building2, Plus, X, Loader2 } from "lucide-react";
+import { Building2, Plus, X, Loader2, UserPlus, ChevronDown } from "lucide-react";
 import { Account, RelationshipStatus } from "@/lib/types";
 import { toast } from "@/hooks/use-toast";
+
+function FirstContactSection() {
+  const [expanded, setExpanded] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: "", job_title: "", email: "", phone: "" });
+
+  // This section stores the contact data to be created after the company is saved
+  // The parent form reads it via a ref or we store it in a hidden field
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 text-sm text-primary hover:underline"
+      >
+        <UserPlus className="h-4 w-4" />
+        {expanded ? "Hide first contact" : "+ Add your first contact at this company (optional)"}
+        <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
+      {expanded && (
+        <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-3">
+          <div>
+            <Label className="text-xs">Full Name</Label>
+            <Input
+              placeholder="e.g. Mike Hodges"
+              value={contactForm.name}
+              onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))}
+              className="h-8 text-sm mt-1"
+              name="first_contact_name"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Job Title</Label>
+            <Input
+              placeholder="e.g. Head of Technology"
+              value={contactForm.job_title}
+              onChange={e => setContactForm(f => ({ ...f, job_title: e.target.value }))}
+              className="h-8 text-sm mt-1"
+              name="first_contact_title"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">Email</Label>
+              <Input
+                type="email"
+                placeholder="email@company.com"
+                value={contactForm.email}
+                onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))}
+                className="h-8 text-sm mt-1"
+                name="first_contact_email"
+              />
+            </div>
+            <div>
+              <Label className="text-xs">Phone</Label>
+              <Input
+                type="tel"
+                placeholder="+44 20 7123 4567"
+                value={contactForm.phone}
+                onChange={e => setContactForm(f => ({ ...f, phone: e.target.value }))}
+                className="h-8 text-sm mt-1"
+                name="first_contact_phone"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">💡 Full contact details can be added in Contacts later.</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const companySchema = z.object({
   name: z.string().min(1, "Company name is required").max(100, "Company name must be less than 100 characters"),

@@ -26,8 +26,9 @@ import {
   Plus, Building2, ArrowRight, LayoutGrid, Clock, Receipt, Loader2,
   AlertTriangle, ChevronRight, ChevronDown, DollarSign, Target, Phone,
   Users, Zap, Video, CheckSquare, Inbox, Send, FileBarChart, Compass,
+  ArrowUpRight,
 } from 'lucide-react';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';

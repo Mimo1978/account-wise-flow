@@ -10,7 +10,10 @@ import { useCrmOpportunities } from "@/hooks/use-crm-opportunities";
 import { STAGE_LABELS, STAGE_COLORS } from "@/hooks/use-crm-opportunities";
 import { AddEditProjectPanel } from "@/components/crm/AddEditProjectPanel";
 import { AddEditOpportunityPanel } from "@/components/crm/AddEditOpportunityPanel";
-import { Pencil, Plus, ArrowLeft, Loader2, ExternalLink, ChevronLeft } from "lucide-react";
+import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
+import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBanner";
+import { useDeletionPermission } from "@/hooks/use-deletion";
+import { Pencil, Plus, ArrowLeft, Loader2, ExternalLink, ChevronLeft, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 const STATUS_COLORS: Record<string, string> = {

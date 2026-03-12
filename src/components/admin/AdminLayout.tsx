@@ -32,6 +32,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Overview', path: '/admin/overview', icon: LayoutDashboard, section: 'overview' },
   { label: 'Workspace & Roles', path: '/admin/access', icon: Shield, section: 'access' },
+  { label: 'Data Governance', path: '/admin/governance', icon: Shield, section: 'governance' },
   { label: 'Data Quality', path: '/admin/data-quality', icon: Database, section: 'data-quality' },
   { label: 'Outreach Defaults', path: '/admin/outreach', icon: Megaphone, section: 'outreach' },
   { label: 'Billing & Invoices', path: '/admin/billing', icon: Receipt, section: 'integrations' },
@@ -74,6 +75,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   '/admin/overview': 'Overview',
   '/admin/access': 'Workspace & Roles',
   '/admin/roles': 'Workspace & Roles',
+  '/admin/governance': 'Data Governance',
   '/admin/data-quality': 'Data Quality',
   '/admin/outreach': 'Outreach Defaults',
   '/admin/schema': 'Schema Inventory',

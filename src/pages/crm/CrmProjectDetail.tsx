@@ -10,7 +10,10 @@ import { useCrmOpportunities } from "@/hooks/use-crm-opportunities";
 import { STAGE_LABELS, STAGE_COLORS } from "@/hooks/use-crm-opportunities";
 import { AddEditProjectPanel } from "@/components/crm/AddEditProjectPanel";
 import { AddEditOpportunityPanel } from "@/components/crm/AddEditOpportunityPanel";
-import { Pencil, Plus, ArrowLeft, Loader2, ExternalLink, ChevronLeft } from "lucide-react";
+import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
+import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBanner";
+import { useDeletionPermission } from "@/hooks/use-deletion";
+import { Pencil, Plus, ArrowLeft, Loader2, ExternalLink, ChevronLeft, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -27,6 +30,8 @@ export default function CrmProjectDetail() {
   const { data: opportunities = [] } = useCrmOpportunities({ project_id: id });
   const [editOpen, setEditOpen] = useState(false);
   const [oppPanelOpen, setOppPanelOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const perm = useDeletionPermission();
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   if (!project) return <div className="p-6 text-muted-foreground">Project not found</div>;
@@ -53,10 +58,20 @@ export default function CrmProjectDetail() {
             </span>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-          <Pencil className="h-4 w-4 mr-1" /> Edit
-        </Button>
+        <div className="flex gap-2">
+          {perm.canSeeDeleteOption && (
+            <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)} className="text-destructive hover:text-destructive">
+              <Trash2 className="h-4 w-4 mr-1" />
+              {perm.canDeleteDirectly ? "Delete" : "Request deletion"}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Pencil className="h-4 w-4 mr-1" /> Edit
+          </Button>
+        </div>
       </div>
+
+      <DeletionRequestBanner recordType="crm_projects" recordId={project.id} />
 
       <Tabs defaultValue="overview">
         <TabsList>
@@ -135,6 +150,14 @@ export default function CrmProjectDetail() {
 
       <AddEditProjectPanel open={editOpen} onOpenChange={setEditOpen} project={project} navigateOnCreate={false} />
       <AddEditOpportunityPanel open={oppPanelOpen} onOpenChange={setOppPanelOpen} defaultCompanyId={project.company_id || undefined} defaultProjectId={project.id} />
+      <DeleteRecordModal
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        recordType="crm_projects"
+        recordId={project.id}
+        recordName={project.name}
+        onDeleted={() => navigate("/crm/projects")}
+      />
     </div>
   );
 }

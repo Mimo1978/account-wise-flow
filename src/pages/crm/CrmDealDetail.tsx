@@ -10,8 +10,11 @@ import { useCrmInvoices, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS, getDispla
 import { AddEditDealPanel } from "@/components/crm/AddEditDealPanel";
 import { CrmDocumentUploadModal } from "@/components/crm/CrmDocumentUploadModal";
 import { CreateCrmInvoicePanel } from "@/components/crm/CreateCrmInvoicePanel";
+import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
+import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBanner";
+import { useDeletionPermission } from "@/hooks/use-deletion";
 import { toast } from "@/hooks/use-toast";
-import { Pencil, ArrowLeft, Loader2, ExternalLink, Upload, Send, CheckCircle, FileText, Download, Plus, ChevronLeft } from "lucide-react";
+import { Pencil, ArrowLeft, Loader2, ExternalLink, Upload, Send, CheckCircle, FileText, Download, Plus, ChevronLeft, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -25,6 +28,8 @@ export default function CrmDealDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const perm = useDeletionPermission();
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   if (!deal) return <div className="p-6 text-muted-foreground">Deal not found</div>;
@@ -76,10 +81,20 @@ export default function CrmDealDetail() {
             </span>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-          <Pencil className="h-4 w-4 mr-1" /> Edit
-        </Button>
+        <div className="flex gap-2">
+          {perm.canSeeDeleteOption && (
+            <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)} className="text-destructive hover:text-destructive">
+              <Trash2 className="h-4 w-4 mr-1" />
+              {perm.canDeleteDirectly ? "Delete" : "Request deletion"}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Pencil className="h-4 w-4 mr-1" /> Edit
+          </Button>
+        </div>
       </div>
+
+      <DeletionRequestBanner recordType="crm_deals" recordId={deal.id} />
 
       <Tabs defaultValue="overview">
         <TabsList>
@@ -227,6 +242,14 @@ export default function CrmDealDetail() {
       <AddEditDealPanel open={editOpen} onOpenChange={setEditOpen} deal={deal} />
       <CrmDocumentUploadModal open={uploadOpen} onOpenChange={setUploadOpen} defaultDealId={id} defaultCompanyId={deal.company_id || undefined} />
       <CreateCrmInvoicePanel open={invoiceOpen} onOpenChange={setInvoiceOpen} defaultDealId={id} />
+      <DeleteRecordModal
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        recordType="crm_deals"
+        recordId={deal.id}
+        recordName={deal.title}
+        onDeleted={() => navigate("/crm/deals")}
+      />
     </div>
   );
 }

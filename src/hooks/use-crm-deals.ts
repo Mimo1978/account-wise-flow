@@ -20,6 +20,7 @@ export function useCrmDeals(filters?: {
     queryFn: async () => {
       let q = fromTable()
         .select("*, crm_companies(id, name), crm_opportunities(id, title)")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
 
       if (filters?.search) q = q.or(`title.ilike.%${filters.search}%`);

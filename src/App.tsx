@@ -49,6 +49,7 @@ import AdminOverview from "./pages/admin/AdminOverview";
 import AdminAccess from "./pages/admin/AdminAccess";
 import AdminOutreach from "./pages/admin/AdminOutreach";
 import AdminDataQuality from "./pages/admin/AdminDataQuality";
+import AdminGovernance from "./pages/admin/AdminGovernance";
 
 import AdminBilling from "./pages/admin/AdminBilling";
 import AdminJarvisGuide from "./pages/admin/AdminJarvisGuide";
@@ -201,6 +202,7 @@ const App = () => {
             <Route path="/admin/access" element={<AdminPage section="access"><AdminAccess /></AdminPage>} />
             <Route path="/admin/roles" element={<AdminPage section="access"><AdminAccess /></AdminPage>} />
             <Route path="/admin/data-quality" element={<AdminPage section="data-quality"><AdminDataQuality /></AdminPage>} />
+            <Route path="/admin/governance" element={<AdminPage section="governance"><AdminGovernance /></AdminPage>} />
             <Route path="/admin/outreach" element={<AdminPage section="outreach"><AdminOutreach /></AdminPage>} />
             <Route path="/admin/schema" element={<AdminPage section="schema"><SchemaInventory /></AdminPage>} />
             

@@ -682,7 +682,7 @@ export default function OutreachPage() {
           </TabsContent>
 
           {/* ─── Scripts Tab ─── */}
-          <TabsContent value="scripts" className="mt-0">
+          <TabsContent value="scripts" className="mt-0" data-jarvis-id="outreach-panel-scripts">
             {scriptsLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (

@@ -285,6 +285,12 @@ class JarvisSpotlightManager {
   }
 
   /* ---- private ---- */
+  /** Emit a custom event so the Jarvis panel can auto-dodge */
+  private _emitHighlightEvent(el: HTMLElement): void {
+    const rect = el.getBoundingClientRect();
+    window.dispatchEvent(new CustomEvent("jarvis-highlight", { detail: { rect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } }));
+  }
+
   private _scheduleAutoClear(duration: number): void {
     if (this._autoClearTimer) clearTimeout(this._autoClearTimer);
     this._autoClearTimer = setTimeout(() => {

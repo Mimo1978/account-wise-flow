@@ -287,6 +287,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                 size="sm"
                 className="gap-2"
                 onClick={() => openScriptBuilder()}
+                data-jarvis-id="new-script-button"
               >
                 <FileText className="w-3.5 h-3.5" />
                 New Script
@@ -295,6 +296,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                 size="sm"
                 className="gap-2"
                 onClick={() => setAddTargetsOpen(true)}
+                data-jarvis-id="add-targets-button"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add Targets
@@ -332,7 +334,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
       <div className="container mx-auto px-6 py-6">
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList className="mb-4">
-            <TabsTrigger value="targets" className="gap-2">
+            <TabsTrigger value="targets" className="gap-2" data-jarvis-id="outreach-tab-queue">
               <Users className="w-3.5 h-3.5" />
               Targets
               {targets.length > 0 && (
@@ -341,19 +343,19 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                 </Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="responses" className="gap-2">
+            <TabsTrigger value="responses" className="gap-2" data-jarvis-id="outreach-tab-responses">
               <Inbox className="w-3.5 h-3.5" />
               Responses
             </TabsTrigger>
-            <TabsTrigger value="scripts" className="gap-2">
+            <TabsTrigger value="scripts" className="gap-2" data-jarvis-id="outreach-tab-scripts">
               <FileText className="w-3.5 h-3.5" />
               Scripts
             </TabsTrigger>
-            <TabsTrigger value="automation" className="gap-2">
+            <TabsTrigger value="automation" className="gap-2" data-jarvis-id="outreach-tab-automation">
               <Bot className="w-3.5 h-3.5" />
               Automation
             </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-2">
+            <TabsTrigger value="settings" className="gap-2" data-jarvis-id="outreach-tab-settings">
               <Settings className="w-3.5 h-3.5" />
               Settings
             </TabsTrigger>

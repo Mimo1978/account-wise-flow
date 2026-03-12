@@ -19,6 +19,7 @@ export function useCrmProjects(filters?: {
     queryFn: async () => {
       let q = fromTable()
         .select("*, crm_companies(id, name)")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false });
 
       if (filters?.search) {

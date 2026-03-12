@@ -742,6 +742,13 @@ HIGHLIGHT intents (phrases like "where is X", "where do I find X"):
 GUIDED TOUR intents (phrases like "how do I X", "walk me through X", "show me how to X", "I want to add X"):
 - Instead of just navigating, return a structured guided_tour in your response.
 - Format your response as a conversational message, then on a new line add a JSON block wrapped in <guided_tour>...</guided_tour> tags.
+- CRITICAL TOUR RULES:
+  1. ONE GLOW AT A TIME — each step automatically clears the previous highlight. Never worry about overlapping.
+  2. USE "clickAndOpen" for tabs — when showing a tab (e.g. Campaigns, Scripts), use "clickAndOpen" to click it open AND keep it glowing while you speak about it. This lets the user see what's INSIDE the tab.
+  3. After opening a tab with clickAndOpen, highlight individual elements INSIDE that tab in subsequent steps.
+  4. Speak happens AFTER the highlight/click, so the user sees the element before hearing about it.
+  5. The highlight stays active until the next step starts.
+- Available step properties: navigate (path), highlight (element ID — glow only), click (glow briefly then click, clears glow after), clickAndOpen (click to open AND keep glowing), speak (text), delay (ms).
 - Example for "show me how to add a company":
   Response: "I'll show you how to add a company. Watch the screen."
   <guided_tour>[

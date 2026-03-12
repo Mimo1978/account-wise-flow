@@ -797,7 +797,10 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
         const speakAsync = (text: string) =>
           new Promise<void>((resolve) => {
             if (tts.enabled) {
-              tts.speak(text, resolve);
+              tts.speak(text, resolve, {
+                autoSpotlight: false,
+                clearSpotlightOnEnd: false,
+              });
             } else {
               resolve();
             }
@@ -813,7 +816,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
         };
 
         if (tts.enabled) {
-          tts.speak(last.content, () => { runTour(); });
+          tts.speak(last.content, () => { runTour(); }, { autoSpotlight: false });
         } else {
           runTour();
         }

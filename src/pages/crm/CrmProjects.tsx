@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useCrmProjects } from "@/hooks/use-crm-projects";
 import { AddEditProjectPanel } from "@/components/crm/AddEditProjectPanel";
+import { getWorkflowStages } from "@/lib/project-workflows";
 import { format } from "date-fns";
 
 const STATUS_COLORS: Record<string, string> = {

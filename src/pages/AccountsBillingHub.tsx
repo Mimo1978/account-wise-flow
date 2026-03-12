@@ -579,7 +579,7 @@ const AccountsBillingHub = () => {
           </div>
 
           {/* AR Chart */}
-          <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+          <Card className="border border-border rounded-xl" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
             <CardContent className="p-6">
               <h3 className="text-sm font-semibold text-foreground mb-4">Accounts Receivable — Last 6 Months</h3>
               <ResponsiveContainer width="100%" height={220}>

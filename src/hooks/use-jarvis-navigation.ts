@@ -101,6 +101,12 @@ function clearVisuals() {
   document.querySelectorAll(`.${SECTION_GLOW_CLASS}`).forEach((el) => {
     el.classList.remove(SECTION_GLOW_CLASS);
   });
+  document.querySelectorAll(".jarvis-nav-highlight").forEach((el) => {
+    el.classList.remove("jarvis-nav-highlight");
+  });
+  document.querySelectorAll(".jarvis-spotlight").forEach((el) => {
+    el.classList.remove("jarvis-spotlight");
+  });
   document.getElementById(TOOLTIP_ID)?.remove();
   removeOverlay();
   deactivatePageGlow();

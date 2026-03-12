@@ -38,8 +38,10 @@ export const JARVIS_COMMANDS: JarvisCommand[] = [
   { id: 'find-available', label: 'Show available candidates', description: 'Filter talent by availability status', group: 'Find Candidates', pages: ['/jobs/', '/talent'], keywords: ['available', 'free', 'bench'], action: 'navigate', destination: '/talent?status=available' },
 
   // ── Create & Log ────────────────────────────────────────
-  { id: 'create-company', label: 'Add a new company', description: 'Create a company record', group: 'Create & Log', pages: ['global'], keywords: ['add', 'new', 'create', 'company'], action: 'jarvis', destination: 'Add a new company' },
-  { id: 'create-contact', label: 'Add a new contact', description: 'Create a contact record', group: 'Create & Log', pages: ['global'], keywords: ['add', 'new', 'create', 'contact'], action: 'jarvis', destination: 'Add a new contact' },
+  { id: 'create-project', label: 'Create a project', description: 'Open the Create Project modal', group: 'Create & Log', pages: ['global', '/projects'], keywords: ['project', 'create', 'new', 'add'], action: 'click', destination: 'create-project-button' },
+  { id: 'create-company', label: 'Add a new company', description: 'Create a company record', group: 'Create & Log', pages: ['global'], keywords: ['add', 'new', 'create', 'company'], action: 'click', destination: 'create-company-button' },
+  { id: 'create-contact', label: 'Add a new contact', description: 'Create a contact record', group: 'Create & Log', pages: ['global'], keywords: ['add', 'new', 'create', 'contact'], action: 'click', destination: 'create-contact-button' },
+  { id: 'create-contact-at', label: 'Add a contact at a company', description: 'Add contact with company pre-selected', group: 'Create & Log', pages: ['global'], keywords: ['add', 'contact', 'at', 'company'], action: 'jarvis', destination: 'Add a contact at a company' },
   { id: 'log-call', label: 'Log a call', description: 'Record a call note', group: 'Create & Log', pages: ['global'], keywords: ['log', 'call', 'phone', 'note'], action: 'jarvis', destination: 'Log a call' },
   { id: 'create-deal', label: 'Create a deal', description: 'Add a new deal to the pipeline', group: 'Create & Log', pages: ['global'], keywords: ['deal', 'create', 'new', 'pipeline'], action: 'jarvis', destination: 'Create a deal' },
 

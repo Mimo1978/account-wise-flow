@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { QuickCreateSelect, COMPANY_QUICK_FIELDS, CONTACT_QUICK_FIELDS } from "@/components/shared/QuickCreateSelect";
 import { useCreateCrmDeal, useUpdateCrmDeal, PAYMENT_TERMS } from "@/hooks/use-crm-deals";
 import { useUpdateCrmOpportunity } from "@/hooks/use-crm-opportunities";
-import { useCrmCompanies } from "@/hooks/use-crm-companies";
 import { useCrmOpportunities } from "@/hooks/use-crm-opportunities";
 import { toast } from "@/hooks/use-toast";
 import type { CrmDeal } from "@/types/crm";
@@ -19,7 +19,6 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   deal?: CrmDeal | null;
-  /** Pre-populate from opportunity conversion */
   fromOpportunity?: {
     id: string;
     title: string;
@@ -34,12 +33,12 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
   const createMut = useCreateCrmDeal();
   const updateMut = useUpdateCrmDeal();
   const updateOpp = useUpdateCrmOpportunity();
-  const { data: companies = [] } = useCrmCompanies();
   const { data: opps = [] } = useCrmOpportunities();
 
   const [form, setForm] = useState({
     title: "",
     company_id: "",
+    contact_id: "",
     opportunity_id: "",
     value: "",
     currency: "GBP",
@@ -57,6 +56,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
       setForm({
         title: deal.title || "",
         company_id: deal.company_id || "",
+        contact_id: "",
         opportunity_id: deal.opportunity_id || "",
         value: String(deal.value ?? ""),
         currency: deal.currency || "GBP",
@@ -71,6 +71,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
       setForm({
         title: fromOpportunity.title,
         company_id: fromOpportunity.company_id || "",
+        contact_id: "",
         opportunity_id: fromOpportunity.id,
         value: String(fromOpportunity.value),
         currency: fromOpportunity.currency,
@@ -83,7 +84,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
       });
     } else {
       setForm({
-        title: "", company_id: "", opportunity_id: "", value: "",
+        title: "", company_id: "", contact_id: "", opportunity_id: "", value: "",
         currency: "GBP", signed_date: "", start_date: "", end_date: "",
         payment_terms: "", status: "active", notes: "",
       });
@@ -105,6 +106,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
     const payload: any = {
       title: form.title,
       company_id: form.company_id || null,
+      contact_id: form.contact_id || null,
       opportunity_id: form.opportunity_id || null,
       value: parseFloat(form.value),
       currency: form.currency,
@@ -121,11 +123,10 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         toast({ title: "Deal updated" });
       } else {
         await createMut.mutateAsync(payload);
-        // Auto-update linked opportunity to closed_won
         if (form.opportunity_id) {
           try {
             await updateOpp.mutateAsync({ id: form.opportunity_id, stage: "closed_won", probability: 100 });
-          } catch { /* ignore if already closed */ }
+          } catch { /* ignore */ }
         }
         toast({ title: "Deal created" });
       }
@@ -151,16 +152,30 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
             {errors.title && <p className="text-xs text-destructive mt-1">{errors.title}</p>}
           </div>
 
-          <div>
-            <Label>Company *</Label>
-            <Select value={form.company_id} onValueChange={v => setForm(f => ({ ...f, company_id: v }))}>
-              <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
-              <SelectContent className="bg-popover z-[9999]">
-                {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {errors.company_id && <p className="text-xs text-destructive mt-1">{errors.company_id}</p>}
-          </div>
+          <QuickCreateSelect
+            table="crm_companies"
+            value={form.company_id || null}
+            onChange={(id) => setForm(f => ({ ...f, company_id: id, contact_id: "" }))}
+            label="Company"
+            required
+            placeholder="Search companies…"
+            quickCreateFields={COMPANY_QUICK_FIELDS}
+            quickCreateHint="You can complete all company details in the Companies tab later."
+            error={errors.company_id}
+          />
+
+          {form.company_id && (
+            <QuickCreateSelect
+              table="crm_contacts"
+              value={form.contact_id || null}
+              onChange={(id) => setForm(f => ({ ...f, contact_id: id }))}
+              companyId={form.company_id}
+              label="Key Contact (optional)"
+              placeholder="Search contacts…"
+              quickCreateFields={CONTACT_QUICK_FIELDS}
+              quickCreateHint="Full contact details can be added in Contacts."
+            />
+          )}
 
           <div>
             <Label>Linked Opportunity</Label>

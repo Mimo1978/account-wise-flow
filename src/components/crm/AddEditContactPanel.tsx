@@ -7,8 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { QuickCreateSelect, COMPANY_QUICK_FIELDS } from "@/components/shared/QuickCreateSelect";
 import { useCreateCrmContact, useUpdateCrmContact } from "@/hooks/use-crm-contacts";
-import { useCrmCompanies } from "@/hooks/use-crm-companies";
 import { toast } from "@/hooks/use-toast";
 import type { CrmContact } from "@/types/crm";
 import { format } from "date-fns";
@@ -27,9 +27,6 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
   const isEdit = !!contact;
   const createMut = useCreateCrmContact();
   const updateMut = useUpdateCrmContact();
-  const { data: companies } = useCrmCompanies();
-
-  const [companySearch, setCompanySearch] = useState("");
 
   const [form, setForm] = useState({
     first_name: "",
@@ -74,7 +71,6 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
         gdpr_consent_method: "", gdpr_consent_date: "",
       });
     }
-    setCompanySearch("");
   }, [contact, open, prefillCompanyId]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -115,10 +111,6 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
     }
   };
 
-  const filteredCompanies = (companies ?? []).filter(c =>
-    !companySearch || c.name.toLowerCase().includes(companySearch.toLowerCase())
-  );
-
   const isPending = createMut.isPending || updateMut.isPending;
 
   return (
@@ -142,29 +134,18 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
             </div>
           </div>
 
-          <div>
-            <Label>Company *</Label>
-            <Select value={form.company_id} onValueChange={v => setForm(f => ({ ...f, company_id: v }))} data-jarvis-id="contact-company-select">
-              <SelectTrigger data-jarvis-id="contact-company-select"><SelectValue placeholder="Select company" /></SelectTrigger>
-              <SelectContent className="bg-popover z-[9999]">
-                <div className="p-2">
-                  <Input
-                    placeholder="Search companies…"
-                    value={companySearch}
-                    onChange={e => setCompanySearch(e.target.value)}
-                    className="h-8"
-                  />
-                </div>
-                {filteredCompanies.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                ))}
-                {filteredCompanies.length === 0 && (
-                  <p className="p-2 text-xs text-muted-foreground">No companies found</p>
-                )}
-              </SelectContent>
-            </Select>
-            {errors.company_id && <p className="text-xs text-destructive mt-1">{errors.company_id}</p>}
-          </div>
+          <QuickCreateSelect
+            table="crm_companies"
+            value={form.company_id || null}
+            onChange={(id) => setForm(f => ({ ...f, company_id: id }))}
+            label="Company"
+            required
+            placeholder="Search companies…"
+            quickCreateFields={COMPANY_QUICK_FIELDS}
+            quickCreateHint="You can complete all company details in the Companies tab later."
+            error={errors.company_id}
+            data-jarvis-id="contact-company-select"
+          />
 
           <div>
             <Label>Job Title</Label>

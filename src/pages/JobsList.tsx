@@ -185,7 +185,7 @@ const JobsList = () => {
           </CardContent>
         </Card>
       ) : filtered.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center text-center p-12">
+        <Card className="flex flex-col items-center justify-center text-center p-12 border border-border rounded-xl">
           <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
             <Briefcase className="w-6 h-6 text-muted-foreground" />
           </div>

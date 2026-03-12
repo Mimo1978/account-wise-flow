@@ -175,7 +175,7 @@ const JobsList = () => {
 
       {/* Table */}
       {isLoading ? (
-        <Card>
+        <Card className="border border-border rounded-xl">
           <CardContent className="p-0">
             <div className="space-y-2 p-6">
               {Array.from({ length: 5 }).map((_, i) => (

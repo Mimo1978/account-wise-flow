@@ -727,11 +727,6 @@ const HomeCommandCenter = () => {
                 </div>
               ))}
             </div>
-            {outreachMetrics.topPerformers && outreachMetrics.topPerformers.length > 0 && (
-              <p className="text-xs mt-3" style={{ color: DARK.textSecondary }}>
-                Top performer: <span style={{ color: DARK.text }}>{outreachMetrics.topPerformers[0].name}</span> — {(outreachMetrics.topPerformers[0].responseRate * 100).toFixed(0)}% response rate
-              </p>
-            )}
           </SectionCard>
         )}
 

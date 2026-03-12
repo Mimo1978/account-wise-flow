@@ -539,7 +539,7 @@ const HomeCommandCenter = () => {
   const overdueRenewalCount = renewalItems.filter((i) => i.overdue).length;
   const billing = useMemo(() => computeBillingSnapshot(invoices), [invoices]);
 
-  const handleRefresh = async () => { setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
+  const handleRefresh = async () => { sessionStorage.removeItem('pipeline_cascade_done'); setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
   const openSowDetail = (sow: Sow) => { setSelectedSow(sow); setSowSheetOpen(true); };
   const handleItemClick = (item: CriticalDateItem) => {
     if (item.sow) { if (item.sow.engagement_id) { navigate(`/projects/${item.sow.engagement_id}`); return; } openSowDetail(item.sow); return; }

@@ -57,6 +57,7 @@ import AdminJarvisSettings from "./pages/admin/AdminJarvisSettings";
 import AdminEmailGuide from "./pages/admin/AdminEmailGuide";
 import AdminSmsGuide from "./pages/admin/AdminSmsGuide";
 import AdminAiCallingGuide from "./pages/admin/AdminAiCallingGuide";
+import AccountsBillingHub from "./pages/AccountsBillingHub";
 import CrmContacts from "./pages/crm/CrmContacts";
 import CrmContactDetail from "./pages/crm/CrmContactDetail";
 import CrmProjects from "./pages/crm/CrmProjects";

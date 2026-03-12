@@ -1061,6 +1061,10 @@ export type Database = {
           ceo_contact_id: string | null
           created_at: string
           data_quality: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_scheduled_purge_at: string | null
           headquarters: string | null
           id: string
           industry: string | null
@@ -1081,6 +1085,10 @@ export type Database = {
           ceo_contact_id?: string | null
           created_at?: string
           data_quality?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           headquarters?: string | null
           id?: string
           industry?: string | null
@@ -1101,6 +1109,10 @@ export type Database = {
           ceo_contact_id?: string | null
           created_at?: string
           data_quality?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           headquarters?: string | null
           id?: string
           industry?: string | null
@@ -1271,6 +1283,9 @@ export type Database = {
           company_id: string | null
           created_at: string
           deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_scheduled_purge_at: string | null
           department: string | null
           email: string | null
           email_private: string | null
@@ -1292,6 +1307,9 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           department?: string | null
           email?: string | null
           email_private?: string | null
@@ -1313,6 +1331,9 @@ export type Database = {
           company_id?: string | null
           created_at?: string
           deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           department?: string | null
           email?: string | null
           email_private?: string | null
@@ -1462,6 +1483,9 @@ export type Database = {
           created_at: string
           created_by: string
           deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_scheduled_purge_at: string | null
           id: string
           industry: string | null
           name: string
@@ -1480,6 +1504,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           id?: string
           industry?: string | null
           name: string
@@ -1498,6 +1525,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           id?: string
           industry?: string | null
           name?: string
@@ -1516,6 +1546,9 @@ export type Database = {
           created_at: string
           created_by: string
           deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_scheduled_purge_at: string | null
           email: string | null
           first_name: string
           gdpr_consent: boolean
@@ -1536,6 +1569,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           email?: string | null
           first_name: string
           gdpr_consent?: boolean
@@ -1556,6 +1592,9 @@ export type Database = {
           created_at?: string
           created_by?: string
           deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           email?: string | null
           first_name?: string
           gdpr_consent?: boolean
@@ -1588,6 +1627,10 @@ export type Database = {
           created_at: string
           created_by: string
           currency: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_scheduled_purge_at: string | null
           end_date: string | null
           engagement_id: string | null
           expected_close_date: string | null
@@ -1615,6 +1658,10 @@ export type Database = {
           created_at?: string
           created_by?: string
           currency?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           end_date?: string | null
           engagement_id?: string | null
           expected_close_date?: string | null
@@ -1642,6 +1689,10 @@ export type Database = {
           created_at?: string
           created_by?: string
           currency?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           end_date?: string | null
           engagement_id?: string | null
           expected_close_date?: string | null
@@ -1707,6 +1758,10 @@ export type Database = {
           created_at: string
           created_by: string
           deal_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_scheduled_purge_at: string | null
           file_url: string | null
           id: string
           sent_at: string | null
@@ -1722,6 +1777,10 @@ export type Database = {
           created_at?: string
           created_by?: string
           deal_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           file_url?: string | null
           id?: string
           sent_at?: string | null
@@ -1737,6 +1796,10 @@ export type Database = {
           created_at?: string
           created_by?: string
           deal_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           file_url?: string | null
           id?: string
           sent_at?: string | null
@@ -1809,6 +1872,10 @@ export type Database = {
           created_by: string
           currency: string
           deal_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_scheduled_purge_at: string | null
           due_date: string | null
           id: string
           invoice_number: string | null
@@ -1830,6 +1897,10 @@ export type Database = {
           created_by?: string
           currency?: string
           deal_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           due_date?: string | null
           id?: string
           invoice_number?: string | null
@@ -1851,6 +1922,10 @@ export type Database = {
           created_by?: string
           currency?: string
           deal_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           due_date?: string | null
           id?: string
           invoice_number?: string | null
@@ -1972,6 +2047,10 @@ export type Database = {
           created_by: string
           currency: string
           deal_id: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_scheduled_purge_at: string | null
           description: string | null
           end_date: string | null
           id: string
@@ -1989,6 +2068,10 @@ export type Database = {
           created_by?: string
           currency?: string
           deal_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
@@ -2006,6 +2089,10 @@ export type Database = {
           created_by?: string
           currency?: string
           deal_id?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           description?: string | null
           end_date?: string | null
           id?: string
@@ -2329,6 +2416,68 @@ export type Database = {
           },
           {
             foreignKeyName: "deals_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deletion_requests: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          record_id: string
+          record_name: string
+          record_type: string
+          requested_at: string
+          requested_by: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          scheduled_purge_at: string | null
+          status: string
+          updated_at: string
+          workspace_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason: string
+          record_id: string
+          record_name: string
+          record_type: string
+          requested_at?: string
+          requested_by: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scheduled_purge_at?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          record_id?: string
+          record_name?: string
+          record_type?: string
+          requested_at?: string
+          requested_by?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          scheduled_purge_at?: string | null
+          status?: string
+          updated_at?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deletion_requests_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -3877,6 +4026,10 @@ export type Database = {
           company_id: string | null
           created_at: string | null
           created_by: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_scheduled_purge_at: string | null
           end_date: string | null
           full_spec: string | null
           id: string
@@ -3911,6 +4064,10 @@ export type Database = {
           company_id?: string | null
           created_at?: string | null
           created_by: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           end_date?: string | null
           full_spec?: string | null
           id?: string
@@ -3945,6 +4102,10 @@ export type Database = {
           company_id?: string | null
           created_at?: string | null
           created_by?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           end_date?: string | null
           full_spec?: string | null
           id?: string
@@ -4148,6 +4309,50 @@ export type Database = {
           {
             foreignKeyName: "notes_team_id_fkey"
             columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          link: string | null
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read?: boolean
+          title: string
+          type: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          link?: string | null
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_workspace_id_fkey"
+            columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "teams"
             referencedColumns: ["id"]

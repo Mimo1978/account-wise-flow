@@ -651,7 +651,7 @@ const AccountsBillingHub = () => {
           )}
 
           {/* Invoice List */}
-          <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]" data-jarvis-id="accounts-invoice-list">
+          <Card className="border border-border rounded-xl" style={{ borderLeft: '4px solid hsl(var(--accent))' }} data-jarvis-id="accounts-invoice-list">
             <CardContent className="p-0">
               <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-2 flex-wrap">

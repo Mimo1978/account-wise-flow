@@ -81,10 +81,20 @@ export default function CrmDealDetail() {
             </span>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-          <Pencil className="h-4 w-4 mr-1" /> Edit
-        </Button>
+        <div className="flex gap-2">
+          {perm.canSeeDeleteOption && (
+            <Button variant="outline" size="sm" onClick={() => setDeleteOpen(true)} className="text-destructive hover:text-destructive">
+              <Trash2 className="h-4 w-4 mr-1" />
+              {perm.canDeleteDirectly ? "Delete" : "Request deletion"}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+            <Pencil className="h-4 w-4 mr-1" /> Edit
+          </Button>
+        </div>
       </div>
+
+      <DeletionRequestBanner recordType="crm_deals" recordId={deal.id} />
 
       <Tabs defaultValue="overview">
         <TabsList>

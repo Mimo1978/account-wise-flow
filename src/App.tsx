@@ -49,6 +49,7 @@ import AdminOverview from "./pages/admin/AdminOverview";
 import AdminAccess from "./pages/admin/AdminAccess";
 import AdminOutreach from "./pages/admin/AdminOutreach";
 import AdminDataQuality from "./pages/admin/AdminDataQuality";
+import AdminGovernance from "./pages/admin/AdminGovernance";
 
 import AdminBilling from "./pages/admin/AdminBilling";
 import AdminJarvisGuide from "./pages/admin/AdminJarvisGuide";

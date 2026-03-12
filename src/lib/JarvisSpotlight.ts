@@ -69,6 +69,19 @@ const autoSpotlightMap: SpotlightMapping[] = [
   { keywords: ["pull report", "report builder"], targets: ["pull-report"] },
   { keywords: ["take the tour", "guided tour"], targets: ["home-tour-button"] },
   { keywords: ["job brief"], targets: [], sections: ["job-brief-box"] },
+  // Tab spotlights
+  { keywords: ["target queue"], targets: ["outreach-tab-queue"] },
+  { keywords: ["campaigns tab"], targets: ["outreach-tab-campaigns"] },
+  { keywords: ["scripts tab", "call scripts"], targets: ["outreach-tab-scripts"] },
+  { keywords: ["new campaign", "create campaign"], targets: ["new-campaign-button"] },
+  { keywords: ["new script", "create script"], targets: ["new-script-button"] },
+  { keywords: ["add targets"], targets: ["add-targets-button"] },
+  // Integration/setup spotlights
+  { keywords: ["integrations", "api keys", "resend", "twilio", "elevenlabs"], targets: ["admin-integrations"], navTargets: ["nav-admin"] },
+  { keywords: ["email setup", "configure email", "set up email"], targets: ["admin-integrations"] },
+  { keywords: ["sms setup", "configure sms", "set up sms", "text messages"], targets: ["admin-integrations"] },
+  { keywords: ["ai calling", "ai calls", "voice calls", "configure calls"], targets: ["admin-integrations"] },
+  { keywords: ["workspace", "team management", "invite", "roles"], targets: ["admin-workspace-roles"] },
 ];
 
 /* ------------------------------------------------------------------ */

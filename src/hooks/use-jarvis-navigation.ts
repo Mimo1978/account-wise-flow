@@ -186,6 +186,89 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function isTabTrigger(el: HTMLElement): boolean {
+  return el.getAttribute("role") === "tab";
+}
+
+function isTabActive(el: HTMLElement): boolean {
+  if (!isTabTrigger(el)) return true;
+  return el.getAttribute("aria-selected") === "true" || el.getAttribute("data-state") === "active";
+}
+
+function dispatchPointerAndClick(el: HTMLElement) {
+  const mouseInit: MouseEventInit = { bubbles: true, cancelable: true, button: 0 };
+  const pointerInit: PointerEventInit = {
+    bubbles: true,
+    cancelable: true,
+    pointerId: 1,
+    pointerType: "mouse",
+    button: 0,
+  };
+
+  if (typeof PointerEvent !== "undefined") {
+    el.dispatchEvent(new PointerEvent("pointerdown", pointerInit));
+    el.dispatchEvent(new PointerEvent("pointerup", pointerInit));
+  }
+
+  el.dispatchEvent(new MouseEvent("mousedown", mouseInit));
+  el.dispatchEvent(new MouseEvent("mouseup", mouseInit));
+  el.dispatchEvent(new MouseEvent("click", mouseInit));
+}
+
+function dispatchKeyboardActivate(el: HTMLElement) {
+  el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+  el.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", bubbles: true, cancelable: true }));
+}
+
+async function waitForTabPanelToOpen(el: HTMLElement, timeoutMs = 900) {
+  if (!isTabTrigger(el)) return;
+
+  const panelId = el.getAttribute("aria-controls");
+  if (!panelId) return;
+
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const panel = document.getElementById(panelId);
+    if (!panel) {
+      await wait(50);
+      continue;
+    }
+
+    const hidden =
+      panel.hasAttribute("hidden") ||
+      panel.getAttribute("aria-hidden") === "true" ||
+      panel.getAttribute("data-state") === "inactive";
+
+    if (!hidden) return;
+    await wait(50);
+  }
+}
+
+async function activateInteractiveElement(el: HTMLElement) {
+  const maxAttempts = isTabTrigger(el) ? 4 : 2;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
+
+    dispatchPointerAndClick(el);
+    if (isTabActive(el)) break;
+
+    dispatchKeyboardActivate(el);
+    if (isTabActive(el)) break;
+
+    el.click();
+    if (isTabActive(el)) break;
+
+    await wait(100);
+  }
+
+  await waitForTabPanelToOpen(el);
+}
+
 /** Map route paths to human-friendly page names */
 function getPageName(pathname: string): string {
   const map: Record<string, string> = {

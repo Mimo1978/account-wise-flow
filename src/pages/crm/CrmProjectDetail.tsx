@@ -28,8 +28,9 @@ const STATUS_COLORS: Record<string, string> = {
 export default function CrmProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: project, isLoading } = useCrmProject(id);
+  const { data: project, isLoading, refetch } = useCrmProject(id);
   const { data: opportunities = [] } = useCrmOpportunities({ project_id: id });
+  const { currentWorkspace } = useWorkspace();
   const [editOpen, setEditOpen] = useState(false);
   const [oppPanelOpen, setOppPanelOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);

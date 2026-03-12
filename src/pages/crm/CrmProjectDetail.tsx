@@ -71,6 +71,8 @@ export default function CrmProjectDetail() {
         </div>
       </div>
 
+      <DeletionRequestBanner recordType="crm_projects" recordId={project.id} />
+
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>

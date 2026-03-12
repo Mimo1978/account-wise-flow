@@ -26,8 +26,9 @@ import {
   Plus, Building2, ArrowRight, LayoutGrid, Clock, Receipt, Loader2,
   AlertTriangle, ChevronRight, ChevronDown, DollarSign, Target, Phone,
   Users, Zap, Video, CheckSquare, Inbox, Send, FileBarChart, Compass,
+  ArrowUpRight,
 } from 'lucide-react';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -74,21 +75,27 @@ function SectionHeader({
 }
 
 /* ─── KPI Card ─── */
-function KPICard({ title, value, subtitle, icon: Icon, accentClass }: {
-  title: string; value: string; subtitle: string; icon: React.ElementType; accentClass: string;
+function KPICard({ title, value, subtitle, icon: Icon, accentClass, onClick }: {
+  title: string; value: string; subtitle: string; icon: React.ElementType; accentClass: string; onClick?: () => void;
 }) {
   return (
-    <Card className="relative overflow-hidden group hover:shadow-md transition-shadow border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+    <Card
+      className={`relative overflow-hidden group border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)] transition-all duration-150 ${onClick ? 'cursor-pointer hover:scale-[1.02] hover:shadow-md' : ''}`}
+      onClick={onClick}
+    >
       <div className={`absolute inset-y-0 left-0 w-1 ${accentClass}`} />
       <CardContent className="p-5 flex items-start gap-4">
         <div className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${accentClass} bg-opacity-10`}>
           <Icon className="w-5 h-5 text-primary-foreground" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
           <p className="text-2xl font-bold text-foreground mt-0.5">{value}</p>
           <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
         </div>
+        {onClick && (
+          <ArrowUpRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-3 right-3" />
+        )}
       </CardContent>
     </Card>
   );
@@ -129,12 +136,52 @@ const CHEVRON_COLORS: Record<string, string> = {
   negotiation: '#F97316', won: '#22C55E', lost: '#EF4444',
 };
 
-function PipelineChevron({ stage, label, count, total, isFirst, isLast, isActive, onClick }: {
-  stage: string; label: string; count: number; total: number; isFirst: boolean; isLast: boolean; isActive: boolean; onClick: () => void;
+function PipelineChevron({ stage, label, count, total, isFirst, isLast, isActive, onClick, cascadeIndex }: {
+  stage: string; label: string; count: number; total: number; isFirst: boolean; isLast: boolean; isActive: boolean; onClick: () => void; cascadeIndex?: number;
 }) {
   const color = CHEVRON_COLORS[stage] ?? '#6B7280';
+  const ref = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (cascadeIndex === undefined) return;
+    const already = sessionStorage.getItem('pipeline_cascade_done');
+    if (already) return;
+
+    const el = ref.current;
+    if (!el) return;
+
+    // Start dim
+    el.style.filter = 'brightness(0.6)';
+    el.style.transition = 'filter 0.25s ease, transform 0.25s ease';
+
+    const t1 = setTimeout(() => {
+      el.style.filter = 'brightness(1.4) saturate(1.3)';
+      el.style.transform = 'scale(1.04)';
+      // Pulse count
+      const countEl = el.querySelector('[data-chevron-count]') as HTMLElement;
+      if (countEl) {
+        countEl.style.transition = 'transform 0.2s ease';
+        countEl.style.transform = 'scale(1.3)';
+        setTimeout(() => { countEl.style.transform = 'scale(1)'; }, 200);
+      }
+    }, cascadeIndex * 180);
+
+    const t2 = setTimeout(() => {
+      el.style.filter = count > 0 ? 'brightness(1.05)' : 'brightness(0.85)';
+      el.style.transform = 'scale(1)';
+      el.style.opacity = count > 0 ? '1' : '0.7';
+    }, cascadeIndex * 180 + 400);
+
+    // Mark done after last stage
+    const t3 = setTimeout(() => {
+      sessionStorage.setItem('pipeline_cascade_done', 'true');
+    }, 6 * 180 + 500);
+
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [cascadeIndex, count]);
+
   return (
-    <button onClick={onClick} className="relative flex-1 min-w-[130px] transition-all duration-200 group"
+    <button ref={ref} onClick={onClick} className="relative flex-1 min-w-[130px] transition-all duration-200 group"
       style={{ filter: isActive ? 'brightness(1)' : 'brightness(0.85)', opacity: isActive ? 1 : 0.75 }}>
       <svg viewBox="0 0 200 56" preserveAspectRatio="none" className="w-full h-14" aria-hidden>
         <polygon
@@ -144,7 +191,7 @@ function PipelineChevron({ stage, label, count, total, isFirst, isLast, isActive
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2">
         <span className="text-[10px] font-semibold text-white uppercase tracking-wider leading-none">{label}</span>
-        <span className="text-lg font-bold text-white leading-tight mt-0.5">{count}</span>
+        <span data-chevron-count className="text-lg font-bold text-white leading-tight mt-0.5">{count}</span>
         <span className="text-[9px] text-white/80 leading-none">£{total.toLocaleString()}</span>
       </div>
     </button>
@@ -492,7 +539,7 @@ const HomeCommandCenter = () => {
   const overdueRenewalCount = renewalItems.filter((i) => i.overdue).length;
   const billing = useMemo(() => computeBillingSnapshot(invoices), [invoices]);
 
-  const handleRefresh = async () => { setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
+  const handleRefresh = async () => { sessionStorage.removeItem('pipeline_cascade_done'); setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
   const openSowDetail = (sow: Sow) => { setSelectedSow(sow); setSowSheetOpen(true); };
   const handleItemClick = (item: CriticalDateItem) => {
     if (item.sow) { if (item.sow.engagement_id) { navigate(`/projects/${item.sow.engagement_id}`); return; } openSowDetail(item.sow); return; }
@@ -582,13 +629,30 @@ const HomeCommandCenter = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-jarvis-id="home-kpi-row" data-jarvis-section="stat-cards">
           <KPICard title="Active Projects" value={activeCount > 0 ? String(activeCount) : '—'}
             subtitle={activeCount > 0 ? `${activeCount} active${activeJobCount > 0 ? ` · ${activeJobCount} open role${activeJobCount !== 1 ? 's' : ''}` : ''}` : 'No projects yet'}
-            icon={Briefcase} accentClass="bg-primary" />
+            icon={Briefcase} accentClass="bg-primary"
+            onClick={() => {
+              const section = document.querySelector('[data-jarvis-section="active-projects"]');
+              if (section) {
+                section.scrollIntoView({ behavior: 'smooth' });
+                const header = section.querySelector('h2');
+                if (header) {
+                  header.style.outline = '2px solid hsl(var(--primary))';
+                  header.style.outlineOffset = '4px';
+                  header.style.borderRadius = '4px';
+                  header.style.transition = 'outline-color 0.6s ease-out';
+                  setTimeout(() => { header.style.outlineColor = 'transparent'; }, 1500);
+                  setTimeout(() => { header.style.outline = 'none'; }, 2100);
+                }
+              }
+            }} />
           <KPICard title="Deal Pipeline" value={activeDeals.length > 0 ? `£${totalPipelineValue.toLocaleString()}` : '—'}
             subtitle={activeDeals.length > 0 ? `${activeDeals.length} deals · £${weightedPipelineValue.toLocaleString()} weighted` : 'No deals yet'}
-            icon={TrendingUp} accentClass="bg-accent" />
+            icon={TrendingUp} accentClass="bg-accent"
+            onClick={() => navigate('/deals')} />
           <KPICard title="Outstanding Invoices" value={billing.outstandingCount > 0 ? `£${billing.outstandingAmount.toLocaleString()}` : '—'}
             subtitle={billing.outstandingCount > 0 ? `${billing.outstandingCount} unpaid` : 'No outstanding invoices'}
-            icon={Receipt} accentClass="bg-warning" />
+            icon={Receipt} accentClass="bg-warning"
+            onClick={() => navigate('/accounts?filter=outstanding')} />
           {(() => {
             const docExpiringCount = (expiringDocs as any[]).filter((d: any) => {
               if (!d.end_date) return false;
@@ -598,11 +662,10 @@ const HomeCommandCenter = () => {
             const totalExpiring = renewalCount + docExpiringCount;
             const totalOverdue = overdueRenewalCount + (expiringDocs as any[]).filter((d: any) => d.end_date && differenceInDays(startOfDay(new Date(d.end_date)), startOfDay(new Date())) < 0).length;
             return (
-              <div className="cursor-pointer" onClick={() => navigate('/documents')}>
-                <KPICard title="Renewals & Key Dates" value={totalExpiring > 0 ? String(totalExpiring) : '—'}
-                  subtitle={totalOverdue > 0 ? `${totalOverdue} overdue` : totalExpiring > 0 ? `${totalExpiring} expiring` : 'Nothing upcoming'}
-                  icon={CalendarClock} accentClass="bg-success" />
-              </div>
+              <KPICard title="Renewals & Key Dates" value={totalExpiring > 0 ? String(totalExpiring) : '—'}
+                subtitle={totalOverdue > 0 ? `${totalOverdue} overdue` : totalExpiring > 0 ? `${totalExpiring} expiring` : 'Nothing upcoming'}
+                icon={CalendarClock} accentClass="bg-success"
+                onClick={() => navigate('/documents')} />
             );
           })()}
         </div>
@@ -632,6 +695,7 @@ const HomeCommandCenter = () => {
                   const isActive = pipelineFilter === null || pipelineFilter === stage;
                   return <PipelineChevron key={stage} stage={stage} label={DEAL_STAGE_LABELS[stage]} count={stageDeals.length} total={stageTotal}
                     isFirst={idx === 0} isLast={idx === DEAL_STAGES.length - 1} isActive={isActive}
+                    cascadeIndex={idx}
                     onClick={() => navigate(`/deals?stage=${stage}`, { state: { from: '/home' } })} />;
                 })}
               </div>

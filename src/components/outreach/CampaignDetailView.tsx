@@ -456,9 +456,9 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
           </TabsContent>
 
           {/* ── Scripts Tab ── */}
-          <TabsContent value="scripts" className="mt-0 space-y-6">
+          <TabsContent value="scripts" className="mt-0 space-y-6" data-jarvis-id="outreach-panel-scripts">
             {/* Script assignment section */}
-            <div className="rounded-lg border border-border/50 bg-card p-5 space-y-5">
+            <div className="rounded-lg border border-border/50 bg-card p-5 space-y-5" data-jarvis-id="outreach-script-assignment">
               <div>
                 <h3 className="text-sm font-semibold mb-1">Assigned Scripts</h3>
                 <p className="text-xs text-muted-foreground">
@@ -546,6 +546,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                   size="sm"
                   onClick={saveSettings}
                   disabled={isUpdating}
+                  data-jarvis-id="script-save-assignments-button"
                 >
                   {isUpdating ? "Saving…" : "Save Script Assignments"}
                 </Button>
@@ -553,7 +554,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
             </div>
 
             {/* Campaign-specific scripts list */}
-            <div>
+            <div data-jarvis-id="outreach-scripts-list">
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h3 className="text-sm font-semibold">Campaign Scripts</h3>
@@ -566,6 +567,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                   variant="outline"
                   className="gap-2"
                   onClick={() => openScriptBuilder()}
+                  data-jarvis-id="new-script-button"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   New Script

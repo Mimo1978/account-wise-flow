@@ -547,6 +547,12 @@ export function useJarvisNavigation() {
         document.querySelectorAll(`.${SECTION_GLOW_CLASS}`).forEach((e) =>
           e.classList.remove(SECTION_GLOW_CLASS)
         );
+        document.querySelectorAll(".jarvis-nav-highlight").forEach((e) =>
+          e.classList.remove("jarvis-nav-highlight")
+        );
+        document.querySelectorAll(".jarvis-spotlight").forEach((e) =>
+          e.classList.remove("jarvis-spotlight")
+        );
         document.getElementById(TOOLTIP_ID)?.remove();
 
         if (tourAbortRef.current) break;

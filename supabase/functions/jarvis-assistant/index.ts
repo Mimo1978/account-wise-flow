@@ -875,8 +875,8 @@ Outreach intents:
 - "explain the target queue" / "how does the queue work" / "what is the target queue":
   <guided_tour>[
     {"navigate":"/outreach","speak":"Let me show you the Target Queue.","delay":500},
-    {"clickAndOpen":"outreach-tab-queue","speak":"The Target Queue shows every contact queued for outreach. Each row has the contact name, company, campaign, and status.","delay":3500},
-    {"speak":"On the right of each row, you'll see action buttons: Email, SMS, Manual Call, and AI Bot. Click any to start that channel immediately.","delay":3500},
+    {"clickAndOpen":"outreach-tab-queue","speak":"I am opening the Target Queue now.","delay":2200},
+    {"highlight":"outreach-panel-queue","speak":"The Target Queue shows every contact queued for outreach with status, campaign, and fast action controls.","delay":3500},
     {"highlight":"add-targets-button","speak":"Use this button to add more targets to your active campaign. You can search contacts or import a list.","delay":3000}
   ]</guided_tour>
 

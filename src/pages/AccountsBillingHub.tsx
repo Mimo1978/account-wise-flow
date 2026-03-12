@@ -39,7 +39,7 @@ function KPICard({ title, value, subtitle, color, onClick, active }: {
   title: string; value: string; subtitle: string; color: string; onClick?: () => void; active?: boolean;
 }) {
   return (
-    <Card className={`relative overflow-hidden cursor-pointer transition-all duration-150 hover:scale-[1.02] hover:shadow-md border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)] group ${active ? 'ring-2 ring-primary' : ''}`} onClick={onClick}>
+    <Card className={`relative overflow-hidden cursor-pointer transition-all duration-150 hover:scale-[1.02] hover:shadow-md border border-border rounded-xl group ${active ? 'ring-2 ring-primary' : ''}`} onClick={onClick}>
       <div className={`absolute inset-y-0 left-0 w-1 ${color}`} />
       <CardContent className="p-5">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>

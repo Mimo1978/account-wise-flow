@@ -251,7 +251,7 @@ export default function DocumentsHub() {
   })() : null;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F8F9FC" }}>
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
         <PageBackButton />
 
@@ -290,16 +290,16 @@ export default function DocumentsHub() {
 
         {/* Documents Table */}
         {isLoading ? (
-          <Card className="border-0 shadow-sm"><CardContent className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></CardContent></Card>
+          <Card className="border border-border rounded-xl"><CardContent className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></CardContent></Card>
         ) : filtered.length === 0 ? (
-          <Card className="flex flex-col items-center justify-center text-center p-12 border-0 shadow-sm">
+          <Card className="flex flex-col items-center justify-center text-center p-12 border border-border rounded-xl">
             <FileText className="w-12 h-12 text-muted-foreground mb-4" />
             <h3 className="text-sm font-semibold text-foreground">No documents found</h3>
             <p className="text-xs text-muted-foreground mt-1 max-w-xs">Upload SOWs, contracts, proposals and other commercial documents.</p>
             <Button className="mt-4 gap-1.5" onClick={() => openUpload()}><Plus className="w-3.5 h-3.5" /> Upload Document</Button>
           </Card>
         ) : (
-          <Card className="border-0 shadow-sm overflow-hidden">
+          <Card className="border border-border rounded-xl overflow-hidden" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -352,7 +352,7 @@ export default function DocumentsHub() {
                 </tbody>
               </table>
             </div>
-            <div className="px-4 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
+            <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
               Showing {filtered.length} of {(docs as any[]).length} documents
             </div>
           </Card>

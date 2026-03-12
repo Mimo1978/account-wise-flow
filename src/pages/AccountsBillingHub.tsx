@@ -39,7 +39,7 @@ function KPICard({ title, value, subtitle, color, onClick, active }: {
   title: string; value: string; subtitle: string; color: string; onClick?: () => void; active?: boolean;
 }) {
   return (
-    <Card className={`relative overflow-hidden cursor-pointer transition-all duration-150 hover:scale-[1.02] hover:shadow-md border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)] group ${active ? 'ring-2 ring-primary' : ''}`} onClick={onClick}>
+    <Card className={`relative overflow-hidden cursor-pointer transition-all duration-150 hover:scale-[1.02] hover:shadow-md border border-border rounded-xl group ${active ? 'ring-2 ring-primary' : ''}`} onClick={onClick}>
       <div className={`absolute inset-y-0 left-0 w-1 ${color}`} />
       <CardContent className="p-5">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{title}</p>
@@ -579,7 +579,7 @@ const AccountsBillingHub = () => {
           </div>
 
           {/* AR Chart */}
-          <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+          <Card className="border border-border rounded-xl" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
             <CardContent className="p-6">
               <h3 className="text-sm font-semibold text-foreground mb-4">Accounts Receivable — Last 6 Months</h3>
               <ResponsiveContainer width="100%" height={220}>
@@ -597,7 +597,7 @@ const AccountsBillingHub = () => {
 
           {/* Client Balances */}
           {clientBalances.length > 0 && (
-            <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]" data-jarvis-id="accounts-client-balances">
+            <Card className="border border-border rounded-xl" style={{ borderLeft: '4px solid hsl(var(--warning))' }} data-jarvis-id="accounts-client-balances">
               <CardContent className="p-0">
                 <div className="px-6 py-4 border-b border-border">
                   <h3 className="text-sm font-semibold text-foreground">Client Balances</h3>
@@ -651,7 +651,7 @@ const AccountsBillingHub = () => {
           )}
 
           {/* Invoice List */}
-          <Card className="border-0 shadow-[0_1px_3px_rgba(0,0,0,0.08)]" data-jarvis-id="accounts-invoice-list">
+          <Card className="border border-border rounded-xl" style={{ borderLeft: '4px solid hsl(var(--accent))' }} data-jarvis-id="accounts-invoice-list">
             <CardContent className="p-0">
               <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-2 flex-wrap">

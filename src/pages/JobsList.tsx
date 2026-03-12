@@ -175,7 +175,7 @@ const JobsList = () => {
 
       {/* Table */}
       {isLoading ? (
-        <Card>
+        <Card className="border border-border rounded-xl">
           <CardContent className="p-0">
             <div className="space-y-2 p-6">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -185,7 +185,7 @@ const JobsList = () => {
           </CardContent>
         </Card>
       ) : filtered.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center text-center p-12">
+        <Card className="flex flex-col items-center justify-center text-center p-12 border border-border rounded-xl">
           <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
             <Briefcase className="w-6 h-6 text-muted-foreground" />
           </div>
@@ -198,7 +198,7 @@ const JobsList = () => {
           </Button>
         </Card>
       ) : (
-        <Card>
+        <Card className="border border-border rounded-xl overflow-hidden" style={{ borderLeft: '4px solid hsl(38 92% 50%)' }}>
           <CardContent className="p-0">
             <Table>
               <TableHeader>

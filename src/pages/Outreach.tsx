@@ -445,7 +445,7 @@ export default function OutreachPage() {
             )}
 
             {/* Table */}
-            <div className="rounded-lg border border-border/50 bg-card">
+            <div className="rounded-xl border border-border bg-card" style={{ borderLeft: '4px solid hsl(var(--accent))' }}>
               {targetsLoading ? (
                 <div className="p-6 space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -553,7 +553,7 @@ export default function OutreachPage() {
                 {campaigns.map((campaign) => (
                   <div
                     key={campaign.id}
-                    className={`rounded-lg border bg-card p-4 transition-colors group ${editingCampaignId === campaign.id ? "border-primary/40 ring-1 ring-primary/20" : "border-border/50 hover:border-border cursor-pointer"}`}
+                    className={`rounded-xl border bg-card p-4 transition-colors group ${editingCampaignId === campaign.id ? "border-primary/40 ring-1 ring-primary/20" : "border-border hover:border-border cursor-pointer"}`}
                     onClick={() => editingCampaignId !== campaign.id && setSelectedCampaign(campaign)}
                   >
                     <div className="flex items-start justify-between gap-3">

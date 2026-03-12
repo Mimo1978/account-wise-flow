@@ -47,13 +47,13 @@ const ProjectsList = () => {
       </div>
 
       {isLoading ? (
-        <Card>
+        <Card className="border border-border rounded-xl">
           <CardContent className="flex items-center justify-center py-16">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </CardContent>
         </Card>
       ) : engagements.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center text-center p-12">
+        <Card className="flex flex-col items-center justify-center text-center p-12 border border-border rounded-xl">
           <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
             <Briefcase className="w-6 h-6 text-muted-foreground" />
           </div>
@@ -67,7 +67,7 @@ const ProjectsList = () => {
           </Button>
         </Card>
       ) : (
-        <Card>
+        <Card className="border border-border rounded-xl overflow-hidden" style={{ borderLeft: '4px solid hsl(142 71% 45%)' }}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

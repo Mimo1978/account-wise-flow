@@ -167,14 +167,14 @@ export default function DealsPage() {
       {isLoading ? (
         <p className="text-muted-foreground text-center py-12">Loading deals...</p>
       ) : filtered.length === 0 ? (
-        <Card><CardContent className="py-12 text-center">
+        <Card className="border border-border rounded-xl"><CardContent className="py-12 text-center">
           <DollarSign className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
           <p className="text-muted-foreground">{search || stageFilter ? "No deals match your filters." : "No deals yet. Create your first deal."}</p>
         </CardContent></Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map(d => (
-            <Card key={d.id} className="hover:bg-muted/50 transition-colors cursor-pointer"
+            <Card key={d.id} className="hover:bg-muted/50 transition-colors cursor-pointer border border-border rounded-xl" style={{ borderLeft: '4px solid hsl(221 83% 53%)' }}
               onClick={() => navigate(`/crm/deals/${d.id}`, { state: { from: '/deals' } })}>
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-start justify-between gap-2">

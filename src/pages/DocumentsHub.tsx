@@ -352,7 +352,7 @@ export default function DocumentsHub() {
                 </tbody>
               </table>
             </div>
-            <div className="px-4 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
+            <div className="px-4 py-3 border-t border-border text-xs text-muted-foreground">
               Showing {filtered.length} of {(docs as any[]).length} documents
             </div>
           </Card>

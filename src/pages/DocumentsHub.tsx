@@ -251,7 +251,7 @@ export default function DocumentsHub() {
   })() : null;
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#F8F9FC" }}>
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
         <PageBackButton />
 

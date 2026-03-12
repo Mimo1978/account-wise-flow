@@ -54,6 +54,9 @@ export interface CrmProject {
   currency: string;
   project_type: string | null;
   assigned_to: string | null;
+  workflow_stage: string | null;
+  workflow_started_at: string | null;
+  workflow_completed_stages: Array<{ stage: string; completed_at: string }> | null;
   created_by: string;
   created_at: string;
   updated_at: string;

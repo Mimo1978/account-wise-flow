@@ -2059,6 +2059,9 @@ export type Database = {
           start_date: string | null
           status: string
           updated_at: string
+          workflow_completed_stages: Json | null
+          workflow_stage: string | null
+          workflow_started_at: string | null
         }
         Insert: {
           assigned_to?: string | null
@@ -2080,6 +2083,9 @@ export type Database = {
           start_date?: string | null
           status?: string
           updated_at?: string
+          workflow_completed_stages?: Json | null
+          workflow_stage?: string | null
+          workflow_started_at?: string | null
         }
         Update: {
           assigned_to?: string | null
@@ -2101,6 +2107,9 @@ export type Database = {
           start_date?: string | null
           status?: string
           updated_at?: string
+          workflow_completed_stages?: Json | null
+          workflow_stage?: string | null
+          workflow_started_at?: string | null
         }
         Relationships: [
           {
@@ -5325,6 +5334,60 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      project_stage_events: {
+        Row: {
+          completed_by: string | null
+          created_at: string
+          id: string
+          next_stage: string | null
+          notes: string | null
+          project_id: string
+          stage_completed_at: string | null
+          stage_entered_at: string
+          stage_name: string
+          workspace_id: string
+        }
+        Insert: {
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          next_stage?: string | null
+          notes?: string | null
+          project_id: string
+          stage_completed_at?: string | null
+          stage_entered_at?: string
+          stage_name: string
+          workspace_id: string
+        }
+        Update: {
+          completed_by?: string | null
+          created_at?: string
+          id?: string
+          next_stage?: string | null
+          notes?: string | null
+          project_id?: string
+          stage_completed_at?: string | null
+          stage_entered_at?: string
+          stage_name?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_stage_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "crm_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_stage_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       relationship_coverage: {
         Row: {

@@ -13,6 +13,8 @@ import { AddEditOpportunityPanel } from "@/components/crm/AddEditOpportunityPane
 import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
 import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBanner";
 import { useDeletionPermission } from "@/hooks/use-deletion";
+import { ProjectWorkflowTracker } from "@/components/projects/ProjectWorkflowTracker";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Pencil, Plus, ArrowLeft, Loader2, ExternalLink, ChevronLeft, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -26,8 +28,9 @@ const STATUS_COLORS: Record<string, string> = {
 export default function CrmProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data: project, isLoading } = useCrmProject(id);
+  const { data: project, isLoading, refetch } = useCrmProject(id);
   const { data: opportunities = [] } = useCrmOpportunities({ project_id: id });
+  const { currentWorkspace } = useWorkspace();
   const [editOpen, setEditOpen] = useState(false);
   const [oppPanelOpen, setOppPanelOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -72,6 +75,19 @@ export default function CrmProjectDetail() {
       </div>
 
       <DeletionRequestBanner recordType="crm_projects" recordId={project.id} />
+
+      {/* Workflow Tracker */}
+      {project.project_type && (
+        <ProjectWorkflowTracker
+          projectId={project.id}
+          projectType={project.project_type}
+          workflowStage={(project as any).workflow_stage}
+          workflowCompletedStages={(project as any).workflow_completed_stages}
+          workflowStartedAt={(project as any).workflow_started_at}
+          workspaceId={currentWorkspace?.id || ""}
+          onStageAdvanced={() => refetch()}
+        />
+      )}
 
       <Tabs defaultValue="overview">
         <TabsList>

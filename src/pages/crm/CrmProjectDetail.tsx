@@ -30,6 +30,8 @@ export default function CrmProjectDetail() {
   const { data: opportunities = [] } = useCrmOpportunities({ project_id: id });
   const [editOpen, setEditOpen] = useState(false);
   const [oppPanelOpen, setOppPanelOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const perm = useDeletionPermission();
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   if (!project) return <div className="p-6 text-muted-foreground">Project not found</div>;

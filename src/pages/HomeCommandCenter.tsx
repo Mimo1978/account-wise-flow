@@ -622,11 +622,10 @@ const HomeCommandCenter = () => {
             const totalExpiring = renewalCount + docExpiringCount;
             const totalOverdue = overdueRenewalCount + (expiringDocs as any[]).filter((d: any) => d.end_date && differenceInDays(startOfDay(new Date(d.end_date)), startOfDay(new Date())) < 0).length;
             return (
-              <div className="cursor-pointer" onClick={() => navigate('/documents')}>
-                <KPICard title="Renewals & Key Dates" value={totalExpiring > 0 ? String(totalExpiring) : '—'}
-                  subtitle={totalOverdue > 0 ? `${totalOverdue} overdue` : totalExpiring > 0 ? `${totalExpiring} expiring` : 'Nothing upcoming'}
-                  icon={CalendarClock} accentClass="bg-success" />
-              </div>
+              <KPICard title="Renewals & Key Dates" value={totalExpiring > 0 ? String(totalExpiring) : '—'}
+                subtitle={totalOverdue > 0 ? `${totalOverdue} overdue` : totalExpiring > 0 ? `${totalExpiring} expiring` : 'Nothing upcoming'}
+                icon={CalendarClock} accentClass="bg-success"
+                onClick={() => navigate('/documents')} />
             );
           })()}
         </div>

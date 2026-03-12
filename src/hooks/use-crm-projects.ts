@@ -43,6 +43,7 @@ export function useCrmProject(id: string | undefined) {
       const { data, error } = await fromTable()
         .select("*, crm_companies(id, name)")
         .eq("id", id)
+        .is("deleted_at", null)
         .single();
       if (error) throw error;
       return data as unknown as CrmProjectWithCompany;

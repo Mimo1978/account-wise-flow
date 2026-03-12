@@ -59,6 +59,11 @@ export const JARVIS_COMMANDS: JarvisCommand[] = [
   // ── Outreach page ───────────────────────────────────────
   { id: 'outreach-campaign', label: 'Create a campaign', description: 'New outreach campaign', group: 'On this Page', pages: ['/outreach'], keywords: ['campaign', 'create', 'new'], action: 'click', destination: 'new-campaign-button' },
   { id: 'outreach-script', label: 'Create a script', description: 'New call script', group: 'On this Page', pages: ['/outreach'], keywords: ['script', 'call', 'create'], action: 'click', destination: 'new-script-button' },
+
+  // ── Project workflow commands ──────────────────────────
+  { id: 'project-advance', label: 'Advance this project', description: 'Open stage transition panel for current project', group: 'On this Project', pages: ['/crm/projects/'], keywords: ['advance', 'next', 'stage', 'progress'], action: 'click', destination: 'project-advance-stage-btn' },
+  { id: 'project-stage-status', label: 'What stage is this project at?', description: 'Jarvis reads the current workflow stage', group: 'On this Project', pages: ['/crm/projects/'], keywords: ['stage', 'status', 'progress', 'workflow'], action: 'jarvis', destination: 'What stage is this project at?' },
+  { id: 'project-filter-stage', label: 'Show projects in a stage', description: 'Navigate to projects filtered by stage', group: 'Navigate', pages: ['global'], keywords: ['projects', 'stage', 'filter'], action: 'navigate', destination: '/crm/projects' },
 ];
 
 export function getCommandsForPage(pathname: string): JarvisCommand[] {

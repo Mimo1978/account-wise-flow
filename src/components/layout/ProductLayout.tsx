@@ -24,6 +24,7 @@ import {
   Home,
   Moon,
   Sun,
+  Receipt,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {

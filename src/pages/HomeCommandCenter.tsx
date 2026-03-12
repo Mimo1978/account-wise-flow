@@ -312,6 +312,7 @@ const COMMAND_CENTRE_TOUR: GuidedTourStep[] = [
 /* ═══════════════════════════════════════════════════════════════ */
 const HomeCommandCenter = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentWorkspace, refreshWorkspaces } = useWorkspace();
   const [refreshing, setRefreshing] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);

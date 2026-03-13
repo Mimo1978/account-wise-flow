@@ -227,7 +227,7 @@ export default function DealsPage() {
       </div>
 
       {/* Deal cards */}
-      {isLoading ? (
+      {!workspaceId || isLoading ? (
         <p className="text-muted-foreground text-center py-12">Loading deals...</p>
       ) : filtered.length === 0 ? (
         <Card className="border border-border rounded-xl"><CardContent className="py-12 text-center">

@@ -609,6 +609,7 @@ const HomeCommandCenter = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-1">
                     {filteredDeals.map(deal => (
                       <PipelineDealCard key={deal.id} deal={deal} isRecruitment={isRecruitmentDeal(deal)}
+                        onClick={() => navigate(`/crm/deals/${deal.id}`)}
                         onAdvance={(ns) => {
                           updateDeal.mutateAsync({ id: deal.id, stage: ns })
                             .then(() => toast.success(`${deal.name} advanced to ${DEAL_STAGE_LABELS[ns]}`))

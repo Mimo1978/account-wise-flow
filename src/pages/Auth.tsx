@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,7 +27,7 @@ function getPasswordStrength(pw: string): { score: number; label: string; color:
   if (score <= 1) return { score: 1, label: 'Weak', color: 'bg-destructive' };
   if (score === 2) return { score: 2, label: 'Fair', color: 'bg-warning' };
   if (score === 3) return { score: 3, label: 'Strong', color: 'bg-primary' };
-  return { score: 4, label: 'Very strong', color: 'bg-success' };
+  return { score: 4, label: 'Very Strong', color: 'bg-success' };
 }
 
 function PasswordStrengthBar({ password }: { password: string }) {
@@ -69,7 +70,7 @@ const signInSchema = z.object({
 const signUpSchema = z.object({
   firstName: z.string().trim().min(1, 'First name is required').max(50),
   lastName: z.string().trim().min(1, 'Last name is required').max(50),
-  email: z.string().email('Please enter a valid email address'),
+  email: z.string().email('Please enter a valid work email address'),
   password: passwordSchema,
   confirmPassword: z.string(),
   terms: z.literal(true, { errorMap: () => ({ message: 'You must accept the terms' }) }),
@@ -136,8 +137,6 @@ const Auth = () => {
     if (initialTab === 'signup') setMode('signup');
   }, [initialTab]);
 
-  const from = location.state?.from?.pathname || '/home';
-
   useEffect(() => {
     const errorMessage = (location.state as any)?.error as string | undefined;
     if (errorMessage && !shownAuthErrorRef.current) {
@@ -146,9 +145,42 @@ const Auth = () => {
     }
   }, [location.state, toast]);
 
+  // Redirect authenticated users based on onboarding_phase
   useEffect(() => {
-    if (user) navigate(from, { replace: true });
-  }, [user, navigate, from]);
+    if (!user) return;
+    
+    const checkOnboarding = async () => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('onboarding_phase')
+        .eq('id', user.id)
+        .single();
+
+      const phase = profile?.onboarding_phase ?? 1;
+      if (phase <= 1) {
+        navigate('/onboarding', { replace: true });
+      } else {
+        const from = location.state?.from?.pathname || '/home';
+        navigate(from, { replace: true });
+      }
+    };
+
+    checkOnboarding();
+  }, [user, navigate, location.state]);
+
+  /* ---------- Sign-up form validity for disabling button ---------- */
+  const signUpValid = useMemo(() => {
+    return (
+      firstName.trim().length > 0 &&
+      lastName.trim().length > 0 &&
+      suEmail.trim().length > 0 &&
+      suPassword.length >= 8 &&
+      confirmPassword.length > 0 &&
+      suPassword === confirmPassword &&
+      terms &&
+      gdpr
+    );
+  }, [firstName, lastName, suEmail, suPassword, confirmPassword, terms, gdpr]);
 
   /* ---------- Sign In ---------- */
   const handleSignIn = async (e: React.FormEvent) => {
@@ -171,8 +203,7 @@ const Auth = () => {
         toast({ variant: 'destructive', title: 'Sign In Failed', description: message });
         return;
       }
-      toast({ title: 'Signed In', description: 'Welcome back.' });
-      navigate(from, { replace: true });
+      // Redirect handled by useEffect above
     } catch (err) {
       toast({ variant: 'destructive', title: 'Sign In Failed', description: err instanceof Error ? err.message : 'Unable to sign in.' });
     } finally {
@@ -215,7 +246,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-subtle flex flex-col items-center justify-center p-4 sm:p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6" style={{ backgroundColor: '#0F1117' }}>
       {/* Subtle pattern overlay */}
       <div className="fixed inset-0 opacity-[0.015] pointer-events-none" style={{
         backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(var(--foreground)) 1px, transparent 0)',
@@ -228,7 +259,7 @@ const Auth = () => {
           <Logo size="lg" />
         </div>
 
-        <Card className="border-border/60 shadow-lg">
+        <Card className="shadow-lg" style={{ backgroundColor: '#1A1F2E', border: '1px solid #2D3748' }}>
           <CardContent className="pt-8 pb-8 px-6 sm:px-8">
             {mode === 'signin' ? (
               /* ========== SIGN IN ========== */
@@ -271,7 +302,7 @@ const Auth = () => {
 
                 <p className="text-center text-sm text-muted-foreground">
                   Don't have an account?{' '}
-                  <button type="button" onClick={() => setMode('signup')} className="text-primary font-medium hover:underline underline-offset-4">Sign up</button>
+                  <button type="button" onClick={() => setMode('signup')} className="text-primary font-medium hover:underline underline-offset-4">Sign up →</button>
                 </p>
 
                 <p className="text-center text-xs text-muted-foreground/70 pt-2">
@@ -288,19 +319,19 @@ const Auth = () => {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label htmlFor="su-first">First name *</Label>
+                    <Label htmlFor="su-first">First Name *</Label>
                     <Input id="su-first" placeholder="John" value={firstName} onChange={(e) => setFirstName(e.target.value)} disabled={isLoading} />
                     {suErrors.firstName && <p className="text-xs text-destructive">{suErrors.firstName}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="su-last">Last name *</Label>
+                    <Label htmlFor="su-last">Last Name *</Label>
                     <Input id="su-last" placeholder="Smith" value={lastName} onChange={(e) => setLastName(e.target.value)} disabled={isLoading} />
                     {suErrors.lastName && <p className="text-xs text-destructive">{suErrors.lastName}</p>}
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="su-email">Email *</Label>
+                  <Label htmlFor="su-email">Work Email *</Label>
                   <Input id="su-email" type="email" placeholder="you@company.com" value={suEmail} onChange={(e) => setSuEmail(e.target.value)} disabled={isLoading} />
                   {suErrors.email && <p className="text-xs text-destructive">{suErrors.email}</p>}
                 </div>
@@ -319,7 +350,7 @@ const Auth = () => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="su-confirm">Confirm password *</Label>
+                  <Label htmlFor="su-confirm">Confirm Password *</Label>
                   <div className="relative">
                     <Input id="su-confirm" type={showConfirmPassword ? 'text' : 'password'} placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={isLoading} className="pr-10" />
                     <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -347,13 +378,13 @@ const Auth = () => {
                   {suErrors.gdpr && <p className="text-xs text-destructive ml-6">{suErrors.gdpr}</p>}
                 </div>
 
-                <Button type="submit" className="w-full h-11 text-base" disabled={isLoading}>
+                <Button type="submit" className="w-full h-11 text-base" disabled={isLoading || !signUpValid}>
                   {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating account…</> : 'Create Account'}
                 </Button>
 
                 <p className="text-center text-sm text-muted-foreground">
                   Already have an account?{' '}
-                  <button type="button" onClick={() => setMode('signin')} className="text-primary font-medium hover:underline underline-offset-4">Sign in</button>
+                  <button type="button" onClick={() => setMode('signin')} className="text-primary font-medium hover:underline underline-offset-4">Sign in →</button>
                 </p>
               </form>
             )}

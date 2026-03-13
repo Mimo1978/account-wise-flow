@@ -5314,7 +5314,12 @@ export type Database = {
           created_at: string
           first_name: string | null
           id: string
+          job_title: string | null
           last_name: string | null
+          onboarding_phase: number
+          preferred_name: string | null
+          primary_use: string | null
+          team_size: string | null
           updated_at: string
         }
         Insert: {
@@ -5322,7 +5327,12 @@ export type Database = {
           created_at?: string
           first_name?: string | null
           id: string
+          job_title?: string | null
           last_name?: string | null
+          onboarding_phase?: number
+          preferred_name?: string | null
+          primary_use?: string | null
+          team_size?: string | null
           updated_at?: string
         }
         Update: {
@@ -5330,7 +5340,12 @@ export type Database = {
           created_at?: string
           first_name?: string | null
           id?: string
+          job_title?: string | null
           last_name?: string | null
+          onboarding_phase?: number
+          preferred_name?: string | null
+          primary_use?: string | null
+          team_size?: string | null
           updated_at?: string
         }
         Relationships: []

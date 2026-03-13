@@ -541,6 +541,9 @@ const AccountsBillingHub = () => {
 
   return (
     <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6" data-jarvis-id="accounts-page">
+      {/* Back Button */}
+      <PageBackButton fallback="/home" />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

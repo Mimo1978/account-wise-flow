@@ -38,6 +38,7 @@ import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 import Outreach from "./pages/Outreach";
 import SchemaInventory from "./pages/SchemaInventory";
+import Onboarding from "./pages/Onboarding";
 import ProjectsList from "./pages/ProjectsList";
 import DealsPage from "./pages/DealsPage";
 import DocumentsHub from "./pages/DocumentsHub";

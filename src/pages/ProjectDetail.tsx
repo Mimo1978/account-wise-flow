@@ -729,9 +729,9 @@ function ProjectJobsTab({ engagementId }: { engagementId: string }) {
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['project-jobs', engagementId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('jobs')
-        .select('id, title, status, location')
+        .select('id, title, status, location') as any)
         .eq('engagement_id', engagementId)
         .order('created_at', { ascending: false });
       if (error) throw error;

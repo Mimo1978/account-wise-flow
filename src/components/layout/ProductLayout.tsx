@@ -105,6 +105,8 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
     { path: '/insights', label: 'Analytics', icon: BarChart3, jarvisId: 'nav-analytics' },
   ];
 
+  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
+
   const NavItem = ({ item }: { item: { path: string; label: string; icon: any; jarvisId: string; badge?: boolean } }) => {
     const active = isActive(item.path);
     return (

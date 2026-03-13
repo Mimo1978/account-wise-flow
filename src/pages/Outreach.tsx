@@ -28,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2, ChevronRight, RotateCcw, Mail, Phone, Calendar, XCircle, BellOff, CheckCircle, ArrowRight, Pencil, Check, X } from "lucide-react";
+import { PageBackButton } from "@/components/ui/page-back-button";
 import {
   useOutreachCampaigns,
   useOutreachTargets,

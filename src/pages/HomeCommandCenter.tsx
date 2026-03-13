@@ -420,7 +420,7 @@ const HomeCommandCenter = () => {
   const renewalCount = renewalItems.length;
   const overdueRenewalCount = renewalItems.filter((i) => i.overdue).length;
 
-  // My Work items
+  // Action required items
   const myWorkItems = useMemo(() => {
     const items: WorkItem[] = [];
     const today = startOfDay(new Date());

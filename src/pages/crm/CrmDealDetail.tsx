@@ -309,7 +309,7 @@ export default function CrmDealDetail() {
               <CardTitle className="text-sm flex items-center gap-2"><FolderOpen className="w-4 h-4" /> Project</CardTitle>
             </CardHeader>
             <CardContent>
-              {deal.project_id && currentProject ? (
+              {d.project_id && currentProject ? (
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/projects/${currentProject.id}`)}>

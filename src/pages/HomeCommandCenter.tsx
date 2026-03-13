@@ -210,7 +210,7 @@ function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isR
           <span className="truncate">{deal.engagements.name}</span>
           <button
             className="text-blue-400 hover:text-blue-300 hover:underline shrink-0"
-            onClick={(e) => { e.stopPropagation(); window.location.href = `/projects/${deal.engagement_id}`; }}
+            onClick={(e) => { e.stopPropagation(); const a = document.createElement('a'); a.href = `/projects/${deal.engagement_id}`; a.click(); }}
           >→</button>
         </div>
       )}

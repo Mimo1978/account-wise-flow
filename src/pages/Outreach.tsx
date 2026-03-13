@@ -234,6 +234,8 @@ export default function OutreachPage() {
       {/* Header */}
       <div className="border-b border-border/50 bg-background">
         <div className="container mx-auto px-6 py-5">
+          {/* Back button */}
+          <PageBackButton fallback="/home" className="mb-3" />
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">

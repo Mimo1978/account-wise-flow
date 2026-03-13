@@ -358,5 +358,5 @@ export function useJarvis() {
     setFlowState(INITIAL_FLOW_STATE);
   }, []);
 
-  return { messages, isLoading, sendMessage, clearHistory, userFirstName, flowState, cancelFlow };
+  return { messages, isLoading, sendMessage, clearHistory, userFirstName, userPreferredName, flowState, cancelFlow };
 }

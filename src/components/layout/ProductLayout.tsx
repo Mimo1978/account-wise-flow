@@ -7,7 +7,7 @@ import { useDemoIndicator } from '@/hooks/use-workspace-mode';
 import { DemoBanner } from '@/components/layout/DemoBanner';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useNewApplicationsCount } from '@/hooks/use-jobs';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Sparkles, 
@@ -27,6 +27,7 @@ import {
   Moon,
   Sun,
   Receipt,
+  ChevronDown,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import {
@@ -86,7 +87,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const showAdminNav = !permLoading && (isAdmin || isManager);
 
   const navItems = [
-    { path: '/home', label: 'Home', icon: Home, jarvisId: 'nav-home' },
+    { path: '/home', label: 'Home', icon: Home, jarvisId: 'nav-home', alwaysShowLabel: true },
     { path: '/projects', label: 'Projects', icon: Briefcase, jarvisId: 'nav-projects' },
     { path: '/canvas', label: 'Canvas', icon: LayoutDashboard, jarvisId: 'nav-canvas' },
     { path: '/companies', label: 'Companies', icon: Building2, jarvisId: 'nav-companies' },
@@ -94,108 +95,193 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
     { path: '/documents', label: 'Documents', icon: FileText, jarvisId: 'nav-documents' },
     { path: '/accounts', label: 'Accounts', icon: Receipt, jarvisId: 'nav-accounts' },
     { path: '/contacts', label: 'Contacts', icon: Users, jarvisId: 'nav-contacts' },
+  ];
+
+  // These collapse into "More" dropdown below 1024px
+  const overflowNavItems = [
     { path: '/talent', label: 'Talent', icon: Database, jarvisId: 'nav-talent' },
-    { path: '/jobs', label: 'Jobs', icon: BookOpen, jarvisId: 'nav-jobs' },
+    { path: '/jobs', label: 'Jobs', icon: BookOpen, jarvisId: 'nav-jobs', badge: true },
     { path: '/outreach', label: 'Outreach', icon: Megaphone, jarvisId: 'nav-outreach' },
     { path: '/insights', label: 'Analytics', icon: BarChart3, jarvisId: 'nav-analytics' },
   ];
 
-  const aiNavItems: typeof navItems = [];
-
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
+
+  // "More" dropdown state
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [moreOpen]);
+
+  const NavButton = ({ item, iconOnly = false }: { item: { path: string; label: string; icon: any; jarvisId: string; alwaysShowLabel?: boolean; badge?: boolean }; iconOnly?: boolean }) => (
+    <Link key={item.path} to={item.path} onClick={() => setMoreOpen(false)}>
+      <Button
+        variant={isActive(item.path) ? 'secondary' : 'ghost'}
+        size="sm"
+        className={`relative px-2.5 py-1.5 gap-1 text-[13px] ${iconOnly && !item.alwaysShowLabel ? 'px-2' : ''}`}
+        data-jarvis-id={item.jarvisId}
+        title={item.label}
+      >
+        <item.icon className="w-3.5 h-3.5 shrink-0" />
+        {iconOnly && !item.alwaysShowLabel ? null : (
+          <span className={iconOnly ? 'hidden' : ''}>{item.label}</span>
+        )}
+        {item.badge && item.path === '/jobs' && newAppCount > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center px-1">
+            {newAppCount > 99 ? '99+' : newAppCount}
+          </span>
+        )}
+      </Button>
+    </Link>
+  );
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Product Navigation Header */}
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
+        <div className="px-4 py-2">
+          <div className="flex items-center justify-between gap-2">
             {/* Logo */}
-            <Link to="/home" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-white" />
+            <Link to="/home" className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0 min-w-[40px]">
+              <div className="w-8 h-8 rounded-xl bg-gradient-primary flex items-center justify-center shrink-0">
+                <Sparkles className="w-4 h-4 text-white" />
               </div>
-              <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              <span className="text-lg font-bold bg-gradient-primary bg-clip-text text-transparent hidden xl-logo:block">
                 CLIENT MAPPER
               </span>
               {showBadge && (
-                <Badge variant="secondary" className="ml-2 text-xs">
+                <Badge variant="secondary" className="ml-1 text-xs hidden lg:inline-flex">
                   Demo
                 </Badge>
               )}
             </Link>
 
             {/* Main Navigation */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden md:flex items-center gap-0.5 min-w-0 overflow-hidden">
+              {/* Primary nav items - always visible */}
               {navItems.map((item) => (
-                <Link key={item.path} to={item.path}>
-                  <Button
-                    variant={isActive(item.path) ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="gap-2 relative"
-                    data-jarvis-id={item.jarvisId}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    {item.label}
-                    {item.path === '/jobs' && newAppCount > 0 && (
-                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center px-1">
-                        {newAppCount > 99 ? '99+' : newAppCount}
-                      </span>
+                <span key={item.path} className="shrink-0">
+                  {/* Full labels above 1280px */}
+                  <span className="hidden 2lg:inline-flex">
+                    <NavButton item={item} />
+                  </span>
+                  {/* Icon-only below 1280px */}
+                  <span className="inline-flex 2lg:hidden">
+                    <NavButton item={item} iconOnly />
+                  </span>
+                </span>
+              ))}
+
+              {/* Overflow items - visible above 1024px, hidden into More below */}
+              {overflowNavItems.map((item) => (
+                <span key={item.path} className="shrink-0 hidden lg:inline-flex">
+                  {/* Full labels above 1280px */}
+                  <span className="hidden 2lg:inline-flex">
+                    <NavButton item={item} />
+                  </span>
+                  {/* Icon-only below 1280px */}
+                  <span className="inline-flex 2lg:hidden">
+                    <NavButton item={item} iconOnly />
+                  </span>
+                </span>
+              ))}
+
+              {/* More dropdown - visible below 1024px */}
+              <div ref={moreRef} className="relative shrink-0 lg:hidden">
+                <Button
+                  variant={moreOpen ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="gap-1 px-2.5 text-[13px]"
+                  onClick={() => setMoreOpen(!moreOpen)}
+                >
+                  More
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+                {moreOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-border bg-background shadow-lg p-1">
+                    {overflowNavItems.map((item) => (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={() => setMoreOpen(false)}
+                        className={`flex items-center gap-2 px-3 py-2 text-[13px] rounded-md transition-colors ${
+                          isActive(item.path)
+                            ? 'bg-secondary text-secondary-foreground'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                        }`}
+                      >
+                        <item.icon className="w-3.5 h-3.5" />
+                        {item.label}
+                        {item.badge && item.path === '/jobs' && newAppCount > 0 && (
+                          <span className="ml-auto min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center px-1">
+                            {newAppCount > 99 ? '99+' : newAppCount}
+                          </span>
+                        )}
+                      </Link>
+                    ))}
+                    {showAdminNav && (
+                      <>
+                        <div className="h-px bg-border my-1" />
+                        <Link
+                          to="/admin"
+                          onClick={() => setMoreOpen(false)}
+                          className={`flex items-center gap-2 px-3 py-2 text-[13px] rounded-md transition-colors ${
+                            isActive('/admin')
+                              ? 'bg-secondary text-secondary-foreground'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                          }`}
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          Admin
+                        </Link>
+                      </>
                     )}
-                  </Button>
-                </Link>
-              ))}
+                  </div>
+                )}
+              </div>
 
-              
-              {/* AI Tools - visual separator */}
-              <div className="w-px h-6 bg-border mx-2" />
-              
-              {aiNavItems.map((item) => (
-                <Link key={item.label} to={item.path}>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-2 text-muted-foreground hover:text-foreground"
-                  >
-                    <item.icon className="w-4 h-4" />
-                    {item.label}
-                  </Button>
-                </Link>
-              ))}
-
-              {/* Admin Console - only for admin/manager */}
+              {/* Admin Console - only for admin/manager, visible above 1024px */}
               {showAdminNav && (
-                <>
-                  <div className="w-px h-6 bg-border mx-2" />
+                <span className="shrink-0 hidden lg:inline-flex">
+                  <div className="w-px h-5 bg-border mx-1" />
                   <Link to="/admin">
                     <Button
                       variant={location.pathname.startsWith('/admin') ? 'secondary' : 'ghost'}
                       size="sm"
-                      className="gap-2"
+                      className="gap-1 px-2.5 text-[13px]"
                       data-jarvis-id="nav-admin"
                     >
-                      <ShieldCheck className="w-4 h-4" />
-                      Admin
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span className="hidden 2lg:inline">Admin</span>
                     </Button>
                   </Link>
-                </>
+                </span>
               )}
             </nav>
 
             {/* Right Side Actions */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 shrink-0">
               <PendingRequestsBadge />
               
               {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2">
-                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Button variant="ghost" size="sm" className="gap-2 max-w-[180px]">
+                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       <User className="w-4 h-4 text-primary" />
                     </div>
-                    <div className="hidden sm:flex flex-col items-end max-w-[150px]">
+                    <div className="hidden sm:flex flex-col items-end max-w-[140px]">
                       <span className="text-[11px] leading-tight text-muted-foreground">{timeGreeting}</span>
-                      <span className="text-[13px] font-medium leading-tight truncate">{displayName}</span>
+                      <span className="text-[13px] font-medium leading-tight truncate max-w-[140px]">{displayName}</span>
                     </div>
                   </Button>
                 </DropdownMenuTrigger>

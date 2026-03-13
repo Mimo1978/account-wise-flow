@@ -441,12 +441,26 @@ const HomeCommandCenter = () => {
         items.push({ id: `deal-${deal.id}`, type: 'deal', date: d, label: `💼 ${deal.name} closing in ${diff} day${diff !== 1 ? 's' : ''}`, overdue: false, daysUntil: diff, onClick: () => {}, icon: Target });
       }
     }
+    // Data integrity: deals missing contact
+    for (const deal of deals) {
+      if (deal.stage === 'won' || deal.stage === 'lost') continue;
+      if (!deal.contact_id) {
+        items.push({ id: `no-contact-${deal.id}`, type: 'deal', date: today, label: `Assign contact to ${deal.name}`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
+      }
+    }
+    // Data integrity: deals missing project
+    for (const deal of deals) {
+      if (deal.stage === 'won' || deal.stage === 'lost') continue;
+      if (!deal.project_id) {
+        items.push({ id: `no-project-${deal.id}`, type: 'deal', date: today, label: `Link ${deal.name} to a project`, overdue: false, daysUntil: 0, onClick: () => navigate(`/deals`), icon: AlertTriangle });
+      }
+    }
     // Job work items
     items.push(...(jobsSummary?.jobWorkItems ?? []));
 
     items.sort((a, b) => { if (a.overdue !== b.overdue) return a.overdue ? -1 : 1; return a.date.getTime() - b.date.getTime(); });
-    return items.slice(0, 8);
-  }, [invoices, deals, jobsSummary?.jobWorkItems]);
+    return items.slice(0, 12);
+  }, [invoices, deals, jobsSummary?.jobWorkItems, navigate]);
 
   // ── Pipeline cascade animation ──
   const [litStages, setLitStages] = useState<string[]>([]);

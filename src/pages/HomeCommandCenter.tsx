@@ -404,6 +404,15 @@ const HomeCommandCenter = () => {
     return map;
   }, [jobsSummary?.jobProjectLinks]);
 
+  // Enrich deals with engagement names from already-loaded engagements
+  const enrichedDeals = useMemo(() => {
+    const engMap = new Map(engagements.map((e: any) => [e.id, e.name]));
+    return deals.map(d => ({
+      ...d,
+      engagements: d.engagement_id && engMap.has(d.engagement_id) ? { name: engMap.get(d.engagement_id)! } : d.engagements ?? null,
+    }));
+  }, [deals, engagements]);
+
   const isRecruitmentDeal = (deal: Deal) => deal.name?.includes('Placement Fee') || deal.name?.includes('Recruitment');
 
   // Document expiry

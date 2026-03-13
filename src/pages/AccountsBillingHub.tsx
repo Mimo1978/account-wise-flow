@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useInvoices, useUpdateInvoice, useCreateInvoice, type Invoice } from '@/hooks/use-invoices';
 import { useInvoiceLineItems, useCreateInvoiceLineItem, useDeleteInvoiceLineItem, type InvoiceLineItem } from '@/hooks/use-invoice-line-items';
+import { PageBackButton } from '@/components/ui/page-back-button';
 import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
 import {
   Receipt, ArrowUpRight, Loader2, Plus, Download, FileBarChart,
@@ -541,6 +542,9 @@ const AccountsBillingHub = () => {
 
   return (
     <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6" data-jarvis-id="accounts-page">
+      {/* Back Button */}
+      <PageBackButton fallback="/home" />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

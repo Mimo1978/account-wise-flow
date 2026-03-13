@@ -40,13 +40,16 @@ export default function CrmDealDetail() {
   const [projectSearch, setProjectSearch] = useState("");
   const perm = useDeletionPermission();
 
+  // Cast deal to any to access fields not in CrmDealWithRelations type
+  const d = deal as any;
+
   // ── Contact query ──
   const { data: availableContacts = [] } = useQuery({
-    queryKey: ["crm-contacts-for-deal", deal?.company_id],
+    queryKey: ["crm-contacts-for-deal", d.company_id],
     queryFn: async () => {
       let q = supabase.from("crm_contacts").select("id, first_name, last_name, job_title").is("deleted_at", null);
-      if (deal?.company_id) {
-        q = q.eq("company_id", deal.company_id);
+      if (d.company_id) {
+        q = q.eq("company_id", d.company_id);
       } else {
         q = q.limit(50);
       }
@@ -58,47 +61,47 @@ export default function CrmDealDetail() {
 
   // ── Current contact ──
   const { data: currentContact } = useQuery({
-    queryKey: ["crm-contact-detail", deal?.contact_id],
+    queryKey: ["crm-contact-detail", d.contact_id],
     queryFn: async () => {
-      if (!deal?.contact_id) return null;
-      const { data } = await supabase.from("crm_contacts").select("id, first_name, last_name, job_title").eq("id", deal.contact_id).single();
+      if (!d.contact_id) return null;
+      const { data } = await supabase.from("crm_contacts").select("id, first_name, last_name, job_title").eq("id", d.contact_id).single();
       return data as { id: string; first_name: string; last_name: string; job_title: string | null } | null;
     },
-    enabled: !!deal?.contact_id,
+    enabled: !!d.contact_id,
   });
 
   // ── Projects query ──
   const { data: availableProjects = [] } = useQuery({
-    queryKey: ["crm-projects-for-deal", deal?.company_id],
+    queryKey: ["crm-projects-for-deal", d.company_id],
     queryFn: async () => {
-      let q = supabase.from("crm_projects" as any).select("id, name, status, workflow_stage").is("deleted_at", null);
-      if (deal?.company_id) q = q.eq("company_id", deal.company_id);
+      let q = (supabase.from as any)("crm_projects").select("id, name, status, workflow_stage").is("deleted_at", null);
+      if (d.company_id) q = q.eq("company_id", d.company_id);
       const { data } = await q.order("name");
-      return (data ?? []) as { id: string; name: string; status: string; workflow_stage: string | null }[];
+      return (data ?? []) as unknown as { id: string; name: string; status: string; workflow_stage: string | null }[];
     },
     enabled: !!deal,
   });
 
   // ── Current project ──
   const { data: currentProject } = useQuery({
-    queryKey: ["crm-project-detail", deal?.project_id],
+    queryKey: ["crm-project-detail", d.project_id],
     queryFn: async () => {
-      if (!deal?.project_id) return null;
-      const { data } = await supabase.from("crm_projects" as any).select("id, name, status, workflow_stage").eq("id", deal.project_id).single();
-      return data as { id: string; name: string; status: string; workflow_stage: string | null } | null;
+      if (!d.project_id) return null;
+      const { data } = await (supabase.from as any)("crm_projects").select("id, name, status, workflow_stage").eq("id", d.project_id).single();
+      return data as unknown as { id: string; name: string; status: string; workflow_stage: string | null } | null;
     },
-    enabled: !!deal?.project_id,
+    enabled: !!d.project_id,
   });
 
   // ── Engagement (delivery project) ──
   const { data: engagement } = useQuery({
-    queryKey: ["engagement-for-deal", deal?.engagement_id],
+    queryKey: ["engagement-for-deal", d.engagement_id],
     queryFn: async () => {
-      if (!deal?.engagement_id) return null;
-      const { data } = await supabase.from("engagements").select("id, name").eq("id", deal.engagement_id).single();
+      if (!d.engagement_id) return null;
+      const { data } = await supabase.from("engagements").select("id, name").eq("id", d.engagement_id).single();
       return data as { id: string; name: string } | null;
     },
-    enabled: !!deal?.engagement_id,
+    enabled: !!d.engagement_id,
   });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;

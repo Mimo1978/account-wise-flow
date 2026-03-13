@@ -380,7 +380,7 @@ export default function CrmDealDetail() {
                 </div>
               </CardContent>
             </Card>
-          ) : deal.stage === "won" && !deal.engagement_id ? (
+          ) : d.stage === "won" && !d.engagement_id ? (
             <Card className="border-green-500/30">
               <CardContent className="py-4">
                 <p className="text-sm text-muted-foreground mb-2">This deal is Won — create a delivery project to begin work</p>

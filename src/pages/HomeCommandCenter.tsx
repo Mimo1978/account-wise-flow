@@ -204,6 +204,16 @@ function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isR
         {deal.expected_close_date && <span>{format(new Date(deal.expected_close_date), 'dd MMM')}</span>}
         <span className="ml-auto tabular-nums">{daysInStage}d in stage</span>
       </div>
+      {deal.engagements?.name && (
+        <div className="flex items-center gap-1 mt-1 text-[10px]" style={{ color: DARK.textSecondary }}>
+          <Briefcase className="w-2.5 h-2.5" />
+          <span className="truncate">{deal.engagements.name}</span>
+          <button
+            className="text-blue-400 hover:text-blue-300 hover:underline shrink-0"
+            onClick={(e) => { e.stopPropagation(); window.location.href = `/projects/${deal.engagement_id}`; }}
+          >→</button>
+        </div>
+      )}
       <div className="flex items-center gap-1 mt-2 pt-2" style={{ borderTop: `1px solid ${DARK.border}` }}
         onClick={e => e.stopPropagation()}>
         {nextStage && deal.stage !== 'won' && deal.stage !== 'lost' && onAdvance && (

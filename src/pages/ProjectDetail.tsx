@@ -800,14 +800,26 @@ const ProjectDetail = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue={defaultTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="contracts">Contracts</TabsTrigger>
-          <TabsTrigger value="billing">Billing</TabsTrigger>
-          <TabsTrigger value="outreach">Outreach</TabsTrigger>
-          <TabsTrigger value="files">Files</TabsTrigger>
-        </TabsList>
+      {(() => {
+        const engType = engagement.engagement_type;
+        const allTabs = [
+          { value: 'overview', label: 'Overview', always: true },
+          { value: 'contracts', label: 'Contracts', types: ['consulting', 'managed_service'] },
+          { value: 'billing', label: 'Billing', always: true },
+          { value: 'outreach', label: 'Outreach', types: ['recruitment', 'managed_service'] },
+          { value: 'jobs', label: 'Jobs', types: ['recruitment'] },
+          { value: 'files', label: 'Files', always: true },
+        ];
+        const visibleTabs = allTabs.filter(t => t.always || t.types?.includes(engType));
+        const resolvedDefault = visibleTabs.some(t => t.value === defaultTab) ? defaultTab : 'overview';
+
+        return (
+          <Tabs defaultValue={resolvedDefault} className="space-y-4">
+            <TabsList>
+              {visibleTabs.map(t => (
+                <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
+              ))}
+            </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview">
@@ -951,6 +963,11 @@ const ProjectDetail = () => {
           <ProjectOutreachTab engagementId={engagement.id} />
         </TabsContent>
 
+        {/* Jobs Tab (recruitment only) */}
+        <TabsContent value="jobs">
+          <ProjectJobsTab engagementId={engagement.id} />
+        </TabsContent>
+
         {/* Files Tab */}
         <TabsContent value="files">
           <DocumentList
@@ -961,7 +978,9 @@ const ProjectDetail = () => {
             showCategoryBreakdown={true}
           />
         </TabsContent>
-      </Tabs>
+          </Tabs>
+        );
+      })()}
 
       {/* Modals */}
       <CreateSowModal open={sowOpen} onOpenChange={setSowOpen} />

@@ -48,6 +48,7 @@ export function useDeals(workspaceId: string | undefined) {
         .from('crm_deals')
         .select('*, crm_companies(id, name)')
         .eq('workspace_id', workspaceId)
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return (data ?? []).map((d: any) => ({

@@ -161,9 +161,9 @@ function PipelineChevron({ stage, label, count, total, isFirst, isLast, isActive
 }
 
 /* ─── Deal Card ─── */
-function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isRecruitment, onReversalConfirm }: {
+function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isRecruitment, onReversalConfirm, onClick }: {
   deal: Deal; onAdvance?: (nextStage: string) => void; onCreateProject?: () => void; onViewProject?: () => void; isRecruitment: boolean;
-  onReversalConfirm?: (stage: string) => void;
+  onReversalConfirm?: (stage: string) => void; onClick?: () => void;
 }) {
   const today = startOfDay(new Date());
   const createdDate = startOfDay(new Date(deal.updated_at));
@@ -172,7 +172,8 @@ function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isR
   const nextStage = stageIdx >= 0 && stageIdx < DEAL_STAGES.length - 2 ? DEAL_STAGES[stageIdx + 1] : null;
 
   return (
-    <div className="rounded-lg p-4 transition-all hover:brightness-110" style={{ background: DARK.hover, border: `1px solid ${DARK.border}` }}>
+    <div className="rounded-lg p-4 transition-all hover:brightness-110 cursor-pointer" style={{ background: DARK.hover, border: `1px solid ${DARK.border}` }}
+      onClick={onClick}>
       <div className="flex items-center gap-2">
         <p className="text-sm font-semibold truncate flex-1" style={{ color: DARK.text }}>{deal.name}</p>
         {isRecruitment && (
@@ -203,7 +204,8 @@ function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isR
         {deal.expected_close_date && <span>{format(new Date(deal.expected_close_date), 'dd MMM')}</span>}
         <span className="ml-auto tabular-nums">{daysInStage}d in stage</span>
       </div>
-      <div className="flex items-center gap-1 mt-2 pt-2" style={{ borderTop: `1px solid ${DARK.border}` }}>
+      <div className="flex items-center gap-1 mt-2 pt-2" style={{ borderTop: `1px solid ${DARK.border}` }}
+        onClick={e => e.stopPropagation()}>
         {nextStage && deal.stage !== 'won' && deal.stage !== 'lost' && onAdvance && (
           <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10" onClick={() => onAdvance(nextStage)}>
             → {DEAL_STAGE_LABELS[nextStage]}

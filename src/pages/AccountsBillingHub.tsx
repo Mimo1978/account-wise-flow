@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useInvoices, useUpdateInvoice, useCreateInvoice, type Invoice } from '@/hooks/use-invoices';
 import { useInvoiceLineItems, useCreateInvoiceLineItem, useDeleteInvoiceLineItem, type InvoiceLineItem } from '@/hooks/use-invoice-line-items';
+import { PageBackButton } from '@/components/ui/page-back-button';
 import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
 import {
   Receipt, ArrowUpRight, Loader2, Plus, Download, FileBarChart,

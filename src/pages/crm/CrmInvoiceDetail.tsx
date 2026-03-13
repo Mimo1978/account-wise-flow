@@ -96,9 +96,23 @@ export default function CrmInvoiceDetail() {
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground hover:text-foreground -ml-2">
-          <ChevronLeft className="h-4 w-4" /> Back
-        </Button>
+        <button
+          onClick={() => navigate(-1)}
+          className="
+            inline-flex items-center gap-1.5
+            text-sm font-medium
+            text-foreground
+            px-2 py-1 -ml-2 rounded-md
+            transition-all duration-150
+            hover:bg-accent
+            border-l-2 border-transparent
+            hover:border-primary
+            group
+          "
+        >
+          <ChevronLeft className="h-4 w-4 transition-transform duration-150 group-hover:-translate-x-0.5" />
+          Back
+        </button>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-foreground">{invoice.invoice_number || "Draft Invoice"}</h1>

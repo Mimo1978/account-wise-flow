@@ -135,9 +135,9 @@ export default function CrmDealDetail() {
   };
 
   const handleCreateAndLinkProject = async () => {
-    const { data: newProject, error } = await supabase.from("crm_projects" as any).insert({
+    const { data: newProject, error } = await (supabase.from as any)("crm_projects").insert({
       name: deal.title,
-      company_id: deal.company_id,
+      company_id: d.company_id,
       status: "active",
     }).select().single();
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }

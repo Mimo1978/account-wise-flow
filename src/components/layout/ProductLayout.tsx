@@ -7,6 +7,8 @@ import { useDemoIndicator } from '@/hooks/use-workspace-mode';
 import { DemoBanner } from '@/components/layout/DemoBanner';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useNewApplicationsCount } from '@/hooks/use-jobs';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Sparkles, 
   LayoutDashboard, 

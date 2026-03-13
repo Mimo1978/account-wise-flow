@@ -50,6 +50,31 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const { showBanner, showBadge, bannerVariant } = useDemoIndicator();
   const { isAdmin, isManager, isLoading: permLoading } = usePermissions();
   const { theme, setTheme } = useTheme();
+
+  // Fetch preferred_name for nav display
+  const [displayName, setDisplayName] = useState('');
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('profiles' as any)
+      .select('first_name, preferred_name')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          const pn = (data as any).preferred_name;
+          const fn = (data as any).first_name;
+          setDisplayName(pn || fn || user.email || '');
+        } else {
+          setDisplayName(user.user_metadata?.first_name || user.email || '');
+        }
+      });
+  }, [user]);
+
+  const timeGreeting = (() => {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  })();
   const location = useLocation();
   const navigate = useNavigate();
   const { data: newAppCount = 0 } = useNewApplicationsCount();

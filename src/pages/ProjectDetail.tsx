@@ -44,6 +44,7 @@ import {
   ChevronUp,
   Pencil,
   Activity,
+  DollarSign,
 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';

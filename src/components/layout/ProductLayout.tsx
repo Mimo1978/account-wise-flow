@@ -201,7 +201,8 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium truncate">{user?.email}</p>
+                    <p className="text-sm font-medium truncate">{displayName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                     <p className="text-xs text-muted-foreground">
                       {currentWorkspace?.name || 'No workspace'}
                     </p>

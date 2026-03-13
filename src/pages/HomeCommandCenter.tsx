@@ -618,7 +618,7 @@ const HomeCommandCenter = () => {
                 })}
               </div>
               {(() => {
-                const filteredDeals = pipelineFilter ? deals.filter(d => (d.stage || 'lead') === pipelineFilter) : deals;
+                const filteredDeals = pipelineFilter ? enrichedDeals.filter(d => (d.stage || 'lead') === pipelineFilter) : enrichedDeals;
                 if (filteredDeals.length === 0) return (
                   <div className="rounded-lg p-6 text-center" style={{ border: `1px dashed ${DARK.border}` }}>
                     <p className="text-sm" style={{ color: DARK.textSecondary }}>No deals in {DEAL_STAGE_LABELS[pipelineFilter!]}</p>

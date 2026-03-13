@@ -146,7 +146,6 @@ export default function ImportReview() {
             <ChevronLeft className="h-4 w-4 transition-transform duration-150 group-hover:-translate-x-0.5" />
             Back
           </button>
-            </Button>
             <Separator orientation="vertical" className="h-6" />
             <div>
               <h1 className="text-lg font-semibold flex items-center gap-2">

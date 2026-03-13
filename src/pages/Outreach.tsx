@@ -28,6 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Search, Users, Megaphone, Filter, FileText, Edit2, Trash2, ChevronRight, RotateCcw, Mail, Phone, Calendar, XCircle, BellOff, CheckCircle, ArrowRight, Pencil, Check, X } from "lucide-react";
+import { PageBackButton } from "@/components/ui/page-back-button";
 import {
   useOutreachCampaigns,
   useOutreachTargets,
@@ -234,6 +235,8 @@ export default function OutreachPage() {
       {/* Header */}
       <div className="border-b border-border/50 bg-background">
         <div className="container mx-auto px-6 py-5">
+          {/* Back button */}
+          <PageBackButton fallback="/home" className="mb-3" />
           <div className="flex items-start justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">

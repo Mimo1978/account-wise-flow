@@ -853,31 +853,52 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     greetingDoneRef.current = true;
     sessionStorage.setItem("jarvis_greeted", "1");
 
-    const greetingTemplate = jarvisSettings.greeting_message || "Hello {{name}}. I'm {{assistant}}. How can I help you today?";
-    const greeting = greetingTemplate
-      .replace("{{name}}", userFirstName || "")
-      .replace("{{assistant}}", assistantName)
-      .replace(/^\s+/, "")
-      .replace(/\.\s*\./, ".");
+    const displayName = userPreferredName || userFirstName || "";
+    const isNewUser = sessionStorage.getItem("jarvis_new_user") === "true";
 
-    const doGreeting = () => {
-      conversationActiveRef.current = true;
-      if (tts.enabled) {
-        tts.speak(greeting, () => {
-          // After greeting, start listening for the first response
+    if (isNewUser) {
+      sessionStorage.removeItem("jarvis_new_user");
+
+      // New user personalised greeting sequence
+      const greeting1 = `Welcome to your Command Centre, ${displayName}. I'm ${assistantName} — I'm here whenever you need me. You can talk to me or type. Just tell me what you need.`;
+
+      const doNewUserGreeting = () => {
+        conversationActiveRef.current = true;
+        if (tts.enabled) {
+          tts.speak(greeting1, () => {
+            // After first greeting, deliver stats after 2s
+            setTimeout(() => {
+              // We'll add a follow-up message (stats come from the edge function or are spoken directly)
+              sendMessage("How many active projects and deals do I have?");
+            }, 2000);
+          });
+        }
+      };
+
+      setTimeout(doNewUserGreeting, 1500);
+    } else {
+      // Standard time-based greeting
+      const hour = new Date().getHours();
+      const timeGreeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+      const greeting = `${timeGreeting}, ${displayName}. How can I help you today?`;
+
+      const doGreeting = () => {
+        conversationActiveRef.current = true;
+        if (tts.enabled) {
+          tts.speak(greeting, () => {
+            if (speech.supported) {
+              speech.startListening();
+            }
+          });
+        } else {
           if (speech.supported) {
             speech.startListening();
           }
-        });
-      } else {
-        if (speech.supported) {
-          speech.startListening();
         }
-      }
-    };
+      };
 
-    // Small delay to let component mount
-    setTimeout(doGreeting, 500);
+      setTimeout(doGreeting, 500);
+    }
 
     // Pre-warm the edge function
     supabase.functions.invoke("jarvis-assistant", {

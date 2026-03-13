@@ -566,7 +566,7 @@ const HomeCommandCenter = () => {
           icon={TrendingUp} borderColor="#3B82F6" jarvisSection="pipeline"
           headerRight={
             <div className="flex items-center gap-2">
-              <Link to="/deals" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">View All Deals →</Link>
+              <Link to="/crm/deals" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">View All Deals →</Link>
               <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => setDealOpen(true)}>
                 <Plus className="w-3.5 h-3.5" /> Create Deal
               </Button>

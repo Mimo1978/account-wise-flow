@@ -84,6 +84,7 @@ export function useCreateDeal() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['deals'] });
+      qc.invalidateQueries({ queryKey: ['all-crm-deals'] });
     },
   });
 }

@@ -153,6 +153,7 @@ const App = () => {
             <Route path="/signup" element={<Navigate to="/auth" replace />} />
             <Route path="/auth/sign-in" element={<Navigate to="/auth?tab=signin" replace />} />
             <Route path="/auth/sign-up" element={<Navigate to="/auth?tab=signup" replace />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/demo" element={<Demo />} />
             <Route path="/jobs/board" element={<PublicJobBoard />} />
 

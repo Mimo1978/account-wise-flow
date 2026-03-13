@@ -607,7 +607,11 @@ const HomeCommandCenter = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-1">
                     {filteredDeals.map(deal => (
                       <PipelineDealCard key={deal.id} deal={deal} isRecruitment={isRecruitmentDeal(deal)}
-                        onAdvance={(ns) => { updateDeal.mutateAsync({ id: deal.id, stage: ns }); toast.success(`${deal.name} advanced to ${DEAL_STAGE_LABELS[ns]}`); }}
+                        onAdvance={(ns) => {
+                          updateDeal.mutateAsync({ id: deal.id, stage: ns })
+                            .then(() => toast.success(`${deal.name} advanced to ${DEAL_STAGE_LABELS[ns]}`))
+                            .catch((err) => toast.error(`Failed to update: ${err.message}`));
+                        }}
                         onCreateProject={deal.stage === 'won' && !deal.engagement_id ? () => { setConvertDeal(deal); setCreateOpen(true); } : undefined}
                         onViewProject={deal.stage === 'won' && deal.engagement_id ? () => navigate(`/projects/${deal.engagement_id}`) : undefined} />
                     ))}

@@ -44,6 +44,7 @@ import {
   ChevronUp,
   Pencil,
   Activity,
+  DollarSign,
 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
@@ -338,6 +339,61 @@ function RecentActivitySection({ engagementId, companyId }: { engagementId: stri
               </div>
             </div>
           ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── Originating Deal Card ─── */
+function OriginatingDealCard({ engagementId }: { engagementId: string }) {
+  const navigate = useNavigate();
+  const { data: originatingDeal, isLoading } = useQuery({
+    queryKey: ['originating-deal', engagementId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('crm_deals')
+        .select('id, title, value, stage, currency')
+        .eq('engagement_id', engagementId)
+        .is('deleted_at', null)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { id: string; title: string; value: number; stage: string; currency: string } | null;
+    },
+    enabled: !!engagementId,
+  });
+
+  if (isLoading || !originatingDeal) return null;
+
+  const cs = originatingDeal.currency === 'GBP' ? '£' : originatingDeal.currency === 'USD' ? '$' : '€';
+  const STAGE_COLORS: Record<string, string> = {
+    lead: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    qualified: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200',
+    proposal: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+    negotiation: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    won: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+    lost: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <DollarSign className="w-4 h-4" /> Originating Deal
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-medium text-foreground">{originatingDeal.title}</p>
+            <span className="text-sm font-semibold text-foreground">{cs}{originatingDeal.value.toLocaleString()}</span>
+            <Badge variant="secondary" className={`text-xs capitalize ${STAGE_COLORS[originatingDeal.stage] || ''}`}>
+              {originatingDeal.stage}
+            </Badge>
+          </div>
+          <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => navigate(`/crm/deals/${originatingDeal.id}`)}>
+            View Deal <ExternalLink className="w-3 h-3" />
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -755,7 +811,10 @@ const ProjectDetail = () => {
 
         {/* Overview Tab */}
         <TabsContent value="overview">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Originating Deal */}
+          <OriginatingDealCard engagementId={engagement.id} />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Stage</CardTitle></CardHeader>
               <CardContent><Badge variant="outline">{STAGE_LABELS[engagement.stage] ?? engagement.stage}</Badge></CardContent>

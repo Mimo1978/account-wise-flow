@@ -161,9 +161,9 @@ function PipelineChevron({ stage, label, count, total, isFirst, isLast, isActive
 }
 
 /* ─── Deal Card ─── */
-function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isRecruitment, onReversalConfirm }: {
+function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isRecruitment, onReversalConfirm, onClick }: {
   deal: Deal; onAdvance?: (nextStage: string) => void; onCreateProject?: () => void; onViewProject?: () => void; isRecruitment: boolean;
-  onReversalConfirm?: (stage: string) => void;
+  onReversalConfirm?: (stage: string) => void; onClick?: () => void;
 }) {
   const today = startOfDay(new Date());
   const createdDate = startOfDay(new Date(deal.updated_at));
@@ -172,7 +172,8 @@ function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isR
   const nextStage = stageIdx >= 0 && stageIdx < DEAL_STAGES.length - 2 ? DEAL_STAGES[stageIdx + 1] : null;
 
   return (
-    <div className="rounded-lg p-4 transition-all hover:brightness-110" style={{ background: DARK.hover, border: `1px solid ${DARK.border}` }}>
+    <div className="rounded-lg p-4 transition-all hover:brightness-110 cursor-pointer" style={{ background: DARK.hover, border: `1px solid ${DARK.border}` }}
+      onClick={onClick}>
       <div className="flex items-center gap-2">
         <p className="text-sm font-semibold truncate flex-1" style={{ color: DARK.text }}>{deal.name}</p>
         {isRecruitment && (
@@ -203,7 +204,8 @@ function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isR
         {deal.expected_close_date && <span>{format(new Date(deal.expected_close_date), 'dd MMM')}</span>}
         <span className="ml-auto tabular-nums">{daysInStage}d in stage</span>
       </div>
-      <div className="flex items-center gap-1 mt-2 pt-2" style={{ borderTop: `1px solid ${DARK.border}` }}>
+      <div className="flex items-center gap-1 mt-2 pt-2" style={{ borderTop: `1px solid ${DARK.border}` }}
+        onClick={e => e.stopPropagation()}>
         {nextStage && deal.stage !== 'won' && deal.stage !== 'lost' && onAdvance && (
           <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10" onClick={() => onAdvance(nextStage)}>
             → {DEAL_STAGE_LABELS[nextStage]}
@@ -452,7 +454,7 @@ const HomeCommandCenter = () => {
     for (const deal of deals) {
       if (deal.stage === 'won' || deal.stage === 'lost') continue;
       if (!deal.project_id) {
-        items.push({ id: `no-project-${deal.id}`, type: 'deal', date: today, label: `Link ${deal.name} to a project`, overdue: false, daysUntil: 0, onClick: () => navigate(`/deals`), icon: AlertTriangle });
+        items.push({ id: `no-project-${deal.id}`, type: 'deal', date: today, label: `Link ${deal.name} to a project`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
       }
     }
     // Job work items
@@ -541,7 +543,7 @@ const HomeCommandCenter = () => {
           <KPICard title="Deal Pipeline" value={activeDeals.length > 0 ? `£${totalPipelineValue.toLocaleString()}` : '—'}
             subtitle={activeDeals.length > 0 ? `${activeDeals.length} deals · £${weightedPipelineValue.toLocaleString()} weighted` : 'No deals yet'}
             icon={TrendingUp} accentColor="#8B5CF6"
-            onClick={() => navigate('/deals')} />
+            onClick={() => navigate('/crm/deals')} />
           <KPICard title="Outstanding Invoices" value={billing.outstandingCount > 0 ? `£${billing.outstandingAmount.toLocaleString()}` : '—'}
             subtitle={billing.overdueCount > 0 ? `${billing.overdueCount} overdue · £${billing.overdueAmount.toLocaleString()}` : billing.outstandingCount > 0 ? `${billing.outstandingCount} unpaid` : 'No outstanding invoices'}
             icon={Receipt} accentColor="#F59E0B"
@@ -564,7 +566,7 @@ const HomeCommandCenter = () => {
           icon={TrendingUp} borderColor="#3B82F6" jarvisSection="pipeline"
           headerRight={
             <div className="flex items-center gap-2">
-              <Link to="/deals" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">View All Deals →</Link>
+              <Link to="/crm/deals" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">View All Deals →</Link>
               <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => setDealOpen(true)}>
                 <Plus className="w-3.5 h-3.5" /> Create Deal
               </Button>
@@ -607,6 +609,7 @@ const HomeCommandCenter = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-1">
                     {filteredDeals.map(deal => (
                       <PipelineDealCard key={deal.id} deal={deal} isRecruitment={isRecruitmentDeal(deal)}
+                        onClick={() => navigate(`/crm/deals/${deal.id}`)}
                         onAdvance={(ns) => {
                           updateDeal.mutateAsync({ id: deal.id, stage: ns })
                             .then(() => toast.success(`${deal.name} advanced to ${DEAL_STAGE_LABELS[ns]}`))

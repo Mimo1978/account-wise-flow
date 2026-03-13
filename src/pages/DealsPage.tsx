@@ -78,7 +78,7 @@ export default function DealsPage() {
       console.log("[DealsPage] Fetching deals for workspace:", workspaceId);
       const { data, error } = await supabase
         .from("crm_deals")
-        .select("*, crm_companies(id, name), crm_projects(id, name)")
+        .select("*, crm_companies(id, name), crm_projects!crm_deals_project_id_fkey(id, name)")
         .eq("workspace_id", workspaceId)
         .is("deleted_at", null)
         .order("updated_at", { ascending: false });
@@ -227,7 +227,7 @@ export default function DealsPage() {
       </div>
 
       {/* Deal cards */}
-      {isLoading ? (
+      {!workspaceId || isLoading ? (
         <p className="text-muted-foreground text-center py-12">Loading deals...</p>
       ) : filtered.length === 0 ? (
         <Card className="border border-border rounded-xl"><CardContent className="py-12 text-center">

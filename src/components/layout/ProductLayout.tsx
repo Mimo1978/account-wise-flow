@@ -156,63 +156,53 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
             </Link>
 
             {/* Main Navigation */}
-            <nav className="hidden md:flex items-center gap-0.5 min-w-0 overflow-hidden">
+            <nav className="hidden md:flex items-center gap-0 min-w-0">
               {/* Primary nav items - always visible */}
               {navItems.map((item) => (
-                <span key={item.path} className="shrink-0">
-                  {/* Full labels above 1280px */}
-                  <span className="hidden 2lg:inline-flex">
-                    <NavButton item={item} />
-                  </span>
-                  {/* Icon-only below 1280px */}
-                  <span className="inline-flex 2lg:hidden">
-                    <NavButton item={item} iconOnly />
-                  </span>
-                </span>
+                <NavItem key={item.path} item={item} />
               ))}
 
-              {/* Overflow items - visible above 1024px, hidden into More below */}
+              {/* Overflow items - visible above 1280px */}
               {overflowNavItems.map((item) => (
-                <span key={item.path} className="shrink-0 hidden lg:inline-flex">
-                  {/* Full labels above 1280px */}
-                  <span className="hidden 2lg:inline-flex">
-                    <NavButton item={item} />
-                  </span>
-                  {/* Icon-only below 1280px */}
-                  <span className="inline-flex 2lg:hidden">
-                    <NavButton item={item} iconOnly />
-                  </span>
+                <span key={item.path} className="hidden 2lg:inline-flex">
+                  <NavItem item={item} />
                 </span>
               ))}
 
-              {/* More dropdown - visible below 1024px */}
-              <div ref={moreRef} className="relative shrink-0 lg:hidden">
-                <Button
-                  variant={moreOpen ? 'secondary' : 'ghost'}
-                  size="sm"
-                  className="gap-1 px-2.5 text-[13px]"
+              {/* More dropdown - visible below 1280px */}
+              <div ref={moreRef} className="relative shrink-0 2lg:hidden">
+                <button
                   onClick={() => setMoreOpen(!moreOpen)}
+                  className={`flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap
+                    ${moreOpen || overflowNavItems.some(i => isActive(i.path))
+                      ? 'text-[#378ADD]'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
+                    }
+                  `}
+                  style={{
+                    borderBottom: overflowNavItems.some(i => isActive(i.path)) ? '2px solid #378ADD' : '2px solid transparent',
+                  }}
                 >
                   More
                   <ChevronDown className="w-3 h-3" />
-                </Button>
+                </button>
                 {moreOpen && (
-                  <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-border bg-background shadow-lg p-1">
+                  <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-border bg-[#0F1117] shadow-lg p-1">
                     {overflowNavItems.map((item) => (
                       <Link
                         key={item.path}
                         to={item.path}
                         onClick={() => setMoreOpen(false)}
-                        className={`flex items-center gap-2 px-3 py-2 text-[13px] rounded-md transition-colors ${
+                        className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded-md transition-colors ${
                           isActive(item.path)
-                            ? 'bg-secondary text-secondary-foreground'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                            ? 'text-[#378ADD] bg-[rgba(55,138,221,0.1)]'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
                         }`}
                       >
-                        <item.icon className="w-3.5 h-3.5" />
+                        <item.icon className="w-4 h-4" />
                         {item.label}
                         {item.badge && item.path === '/jobs' && newAppCount > 0 && (
-                          <span className="ml-auto min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center px-1">
+                          <span className="ml-auto min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
                             {newAppCount > 99 ? '99+' : newAppCount}
                           </span>
                         )}
@@ -224,13 +214,13 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                         <Link
                           to="/admin"
                           onClick={() => setMoreOpen(false)}
-                          className={`flex items-center gap-2 px-3 py-2 text-[13px] rounded-md transition-colors ${
+                          className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded-md transition-colors ${
                             isActive('/admin')
-                              ? 'bg-secondary text-secondary-foreground'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                              ? 'text-[#378ADD] bg-[rgba(55,138,221,0.1)]'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
                           }`}
                         >
-                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <ShieldCheck className="w-4 h-4" />
                           Admin
                         </Link>
                       </>
@@ -239,20 +229,25 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                 )}
               </div>
 
-              {/* Admin Console - only for admin/manager, visible above 1024px */}
+              {/* Admin Console - visible above 1280px */}
               {showAdminNav && (
-                <span className="shrink-0 hidden lg:inline-flex">
-                  <div className="w-px h-5 bg-border mx-1" />
-                  <Link to="/admin">
-                    <Button
-                      variant={location.pathname.startsWith('/admin') ? 'secondary' : 'ghost'}
-                      size="sm"
-                      className="gap-1 px-2.5 text-[13px]"
-                      data-jarvis-id="nav-admin"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      <span className="hidden 2lg:inline">Admin</span>
-                    </Button>
+                <span className="shrink-0 hidden 2lg:inline-flex items-center">
+                  <div className="w-px h-4 bg-border mx-1" />
+                  <Link
+                    to="/admin"
+                    data-jarvis-id="nav-admin"
+                    className={`flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap
+                      ${isActive('/admin')
+                        ? 'text-[#378ADD]'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
+                      }
+                    `}
+                    style={{
+                      borderBottom: isActive('/admin') ? '2px solid #378ADD' : '2px solid transparent',
+                    }}
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    Admin
                   </Link>
                 </span>
               )}

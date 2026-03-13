@@ -161,8 +161,9 @@ function PipelineChevron({ stage, label, count, total, isFirst, isLast, isActive
 }
 
 /* ─── Deal Card ─── */
-function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isRecruitment }: {
+function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isRecruitment, onReversalConfirm }: {
   deal: Deal; onAdvance?: (nextStage: string) => void; onCreateProject?: () => void; onViewProject?: () => void; isRecruitment: boolean;
+  onReversalConfirm?: (stage: string) => void;
 }) {
   const today = startOfDay(new Date());
   const createdDate = startOfDay(new Date(deal.updated_at));
@@ -181,6 +182,21 @@ function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isR
           {DEAL_STAGE_LABELS[deal.stage] ?? deal.stage}
         </Badge>
       </div>
+      {/* Integrity badges */}
+      {(!deal.contact_id || !deal.project_id) && (
+        <div className="flex items-center gap-1 mt-1.5">
+          {!deal.contact_id && (
+            <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-400 bg-amber-500/10">
+              <AlertTriangle className="w-2.5 h-2.5" /> No contact
+            </span>
+          )}
+          {!deal.project_id && (
+            <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-400 bg-amber-500/10">
+              <AlertTriangle className="w-2.5 h-2.5" /> No project
+            </span>
+          )}
+        </div>
+      )}
       <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: DARK.textSecondary }}>
         <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{deal.companies?.name ?? '—'}</span>
         <span className="font-medium" style={{ color: DARK.text }}>£{deal.value.toLocaleString()}</span>

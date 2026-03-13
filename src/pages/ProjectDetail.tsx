@@ -735,7 +735,7 @@ function ProjectJobsTab({ engagementId }: { engagementId: string }) {
         .eq('engagement_id', engagementId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as { id: string; title: string; status: string; location: string | null }[];
     },
     enabled: !!engagementId,
   });

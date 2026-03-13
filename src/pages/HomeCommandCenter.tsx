@@ -316,7 +316,7 @@ const COMMAND_CENTRE_TOUR: GuidedTourStep[] = [
   { speak: "Welcome to your Command Centre. This is the heartbeat of your business.", delay: 2000 },
   { highlight: '[data-jarvis-section="stat-cards"]', speak: "These four cards give you your headline numbers." },
   { highlight: '[data-jarvis-section="pipeline"]', speak: "Your deal pipeline — every deal by stage. Click any chevron to drill in." },
-  { highlight: '[data-jarvis-section="my-work"]', speak: "My Work shows what needs your attention today." },
+  { highlight: '[data-jarvis-section="action-required"]', speak: "Action required shows what needs your attention today." },
   { highlight: '[data-jarvis-section="diary"]', speak: "Your diary shows calls and meetings for the next seven days." },
   { highlight: '[data-jarvis-section="active-projects"]', speak: "Active Projects shows all your live engagements." },
   { highlight: '[data-jarvis-section="outreach"]', speak: "Outreach shows campaign stats and response rates." },

@@ -543,7 +543,7 @@ const HomeCommandCenter = () => {
           <KPICard title="Deal Pipeline" value={activeDeals.length > 0 ? `£${totalPipelineValue.toLocaleString()}` : '—'}
             subtitle={activeDeals.length > 0 ? `${activeDeals.length} deals · £${weightedPipelineValue.toLocaleString()} weighted` : 'No deals yet'}
             icon={TrendingUp} accentColor="#8B5CF6"
-            onClick={() => navigate('/deals')} />
+            onClick={() => navigate('/crm/deals')} />
           <KPICard title="Outstanding Invoices" value={billing.outstandingCount > 0 ? `£${billing.outstandingAmount.toLocaleString()}` : '—'}
             subtitle={billing.overdueCount > 0 ? `${billing.overdueCount} overdue · £${billing.overdueAmount.toLocaleString()}` : billing.outstandingCount > 0 ? `${billing.outstandingCount} unpaid` : 'No outstanding invoices'}
             icon={Receipt} accentColor="#F59E0B"

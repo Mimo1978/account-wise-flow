@@ -193,9 +193,10 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                     <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
                       <User className="w-4 h-4 text-primary" />
                     </div>
-                    <span className="hidden sm:inline text-sm max-w-[150px] truncate">
-                      {user?.email}
-                    </span>
+                    <div className="hidden sm:flex flex-col items-end max-w-[150px]">
+                      <span className="text-[11px] leading-tight text-muted-foreground">{timeGreeting}</span>
+                      <span className="text-[13px] font-medium leading-tight truncate">{displayName}</span>
+                    </div>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">

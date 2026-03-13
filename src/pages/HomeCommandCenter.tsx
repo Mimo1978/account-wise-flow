@@ -454,7 +454,7 @@ const HomeCommandCenter = () => {
     for (const deal of deals) {
       if (deal.stage === 'won' || deal.stage === 'lost') continue;
       if (!deal.project_id) {
-        items.push({ id: `no-project-${deal.id}`, type: 'deal', date: today, label: `Link ${deal.name} to a project`, overdue: false, daysUntil: 0, onClick: () => navigate(`/deals`), icon: AlertTriangle });
+        items.push({ id: `no-project-${deal.id}`, type: 'deal', date: today, label: `Link ${deal.name} to a project`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
       }
     }
     // Job work items

@@ -41,7 +41,7 @@ export default function CrmDealDetail() {
   const perm = useDeletionPermission();
 
   // Cast deal to any to access fields not in CrmDealWithRelations type
-  const d = deal as any;
+  const d = (deal ?? {}) as any;
 
   // ── Contact query ──
   const { data: availableContacts = [] } = useQuery({

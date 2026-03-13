@@ -87,7 +87,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const showAdminNav = !permLoading && (isAdmin || isManager);
 
   const navItems = [
-    { path: '/home', label: 'Home', icon: Home, jarvisId: 'nav-home', alwaysShowLabel: true },
+    { path: '/home', label: 'Home', icon: Home, jarvisId: 'nav-home' },
     { path: '/projects', label: 'Projects', icon: Briefcase, jarvisId: 'nav-projects' },
     { path: '/canvas', label: 'Canvas', icon: LayoutDashboard, jarvisId: 'nav-canvas' },
     { path: '/companies', label: 'Companies', icon: Building2, jarvisId: 'nav-companies' },
@@ -95,54 +95,44 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
     { path: '/documents', label: 'Documents', icon: FileText, jarvisId: 'nav-documents' },
     { path: '/accounts', label: 'Accounts', icon: Receipt, jarvisId: 'nav-accounts' },
     { path: '/contacts', label: 'Contacts', icon: Users, jarvisId: 'nav-contacts' },
+    { path: '/talent', label: 'Talent', icon: Database, jarvisId: 'nav-talent' },
   ];
 
-  // These collapse into "More" dropdown below 1024px
+  // These collapse into "More" dropdown below 1280px
   const overflowNavItems = [
-    { path: '/talent', label: 'Talent', icon: Database, jarvisId: 'nav-talent' },
     { path: '/jobs', label: 'Jobs', icon: BookOpen, jarvisId: 'nav-jobs', badge: true },
     { path: '/outreach', label: 'Outreach', icon: Megaphone, jarvisId: 'nav-outreach' },
     { path: '/insights', label: 'Analytics', icon: BarChart3, jarvisId: 'nav-analytics' },
   ];
 
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
-
-  // "More" dropdown state
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!moreOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
-        setMoreOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [moreOpen]);
-
-  const NavButton = ({ item, iconOnly = false }: { item: { path: string; label: string; icon: any; jarvisId: string; alwaysShowLabel?: boolean; badge?: boolean }; iconOnly?: boolean }) => (
-    <Link key={item.path} to={item.path} onClick={() => setMoreOpen(false)}>
-      <Button
-        variant={isActive(item.path) ? 'secondary' : 'ghost'}
-        size="sm"
-        className={`relative px-2.5 py-1.5 gap-1 text-[13px] ${iconOnly && !item.alwaysShowLabel ? 'px-2' : ''}`}
+  const NavItem = ({ item }: { item: { path: string; label: string; icon: any; jarvisId: string; badge?: boolean } }) => {
+    const active = isActive(item.path);
+    return (
+      <Link
+        to={item.path}
         data-jarvis-id={item.jarvisId}
-        title={item.label}
+        className={`relative flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap shrink-0
+          ${active
+            ? 'text-[#378ADD]'
+            : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
+          }
+        `}
+        style={{
+          borderBottom: active ? '2px solid #378ADD' : '2px solid transparent',
+        }}
+        onMouseEnter={(e) => { if (!active) (e.currentTarget.style.borderBottom = '2px solid #378ADD'); }}
+        onMouseLeave={(e) => { if (!active) (e.currentTarget.style.borderBottom = '2px solid transparent'); }}
       >
-        <item.icon className="w-3.5 h-3.5 shrink-0" />
-        {iconOnly && !item.alwaysShowLabel ? null : (
-          <span className={iconOnly ? 'hidden' : ''}>{item.label}</span>
-        )}
+        <item.icon className="w-4 h-4 shrink-0" />
+        <span>{item.label}</span>
         {item.badge && item.path === '/jobs' && newAppCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center px-1">
+          <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
             {newAppCount > 99 ? '99+' : newAppCount}
           </span>
         )}
-      </Button>
-    </Link>
-  );
+      </Link>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

@@ -195,23 +195,26 @@ export function useJarvis() {
   const abortRef = useRef<AbortController | null>(null);
   const { user } = useAuth();
   const [userFirstName, setUserFirstName] = useState("");
+  const [userPreferredName, setUserPreferredName] = useState("");
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!user) return;
-    const metaName = user.user_metadata?.first_name || user.user_metadata?.full_name?.split(" ")[0];
-    if (metaName) {
-      setUserFirstName(metaName);
-      return;
-    }
+    // Always fetch from profiles to get preferred_name
     supabase
       .from("profiles" as any)
-      .select("first_name")
+      .select("first_name, preferred_name")
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
-        if (data && (data as any).first_name) {
-          setUserFirstName((data as any).first_name);
+        if (data) {
+          const fn = (data as any).first_name || user.user_metadata?.first_name || user.user_metadata?.full_name?.split(" ")[0] || "";
+          const pn = (data as any).preferred_name || "";
+          setUserFirstName(fn);
+          setUserPreferredName(pn);
+        } else {
+          const metaName = user.user_metadata?.first_name || user.user_metadata?.full_name?.split(" ")[0] || "";
+          setUserFirstName(metaName);
         }
       });
   }, [user]);
@@ -355,5 +358,5 @@ export function useJarvis() {
     setFlowState(INITIAL_FLOW_STATE);
   }, []);
 
-  return { messages, isLoading, sendMessage, clearHistory, userFirstName, flowState, cancelFlow };
+  return { messages, isLoading, sendMessage, clearHistory, userFirstName, userPreferredName, flowState, cancelFlow };
 }

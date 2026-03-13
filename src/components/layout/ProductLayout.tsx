@@ -7,6 +7,8 @@ import { useDemoIndicator } from '@/hooks/use-workspace-mode';
 import { DemoBanner } from '@/components/layout/DemoBanner';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useNewApplicationsCount } from '@/hooks/use-jobs';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Sparkles, 
   LayoutDashboard, 
@@ -48,6 +50,31 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const { showBanner, showBadge, bannerVariant } = useDemoIndicator();
   const { isAdmin, isManager, isLoading: permLoading } = usePermissions();
   const { theme, setTheme } = useTheme();
+
+  // Fetch preferred_name for nav display
+  const [displayName, setDisplayName] = useState('');
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('profiles' as any)
+      .select('first_name, preferred_name')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          const pn = (data as any).preferred_name;
+          const fn = (data as any).first_name;
+          setDisplayName(pn || fn || user.email || '');
+        } else {
+          setDisplayName(user.user_metadata?.first_name || user.email || '');
+        }
+      });
+  }, [user]);
+
+  const timeGreeting = (() => {
+    const h = new Date().getHours();
+    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  })();
   const location = useLocation();
   const navigate = useNavigate();
   const { data: newAppCount = 0 } = useNewApplicationsCount();
@@ -166,14 +193,16 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                     <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
                       <User className="w-4 h-4 text-primary" />
                     </div>
-                    <span className="hidden sm:inline text-sm max-w-[150px] truncate">
-                      {user?.email}
-                    </span>
+                    <div className="hidden sm:flex flex-col items-end max-w-[150px]">
+                      <span className="text-[11px] leading-tight text-muted-foreground">{timeGreeting}</span>
+                      <span className="text-[13px] font-medium leading-tight truncate">{displayName}</span>
+                    </div>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-64">
                   <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium truncate">{user?.email}</p>
+                    <p className="text-sm font-medium truncate">{displayName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                     <p className="text-xs text-muted-foreground">
                       {currentWorkspace?.name || 'No workspace'}
                     </p>

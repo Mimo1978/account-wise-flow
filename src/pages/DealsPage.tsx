@@ -78,7 +78,7 @@ export default function DealsPage() {
       console.log("[DealsPage] Fetching deals for workspace:", workspaceId);
       const { data, error } = await supabase
         .from("crm_deals")
-        .select("*, crm_companies(id, name), crm_projects(id, name)")
+        .select("*, crm_companies(id, name), crm_projects!crm_deals_project_id_fkey(id, name)")
         .eq("workspace_id", workspaceId)
         .is("deleted_at", null)
         .order("updated_at", { ascending: false });

@@ -1087,6 +1087,21 @@ function DealGroup({ title, deals, onEdit }: { title: string; deals: any[]; onEd
                 <span className="text-lg font-bold text-foreground">£{(d.value || 0).toLocaleString()}</span>
                 <Badge className={cn("text-xs capitalize", STAGE_COLORS[d.stage || d.status] || "bg-muted text-muted-foreground")}>{d.stage || d.status}</Badge>
               </div>
+              {/* Integrity badges */}
+              {(!d.contact_id || !d.project_id) && (
+                <div className="flex items-center gap-1">
+                  {!d.contact_id && (
+                    <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                      ! No contact
+                    </span>
+                  )}
+                  {!d.project_id && (
+                    <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                      ! No project
+                    </span>
+                  )}
+                </div>
+              )}
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>Close: {fmtDateShort(d.end_date || d.signed_date)}</span>
                 <span>{d.created_at ? `${differenceInDays(new Date(), parseISO(d.created_at))}d open` : ""}</span>

@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,6 +23,10 @@ import { differenceInDays, parseISO, format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { PageBackButton } from "@/components/ui/page-back-button";
+import { DealIntegrityBadges } from "@/components/deals/DealIntegrityBadges";
+import { StageReversalConfirm } from "@/components/deals/StageReversalConfirm";
+import { WonBlockModal } from "@/components/deals/WonBlockModal";
+import { DEAL_STAGES, DEAL_STAGE_LABELS } from "@/hooks/use-deals";
 
 const PIPELINE_STAGES = [
   { value: "lead", label: "Lead", color: "bg-blue-500" },
@@ -44,6 +49,7 @@ const STAGE_BADGE: Record<string, string> = {
 export default function DealsPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { currentWorkspace } = useWorkspace();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialStage = searchParams.get("stage");
   const [stageFilter, setStageFilter] = useState<string | null>(initialStage);
@@ -51,6 +57,9 @@ export default function DealsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [linkProjectDealId, setLinkProjectDealId] = useState<string | null>(null);
   const [projectSearch, setProjectSearch] = useState("");
+  const [wonBlockDeal, setWonBlockDeal] = useState<any | null>(null);
+
+  const workspaceId = currentWorkspace?.id;
 
   const handleStageFilter = (stage: string) => {
     const newStage = stageFilter === stage ? null : stage;
@@ -63,15 +72,24 @@ export default function DealsPage() {
   };
 
   const { data: deals = [], isLoading } = useQuery({
-    queryKey: ["all-crm-deals"],
+    queryKey: ["all-crm-deals", workspaceId],
     queryFn: async () => {
+      if (!workspaceId) return [];
+      console.log("[DealsPage] Fetching deals for workspace:", workspaceId);
       const { data, error } = await supabase
         .from("crm_deals")
         .select("*, crm_companies(id, name), crm_projects(id, name)")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
+        .eq("workspace_id", workspaceId)
+        .is("deleted_at", null)
+        .order("updated_at", { ascending: false });
+      if (error) {
+        console.error("[DealsPage] Query error:", error);
+        throw error;
+      }
+      console.log("[DealsPage] Deals loaded:", data?.length);
       return (data || []) as any[];
     },
+    enabled: !!workspaceId,
   });
 
   const { data: companies = [] } = useQuery({
@@ -88,6 +106,24 @@ export default function DealsPage() {
       const { data } = await supabase.from("crm_projects" as any).select("id, name").order("name");
       return (data || []) as any[];
     },
+  });
+
+  // Check if a deal has an invoice for its project
+  const { data: dealInvoiceMap = {} } = useQuery({
+    queryKey: ["deal-invoice-check", workspaceId],
+    queryFn: async () => {
+      if (!workspaceId) return {};
+      const { data } = await supabase
+        .from("crm_invoices")
+        .select("project_id")
+        .is("deleted_at", null);
+      const map: Record<string, boolean> = {};
+      for (const inv of data || []) {
+        if (inv.project_id) map[inv.project_id] = true;
+      }
+      return map;
+    },
+    enabled: !!workspaceId,
   });
 
   const filtered = useMemo(() => {
@@ -110,12 +146,39 @@ export default function DealsPage() {
     return map;
   }, [deals]);
 
+  const handleStageChange = async (deal: any, newStage: string) => {
+    const stageOrder = DEAL_STAGES as readonly string[];
+    const currentIdx = stageOrder.indexOf(deal.stage || 'lead');
+    const newIdx = stageOrder.indexOf(newStage);
+
+    // Won block check
+    if (newStage === 'won') {
+      const hasProject = !!deal.project_id;
+      const hasInvoice = hasProject && !!dealInvoiceMap[deal.project_id];
+      if (!hasProject || !hasInvoice) {
+        setWonBlockDeal({ ...deal, _hasProject: hasProject, _hasInvoice: hasInvoice });
+        return;
+      }
+    }
+
+    // Actually update
+    const { error } = await supabase.from("crm_deals").update({ stage: newStage } as any).eq("id", deal.id);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: `${deal.title} moved to ${DEAL_STAGE_LABELS[newStage] || newStage}` });
+    queryClient.invalidateQueries({ queryKey: ["all-crm-deals"] });
+    queryClient.invalidateQueries({ queryKey: ["deals"] });
+  };
+
   const handleLinkProject = async (dealId: string, projectId: string) => {
     const { error } = await supabase.from("crm_deals").update({ project_id: projectId } as any).eq("id", dealId);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Project linked" });
     setLinkProjectDealId(null);
     queryClient.invalidateQueries({ queryKey: ["all-crm-deals"] });
+    queryClient.invalidateQueries({ queryKey: ["deals"] });
   };
 
   const filteredProjects = projects.filter((p: any) =>
@@ -173,59 +236,91 @@ export default function DealsPage() {
         </CardContent></Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map(d => (
-            <Card key={d.id} className="hover:bg-muted/50 transition-colors cursor-pointer border border-border rounded-xl" style={{ borderLeft: '4px solid hsl(221 83% 53%)' }}
-              onClick={() => navigate(`/crm/deals/${d.id}`, { state: { from: '/deals' } })}>
-              <CardContent className="p-4 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold text-sm truncate">{d.title}</p>
-                  <Badge className={cn("text-xs capitalize shrink-0", STAGE_BADGE[d.stage || d.status] || "bg-muted")}>{d.stage || d.status}</Badge>
-                </div>
-                <p className="text-lg font-bold">£{(d.value || 0).toLocaleString()}</p>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>{d.crm_companies?.name || "No company"}</span>
-                  <span>{d.created_at ? `${differenceInDays(new Date(), parseISO(d.created_at))}d open` : ""}</span>
-                </div>
-                {/* Project link */}
-                <div className="flex items-center gap-2 pt-1" onClick={e => e.stopPropagation()}>
-                  {d.crm_projects?.name ? (
-                    <Badge variant="outline" className="text-xs text-primary cursor-pointer hover:bg-primary/10"
-                      onClick={() => navigate(`/crm/projects/${d.project_id}`, { state: { from: '/deals' } })}>
-                      <Link2 className="h-3 w-3 mr-1" />{d.crm_projects.name}
-                    </Badge>
-                  ) : (
-                    <Popover open={linkProjectDealId === d.id} onOpenChange={v => { setLinkProjectDealId(v ? d.id : null); setProjectSearch(""); }}>
-                      <PopoverTrigger asChild>
-                        <button className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                          <Plus className="h-3 w-3" /> Link Project
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-64 p-2" align="start">
-                        <Input placeholder="Search projects..." value={projectSearch} onChange={e => setProjectSearch(e.target.value)} className="h-8 text-xs mb-2" />
-                        <div className="max-h-40 overflow-y-auto space-y-0.5">
-                          {filteredProjects.map((p: any) => (
-                            <button key={p.id} onClick={() => handleLinkProject(d.id, p.id)}
-                              className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-muted truncate">{p.name}</button>
-                          ))}
-                          {filteredProjects.length === 0 && <p className="text-xs text-muted-foreground px-2 py-1">No projects found</p>}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  )}
-                  {/* Stage prompt for proposal+ without project */}
-                  {!d.project_id && ["proposal", "negotiation", "won"].includes(d.stage) && (
-                    <span className="text-[10px] text-amber-600">No project linked</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {filtered.map(d => {
+            const stageIdx = (DEAL_STAGES as readonly string[]).indexOf(d.stage || 'lead');
+            const nextStage = stageIdx >= 0 && stageIdx < DEAL_STAGES.length - 2 ? DEAL_STAGES[stageIdx + 1] : null;
+
+            return (
+              <Card key={d.id} className="hover:bg-muted/50 transition-colors cursor-pointer border border-border rounded-xl" style={{ borderLeft: '4px solid hsl(221 83% 53%)' }}
+                onClick={() => navigate(`/crm/deals/${d.id}`, { state: { from: '/deals' } })}>
+                <CardContent className="p-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-sm truncate">{d.title}</p>
+                    <Badge className={cn("text-xs capitalize shrink-0", STAGE_BADGE[d.stage || d.status] || "bg-muted")}>{d.stage || d.status}</Badge>
+                  </div>
+                  <p className="text-lg font-bold">£{(d.value || 0).toLocaleString()}</p>
+                  
+                  {/* Integrity badges */}
+                  <DealIntegrityBadges contactId={d.contact_id} projectId={d.project_id} />
+                  
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{d.crm_companies?.name || "No company"}</span>
+                    <span>{d.created_at ? `${differenceInDays(new Date(), parseISO(d.created_at))}d open` : ""}</span>
+                  </div>
+
+                  {/* Stage advance / project link */}
+                  <div className="flex items-center gap-2 pt-1 flex-wrap" onClick={e => e.stopPropagation()}>
+                    {/* Next stage button */}
+                    {nextStage && d.stage !== 'won' && d.stage !== 'lost' && (() => {
+                      const currentIdx = (DEAL_STAGES as readonly string[]).indexOf(d.stage || 'lead');
+                      const nextIdx = (DEAL_STAGES as readonly string[]).indexOf(nextStage);
+                      // Forward move - no confirmation needed
+                      return (
+                        <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2 text-primary hover:text-primary/80"
+                          onClick={() => handleStageChange(d, nextStage)}>
+                          → {DEAL_STAGE_LABELS[nextStage] || nextStage}
+                        </Button>
+                      );
+                    })()}
+
+                    {d.crm_projects?.name ? (
+                      <Badge variant="outline" className="text-xs text-primary cursor-pointer hover:bg-primary/10"
+                        onClick={() => navigate(`/crm/projects/${d.project_id}`, { state: { from: '/deals' } })}>
+                        <Link2 className="h-3 w-3 mr-1" />{d.crm_projects.name}
+                      </Badge>
+                    ) : (
+                      <Popover open={linkProjectDealId === d.id} onOpenChange={v => { setLinkProjectDealId(v ? d.id : null); setProjectSearch(""); }}>
+                        <PopoverTrigger asChild>
+                          <button className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                            <Plus className="h-3 w-3" /> Link Project
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-2" align="start">
+                          <Input placeholder="Search projects..." value={projectSearch} onChange={e => setProjectSearch(e.target.value)} className="h-8 text-xs mb-2" />
+                          <div className="max-h-40 overflow-y-auto space-y-0.5">
+                            {filteredProjects.map((p: any) => (
+                              <button key={p.id} onClick={() => handleLinkProject(d.id, p.id)}
+                                className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-muted truncate">{p.name}</button>
+                            ))}
+                            {filteredProjects.length === 0 && <p className="text-xs text-muted-foreground px-2 py-1">No projects found</p>}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
       {/* Add Deal Sheet */}
       <AddDealSheet open={addOpen} onClose={() => setAddOpen(false)} companies={companies}
-        onSaved={() => { setAddOpen(false); queryClient.invalidateQueries({ queryKey: ["all-crm-deals"] }); }} />
+        onSaved={() => { setAddOpen(false); queryClient.invalidateQueries({ queryKey: ["all-crm-deals"] }); queryClient.invalidateQueries({ queryKey: ["deals"] }); }} />
+
+      {/* Won Block Modal */}
+      {wonBlockDeal && (
+        <WonBlockModal
+          open={!!wonBlockDeal}
+          onOpenChange={(v) => { if (!v) setWonBlockDeal(null); }}
+          dealTitle={wonBlockDeal.title}
+          hasProject={wonBlockDeal._hasProject}
+          hasInvoice={wonBlockDeal._hasInvoice}
+          onCreateProject={() => { setWonBlockDeal(null); navigate(`/crm/deals/${wonBlockDeal.id}`, { state: { from: '/deals', action: 'link-project' } }); }}
+          onCreateInvoice={() => { setWonBlockDeal(null); navigate(`/crm/deals/${wonBlockDeal.id}`, { state: { from: '/deals', action: 'create-invoice' } }); }}
+        />
+      )}
     </div>
   );
 }
@@ -237,10 +332,15 @@ function AddDealSheet({ open, onClose, companies, onSaved }: {
   const [stage, setStage] = useState("lead"); const [companyId, setCompanyId] = useState("");
   const [endDate, setEndDate] = useState(""); const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [companySearch, setCompanySearch] = useState("");
+
+  const filteredCompanies = companies.filter((c: any) =>
+    !companySearch || c.name?.toLowerCase().includes(companySearch.toLowerCase())
+  );
 
   const handleSave = async () => {
     if (!title.trim()) { toast({ title: "Deal name required", variant: "destructive" }); return; }
-    if (!companyId) { toast({ title: "Select a company", variant: "destructive" }); return; }
+    if (!companyId) { toast({ title: "Company is required", description: "A deal cannot be created without a company.", variant: "destructive" }); return; }
     setSaving(true);
     try {
       const { error } = await supabase.from("crm_deals").insert({
@@ -262,14 +362,17 @@ function AddDealSheet({ open, onClose, companies, onSaved }: {
           <SheetDescription>Create a new deal</SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          <div><Label>Company <span className="text-red-500">*</span></Label>
+          <div>
+            <Label>Company <span className="text-destructive">*</span></Label>
             <Select value={companyId} onValueChange={setCompanyId}>
-              <SelectTrigger><SelectValue placeholder="Select company" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select company (required)" /></SelectTrigger>
               <SelectContent className="bg-popover z-[9999]">
                 {companies.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
-            </Select></div>
-          <div><Label>Deal Name <span className="text-red-500">*</span></Label><Input value={title} onChange={e => setTitle(e.target.value)} /></div>
+            </Select>
+            {!companyId && <p className="text-xs text-destructive mt-1">A company must be selected before saving.</p>}
+          </div>
+          <div><Label>Deal Name <span className="text-destructive">*</span></Label><Input value={title} onChange={e => setTitle(e.target.value)} /></div>
           <div className="grid grid-cols-2 gap-4">
             <div><Label>Value (£)</Label><Input type="number" value={value} onChange={e => setValue(e.target.value)} /></div>
             <div><Label>Stage</Label>
@@ -285,7 +388,7 @@ function AddDealSheet({ open, onClose, companies, onSaved }: {
         </div>
         <div className="sticky bottom-0 border-t border-border bg-background px-6 py-5 pb-20 flex items-center justify-between gap-2">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving}>{saving ? "Creating…" : "Create Deal"}</Button>
+          <Button onClick={handleSave} disabled={saving || !companyId}>{saving ? "Creating…" : "Create Deal"}</Button>
         </div>
       </SheetContent>
     </Sheet>

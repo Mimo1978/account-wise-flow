@@ -42,8 +42,12 @@ export function CreateDealModal({ open, onOpenChange }: Props) {
   });
 
   const handleSubmit = async () => {
-    if (!currentWorkspace?.id || !companyId || !name.trim()) {
-      toast.error('Name and company are required');
+    if (!currentWorkspace?.id || !name.trim()) {
+      toast.error('Deal name is required');
+      return;
+    }
+    if (!companyId) {
+      toast.error('Company is required — a deal cannot be created without a company.');
       return;
     }
     try {

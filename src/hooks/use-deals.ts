@@ -48,6 +48,7 @@ export function useDeals(workspaceId: string | undefined) {
         .from('crm_deals')
         .select('*, crm_companies(id, name)')
         .eq('workspace_id', workspaceId)
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return (data ?? []).map((d: any) => ({
@@ -84,6 +85,7 @@ export function useCreateDeal() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['deals'] });
+      qc.invalidateQueries({ queryKey: ['all-crm-deals'] });
     },
   });
 }
@@ -103,6 +105,25 @@ export function useUpdateDeal() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['deals'] });
+      qc.invalidateQueries({ queryKey: ['all-crm-deals'] });
+      qc.invalidateQueries({ queryKey: ['company-deals'] });
+    },
+  });
+}
+
+export function useDeleteDeal() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('crm_deals')
+        .update({ deleted_at: new Date().toISOString() } as any)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['deals'] });
+      qc.invalidateQueries({ queryKey: ['all-crm-deals'] });
     },
   });
 }

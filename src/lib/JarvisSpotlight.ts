@@ -40,7 +40,7 @@ interface SpotlightMapping {
 const autoSpotlightMap: SpotlightMapping[] = [
   { keywords: ["home page", "command centre", "command center", "heartbeat"], targets: [], navTargets: ["nav-home"], section: "page" },
   { keywords: ["pipeline", "deal pipeline", "pipeline snapshot"], targets: ["home-pipeline-snapshot"], sections: ["pipeline-snapshot"] },
-  { keywords: ["my work", "attention today"], targets: ["home-my-work"], sections: ["my-work"] },
+  { keywords: ["action required", "attention today"], targets: ["home-action-required"], sections: ["action-required"] },
   { keywords: ["diary", "seven days", "next 7 days"], targets: ["home-diary"], sections: ["diary"] },
   { keywords: ["add company", "new company"], targets: ["add-company-button"] },
   { keywords: ["companies", "accounts"], targets: [], navTargets: ["nav-companies"] },

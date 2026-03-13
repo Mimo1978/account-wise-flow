@@ -627,18 +627,18 @@ const HomeCommandCenter = () => {
           )}
         </SectionCard>
 
-        {/* ═══ ROW 4 — MY WORK + DIARY (55/45) ═══ */}
+        {/* ═══ ROW 4 — ACTION REQUIRED + DIARY (55/45) ═══ */}
         <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] gap-5">
-          {/* My Work */}
-          <SectionCard title="My Work" subtitle={`${myWorkItems.length} items`} icon={CheckSquare} borderColor="#F59E0B"
-            jarvisSection="my-work" jarvisId="home-my-work">
+          {/* Action required */}
+          <SectionCard title="Action required" subtitle={`${myWorkItems.length} items`} icon={CheckSquare} borderColor="#F59E0B"
+            jarvisSection="action-required" jarvisId="home-action-required">
             {myWorkItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center py-8">
                 <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: '#22C55E20' }}>
                   <CheckSquare className="w-7 h-7" style={{ color: '#22C55E' }} />
                 </div>
                 <p className="text-base font-semibold" style={{ color: '#22C55E' }}>✓ All clear</p>
-                <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>Nothing needs your attention right now</p>
+                <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>No actions required right now</p>
               </div>
             ) : (
               <div className="space-y-0">

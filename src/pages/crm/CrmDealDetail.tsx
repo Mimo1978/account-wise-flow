@@ -366,7 +366,7 @@ export default function CrmDealDetail() {
           </Card>
 
           {/* C) Engagement / Delivery Link */}
-          {deal.engagement_id && engagement ? (
+          {d.engagement_id && engagement ? (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2"><Briefcase className="w-4 h-4" /> Delivery Project</CardTitle>

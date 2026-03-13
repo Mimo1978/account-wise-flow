@@ -316,7 +316,7 @@ const COMMAND_CENTRE_TOUR: GuidedTourStep[] = [
   { speak: "Welcome to your Command Centre. This is the heartbeat of your business.", delay: 2000 },
   { highlight: '[data-jarvis-section="stat-cards"]', speak: "These four cards give you your headline numbers." },
   { highlight: '[data-jarvis-section="pipeline"]', speak: "Your deal pipeline — every deal by stage. Click any chevron to drill in." },
-  { highlight: '[data-jarvis-section="my-work"]', speak: "My Work shows what needs your attention today." },
+  { highlight: '[data-jarvis-section="action-required"]', speak: "Action required shows what needs your attention today." },
   { highlight: '[data-jarvis-section="diary"]', speak: "Your diary shows calls and meetings for the next seven days." },
   { highlight: '[data-jarvis-section="active-projects"]', speak: "Active Projects shows all your live engagements." },
   { highlight: '[data-jarvis-section="outreach"]', speak: "Outreach shows campaign stats and response rates." },
@@ -420,7 +420,7 @@ const HomeCommandCenter = () => {
   const renewalCount = renewalItems.length;
   const overdueRenewalCount = renewalItems.filter((i) => i.overdue).length;
 
-  // My Work items
+  // Action required items
   const myWorkItems = useMemo(() => {
     const items: WorkItem[] = [];
     const today = startOfDay(new Date());
@@ -627,18 +627,18 @@ const HomeCommandCenter = () => {
           )}
         </SectionCard>
 
-        {/* ═══ ROW 4 — MY WORK + DIARY (55/45) ═══ */}
+        {/* ═══ ROW 4 — ACTION REQUIRED + DIARY (55/45) ═══ */}
         <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] gap-5">
-          {/* My Work */}
-          <SectionCard title="My Work" subtitle={`${myWorkItems.length} items`} icon={CheckSquare} borderColor="#F59E0B"
-            jarvisSection="my-work" jarvisId="home-my-work">
+          {/* Action required */}
+          <SectionCard title="Action required" subtitle={`${myWorkItems.length} items`} icon={CheckSquare} borderColor="#F59E0B"
+            jarvisSection="action-required" jarvisId="home-action-required">
             {myWorkItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center py-8">
                 <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: '#22C55E20' }}>
                   <CheckSquare className="w-7 h-7" style={{ color: '#22C55E' }} />
                 </div>
                 <p className="text-base font-semibold" style={{ color: '#22C55E' }}>✓ All clear</p>
-                <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>Nothing needs your attention right now</p>
+                <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>No actions required right now</p>
               </div>
             ) : (
               <div className="space-y-0">

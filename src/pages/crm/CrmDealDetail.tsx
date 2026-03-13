@@ -252,7 +252,7 @@ export default function CrmDealDetail() {
               <CardTitle className="text-sm flex items-center gap-2"><User className="w-4 h-4" /> Contact</CardTitle>
             </CardHeader>
             <CardContent>
-              {deal.contact_id && currentContact ? (
+              {d.contact_id && currentContact ? (
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-foreground">{currentContact.first_name} {currentContact.last_name}</p>

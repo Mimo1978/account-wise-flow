@@ -122,7 +122,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, [moreOpen]);
 
-  const NavButton = ({ item, iconOnly = false }: { item: typeof navItems[0] & { badge?: boolean; alwaysShowLabel?: boolean }; iconOnly?: boolean }) => (
+  const NavButton = ({ item, iconOnly = false }: { item: { path: string; label: string; icon: any; jarvisId: string; alwaysShowLabel?: boolean; badge?: boolean }; iconOnly?: boolean }) => (
     <Link key={item.path} to={item.path} onClick={() => setMoreOpen(false)}>
       <Button
         variant={isActive(item.path) ? 'secondary' : 'ghost'}

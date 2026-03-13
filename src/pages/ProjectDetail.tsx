@@ -723,6 +723,94 @@ function ProjectOutreachTab({ engagementId }: { engagementId: string }) {
   );
 }
 
+/* ─── Jobs Tab (recruitment projects) ─── */
+function ProjectJobsTab({ engagementId }: { engagementId: string }) {
+  const navigate = useNavigate();
+  const { data: jobs = [], isLoading } = useQuery({
+    queryKey: ['project-jobs', engagementId],
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from('jobs')
+        .select('id, title, status, location') as any)
+        .eq('engagement_id', engagementId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as { id: string; title: string; status: string; location: string | null }[];
+    },
+    enabled: !!engagementId,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const JOB_STATUS_BADGE: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+    active: 'default',
+    draft: 'secondary',
+    closed: 'destructive',
+    filled: 'outline',
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
+          Linked Jobs ({jobs.length})
+        </h3>
+        <Button size="sm" className="gap-1.5" onClick={() => navigate(`/jobs/new?engagement_id=${engagementId}`)}>
+          <Plus className="w-3.5 h-3.5" />
+          New Job
+        </Button>
+      </div>
+
+      {jobs.length === 0 ? (
+        <Card className="flex flex-col items-center justify-center text-center p-8">
+          <Briefcase className="w-8 h-8 text-muted-foreground mb-3" />
+          <p className="text-sm text-muted-foreground">No jobs linked to this project yet.</p>
+          <Button size="sm" className="gap-1.5 mt-3" onClick={() => navigate(`/jobs/new?engagement_id=${engagementId}`)}>
+            <Plus className="w-3.5 h-3.5" /> New Job
+          </Button>
+        </Card>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Title</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Location</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {jobs.map((job) => (
+                  <tr key={job.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => navigate(`/jobs/${job.id}`)}>
+                    <td className="px-4 py-3 font-medium text-foreground">{job.title}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={JOB_STATUS_BADGE[job.status] ?? 'secondary'} className="text-xs capitalize">{job.status}</Badge>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{job.location || '—'}</td>
+                    <td className="px-4 py-3 text-right">
+                      <Button variant="ghost" size="sm" className="gap-1 text-xs h-7">
+                        View <ExternalLink className="w-3 h-3" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+    </>
+  );
+}
+
 /* ─── Main Component ─── */
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -800,14 +888,26 @@ const ProjectDetail = () => {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue={defaultTab} className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="contracts">Contracts</TabsTrigger>
-          <TabsTrigger value="billing">Billing</TabsTrigger>
-          <TabsTrigger value="outreach">Outreach</TabsTrigger>
-          <TabsTrigger value="files">Files</TabsTrigger>
-        </TabsList>
+      {(() => {
+        const engType = engagement.engagement_type;
+        const allTabs = [
+          { value: 'overview', label: 'Overview', always: true },
+          { value: 'contracts', label: 'Contracts', types: ['consulting', 'managed_service'] },
+          { value: 'billing', label: 'Billing', always: true },
+          { value: 'outreach', label: 'Outreach', types: ['recruitment', 'managed_service'] },
+          { value: 'jobs', label: 'Jobs', types: ['recruitment'] },
+          { value: 'files', label: 'Files', always: true },
+        ];
+        const visibleTabs = allTabs.filter(t => t.always || t.types?.includes(engType));
+        const resolvedDefault = visibleTabs.some(t => t.value === defaultTab) ? defaultTab : 'overview';
+
+        return (
+          <Tabs defaultValue={resolvedDefault} className="space-y-4">
+            <TabsList>
+              {visibleTabs.map(t => (
+                <TabsTrigger key={t.value} value={t.value}>{t.label}</TabsTrigger>
+              ))}
+            </TabsList>
 
         {/* Overview Tab */}
         <TabsContent value="overview">
@@ -951,6 +1051,11 @@ const ProjectDetail = () => {
           <ProjectOutreachTab engagementId={engagement.id} />
         </TabsContent>
 
+        {/* Jobs Tab (recruitment only) */}
+        <TabsContent value="jobs">
+          <ProjectJobsTab engagementId={engagement.id} />
+        </TabsContent>
+
         {/* Files Tab */}
         <TabsContent value="files">
           <DocumentList
@@ -961,7 +1066,9 @@ const ProjectDetail = () => {
             showCategoryBreakdown={true}
           />
         </TabsContent>
-      </Tabs>
+          </Tabs>
+        );
+      })()}
 
       {/* Modals */}
       <CreateSowModal open={sowOpen} onOpenChange={setSowOpen} />

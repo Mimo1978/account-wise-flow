@@ -204,6 +204,17 @@ function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isR
         {deal.expected_close_date && <span>{format(new Date(deal.expected_close_date), 'dd MMM')}</span>}
         <span className="ml-auto tabular-nums">{daysInStage}d in stage</span>
       </div>
+      {deal.engagements?.name && deal.engagement_id && (
+        <div className="flex items-center gap-1 mt-1 text-[10px]" style={{ color: DARK.textSecondary }}>
+          <Briefcase className="w-2.5 h-2.5" />
+          <span className="truncate">{deal.engagements.name}</span>
+          <Link
+            to={`/projects/${deal.engagement_id}`}
+            className="text-blue-400 hover:text-blue-300 hover:underline shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >→</Link>
+        </div>
+      )}
       <div className="flex items-center gap-1 mt-2 pt-2" style={{ borderTop: `1px solid ${DARK.border}` }}
         onClick={e => e.stopPropagation()}>
         {nextStage && deal.stage !== 'won' && deal.stage !== 'lost' && onAdvance && (
@@ -393,6 +404,15 @@ const HomeCommandCenter = () => {
     for (const link of (jobsSummary?.jobProjectLinks ?? [])) { const pid = (link as any).project_id; map.set(pid, (map.get(pid) || 0) + 1); }
     return map;
   }, [jobsSummary?.jobProjectLinks]);
+
+  // Enrich deals with engagement names from already-loaded engagements
+  const enrichedDeals = useMemo(() => {
+    const engMap = new Map(engagements.map((e: any) => [e.id, e.name]));
+    return deals.map(d => ({
+      ...d,
+      engagements: d.engagement_id && engMap.has(d.engagement_id) ? { name: engMap.get(d.engagement_id)! } : d.engagements ?? null,
+    }));
+  }, [deals, engagements]);
 
   const isRecruitmentDeal = (deal: Deal) => deal.name?.includes('Placement Fee') || deal.name?.includes('Recruitment');
 
@@ -599,7 +619,7 @@ const HomeCommandCenter = () => {
                 })}
               </div>
               {(() => {
-                const filteredDeals = pipelineFilter ? deals.filter(d => (d.stage || 'lead') === pipelineFilter) : deals;
+                const filteredDeals = pipelineFilter ? enrichedDeals.filter(d => (d.stage || 'lead') === pipelineFilter) : enrichedDeals;
                 if (filteredDeals.length === 0) return (
                   <div className="rounded-lg p-6 text-center" style={{ border: `1px dashed ${DARK.border}` }}>
                     <p className="text-sm" style={{ color: DARK.textSecondary }}>No deals in {DEAL_STAGE_LABELS[pipelineFilter!]}</p>

@@ -194,7 +194,7 @@ export function DeleteRecordModal({
             <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
             <Button
               variant="destructive"
-              onClick={handleSoftDelete}
+              onClick={handleDirectDelete}
               disabled={!reason.trim() || isProcessing}
             >
               {isProcessing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 export type DeletableRecordType = 
   | "crm_projects" | "crm_deals" | "crm_companies" | "crm_contacts" 
-  | "crm_invoices" | "crm_documents" | "companies" | "contacts" | "jobs";
+  | "crm_invoices" | "crm_documents" | "companies" | "contacts" | "jobs" | "engagements";
 
 interface SoftDeleteInput {
   recordType: DeletableRecordType;

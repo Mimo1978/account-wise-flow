@@ -517,6 +517,39 @@ export default function ContactsDatabase() {
                     <Megaphone className="h-3.5 w-3.5" />
                     Add to Outreach…
                   </Button>
+                  {perm.canSeeDeleteOption && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={perm.canDeleteDirectly ? "gap-1.5 text-destructive hover:text-destructive" : "gap-1.5 text-amber-500 hover:text-amber-600"}
+                      onClick={async () => {
+                        const ids = Array.from(selectedIds);
+                        for (const cid of ids) {
+                          const contact = filteredContacts.find((c: any) => c.id === cid);
+                          if (perm.canDeleteDirectly) {
+                            await softDelete.mutateAsync({
+                              recordType: "contacts",
+                              recordId: cid,
+                              recordName: contact?.name || "Unknown",
+                              reason: "Bulk deletion",
+                            });
+                          } else {
+                            await requestDeletion.mutateAsync({
+                              recordType: "contacts",
+                              recordId: cid,
+                              recordName: contact?.name || "Unknown",
+                              reason: "Bulk deletion request",
+                            });
+                          }
+                        }
+                        setSelectedIds(new Set());
+                      }}
+                      disabled={softDelete.isPending || requestDeletion.isPending}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {perm.canDeleteDirectly ? "Delete Selected" : "Request Deletion"}
+                    </Button>
+                  )}
                   <Separator orientation="vertical" className="h-6" />
                 </>
               )}

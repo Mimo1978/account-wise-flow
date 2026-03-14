@@ -1337,6 +1337,31 @@ export function JarvisFloatingButton() {
   const [isActive, setIsActive] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [idlePulse, setIdlePulse] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  // Listen for jarvis-open / jarvis-close events (from onboarding)
+  useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    const handleClose = () => setIsOpen(false);
+    const handleSpeaking = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setIsSpeaking(detail?.speaking ?? false);
+    };
+    window.addEventListener('jarvis-open', handleOpen);
+    window.addEventListener('jarvis-close', handleClose);
+    window.addEventListener('jarvis-speaking', handleSpeaking);
+    return () => {
+      window.removeEventListener('jarvis-open', handleOpen);
+      window.removeEventListener('jarvis-close', handleClose);
+      window.removeEventListener('jarvis-speaking', handleSpeaking);
+    };
+  }, []);
+
+  // Track active state → derive listening
+  useEffect(() => {
+    setIsListening(isActive && isOpen && !isSpeaking);
+  }, [isActive, isOpen, isSpeaking]);
 
   // Ctrl+K / Cmd+K shortcut
   useEffect(() => {
@@ -1380,15 +1405,36 @@ export function JarvisFloatingButton() {
 
   const handleJarvisMessage = useCallback((message: string) => {
     setIsOpen(true);
-    // The chat panel will pick up via sendMessage if exposed; for now just open
   }, []);
+
+  // Sound wave bars for speaking state
+  const SoundWaveBars = () => (
+    <div className="flex items-center justify-center gap-[3px]">
+      <span className="jarvis-wave-bar-1 block w-[3px] h-4 rounded-sm bg-primary-foreground origin-center" />
+      <span className="jarvis-wave-bar-2 block w-[3px] h-4 rounded-sm bg-primary-foreground origin-center" />
+      <span className="jarvis-wave-bar-3 block w-[3px] h-4 rounded-sm bg-primary-foreground origin-center" />
+    </div>
+  );
+
+  // Determine button visual class
+  const buttonAnimClass = isOpen
+    ? isSpeaking
+      ? "" // speaking: no ring, wave icon shown instead
+      : isListening
+        ? "jarvis-listening-ring"
+        : ""
+    : idlePulse
+      ? "animate-pulse"
+      : "";
 
   return (
     <>
       {isOpen && (
         <JarvisChatPanel
           onClose={() => setIsOpen(false)}
-          onActiveChange={setIsActive}
+          onActiveChange={(active) => {
+            setIsActive(active);
+          }}
         />
       )}
 
@@ -1426,14 +1472,16 @@ export function JarvisFloatingButton() {
               "fixed bottom-6 right-6 z-[60] h-14 w-14 rounded-full flex items-center justify-center",
               "bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-shadow",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              !isOpen && "jarvis-pulse-ring",
-              isActive && isOpen && "jarvis-active-ring",
-              idlePulse && !isOpen && "animate-pulse"
+              buttonAnimClass
             )}
             aria-label="Ask Jarvis"
           >
             {isOpen ? (
-              <X className="h-6 w-6" />
+              isSpeaking ? (
+                <SoundWaveBars />
+              ) : (
+                <X className="h-6 w-6" />
+              )
             ) : (
               <Sparkles className="h-6 w-6" />
             )}

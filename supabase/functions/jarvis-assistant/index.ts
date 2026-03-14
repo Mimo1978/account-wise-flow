@@ -1321,32 +1321,63 @@ async function executeTool(
 ): Promise<{ result: unknown; entityType: string; entityId?: string }> {
   switch (toolName) {
     case "search_companies": {
-      const { data } = await supabaseAdmin
-        .from("crm_companies")
-        .select("id, name, industry, city, country")
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+
+      let q = supabaseAdmin
+        .from("companies")
+        .select("id, name, industry, headquarters")
         .ilike("name", `%${input.query}%`)
         .is("deleted_at", null)
         .limit(10);
-      return { result: data ?? [], entityType: "crm_companies" };
+
+      if (teamId) q = q.eq("team_id", teamId);
+
+      const { data } = await q;
+      const result = (data ?? []).map((company: any) => ({
+        id: company.id,
+        name: company.name,
+        industry: company.industry,
+        headquarters: company.headquarters,
+        source: "companies",
+      }));
+
+      return { result, entityType: "companies" };
     }
     case "search_contacts": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+
+      const resolved = await resolveCompanyIds(
+        supabaseAdmin,
+        (input.company_id as string) || null,
+        userId,
+        teamId,
+      );
+
       let q = supabaseAdmin
-        .from("crm_contacts")
-        .select("id, first_name, last_name, email, job_title, company_id")
+        .from("contacts")
+        .select("id, name, email, title, company_id")
         .is("deleted_at", null);
-      if (input.company_id) q = q.eq("company_id", input.company_id as string);
-      q = q.or(`first_name.ilike.%${input.query}%,last_name.ilike.%${input.query}%,email.ilike.%${input.query}%`);
+
+      if (teamId) q = q.eq("team_id", teamId);
+      if (resolved.companyId) q = q.eq("company_id", resolved.companyId);
+      q = q.or(`name.ilike.%${input.query}%,email.ilike.%${input.query}%,title.ilike.%${input.query}%`);
+
       const { data } = await q.limit(10);
-      return { result: data ?? [], entityType: "crm_contacts" };
+      return { result: data ?? [], entityType: "contacts" };
     }
     case "create_company": {
+      const normalizedName = (input.name as string)?.trim();
+      if (!normalizedName) {
+        return { result: { error: "Company name is required" }, entityType: "companies" };
+      }
+
       // Build headquarters string from city/country
       const city = (input.city as string) || null;
       const country = (input.country as string) || null;
       const headquarters = [city, country].filter(Boolean).join(", ") || null;
 
-      // Fetch user's workspace/team_id — required for RLS visibility
-      const { data: userRole, error: roleErr } = await supabaseAdmin
+      // Fetch user's workspace/team_id — required for workspace visibility
+      const { data: userRole } = await supabaseAdmin
         .from("user_roles")
         .select("team_id")
         .eq("user_id", userId)
@@ -1355,8 +1386,18 @@ async function executeTool(
       const teamId = userRole?.team_id || null;
       console.log("[create_company] userId:", userId, "team_id:", teamId);
 
+      const existing = await findExistingCompanyByName(supabaseAdmin, normalizedName, teamId);
+      if (existing) {
+        console.log("[create_company] Existing match found — id:", existing.id, "name:", existing.name);
+        return {
+          result: { ...existing, navigate_to: "/companies", matched_existing: true },
+          entityType: "companies",
+          entityId: existing.id,
+        };
+      }
+
       const insertPayload = {
-        name: input.name as string,
+        name: normalizedName,
         website: (input.website as string) || null,
         industry: (input.industry as string) || null,
         headquarters,
@@ -1379,24 +1420,46 @@ async function executeTool(
       return { result: { ...data, navigate_to: "/companies" }, entityType: "companies", entityId: data?.id };
     }
     case "create_contact": {
+      const firstName = (input.first_name as string)?.trim() || "";
+      const lastName = (input.last_name as string)?.trim() || "";
+
+      if (!firstName || !lastName) {
+        return { result: { error: "Both first_name and last_name are required" }, entityType: "contacts" };
+      }
+
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      const resolved = await resolveCompanyIds(
+        supabaseAdmin,
+        (input.company_id as string) || null,
+        userId,
+        teamId,
+      );
+
+      if (input.company_id && !resolved.companyId) {
+        return {
+          result: { error: "Company could not be resolved. Please select an existing company first." },
+          entityType: "contacts",
+        };
+      }
+
+      const fullName = `${firstName} ${lastName}`.trim();
+
       const { data, error } = await supabaseAdmin
-        .from("crm_contacts")
+        .from("contacts")
         .insert({
-          first_name: input.first_name as string,
-          last_name: input.last_name as string,
+          name: fullName,
           email: (input.email as string) || null,
-          company_id: (input.company_id as string) || null,
-          job_title: (input.job_title as string) || null,
+          company_id: resolved.companyId,
+          title: (input.job_title as string) || null,
           phone: (input.phone as string) || null,
-          gdpr_consent: (input.gdpr_consent as boolean) || false,
-          gdpr_consent_method: (input.gdpr_consent_method as string) || null,
-          gdpr_consent_date: input.gdpr_consent ? new Date().toISOString() : null,
-          created_by: userId,
+          owner_id: userId,
+          team_id: teamId,
         })
-        .select("id, first_name, last_name")
+        .select("id, name, email, title, company_id")
         .single();
-      if (error) return { result: { error: error.message }, entityType: "crm_contacts" };
-      return { result: data, entityType: "crm_contacts", entityId: data?.id };
+
+      if (error) return { result: { error: error.message }, entityType: "contacts" };
+      return { result: data, entityType: "contacts", entityId: data?.id };
     }
     case "create_project": {
       const { data, error } = await supabaseAdmin

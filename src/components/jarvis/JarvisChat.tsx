@@ -1003,7 +1003,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     tts.speak(text);
   };
 
-  // Compute visual state
+  // Compute visual state and propagate speaking state to floating button
   const visualState: JarvisVisualState = speech.isListening
     ? "listening"
     : isLoading
@@ -1011,6 +1011,11 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     : tts.isSpeaking
     ? "speaking"
     : "idle";
+
+  // Sync speaking state to floating button via custom event
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('jarvis-speaking', { detail: { speaking: tts.isSpeaking } }));
+  }, [tts.isSpeaking]);
 
   const statusText: Record<JarvisVisualState, string> = {
     listening: "Listening…",

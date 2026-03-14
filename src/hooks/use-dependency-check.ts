@@ -7,10 +7,8 @@ export interface Dependency {
   count: number;
   label: string;
   blocking: boolean;
-  /** For blocking items, show aggregate value if available */
   value?: number;
   currency?: string;
-  /** Link to view these records */
   viewPath?: string;
 }
 
@@ -24,27 +22,13 @@ export interface DependencyCheckResult {
 async function countRows(
   table: string,
   column: string,
-  value: string,
-  extraFilters?: Record<string, any>
+  value: string
 ): Promise<number> {
-  let q = supabase
+  const { count, error } = await (supabase
     .from(table as any)
-    .select("id", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true }) as any)
     .eq(column, value);
 
-  if (extraFilters) {
-    for (const [k, v] of Object.entries(extraFilters)) {
-      if (v === null) {
-        q = q.is(k, null);
-      } else if (Array.isArray(v)) {
-        q = q.in(k, v);
-      } else {
-        q = q.eq(k, v);
-      }
-    }
-  }
-
-  const { count, error } = await q;
   if (error) {
     console.error(`[DependencyCheck] Error counting ${table}.${column}:`, error);
     return 0;
@@ -52,101 +36,72 @@ async function countRows(
   return count ?? 0;
 }
 
-async function sumColumn(
-  table: string,
-  filterColumn: string,
-  filterValue: string,
-  sumCol: string,
-  extraFilters?: Record<string, any>
-): Promise<{ total: number; currency: string }> {
-  let q = supabase
-    .from(table as any)
-    .select(`${sumCol}, currency`)
-    .eq(filterColumn, filterValue);
-
-  if (extraFilters) {
-    for (const [k, v] of Object.entries(extraFilters)) {
-      if (v === null) q = q.is(k, null);
-      else if (Array.isArray(v)) q = q.in(k, v);
-      else q = q.eq(k, v);
-    }
-  }
-
-  const { data, error } = await q;
-  if (error || !data) return { total: 0, currency: "GBP" };
-
-  const total = (data as any[]).reduce((sum, r) => sum + (Number(r[sumCol]) || 0), 0);
-  const currency = (data as any[])[0]?.currency || "GBP";
-  return { total, currency };
-}
-
 function formatCurrency(value: number, currency: string): string {
   return new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(value);
 }
 
 async function checkCompanyDeps(recordId: string): Promise<Dependency[]> {
-  // Check both companies and crm_companies tables by looking up CRM company ID
-  const { data: crmMatch } = await supabase
+  // Check if this is a crm_companies record or companies record
+  const { data: crmDirect } = await (supabase
     .from("crm_companies" as any)
-    .select("id")
+    .select("id") as any)
     .eq("id", recordId)
     .maybeSingle();
 
-  // Also check if there's a crm_companies record linked by name
-  let crmId = crmMatch?.id || null;
+  let crmId: string | null = (crmDirect as any)?.id || null;
+
   if (!crmId) {
-    const { data: company } = await supabase
+    const { data: company } = await (supabase
       .from("companies" as any)
-      .select("name")
+      .select("name") as any)
       .eq("id", recordId)
       .maybeSingle();
-    if (company?.name) {
-      const { data: crmByName } = await supabase
+    const companyName = (company as any)?.name;
+    if (companyName) {
+      const { data: crmByName } = await (supabase
         .from("crm_companies" as any)
-        .select("id")
-        .eq("name", company.name)
+        .select("id") as any)
+        .eq("name", companyName)
         .limit(1)
         .maybeSingle();
-      crmId = crmByName?.id || null;
+      crmId = (crmByName as any)?.id || null;
     }
   }
 
   const deps: Dependency[] = [];
 
-  // Contacts from native table
+  // Contacts
   const contactsCount = await countRows("contacts", "company_id", recordId);
-  // Contacts from CRM table
   const crmContactsCount = crmId ? await countRows("crm_contacts", "company_id", crmId) : 0;
   const totalContacts = contactsCount + crmContactsCount;
-  deps.push({
-    type: "contacts",
-    count: totalContacts,
-    label: `${totalContacts} contact${totalContacts !== 1 ? "s" : ""}`,
-    blocking: false,
-    viewPath: `/companies`,
-  });
-
-  // Active deals (blocking)
-  if (crmId) {
-    const activeDeals = await countRows("crm_deals", "company_id", crmId, {
-      deleted_at: null,
+  if (totalContacts > 0) {
+    deps.push({
+      type: "contacts",
+      count: totalContacts,
+      label: `${totalContacts} contact${totalContacts !== 1 ? "s" : ""}`,
+      blocking: false,
+      viewPath: `/companies`,
     });
-    // Filter to only active (not won/lost)
-    const { data: activeDealData } = await supabase
+  }
+
+  // Deals
+  if (crmId) {
+    const { data: dealData } = await (supabase
       .from("crm_deals" as any)
-      .select("id, value, currency, stage")
+      .select("id, value, currency, stage") as any)
       .eq("company_id", crmId)
       .is("deleted_at", null);
-    
-    const blockingDeals = (activeDealData || []).filter(
-      (d: any) => !["won", "lost"].includes(d.stage?.toLowerCase())
+
+    const allDeals = (dealData || []) as any[];
+    const blockingDeals = allDeals.filter(
+      (d) => !["won", "lost"].includes(d.stage?.toLowerCase())
     );
-    const nonBlockingDeals = (activeDealData || []).filter(
-      (d: any) => ["won", "lost"].includes(d.stage?.toLowerCase())
+    const nonBlockingDeals = allDeals.filter(
+      (d) => ["won", "lost"].includes(d.stage?.toLowerCase())
     );
 
     if (blockingDeals.length > 0) {
-      const totalValue = blockingDeals.reduce((s: number, d: any) => s + (Number(d.value) || 0), 0);
+      const totalValue = blockingDeals.reduce((s, d) => s + (Number(d.value) || 0), 0);
       const currency = blockingDeals[0]?.currency || "GBP";
       deps.push({
         type: "deals",
@@ -167,22 +122,23 @@ async function checkCompanyDeps(recordId: string): Promise<Dependency[]> {
       });
     }
 
-    // Invoices (blocking if unpaid)
-    const { data: invoiceData } = await supabase
+    // Invoices
+    const { data: invoiceData } = await (supabase
       .from("crm_invoices" as any)
-      .select("id, total, currency, status")
+      .select("id, total, currency, status") as any)
       .eq("company_id", crmId)
       .is("deleted_at", null);
 
-    const blockingInvoices = (invoiceData || []).filter(
-      (i: any) => ["sent", "overdue", "draft"].includes(i.status?.toLowerCase())
+    const allInvoices = (invoiceData || []) as any[];
+    const blockingInvoices = allInvoices.filter(
+      (i) => ["sent", "overdue", "draft"].includes(i.status?.toLowerCase())
     );
-    const nonBlockingInvoices = (invoiceData || []).filter(
-      (i: any) => ["paid", "void", "cancelled"].includes(i.status?.toLowerCase())
+    const nonBlockingInvoices = allInvoices.filter(
+      (i) => ["paid", "void", "cancelled"].includes(i.status?.toLowerCase())
     );
 
     if (blockingInvoices.length > 0) {
-      const totalValue = blockingInvoices.reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
+      const totalValue = blockingInvoices.reduce((s, i) => s + (Number(i.total) || 0), 0);
       const currency = blockingInvoices[0]?.currency || "GBP";
       deps.push({
         type: "invoices",
@@ -205,42 +161,46 @@ async function checkCompanyDeps(recordId: string): Promise<Dependency[]> {
 
     // Documents
     const docsCount = await countRows("crm_documents", "company_id", crmId);
-    deps.push({
-      type: "documents",
-      count: docsCount,
-      label: `${docsCount} document${docsCount !== 1 ? "s" : ""}`,
-      blocking: false,
-    });
+    if (docsCount > 0) {
+      deps.push({
+        type: "documents",
+        count: docsCount,
+        label: `${docsCount} document${docsCount !== 1 ? "s" : ""}`,
+        blocking: false,
+      });
+    }
   }
 
   // Projects/engagements
   const engCount = await countRows("engagements", "company_id", recordId);
-  deps.push({
-    type: "projects",
-    count: engCount,
-    label: `${engCount} project${engCount !== 1 ? "s" : ""}`,
-    blocking: false,
-    viewPath: `/projects`,
-  });
+  if (engCount > 0) {
+    deps.push({
+      type: "projects",
+      count: engCount,
+      label: `${engCount} project${engCount !== 1 ? "s" : ""}`,
+      blocking: false,
+      viewPath: `/projects`,
+    });
+  }
 
-  return deps.filter((d) => d.count > 0);
+  return deps;
 }
 
 async function checkContactDeps(recordId: string): Promise<Dependency[]> {
   const deps: Dependency[] = [];
 
-  // Deals linked to this contact
-  const { data: dealData } = await supabase
+  const { data: dealData } = await (supabase
     .from("crm_deals" as any)
-    .select("id, value, currency, stage")
+    .select("id, value, currency, stage") as any)
     .eq("contact_id", recordId)
     .is("deleted_at", null);
 
-  const activeDeals = (dealData || []).filter(
-    (d: any) => !["won", "lost"].includes(d.stage?.toLowerCase())
+  const allDeals = (dealData || []) as any[];
+  const activeDeals = allDeals.filter(
+    (d) => !["won", "lost"].includes(d.stage?.toLowerCase())
   );
   if (activeDeals.length > 0) {
-    const totalValue = activeDeals.reduce((s: number, d: any) => s + (Number(d.value) || 0), 0);
+    const totalValue = activeDeals.reduce((s, d) => s + (Number(d.value) || 0), 0);
     deps.push({
       type: "deals",
       count: activeDeals.length,
@@ -251,8 +211,8 @@ async function checkContactDeps(recordId: string): Promise<Dependency[]> {
     });
   }
 
-  const closedDeals = (dealData || []).filter(
-    (d: any) => ["won", "lost"].includes(d.stage?.toLowerCase())
+  const closedDeals = allDeals.filter(
+    (d) => ["won", "lost"].includes(d.stage?.toLowerCase())
   );
   if (closedDeals.length > 0) {
     deps.push({
@@ -263,7 +223,6 @@ async function checkContactDeps(recordId: string): Promise<Dependency[]> {
     });
   }
 
-  // Outreach targets
   const targetsCount = await countRows("outreach_targets", "contact_id", recordId);
   if (targetsCount > 0) {
     deps.push({
@@ -280,22 +239,22 @@ async function checkContactDeps(recordId: string): Promise<Dependency[]> {
 async function checkDealDeps(recordId: string): Promise<Dependency[]> {
   const deps: Dependency[] = [];
 
-  // Invoices
-  const { data: invoiceData } = await supabase
+  const { data: invoiceData } = await (supabase
     .from("crm_invoices" as any)
-    .select("id, total, currency, status")
+    .select("id, total, currency, status") as any)
     .eq("deal_id", recordId)
     .is("deleted_at", null);
 
-  const blockingInvoices = (invoiceData || []).filter(
-    (i: any) => ["sent", "overdue", "draft"].includes(i.status?.toLowerCase())
+  const allInvoices = (invoiceData || []) as any[];
+  const blockingInvoices = allInvoices.filter(
+    (i) => ["sent", "overdue", "draft"].includes(i.status?.toLowerCase())
   );
-  const paidInvoices = (invoiceData || []).filter(
-    (i: any) => ["paid", "void", "cancelled"].includes(i.status?.toLowerCase())
+  const paidInvoices = allInvoices.filter(
+    (i) => ["paid", "void", "cancelled"].includes(i.status?.toLowerCase())
   );
 
   if (blockingInvoices.length > 0) {
-    const totalValue = blockingInvoices.reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
+    const totalValue = blockingInvoices.reduce((s, i) => s + (Number(i.total) || 0), 0);
     deps.push({
       type: "invoices",
       count: blockingInvoices.length,
@@ -314,7 +273,6 @@ async function checkDealDeps(recordId: string): Promise<Dependency[]> {
     });
   }
 
-  // Documents
   const docsCount = await countRows("crm_documents", "deal_id", recordId);
   if (docsCount > 0) {
     deps.push({
@@ -331,17 +289,17 @@ async function checkDealDeps(recordId: string): Promise<Dependency[]> {
 async function checkProjectDeps(recordId: string): Promise<Dependency[]> {
   const deps: Dependency[] = [];
 
-  // Invoices
-  const { data: invoiceData } = await supabase
+  const { data: invoiceData } = await (supabase
     .from("invoices" as any)
-    .select("id, total, currency, status")
+    .select("id, total, currency, status") as any)
     .eq("engagement_id", recordId);
 
-  const blockingInvoices = (invoiceData || []).filter(
-    (i: any) => ["sent", "overdue", "draft"].includes(i.status?.toLowerCase())
+  const allInvoices = (invoiceData || []) as any[];
+  const blockingInvoices = allInvoices.filter(
+    (i) => ["sent", "overdue", "draft"].includes(i.status?.toLowerCase())
   );
   if (blockingInvoices.length > 0) {
-    const totalValue = blockingInvoices.reduce((s: number, i: any) => s + (Number(i.total) || 0), 0);
+    const totalValue = blockingInvoices.reduce((s, i) => s + (Number(i.total) || 0), 0);
     deps.push({
       type: "invoices",
       count: blockingInvoices.length,
@@ -352,7 +310,6 @@ async function checkProjectDeps(recordId: string): Promise<Dependency[]> {
     });
   }
 
-  // SOWs
   const sowsCount = await countRows("sows", "engagement_id", recordId);
   if (sowsCount > 0) {
     deps.push({
@@ -363,7 +320,6 @@ async function checkProjectDeps(recordId: string): Promise<Dependency[]> {
     });
   }
 
-  // Jobs
   const jobsCount = await countRows("jobs", "engagement_id", recordId);
   if (jobsCount > 0) {
     deps.push({
@@ -374,7 +330,6 @@ async function checkProjectDeps(recordId: string): Promise<Dependency[]> {
     });
   }
 
-  // Outreach campaigns
   const campaignsCount = await countRows("outreach_campaigns", "engagement_id", recordId);
   if (campaignsCount > 0) {
     deps.push({
@@ -391,7 +346,6 @@ async function checkProjectDeps(recordId: string): Promise<Dependency[]> {
 async function checkCrmProjectDeps(recordId: string): Promise<Dependency[]> {
   const deps: Dependency[] = [];
 
-  // Deals linked to this project
   const dealsCount = await countRows("crm_deals", "project_id", recordId);
   if (dealsCount > 0) {
     deps.push({
@@ -402,7 +356,6 @@ async function checkCrmProjectDeps(recordId: string): Promise<Dependency[]> {
     });
   }
 
-  // Opportunities
   const oppsCount = await countRows("crm_opportunities", "project_id", recordId);
   if (oppsCount > 0) {
     deps.push({

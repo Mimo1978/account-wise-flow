@@ -11,7 +11,6 @@ interface DeleteInput {
   recordName: string;
 }
 
-// Cross-table query key invalidation map
 const RELATED_QUERY_KEYS: Record<string, string[][]> = {
   companies: [["companies"], ["crm_companies"], ["crm-company-sync"]],
   crm_companies: [["crm_companies"], ["companies"], ["crm-company-sync"]],
@@ -37,68 +36,68 @@ async function unlinkCompanyDeps(recordId: string) {
   const unlinked: string[] = [];
 
   // Unlink native contacts
-  const { error: e1 } = await supabase
+  await (supabase
     .from("contacts" as any)
-    .update({ company_id: null } as any)
+    .update({ company_id: null } as any) as any)
     .eq("company_id", recordId);
-  if (!e1) unlinked.push("contacts");
+  unlinked.push("contacts");
 
   // Find crm_companies ID by name for CRM table unlinking
-  const { data: company } = await supabase
+  const { data: company } = await (supabase
     .from("companies" as any)
-    .select("name")
+    .select("name") as any)
     .eq("id", recordId)
     .maybeSingle();
 
-  if (company?.name) {
-    const { data: crmMatch } = await supabase
+  const companyName = (company as any)?.name;
+  if (companyName) {
+    const { data: crmMatch } = await (supabase
       .from("crm_companies" as any)
-      .select("id")
-      .eq("name", company.name)
+      .select("id") as any)
+      .eq("name", companyName)
       .limit(1)
       .maybeSingle();
 
-    if (crmMatch?.id) {
-      const crmId = crmMatch.id;
-
+    const crmId = (crmMatch as any)?.id;
+    if (crmId) {
       // Unlink CRM contacts
-      await supabase
+      await (supabase
         .from("crm_contacts" as any)
-        .update({ company_id: null } as any)
+        .update({ company_id: null } as any) as any)
         .eq("company_id", crmId);
 
-      // Unlink closed deals (won/lost only — active ones are blocking)
-      await supabase
+      // Unlink closed deals only
+      await (supabase
         .from("crm_deals" as any)
-        .update({ company_id: null } as any)
+        .update({ company_id: null } as any) as any)
         .eq("company_id", crmId)
         .in("stage", ["won", "lost"]);
       unlinked.push("closed_deals");
 
       // Unlink paid/void invoices
-      await supabase
+      await (supabase
         .from("crm_invoices" as any)
-        .update({ company_id: null } as any)
+        .update({ company_id: null } as any) as any)
         .eq("company_id", crmId)
         .in("status", ["paid", "void", "cancelled"]);
       unlinked.push("paid_invoices");
 
       // Unlink documents
-      await supabase
+      await (supabase
         .from("crm_documents" as any)
-        .update({ company_id: null } as any)
+        .update({ company_id: null } as any) as any)
         .eq("company_id", crmId);
       unlinked.push("documents");
 
-      // Delete the CRM mirror record too
+      // Delete the CRM mirror record
       await supabase.from("crm_companies" as any).delete().eq("id", crmId);
     }
   }
 
   // Unlink engagements
-  await supabase
+  await (supabase
     .from("engagements" as any)
-    .update({ company_id: null } as any)
+    .update({ company_id: null } as any) as any)
     .eq("company_id", recordId);
   unlinked.push("projects");
 
@@ -108,12 +107,11 @@ async function unlinkCompanyDeps(recordId: string) {
 async function unlinkContactDeps(recordId: string) {
   const unlinked: string[] = [];
 
-  // Unlink deals
-  const { error: e1 } = await supabase
+  await (supabase
     .from("crm_deals" as any)
-    .update({ contact_id: null } as any)
+    .update({ contact_id: null } as any) as any)
     .eq("contact_id", recordId);
-  if (!e1) unlinked.push("deals");
+  unlinked.push("deals");
 
   return unlinked;
 }
@@ -121,10 +119,9 @@ async function unlinkContactDeps(recordId: string) {
 async function unlinkDealDeps(recordId: string) {
   const unlinked: string[] = [];
 
-  // Unlink documents
-  await supabase
+  await (supabase
     .from("crm_documents" as any)
-    .update({ deal_id: null } as any)
+    .update({ deal_id: null } as any) as any)
     .eq("deal_id", recordId);
   unlinked.push("documents");
 
@@ -134,25 +131,22 @@ async function unlinkDealDeps(recordId: string) {
 async function unlinkProjectDeps(recordId: string) {
   const unlinked: string[] = [];
 
-  // Unlink paid invoices
-  await supabase
+  await (supabase
     .from("invoices" as any)
-    .update({ engagement_id: null } as any)
+    .update({ engagement_id: null } as any) as any)
     .eq("engagement_id", recordId)
     .in("status", ["paid", "void", "cancelled"]);
   unlinked.push("paid_invoices");
 
-  // Unlink SOWs
-  await supabase
+  await (supabase
     .from("sows" as any)
-    .update({ engagement_id: null } as any)
+    .update({ engagement_id: null } as any) as any)
     .eq("engagement_id", recordId);
   unlinked.push("sows");
 
-  // Unlink jobs
-  await supabase
+  await (supabase
     .from("jobs" as any)
-    .update({ engagement_id: null } as any)
+    .update({ engagement_id: null } as any) as any)
     .eq("engagement_id", recordId);
   unlinked.push("jobs");
 
@@ -168,11 +162,9 @@ export function useDependencyDelete() {
     mutationFn: async ({ recordType, recordId, recordName }: DeleteInput) => {
       let unlinked: string[] = [];
 
-      // Step 1: Unlink dependencies based on record type
+      // Step 1: Unlink dependencies
       switch (recordType) {
         case "companies":
-          unlinked = await unlinkCompanyDeps(recordId);
-          break;
         case "crm_companies":
           unlinked = await unlinkCompanyDeps(recordId);
           break;
@@ -188,7 +180,7 @@ export function useDependencyDelete() {
           break;
       }
 
-      // Step 2: Hard delete the record
+      // Step 2: Hard delete
       const { error } = await supabase
         .from(recordType as any)
         .delete()
@@ -223,8 +215,7 @@ export function useDependencyDelete() {
           ? ` (${result.unlinked.length} linked record types unlinked)`
           : "";
       toast.success(`${result.recordName} deleted.${unlinkedMsg}`);
-      invalidateRelated(qc, result.recordType);
-      // Also invalidate related entity types
+      // Invalidate everything related
       for (const key of Object.keys(RELATED_QUERY_KEYS)) {
         invalidateRelated(qc, key);
       }

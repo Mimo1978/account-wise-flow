@@ -1540,11 +1540,19 @@ async function executeTool(
       return { result: data, entityType: "contacts", entityId: data?.id };
     }
     case "create_project": {
+      // crm_projects has FK to crm_companies, so resolve the company ID
+      const projTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const projResolved = await resolveCompanyIds(
+        supabaseAdmin,
+        (input.company_id as string) || null,
+        userId,
+        projTeamId,
+      );
       const { data, error } = await supabaseAdmin
         .from("crm_projects")
         .insert({
           name: input.name as string,
-          company_id: (input.company_id as string) || null,
+          company_id: projResolved.crmCompanyId || (input.company_id as string) || null,
           project_type: (input.project_type as string) || null,
           description: (input.description as string) || null,
           created_by: userId,

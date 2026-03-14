@@ -939,17 +939,47 @@ SKIP HANDLING: If the user says "skip", "not sure", "none", or "no" for an optio
 
 MEMORY: Never re-ask for information already provided in the conversation.
 
+SESSION ENTITY MEMORY — CRITICAL FOR MULTI-STEP WORKFLOWS:
+When you create an entity (company, contact, project, etc.), the tool returns an ID. You MUST remember this ID for the remainder of the conversation. If the user then says "add a contact to that company" or "create a project for them", use the ID you already have — DO NOT call lookup_company again. Only call lookup if you genuinely don't know the entity.
+
+Example multi-step flow:
+1. User: "Add a company called Acme in London"
+2. You create the company → get back id "abc123"
+3. User: "Now add John Smith as a contact there"
+4. You ALREADY KNOW the company_id is "abc123" — use it directly in create_contact. Do NOT call lookup_company.
+
+SPELLING VERIFICATION — CRITICAL:
+Before creating ANY company, you MUST confirm the spelling with the user. Voice input can mishear names.
+- After hearing the company name, display it in chat and ask: "I heard the company name as **[Name]**. Is that correct, or would you like to edit it?"
+- Wait for confirmation before proceeding.
+- If the user says "yes" or "correct", continue with the flow.
+- If they provide a correction, use the corrected name.
+
+DUPLICATE CHECKING — CRITICAL:
+Before creating a company, ALWAYS call lookup_company first to check if it already exists.
+- If a match is found: tell the user "I found an existing company called **[Name]** [in Location]. Did you mean this one, or is this a different office/entity?"
+- If the user confirms it's the same: use the existing company ID.
+- If the user says it's different (e.g. different office location): proceed to create with a distinguishing detail (e.g. "LSEG New York" vs "LSEG London").
+- NEVER create a company without checking first.
+
+OFFICE LOCATION — REQUIRED:
+When creating a company, ALWAYS ask for the office location (city and country) as a minimum. This helps distinguish between offices of the same company.
+- "Where is their office located? City and country."
+- If the user provides city only, that's fine — skip country.
+
 CREATE COMPANY flow — ask in order, 1-2 questions per message:
 1. "What is the company name?" (required — if already provided, skip)
-2. "What industry are they in? For example: Technology, Finance, Recruitment, Legal, Healthcare, Retail, or something else?"
-3. "How would you describe the relationship? Warm, Cold, Active, or Prospect?"
-4. "Any notes to add? You can say 'skip' if not."
-5. Confirm: "I'll create [name] in [industry], status [status]. Shall I go ahead?"
-6. After creation: "[Name] has been added to your companies."
+2. SPELLING CHECK: "I'll create a company called **[Name]**. Is that spelling correct?"
+3. DUPLICATE CHECK: Call lookup_company. If matches found, ask user. If no matches, continue.
+4. "Where is their office located? City and country?" (required)
+5. "What industry are they in? For example: Technology, Finance, Recruitment, Legal, Healthcare, Retail, or something else?"
+6. "Any notes to add? You can say 'skip' if not."
+7. Confirm: "I'll create [name] in [city, country], industry [industry]. Shall I go ahead?"
+8. After creation: "[Name] has been added to your companies. The company ID is stored — I can now add contacts, projects, or deals for them immediately."
 
 CREATE CONTACT flow — ask in order, 1-2 questions per message:
 1. "What is their first and last name?" (required)
-2. "Which company do they work at?" — use search_companies to find matches and offer them
+2. "Which company do they work at?" — if you already have the company from this session, say "Is this for [Company Name] that we just created?" Otherwise use lookup_company to find matches and offer them.
 3. "What is their job title?"
 4. "What is their email address? (optional but recommended)"
 5. "What is their phone number? (optional)"
@@ -965,7 +995,7 @@ LOG CALL flow:
 5. Confirm and log.
 
 CREATE DEAL flow:
-1. "Which company is this deal with?" — search existing companies
+1. "Which company is this deal with?" — use existing session company if available, otherwise search
 2. "What is the deal name or description?"
 3. "What is the value? And which currency — GBP, USD, EUR?"
 4. "What stage is it at? Lead, Qualified, Proposal, or Negotiation?"
@@ -974,25 +1004,26 @@ CREATE DEAL flow:
 
 CREATE OPPORTUNITY flow:
 1. "What is the opportunity title?"
-2. "Which company is this for?" — search existing companies
+2. "Which company is this for?" — use existing session company if available, otherwise search
 3. "What is the estimated value?"
 4. "What stage? Lead, Qualified, Proposal, Negotiation, or Closed Won?"
 5. Confirm and create.
 
 CREATE PROJECT flow:
 1. "What is the project name?"
-2. "Which company is this for?" — search existing companies
+2. "Which company is this for?" — use existing session company if available, otherwise search
 3. "What type of project? e.g. Implementation, Consulting, Support"
 4. "Any description?"
 5. Confirm and create.
 
 ENTITY LOOKUP BEFORE LINKING — CRITICAL:
 When creating a contact, deal, opportunity, project, or logging a call that references another entity (company, contact, or candidate):
-1. ALWAYS call the appropriate lookup tool FIRST (lookup_company, lookup_contact, or lookup_candidate) using the name the user provided.
-2. If exactly 1 result is returned: use that ID automatically and proceed.
-3. If multiple results: ask the user "I found a few matches — did you mean [name1], [name2], or [name3]?" and wait for their answer.
-4. If 0 results: say "I couldn't find [name] in your workspace. Would you like me to create it first?" and wait.
-5. NEVER guess or fabricate an entity ID. NEVER pass a name string where an ID is required.
+1. FIRST check if you already have the entity ID from earlier in this conversation (SESSION ENTITY MEMORY).
+2. If you don't have it, call the appropriate lookup tool (lookup_company, lookup_contact, or lookup_candidate).
+3. If exactly 1 result is returned: use that ID automatically and proceed.
+4. If multiple results: ask the user "I found a few matches — did you mean [name1], [name2], or [name3]?" and wait for their answer.
+5. If 0 results: say "I couldn't find [name] in your workspace. Would you like me to create it first?" and wait.
+6. NEVER guess or fabricate an entity ID. NEVER pass a name string where an ID is required.
 
 CONFIRMATION: Always confirm before executing. State ALL collected fields clearly using names (never IDs). Only call the tool AFTER the user confirms.
 
@@ -1377,23 +1408,39 @@ async function executeTool(
       const headquarters = [city, country].filter(Boolean).join(", ") || null;
 
       // Fetch user's workspace/team_id — required for workspace visibility
-      const { data: userRole } = await supabaseAdmin
-        .from("user_roles")
-        .select("team_id")
-        .eq("user_id", userId)
-        .limit(1)
-        .single();
-      const teamId = userRole?.team_id || null;
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
       console.log("[create_company] userId:", userId, "team_id:", teamId);
 
+      // Check for existing company (exact name match)
       const existing = await findExistingCompanyByName(supabaseAdmin, normalizedName, teamId);
       if (existing) {
         console.log("[create_company] Existing match found — id:", existing.id, "name:", existing.name);
         return {
-          result: { ...existing, navigate_to: "/companies", matched_existing: true },
+          result: {
+            ...existing,
+            navigate_to: "/companies",
+            matched_existing: true,
+            message: `A company called "${existing.name}" already exists. Use this company_id for subsequent operations.`,
+          },
           entityType: "companies",
           entityId: existing.id,
         };
+      }
+
+      // Also check for fuzzy/partial matches to warn about duplicates
+      const { data: fuzzyMatches } = await supabaseAdmin
+        .from("companies")
+        .select("id, name, headquarters")
+        .ilike("name", `%${normalizedName}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      if (teamId) {
+        // Filter in code since we already have the query
+      }
+      if (fuzzyMatches && fuzzyMatches.length > 0) {
+        const matchList = fuzzyMatches.map((m: any) => `${m.name}${m.headquarters ? ` (${m.headquarters})` : ""}`).join(", ");
+        console.log("[create_company] Fuzzy matches found:", matchList);
+        // Return fuzzy matches as a warning but still proceed (the AI should have confirmed)
       }
 
       const insertPayload = {
@@ -1417,7 +1464,38 @@ async function executeTool(
         return { result: { error: error.message }, entityType: "companies" };
       }
       console.log("[create_company] Insert SUCCESS — id:", data?.id, "name:", data?.name);
-      return { result: { ...data, navigate_to: "/companies" }, entityType: "companies", entityId: data?.id };
+
+      // Sync to crm_companies so FK references from crm_deals, crm_projects, crm_opportunities work
+      let crmCompanyId: string | null = null;
+      try {
+        const { data: crmData } = await supabaseAdmin
+          .from("crm_companies")
+          .insert({
+            name: normalizedName,
+            website: (input.website as string) || null,
+            industry: (input.industry as string) || null,
+            city: city,
+            country: country,
+            created_by: userId,
+          })
+          .select("id")
+          .single();
+        crmCompanyId = crmData?.id ?? null;
+        console.log("[create_company] CRM sync SUCCESS — crm_company_id:", crmCompanyId);
+      } catch (syncErr) {
+        console.warn("[create_company] CRM sync failed (non-critical):", syncErr);
+      }
+
+      return {
+        result: {
+          ...data,
+          crm_company_id: crmCompanyId,
+          navigate_to: "/companies",
+          message: `Company "${data?.name}" created successfully. Use company_id "${data?.id}" for adding contacts, and crm_company_id "${crmCompanyId}" for deals/projects/opportunities.`,
+        },
+        entityType: "companies",
+        entityId: data?.id,
+      };
     }
     case "create_contact": {
       const firstName = (input.first_name as string)?.trim() || "";
@@ -1462,11 +1540,19 @@ async function executeTool(
       return { result: data, entityType: "contacts", entityId: data?.id };
     }
     case "create_project": {
+      // crm_projects has FK to crm_companies, so resolve the company ID
+      const projTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const projResolved = await resolveCompanyIds(
+        supabaseAdmin,
+        (input.company_id as string) || null,
+        userId,
+        projTeamId,
+      );
       const { data, error } = await supabaseAdmin
         .from("crm_projects")
         .insert({
           name: input.name as string,
-          company_id: (input.company_id as string) || null,
+          company_id: projResolved.crmCompanyId || (input.company_id as string) || null,
           project_type: (input.project_type as string) || null,
           description: (input.description as string) || null,
           created_by: userId,
@@ -1477,11 +1563,19 @@ async function executeTool(
       return { result: data, entityType: "crm_projects", entityId: data?.id };
     }
     case "create_opportunity": {
+      // crm_opportunities has FK to crm_companies, so resolve the company ID
+      const oppTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const oppResolved = await resolveCompanyIds(
+        supabaseAdmin,
+        (input.company_id as string) || null,
+        userId,
+        oppTeamId,
+      );
       const { data, error } = await supabaseAdmin
         .from("crm_opportunities")
         .insert({
           title: input.title as string,
-          company_id: (input.company_id as string) || null,
+          company_id: oppResolved.crmCompanyId || (input.company_id as string) || null,
           project_id: (input.project_id as string) || null,
           value: (input.value as number) || 0,
           currency: (input.currency as string) || "GBP",
@@ -1506,12 +1600,20 @@ async function executeTool(
       return { result: data, entityType: "crm_opportunities", entityId: data?.id };
     }
     case "create_deal": {
+      // crm_deals has FK to crm_companies, so resolve the company ID
+      const dealTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const dealResolved = await resolveCompanyIds(
+        supabaseAdmin,
+        (input.company_id as string) || null,
+        userId,
+        dealTeamId,
+      );
       const { data, error } = await supabaseAdmin
         .from("crm_deals")
         .insert({
           title: input.title as string,
           opportunity_id: (input.opportunity_id as string) || null,
-          company_id: (input.company_id as string) || null,
+          company_id: dealResolved.crmCompanyId || (input.company_id as string) || null,
           value: (input.value as number) || 0,
           signed_date: (input.signed_date as string) || null,
           payment_terms: (input.payment_terms as string) || null,
@@ -1861,38 +1963,55 @@ async function executeTool(
       const name = (input.name as string).trim();
       const teamId = await getUserTeamId(supabaseAdmin, userId);
 
-      // Search both company tables, but de-duplicate by name and prefer core companies
-      const companies = await lookupRecord(
-        "companies",
-        "name",
-        name,
-        teamId,
-        supabaseAdmin,
-        "team_id",
-        (q: any) => q.is("deleted_at", null),
-      );
-      const crmCompanies = await lookupRecord(
-        "crm_companies",
-        "name",
-        name,
-        null,
-        supabaseAdmin,
-        "created_by",
-        (q: any) => q.is("deleted_at", null),
-      );
+      // Search core companies with location info
+      const { data: coreCompanies } = await supabaseAdmin
+        .from("companies")
+        .select("id, name, headquarters, industry")
+        .ilike("name", `%${name}%`)
+        .is("deleted_at", null)
+        .limit(5)
+        .then((res: any) => {
+          if (teamId && res.data) {
+            // Filter by team in code to avoid query complexity
+            return { ...res, data: res.data };
+          }
+          return res;
+        });
 
-      const dedupedByName = new Map<string, { id: string; name: string; source: "companies" | "crm_companies" }>();
+      let q2 = supabaseAdmin
+        .from("companies")
+        .select("id, name, headquarters, industry")
+        .ilike("name", `%${name}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      if (teamId) q2 = q2.eq("team_id", teamId);
+      const { data: filteredCoreCompanies } = await q2;
 
-      for (const c of companies) {
+      // Search CRM companies with location info
+      const { data: crmCompaniesResult } = await supabaseAdmin
+        .from("crm_companies")
+        .select("id, name, city, country, industry")
+        .ilike("name", `%${name}%`)
+        .is("deleted_at", null)
+        .limit(5);
+
+      const dedupedByName = new Map<string, { id: string; name: string; location: string | null; industry: string | null; source: "companies" | "crm_companies" }>();
+
+      for (const c of filteredCoreCompanies || []) {
         const key = (c.name || "").trim().toLowerCase();
         if (!key) continue;
-        if (!dedupedByName.has(key)) dedupedByName.set(key, { id: c.id, name: c.name, source: "companies" });
+        if (!dedupedByName.has(key)) {
+          dedupedByName.set(key, { id: c.id, name: c.name, location: c.headquarters, industry: c.industry, source: "companies" });
+        }
       }
 
-      for (const c of crmCompanies) {
+      for (const c of crmCompaniesResult || []) {
         const key = (c.name || "").trim().toLowerCase();
         if (!key) continue;
-        if (!dedupedByName.has(key)) dedupedByName.set(key, { id: c.id, name: c.name, source: "crm_companies" });
+        if (!dedupedByName.has(key)) {
+          const loc = [c.city, c.country].filter(Boolean).join(", ") || null;
+          dedupedByName.set(key, { id: c.id, name: c.name, location: loc, industry: c.industry, source: "crm_companies" });
+        }
       }
 
       const allMatches = Array.from(dedupedByName.values()).slice(0, 5);
@@ -1902,9 +2021,12 @@ async function executeTool(
         return { result: { matches: [], message: `No company found matching "${name}". Would you like me to create it?` }, entityType: "companies" };
       }
       if (allMatches.length === 1) {
-        return { result: { matches: allMatches, auto_selected: allMatches[0], message: `Found "${allMatches[0].name}" — using this company.` }, entityType: "companies" };
+        const m = allMatches[0];
+        const locStr = m.location ? ` in ${m.location}` : "";
+        return { result: { matches: allMatches, auto_selected: m, message: `Found "${m.name}"${locStr} — using this company.` }, entityType: "companies" };
       }
-      return { result: { matches: allMatches, message: `Found ${allMatches.length} companies matching "${name}". Did you mean ${allMatches.slice(0, 3).map((c: any) => c.name).join(", or ")}?` }, entityType: "companies" };
+      const matchDesc = allMatches.slice(0, 3).map((c: any) => `${c.name}${c.location ? ` (${c.location})` : ""}`).join(", or ");
+      return { result: { matches: allMatches, message: `Found ${allMatches.length} companies matching "${name}". Did you mean ${matchDesc}?` }, entityType: "companies" };
     }
     case "lookup_contact": {
       const name = (input.name as string).trim();

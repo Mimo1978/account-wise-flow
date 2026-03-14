@@ -127,6 +127,7 @@ export default function CompaniesDatabase() {
         .from('companies')
         .select('*')
         .eq('team_id', currentWorkspace.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
       
       if (error) {

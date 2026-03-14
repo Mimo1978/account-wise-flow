@@ -348,6 +348,8 @@ const JobDetail = () => {
             {job.location && <><span>·</span><span>{job.location}</span></>}
             {job.job_type && <><span>·</span><span>{job.job_type}</span></>}
             <span>·</span>
+            <HiringManagerField job={job} />
+            <span>·</span>
             <ProjectLinker jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} />
           </div>
         </div>

@@ -333,8 +333,7 @@ export function useRestoreRecord() {
     },
     onSuccess: (_, vars) => {
       toast.success("Record restored successfully.");
-      qc.invalidateQueries({ queryKey: [vars.recordType] });
-      qc.invalidateQueries({ queryKey: ["recycle_bin"] });
+      invalidateRelated(qc, vars.recordType);
     },
     onError: (err: any) => {
       toast.error("Restore failed: " + (err.message || "Unknown error"));

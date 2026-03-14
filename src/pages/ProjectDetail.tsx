@@ -1298,30 +1298,10 @@ const ProjectDetail = () => {
           {/* Originating Deal */}
           <OriginatingDealCard engagementId={engagement.id} />
 
-          {/* Client Card + Contacts */}
+          {/* Company + Contacts */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            {/* Client Card */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Building2 className="w-4 h-4" /> Client
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {engagement.companies?.name ? (
-                  <div>
-                    <p
-                      className="text-sm font-medium text-primary cursor-pointer hover:underline"
-                      onClick={() => navigate(`/companies/${engagement.company_id}`)}
-                    >
-                      {engagement.companies.name}
-                    </p>
-                  </div>
-                ) : (
-                  <InlineCompanyAssigner engagementId={engagement.id} workspaceId={currentWorkspace?.id ?? ''} />
-                )}
-              </CardContent>
-            </Card>
+            {/* Company Card */}
+            <CompanyCard engagementId={engagement.id} companyId={engagement.company_id} companyName={engagement.companies?.name} workspaceId={currentWorkspace?.id ?? ''} />
 
             {/* Primary Contact */}
             <InlineContactPicker

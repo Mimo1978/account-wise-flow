@@ -4,6 +4,7 @@ import { toast } from "@/components/ui/sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { getJarvisNavHistory } from "@/hooks/use-jarvis-navigation";
+import type { ConfirmCardData } from "@/components/jarvis/JarvisConfirmationCard";
 
 export interface JarvisAction {
   tool: string;
@@ -16,7 +17,6 @@ export interface GuidedTourStep {
   navigate?: string;
   highlight?: string;
   click?: string;
-  /** Click element to open it (e.g. a tab) AND keep it highlighted while speaking */
   clickAndOpen?: string;
   speak?: string;
   delay?: number;
@@ -48,6 +48,42 @@ export interface JarvisFlowState {
   awaitingConfirmation: boolean;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Session entity memory                                              */
+/* ------------------------------------------------------------------ */
+export interface JarvisEntityRef {
+  type: 'company' | 'contact' | 'deal' | 'project' | 'opportunity';
+  id: string;
+  name: string;
+  timestamp: number;
+  /** For companies: also store the CRM-side ID */
+  crmId?: string;
+}
+
+export interface JarvisContext {
+  lastCreated: JarvisEntityRef | null;
+  recentEntities: JarvisEntityRef[];
+}
+
+const INITIAL_CONTEXT: JarvisContext = { lastCreated: null, recentEntities: [] };
+const MAX_RECENT = 10;
+
+function addEntity(ctx: JarvisContext, entity: JarvisEntityRef): JarvisContext {
+  const recent = [entity, ...ctx.recentEntities.filter(e => e.id !== entity.id)].slice(0, MAX_RECENT);
+  return { lastCreated: entity, recentEntities: recent };
+}
+
+/** Build a text summary of session context for the system prompt */
+function contextToPromptLines(ctx: JarvisContext): string {
+  if (ctx.recentEntities.length === 0) return "";
+  const lines = ctx.recentEntities.map(e => {
+    let line = `${e.type} "${e.name}" id=${e.id}`;
+    if (e.crmId) line += ` crm_id=${e.crmId}`;
+    return line;
+  });
+  return `SESSION ENTITY MEMORY (use these IDs — do NOT re-lookup):\n${lines.join("\n")}`;
+}
+
 const FLOW_FIELD_MAP: Record<string, { fields: string[]; highlightIds: string[] }> = {
   CREATE_COMPANY: {
     fields: ['name', 'industry', 'relationship_status', 'notes'],
@@ -71,11 +107,9 @@ const FLOW_FIELD_MAP: Record<string, { fields: string[]; highlightIds: string[] 
   },
 };
 
-/** Detect if the AI response indicates a guided collection flow */
 function detectFlowFromResponse(text: string, currentFlow: JarvisFlowState): JarvisFlowState {
   const lower = text.toLowerCase();
 
-  // Detect new flow starting
   if (!currentFlow.flow) {
     if (/what('s| is) the company name|let('s| me) create a company|i'll add .* company/i.test(text)) {
       return { flow: 'CREATE_COMPANY', collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
@@ -96,31 +130,26 @@ function detectFlowFromResponse(text: string, currentFlow: JarvisFlowState): Jar
 
   if (!currentFlow.flow) return currentFlow;
 
-  // Detect confirmation prompt
   const isConfirmation = /shall I (save|go ahead|create|proceed)|is that correct|confirm|ready to save/i.test(text);
   if (isConfirmation) {
     return { ...currentFlow, awaitingConfirmation: true };
   }
 
-  // Detect flow completion (successful creation)
   const isComplete = /has been (added|created|saved|logged)|successfully (created|added|logged|saved)/i.test(text);
   if (isComplete) {
     return { flow: null, collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
   }
 
-  // Detect cancellation
   if (/cancelled|aborted|let me know if you'd like to start over/i.test(text)) {
     return { flow: null, collectedFields: {}, currentQuestion: 0, awaitingConfirmation: false };
   }
 
-  // Advance question counter by detecting what Jarvis is asking about
   const flowConfig = FLOW_FIELD_MAP[currentFlow.flow];
   if (flowConfig) {
     const fields = flowConfig.fields;
     let maxQ = currentFlow.currentQuestion;
     for (let i = 0; i < fields.length; i++) {
       const field = fields[i];
-      // If the response mentions collecting this field, we're at least at this step
       if (lower.includes(field) || (field === 'name' && /what('s| is).*name/i.test(text))) {
         maxQ = Math.max(maxQ, i);
       }
@@ -133,7 +162,6 @@ function detectFlowFromResponse(text: string, currentFlow: JarvisFlowState): Jar
   return currentFlow;
 }
 
-/** Get the data-jarvis-id to highlight for the current flow step */
 export function getFlowHighlightId(flowState: JarvisFlowState): string | null {
   if (!flowState.flow) return null;
   const config = FLOW_FIELD_MAP[flowState.flow];
@@ -155,23 +183,22 @@ export interface JarvisMessage {
   guidedTour?: GuidedTourStep[];
   suggestions?: JarvisSuggestion[];
   actionPayload?: JarvisActionPayload;
+  /** Inline confirmation card data */
+  confirmCard?: ConfirmCardData;
+  /** Duplicate matches from search-first flow */
+  duplicateMatches?: Array<{ id: string; name: string; location?: string }>;
 }
 
 const TIMEOUT_MS = 30_000;
 const MAX_CONTEXT_MESSAGES = 20;
 
-/** Strip UUIDs (8-4-4-4-12 hex format) and long numeric IDs from Jarvis responses */
 function stripIds(text: string): string {
-  // Remove UUIDs
   let cleaned = text.replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '');
-  // Remove orphaned labels like "record number ", "ID: ", "id: " left behind
   cleaned = cleaned.replace(/\b(record\s*(number|id)|ID)\s*[:=]?\s*,?\s*/gi, '');
-  // Clean up extra whitespace and trailing commas/periods from removal
   cleaned = cleaned.replace(/\s{2,}/g, ' ').replace(/\s+([.,])/g, '$1').trim();
   return cleaned;
 }
 
-/** Map of entity types to all React Query keys that should be invalidated */
 const ENTITY_QUERY_KEY_MAP: Record<string, string[]> = {
   companies: ['companies', 'canvas-companies'],
   contacts: ['contacts', 'company-contacts'],
@@ -193,6 +220,7 @@ export function useJarvis() {
   const [messages, setMessages] = useState<JarvisMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [flowState, setFlowState] = useState<JarvisFlowState>(INITIAL_FLOW_STATE);
+  const [entityContext, setEntityContext] = useState<JarvisContext>(INITIAL_CONTEXT);
   const abortRef = useRef<AbortController | null>(null);
   const { user } = useAuth();
   const [userFirstName, setUserFirstName] = useState("");
@@ -201,7 +229,6 @@ export function useJarvis() {
 
   useEffect(() => {
     if (!user) return;
-    // Always fetch from profiles to get preferred_name
     supabase
       .from("profiles" as any)
       .select("first_name, preferred_name")
@@ -220,6 +247,60 @@ export function useJarvis() {
       });
   }, [user]);
 
+  /** Register a created entity into session memory */
+  const registerEntity = useCallback((entity: JarvisEntityRef) => {
+    setEntityContext(prev => addEntity(prev, entity));
+    console.log("[Jarvis] Entity registered:", entity.type, entity.name, entity.id);
+  }, []);
+
+  /** Direct save from a confirmation card — calls Supabase and registers the entity */
+  const saveFromCard = useCallback(async (
+    cardType: ConfirmCardData["cardType"],
+    fields: Record<string, string>,
+    resolvedIds?: Record<string, string>,
+  ): Promise<{ success: boolean; id?: string; name?: string; error?: string }> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("jarvis-assistant", {
+        body: {
+          direct_save: true,
+          card_type: cardType,
+          fields,
+          resolved_ids: resolvedIds,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      const created = data?.created;
+      if (created?.id) {
+        const entity: JarvisEntityRef = {
+          type: cardType,
+          id: created.id,
+          name: created.name || fields.name || `${fields.first_name || ''} ${fields.last_name || ''}`.trim(),
+          timestamp: Date.now(),
+          crmId: created.crm_id,
+        };
+        registerEntity(entity);
+
+        // Invalidate relevant queries
+        const keysToInvalidate = ENTITY_QUERY_KEY_MAP[created.entity_type] || ENTITY_QUERY_KEY_MAP[cardType + 's'] || [];
+        for (const key of keysToInvalidate) {
+          queryClient.invalidateQueries({ queryKey: [key] });
+        }
+        // Also invalidate the paired table queries
+        if (cardType === 'company') {
+          queryClient.invalidateQueries({ queryKey: ['companies'] });
+          queryClient.invalidateQueries({ queryKey: ['crm_companies'] });
+        }
+      }
+
+      return { success: true, id: created?.id, name: created?.name };
+    } catch (e: any) {
+      console.error("[Jarvis] Card save error:", e);
+      return { success: false, error: e?.message || "Save failed" };
+    }
+  }, [registerEntity, queryClient]);
+
   const sendMessage = useCallback(
     async (userMessage: string) => {
       const userMsg: JarvisMessage = { role: "user", content: userMessage };
@@ -235,6 +316,8 @@ export function useJarvis() {
 
       try {
         const navHistory = getJarvisNavHistory();
+        const entityMemory = contextToPromptLines(entityContext);
+
         const { data, error } = await supabase.functions.invoke(
           "jarvis-assistant",
           {
@@ -244,6 +327,7 @@ export function useJarvis() {
               user_first_name: userFirstName,
               nav_history: navHistory.slice(-20).map(e => ({ path: e.path, label: e.label })),
               flow_state: flowState.flow ? flowState : undefined,
+              entity_memory: entityMemory || undefined,
             },
           }
         );
@@ -253,12 +337,26 @@ export function useJarvis() {
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
 
-        // Strip UUIDs from the response text
         const responseText: string = stripIds(data.response || "");
         const actionsExecuted: JarvisAction[] = data.actions_executed || [];
         const invalidateQueryKeys: string[] = data.invalidate_queries || [];
 
-        // Invalidate React Query caches — expand entity types to all relevant query keys
+        // Update entity context from successful actions
+        if (data.created_entities && Array.isArray(data.created_entities)) {
+          for (const ce of data.created_entities) {
+            if (ce.id && ce.name && ce.type) {
+              registerEntity({
+                type: ce.type,
+                id: ce.id,
+                name: ce.name,
+                timestamp: Date.now(),
+                crmId: ce.crm_id,
+              });
+            }
+          }
+        }
+
+        // Invalidate React Query caches
         const allKeysToInvalidate = new Set<string>();
         for (const queryKey of invalidateQueryKeys) {
           const mapped = ENTITY_QUERY_KEY_MAP[queryKey];
@@ -268,8 +366,6 @@ export function useJarvis() {
             allKeysToInvalidate.add(queryKey);
           }
         }
-
-        // Also derive from actionsExecuted for comprehensive invalidation
         for (const action of actionsExecuted) {
           if (action.success && action.entityType) {
             const mapped = ENTITY_QUERY_KEY_MAP[action.entityType];
@@ -278,7 +374,6 @@ export function useJarvis() {
             }
           }
         }
-
         if (allKeysToInvalidate.size > 0) {
           for (const key of allKeysToInvalidate) {
             queryClient.invalidateQueries({ queryKey: [key] });
@@ -288,8 +383,21 @@ export function useJarvis() {
 
         const hasSuccessfulMutation = actionsExecuted.some(a => a.success);
 
+        // Parse confirmation card from response
+        let confirmCard: ConfirmCardData | undefined;
+        if (data.confirm_card) {
+          confirmCard = data.confirm_card as ConfirmCardData;
+        }
+
+        // Parse duplicate matches
+        let duplicateMatches: JarvisMessage["duplicateMatches"];
+        if (data.duplicate_matches) {
+          duplicateMatches = data.duplicate_matches;
+        }
+
         const isConfirmation =
           !hasSuccessfulMutation &&
+          !confirmCard &&
           /\b(confirm|shall I|should I|would you like me to|proceed|go ahead|is that correct)\b/i.test(
             responseText
           );
@@ -300,7 +408,6 @@ export function useJarvis() {
             responseText
           );
 
-        // Update flow state based on response
         const newFlowState = detectFlowFromResponse(responseText, flowState);
         setFlowState(newFlowState);
 
@@ -319,6 +426,8 @@ export function useJarvis() {
             guidedTour: data.guided_tour || undefined,
             suggestions: data.suggestions || undefined,
             actionPayload: data.action || undefined,
+            confirmCard,
+            duplicateMatches,
           },
         ]);
 
@@ -347,17 +456,23 @@ export function useJarvis() {
         setIsLoading(false);
       }
     },
-    [messages, userFirstName, queryClient, flowState]
+    [messages, userFirstName, queryClient, flowState, entityContext, registerEntity]
   );
 
   const clearHistory = useCallback(() => {
     setMessages([]);
     setFlowState(INITIAL_FLOW_STATE);
+    setEntityContext(INITIAL_CONTEXT);
   }, []);
 
   const cancelFlow = useCallback(() => {
     setFlowState(INITIAL_FLOW_STATE);
   }, []);
 
-  return { messages, isLoading, sendMessage, clearHistory, userFirstName, userPreferredName, flowState, cancelFlow };
+  return {
+    messages, isLoading, sendMessage, clearHistory,
+    userFirstName, userPreferredName, flowState, cancelFlow,
+    entityContext, registerEntity, saveFromCard,
+    setMessages,
+  };
 }

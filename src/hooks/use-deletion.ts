@@ -292,9 +292,7 @@ export function useReviewDeletionRequest() {
     },
     onSuccess: (_, vars) => {
       toast.success(`Request ${vars.action}.`);
-      qc.invalidateQueries({ queryKey: ["deletion_requests"] });
-      qc.invalidateQueries({ queryKey: [vars.recordType] });
-      qc.invalidateQueries({ queryKey: ["recycle_bin"] });
+      invalidateRelated(qc, vars.recordType);
     },
     onError: (err: any) => {
       toast.error("Failed: " + (err.message || "Unknown error"));

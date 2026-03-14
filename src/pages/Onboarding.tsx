@@ -112,6 +112,65 @@ function AnimatedPrompts() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Step 2 — Meet Jarvis (auto-speaks introduction)                    */
+/* ------------------------------------------------------------------ */
+function Step2MeetJarvis({ preferredName, onNext }: { preferredName: string; onNext: () => void }) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Open Jarvis panel
+      window.dispatchEvent(new CustomEvent('jarvis-open'));
+      // Speak the introduction
+      const msg = `Hi ${preferredName}. I'm Jarvis. It's great to meet you. I'm here to help you manage your business, grow your pipeline, and make sure nothing falls through the cracks. Whenever you need me, just tap my button. Let's get started.`;
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(msg);
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+        // Dispatch speaking state for button animation
+        window.dispatchEvent(new CustomEvent('jarvis-speaking', { detail: { speaking: true } }));
+        utterance.onend = () => {
+          window.dispatchEvent(new CustomEvent('jarvis-speaking', { detail: { speaking: false } }));
+        };
+        utterance.onerror = () => {
+          window.dispatchEvent(new CustomEvent('jarvis-speaking', { detail: { speaking: false } }));
+        };
+        window.speechSynthesis.speak(utterance);
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [preferredName]);
+
+  return (
+    <div className="space-y-6 text-center">
+      <div className="flex justify-center">
+        <div className="w-20 h-20 rounded-2xl bg-gradient-primary flex items-center justify-center">
+          <Sparkles className="w-10 h-10 text-white" />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h1 className="text-xl font-semibold text-foreground">Meet Jarvis</h1>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Jarvis is your AI business partner. He lives in the bottom-right corner
+          of every page. Ask him to create deals, find contacts, navigate the app,
+          or pull a report — all by voice or text.
+        </p>
+      </div>
+
+      <AnimatedPrompts />
+
+      <Button onClick={onNext} className="w-full h-11 text-base">
+        Got it →
+      </Button>
+
+      <p className="text-xs text-muted-foreground/70">
+        You can always find Jarvis in the bottom-right corner
+      </p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main Onboarding                                                    */
 /* ------------------------------------------------------------------ */
 const TEAM_SIZES = [
@@ -200,10 +259,24 @@ const Onboarding = () => {
 
   const handleFinish = async () => {
     if (!user) return;
+    // Persist onboarding_phase = 2 and verify
     await supabase
       .from('profiles')
       .update({ onboarding_phase: 2 } as any)
       .eq('id', user.id);
+    // Re-query to confirm persistence
+    const { data: verify } = await supabase
+      .from('profiles')
+      .select('onboarding_phase')
+      .eq('id', user.id)
+      .single();
+    if (verify && (verify as any).onboarding_phase < 2) {
+      // Retry once
+      await supabase
+        .from('profiles')
+        .update({ onboarding_phase: 2 } as any)
+        .eq('id', user.id);
+    }
     sessionStorage.setItem('jarvis_new_user', 'true');
     navigate('/home', { replace: true });
   };
@@ -306,32 +379,15 @@ const Onboarding = () => {
 
             {/* ========== STEP 2 ========== */}
             {step === 2 && (
-              <div className="space-y-6 text-center">
-                <div className="flex justify-center">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-primary flex items-center justify-center">
-                    <Sparkles className="w-10 h-10 text-white" />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h1 className="text-xl font-semibold text-foreground">Meet Jarvis</h1>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Jarvis is your AI business partner. He lives in the bottom-right corner
-                    of every page. Ask him to create deals, find contacts, navigate the app,
-                    or pull a report — all by voice or text.
-                  </p>
-                </div>
-
-                <AnimatedPrompts />
-
-                <Button onClick={goNext} className="w-full h-11 text-base">
-                  Got it →
-                </Button>
-
-                <p className="text-xs text-muted-foreground/70">
-                  You can always find Jarvis in the bottom-right corner
-                </p>
-              </div>
+              <Step2MeetJarvis
+                preferredName={preferredName || firstName}
+                onNext={() => {
+                  // Stop any ongoing speech and close Jarvis
+                  window.speechSynthesis?.cancel();
+                  window.dispatchEvent(new CustomEvent('jarvis-close'));
+                  goNext();
+                }}
+              />
             )}
 
             {/* ========== STEP 3 ========== */}

@@ -160,34 +160,62 @@ All colors MUST be HSL.
 }
 
 /* Jarvis floating button pulsing ring */
-@keyframes jarvis-ring-pulse {
-  0% {
-    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5);
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes jarvis-ring-pulse {
+    0% {
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5);
+    }
+    70% {
+      box-shadow: 0 0 0 10px hsl(var(--primary) / 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+    }
   }
-  70% {
-    box-shadow: 0 0 0 10px hsl(var(--primary) / 0);
+
+  .jarvis-pulse-ring {
+    animation: jarvis-ring-pulse 2s ease-in-out infinite;
   }
-  100% {
-    box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
+
+  /* STATE 2 — Listening: breathing pulse ring */
+  @keyframes jarvis-listening-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 3px hsl(var(--primary) / 0.3);
+      transform: scale(1.0);
+    }
+    50% {
+      box-shadow: 0 0 0 6px hsl(var(--primary) / 0.7);
+      transform: scale(1.08);
+    }
   }
-}
 
-.jarvis-pulse-ring {
-  animation: jarvis-ring-pulse 2s ease-in-out infinite;
-}
+  .jarvis-listening-ring {
+    animation: jarvis-listening-pulse 2s ease-in-out infinite;
+  }
 
-.jarvis-active-ring {
-  box-shadow: 0 0 0 4px hsl(var(--destructive) / 0.3);
-  animation: jarvis-active-pulse 1s ease-in-out infinite;
-}
-
-@keyframes jarvis-active-pulse {
-  0%, 100% {
+  .jarvis-active-ring {
     box-shadow: 0 0 0 4px hsl(var(--destructive) / 0.3);
+    animation: jarvis-active-pulse 1s ease-in-out infinite;
   }
-  50% {
-    box-shadow: 0 0 0 8px hsl(var(--destructive) / 0.15);
+
+  @keyframes jarvis-active-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 4px hsl(var(--destructive) / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 0 8px hsl(var(--destructive) / 0.15);
+    }
   }
+
+  /* STATE 3 — Speaking: sound wave bars */
+  @keyframes jarvis-wave-bar {
+    0%, 100% { transform: scaleY(0.4); }
+    50% { transform: scaleY(1.0); }
+  }
+
+  .jarvis-wave-bar-1 { animation: jarvis-wave-bar 0.6s ease-in-out infinite; }
+  .jarvis-wave-bar-2 { animation: jarvis-wave-bar 0.6s ease-in-out infinite 0.1s; }
+  .jarvis-wave-bar-3 { animation: jarvis-wave-bar 0.6s ease-in-out infinite 0.2s; }
 }
 
 /* ─── Jarvis Visual Effects System ─── */

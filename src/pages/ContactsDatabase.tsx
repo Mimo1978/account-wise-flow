@@ -244,8 +244,8 @@ export default function ContactsDatabase() {
 
   // Get unique values for filters
   const departments = useMemo(() => {
-    const depts = new Set(allContacts.map((c) => c.department));
-    return Array.from(depts).sort();
+    const depts = new Set(allContacts.map((c) => c.department).filter(Boolean));
+    return Array.from(depts).sort() as string[];
   }, [allContacts]);
 
   // Owner filter removed — owner_id is a UUID with no profiles table mapping yet

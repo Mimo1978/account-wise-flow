@@ -172,6 +172,7 @@ const App = () => {
             <Route path="/accounts" element={<ProtectedRoute><ProductLayout><AccountsBillingHub /></ProductLayout></ProtectedRoute>} />
             <Route path="/companies/:id" element={<ProtectedRoute><ProductLayout><CompanyDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/contacts" element={<ProtectedRoute><ProductLayout><ContactsDatabase /></ProductLayout></ProtectedRoute>} />
+            <Route path="/contacts/:id" element={<ProtectedRoute><ProductLayout><ContactDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/talent" element={<ProtectedRoute><ProductLayout><TalentDatabase /></ProductLayout></ProtectedRoute>} />
             <Route path="/talent/:candidateId" element={<ProtectedRoute><ProductLayout><CandidateProfile /></ProductLayout></ProtectedRoute>} />
             <Route path="/outreach" element={<ProtectedRoute><ProductLayout><Outreach /></ProductLayout></ProtectedRoute>} />

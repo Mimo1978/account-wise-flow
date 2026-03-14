@@ -941,6 +941,8 @@ const ProjectDetail = () => {
   const [sowOpen, setSowOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const perm = useDeletionPermission();
 
   const engSows = useMemo(() => {
     if (!engagement) return [];

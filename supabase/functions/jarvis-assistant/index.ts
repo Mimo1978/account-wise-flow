@@ -1198,6 +1198,120 @@ async function getUserTeamId(supabaseAdmin: ReturnType<typeof createClient>, use
   return data?.team_id || null;
 }
 
+async function findExistingCompanyByName(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  companyName: string,
+  teamId: string | null,
+): Promise<{ id: string; name: string } | null> {
+  let q = supabaseAdmin
+    .from("companies")
+    .select("id, name")
+    .ilike("name", companyName)
+    .is("deleted_at", null)
+    .limit(1);
+
+  if (teamId) q = q.eq("team_id", teamId);
+
+  const { data } = await q;
+  return data?.[0] ?? null;
+}
+
+async function resolveCompanyIds(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  inputCompanyId: string | null,
+  userId: string,
+  teamId: string | null,
+): Promise<{ companyId: string | null; crmCompanyId: string | null }> {
+  const rawCompanyId = (inputCompanyId || "").trim();
+  if (!rawCompanyId) return { companyId: null, crmCompanyId: null };
+
+  // Try core companies first
+  const { data: companyRow } = await supabaseAdmin
+    .from("companies")
+    .select("id, name, website, industry, size, switchboard, headquarters")
+    .eq("id", rawCompanyId)
+    .maybeSingle();
+
+  if (companyRow) {
+    let crmCompanyId: string | null = null;
+
+    const { data: crmMatches } = await supabaseAdmin
+      .from("crm_companies")
+      .select("id, name")
+      .ilike("name", companyRow.name)
+      .is("deleted_at", null)
+      .limit(1);
+
+    crmCompanyId = crmMatches?.[0]?.id ?? null;
+
+    if (!crmCompanyId) {
+      const headquartersParts = (companyRow.headquarters || "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+      const { data: createdCrmCompany } = await supabaseAdmin
+        .from("crm_companies")
+        .insert({
+          name: companyRow.name,
+          website: companyRow.website || null,
+          industry: companyRow.industry || null,
+          size: companyRow.size || null,
+          phone: companyRow.switchboard || null,
+          city: headquartersParts[0] || null,
+          country: headquartersParts.length > 1 ? headquartersParts.slice(1).join(", ") : null,
+          created_by: userId,
+        })
+        .select("id")
+        .single();
+
+      crmCompanyId = createdCrmCompany?.id ?? null;
+    }
+
+    return { companyId: companyRow.id, crmCompanyId };
+  }
+
+  // Fallback: try CRM companies and map back to core companies
+  const { data: crmCompanyRow } = await supabaseAdmin
+    .from("crm_companies")
+    .select("id, name, website, industry, size, phone, city, country")
+    .eq("id", rawCompanyId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!crmCompanyRow) {
+    return { companyId: null, crmCompanyId: null };
+  }
+
+  let companyId: string | null = null;
+  const existingCompany = await findExistingCompanyByName(supabaseAdmin, crmCompanyRow.name, teamId);
+
+  if (existingCompany) {
+    companyId = existingCompany.id;
+  } else {
+    const headquarters = [crmCompanyRow.city, crmCompanyRow.country].filter(Boolean).join(", ") || null;
+
+    const { data: createdCompany } = await supabaseAdmin
+      .from("companies")
+      .insert({
+        name: crmCompanyRow.name,
+        website: crmCompanyRow.website || null,
+        industry: crmCompanyRow.industry || null,
+        size: crmCompanyRow.size || null,
+        switchboard: crmCompanyRow.phone || null,
+        headquarters,
+        owner_id: userId,
+        team_id: teamId,
+      })
+      .select("id")
+      .single();
+
+    companyId = createdCompany?.id ?? null;
+  }
+
+  return { companyId, crmCompanyId: crmCompanyRow.id };
+}
+
 // ---------- Tool executors ----------
 async function executeTool(
   toolName: string,
@@ -1207,32 +1321,63 @@ async function executeTool(
 ): Promise<{ result: unknown; entityType: string; entityId?: string }> {
   switch (toolName) {
     case "search_companies": {
-      const { data } = await supabaseAdmin
-        .from("crm_companies")
-        .select("id, name, industry, city, country")
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+
+      let q = supabaseAdmin
+        .from("companies")
+        .select("id, name, industry, headquarters")
         .ilike("name", `%${input.query}%`)
         .is("deleted_at", null)
         .limit(10);
-      return { result: data ?? [], entityType: "crm_companies" };
+
+      if (teamId) q = q.eq("team_id", teamId);
+
+      const { data } = await q;
+      const result = (data ?? []).map((company: any) => ({
+        id: company.id,
+        name: company.name,
+        industry: company.industry,
+        headquarters: company.headquarters,
+        source: "companies",
+      }));
+
+      return { result, entityType: "companies" };
     }
     case "search_contacts": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+
+      const resolved = await resolveCompanyIds(
+        supabaseAdmin,
+        (input.company_id as string) || null,
+        userId,
+        teamId,
+      );
+
       let q = supabaseAdmin
-        .from("crm_contacts")
-        .select("id, first_name, last_name, email, job_title, company_id")
+        .from("contacts")
+        .select("id, name, email, title, company_id")
         .is("deleted_at", null);
-      if (input.company_id) q = q.eq("company_id", input.company_id as string);
-      q = q.or(`first_name.ilike.%${input.query}%,last_name.ilike.%${input.query}%,email.ilike.%${input.query}%`);
+
+      if (teamId) q = q.eq("team_id", teamId);
+      if (resolved.companyId) q = q.eq("company_id", resolved.companyId);
+      q = q.or(`name.ilike.%${input.query}%,email.ilike.%${input.query}%,title.ilike.%${input.query}%`);
+
       const { data } = await q.limit(10);
-      return { result: data ?? [], entityType: "crm_contacts" };
+      return { result: data ?? [], entityType: "contacts" };
     }
     case "create_company": {
+      const normalizedName = (input.name as string)?.trim();
+      if (!normalizedName) {
+        return { result: { error: "Company name is required" }, entityType: "companies" };
+      }
+
       // Build headquarters string from city/country
       const city = (input.city as string) || null;
       const country = (input.country as string) || null;
       const headquarters = [city, country].filter(Boolean).join(", ") || null;
 
-      // Fetch user's workspace/team_id — required for RLS visibility
-      const { data: userRole, error: roleErr } = await supabaseAdmin
+      // Fetch user's workspace/team_id — required for workspace visibility
+      const { data: userRole } = await supabaseAdmin
         .from("user_roles")
         .select("team_id")
         .eq("user_id", userId)
@@ -1241,8 +1386,18 @@ async function executeTool(
       const teamId = userRole?.team_id || null;
       console.log("[create_company] userId:", userId, "team_id:", teamId);
 
+      const existing = await findExistingCompanyByName(supabaseAdmin, normalizedName, teamId);
+      if (existing) {
+        console.log("[create_company] Existing match found — id:", existing.id, "name:", existing.name);
+        return {
+          result: { ...existing, navigate_to: "/companies", matched_existing: true },
+          entityType: "companies",
+          entityId: existing.id,
+        };
+      }
+
       const insertPayload = {
-        name: input.name as string,
+        name: normalizedName,
         website: (input.website as string) || null,
         industry: (input.industry as string) || null,
         headquarters,
@@ -1265,24 +1420,46 @@ async function executeTool(
       return { result: { ...data, navigate_to: "/companies" }, entityType: "companies", entityId: data?.id };
     }
     case "create_contact": {
+      const firstName = (input.first_name as string)?.trim() || "";
+      const lastName = (input.last_name as string)?.trim() || "";
+
+      if (!firstName || !lastName) {
+        return { result: { error: "Both first_name and last_name are required" }, entityType: "contacts" };
+      }
+
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      const resolved = await resolveCompanyIds(
+        supabaseAdmin,
+        (input.company_id as string) || null,
+        userId,
+        teamId,
+      );
+
+      if (input.company_id && !resolved.companyId) {
+        return {
+          result: { error: "Company could not be resolved. Please select an existing company first." },
+          entityType: "contacts",
+        };
+      }
+
+      const fullName = `${firstName} ${lastName}`.trim();
+
       const { data, error } = await supabaseAdmin
-        .from("crm_contacts")
+        .from("contacts")
         .insert({
-          first_name: input.first_name as string,
-          last_name: input.last_name as string,
+          name: fullName,
           email: (input.email as string) || null,
-          company_id: (input.company_id as string) || null,
-          job_title: (input.job_title as string) || null,
+          company_id: resolved.companyId,
+          title: (input.job_title as string) || null,
           phone: (input.phone as string) || null,
-          gdpr_consent: (input.gdpr_consent as boolean) || false,
-          gdpr_consent_method: (input.gdpr_consent_method as string) || null,
-          gdpr_consent_date: input.gdpr_consent ? new Date().toISOString() : null,
-          created_by: userId,
+          owner_id: userId,
+          team_id: teamId,
         })
-        .select("id, first_name, last_name")
+        .select("id, name, email, title, company_id")
         .single();
-      if (error) return { result: { error: error.message }, entityType: "crm_contacts" };
-      return { result: data, entityType: "crm_contacts", entityId: data?.id };
+
+      if (error) return { result: { error: error.message }, entityType: "contacts" };
+      return { result: data, entityType: "contacts", entityId: data?.id };
     }
     case "create_project": {
       const { data, error } = await supabaseAdmin
@@ -1684,14 +1861,41 @@ async function executeTool(
       const name = (input.name as string).trim();
       const teamId = await getUserTeamId(supabaseAdmin, userId);
 
-      // Search both tables using universal helper
-      const companies = await lookupRecord("companies", "name", name, teamId, supabaseAdmin, "team_id");
-      const crmCompanies = await lookupRecord("crm_companies", "name", name, null, supabaseAdmin, "created_by", (q: any) => q.is("deleted_at", null));
+      // Search both company tables, but de-duplicate by name and prefer core companies
+      const companies = await lookupRecord(
+        "companies",
+        "name",
+        name,
+        teamId,
+        supabaseAdmin,
+        "team_id",
+        (q: any) => q.is("deleted_at", null),
+      );
+      const crmCompanies = await lookupRecord(
+        "crm_companies",
+        "name",
+        name,
+        null,
+        supabaseAdmin,
+        "created_by",
+        (q: any) => q.is("deleted_at", null),
+      );
 
-      const allMatches = [
-        ...companies.map((c: any) => ({ id: c.id, name: c.name, source: "companies" })),
-        ...crmCompanies.map((c: any) => ({ id: c.id, name: c.name, source: "crm_companies" })),
-      ];
+      const dedupedByName = new Map<string, { id: string; name: string; source: "companies" | "crm_companies" }>();
+
+      for (const c of companies) {
+        const key = (c.name || "").trim().toLowerCase();
+        if (!key) continue;
+        if (!dedupedByName.has(key)) dedupedByName.set(key, { id: c.id, name: c.name, source: "companies" });
+      }
+
+      for (const c of crmCompanies) {
+        const key = (c.name || "").trim().toLowerCase();
+        if (!key) continue;
+        if (!dedupedByName.has(key)) dedupedByName.set(key, { id: c.id, name: c.name, source: "crm_companies" });
+      }
+
+      const allMatches = Array.from(dedupedByName.values()).slice(0, 5);
       console.log("[lookup_company] query:", name, "workspace:", teamId, "total_matches:", allMatches.length);
 
       if (allMatches.length === 0) {
@@ -2955,6 +3159,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
     const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate", "book_diary_event", "cancel_diary_event", "reschedule_diary_event"]);
     const entityQueryMap: Record<string, string[]> = {
       companies: ["companies", "canvas-companies"],
+      contacts: ["contacts", "company-contacts"],
       crm_companies: ["crm_companies"],
       crm_contacts: ["crm_contacts"],
       crm_projects: ["crm_projects"],

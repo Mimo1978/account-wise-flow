@@ -174,6 +174,7 @@ function stripIds(text: string): string {
 /** Map of entity types to all React Query keys that should be invalidated */
 const ENTITY_QUERY_KEY_MAP: Record<string, string[]> = {
   companies: ['companies', 'canvas-companies'],
+  contacts: ['contacts', 'company-contacts'],
   crm_companies: ['crm_companies'],
   crm_contacts: ['crm_contacts'],
   crm_deals: ['crm_deals'],

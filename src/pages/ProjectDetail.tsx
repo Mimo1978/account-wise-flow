@@ -997,11 +997,26 @@ const ProjectDetail = () => {
             <span className="text-xs text-muted-foreground">· Updated {format(new Date(engagement.updated_at), 'dd MMM yyyy')}</span>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
-          <Pencil className="w-4 h-4" />
-          Edit
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
+            <Pencil className="w-4 h-4" />
+            Edit
+          </Button>
+          {perm.canSeeDeleteOption && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive gap-1.5"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <TrashIcon className="w-4 h-4" />
+              {perm.canDeleteDirectly ? "Delete" : "Request Deletion"}
+            </Button>
+          )}
+        </div>
       </div>
+
+      <DeletionRequestBanner recordType="engagements" recordId={id!} />
 
       {/* Tabs */}
       {(() => {

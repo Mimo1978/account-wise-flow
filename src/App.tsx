@@ -25,6 +25,7 @@ import HomeCommandCenter from "./pages/HomeCommandCenter";
 import ContactsDatabase from "./pages/ContactsDatabase";
 import CompaniesDatabase from "./pages/CompaniesDatabase";
 import CompanyDetail from "./pages/CompanyDetail";
+import ContactDetail from "./pages/ContactDetail";
 import TalentDatabase from "./pages/TalentDatabase";
 import ExecutiveInsights from "./pages/ExecutiveInsights";
 import Demo from "./pages/Demo";

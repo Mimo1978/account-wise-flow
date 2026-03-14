@@ -59,6 +59,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { DeleteRecordModal } from '@/components/deletion/DeleteRecordModal';
+import { DeletionRequestBanner } from '@/components/deletion/DeletionRequestBanner';
+import { useDeletionPermission } from '@/hooks/use-deletion';
+import { Trash2 as TrashIcon } from 'lucide-react';
 
 const STAGE_LABELS: Record<string, string> = {
   pipeline: 'Pipeline',

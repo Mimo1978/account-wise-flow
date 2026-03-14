@@ -2936,7 +2936,18 @@ serve(async (req) => {
       );
     }
 
-    const { user_message, conversation_history, user_first_name, nav_history, flow_state } = await req.json();
+    const body = await req.json();
+    const { user_message, conversation_history, user_first_name, nav_history, flow_state, entity_memory, direct_save } = body;
+
+    // ── Direct save from confirmation card ──
+    if (direct_save) {
+      const { card_type, fields, resolved_ids } = body;
+      const result = await executeDirectSave(card_type, fields, resolved_ids || {}, supabaseAdmin, userId);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!user_message || typeof user_message !== "string") {
       return new Response(JSON.stringify({ error: "user_message is required" }), {
         status: 400,

@@ -231,6 +231,7 @@ export default function CompanyDetail() {
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const [ownerPopoverOpen, setOwnerPopoverOpen] = useState(false);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // ── Fetch company (from companies table) ──
   const { data: rawCompany, isLoading } = useQuery({

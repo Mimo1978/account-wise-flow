@@ -235,7 +235,7 @@ const JobsList = () => {
                       <TableCell className="text-muted-foreground">{(job as any).companies?.name || '—'}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {(job as any).hiring_manager
-                          ? `${(job as any).hiring_manager.first_name} ${(job as any).hiring_manager.last_name}`
+                          ? <span className="text-primary cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${(job as any).hiring_manager.id}`); }}>{(job as any).hiring_manager.first_name} {(job as any).hiring_manager.last_name}</span>
                           : '—'}
                       </TableCell>
                       <TableCell className="capitalize text-muted-foreground">{job.job_type || '—'}</TableCell>

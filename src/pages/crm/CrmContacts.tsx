@@ -115,7 +115,7 @@ export default function CrmContactsPage() {
             ) : sorted.length === 0 ? (
               <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No contacts found</TableCell></TableRow>
             ) : sorted.map(c => (
-              <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/crm/contacts/${c.id}`)}>
+              <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/contacts/${c.id}`)}>
                 <TableCell className="font-medium text-primary">{c.first_name} {c.last_name}</TableCell>
                 <TableCell>
                   {c.crm_companies ? (

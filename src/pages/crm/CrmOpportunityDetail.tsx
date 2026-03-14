@@ -138,7 +138,7 @@ export default function CrmOpportunityDetail() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Contact</span>
-                  <p className="font-medium">{opp.crm_contacts ? `${opp.crm_contacts.first_name} ${opp.crm_contacts.last_name}` : "—"}</p>
+                  <p className="font-medium">{opp.crm_contacts ? <span className="text-primary cursor-pointer hover:underline" onClick={() => navigate(`/contacts/${opp.crm_contacts!.id}`)}>{opp.crm_contacts.first_name} {opp.crm_contacts.last_name}</span> : "—"}</p>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Project</span>

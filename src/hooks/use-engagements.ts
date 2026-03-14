@@ -36,6 +36,7 @@ export function useEngagements(workspaceId: string | undefined, filters?: Engage
         .from('engagements')
         .select('*, companies(name)')
         .eq('workspace_id', workspaceId)
+        .is('deleted_at', null)
         .order('updated_at', { ascending: false });
 
       if (filters?.stage) query = query.eq('stage', filters.stage);

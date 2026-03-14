@@ -19,7 +19,9 @@ export interface Engagement {
   updated_at: string;
   companies?: { name: string } | null;
   contact_id?: string | null;
-  crm_contacts?: { id: string; first_name: string; last_name: string; job_title: string | null } | null;
+  hiring_manager_id?: string | null;
+  primary_contact?: { id: string; first_name: string; last_name: string; job_title: string | null } | null;
+  hiring_manager?: { id: string; first_name: string; last_name: string; job_title: string | null } | null;
 }
 
 export interface EngagementFilters {
@@ -34,7 +36,7 @@ export function useEngagements(workspaceId: string | undefined, filters?: Engage
       if (!workspaceId) return [];
       let query = supabase
         .from('engagements')
-        .select('*, companies(name)')
+        .select('*, companies(name), primary_contact:contact_id(id, first_name, last_name, job_title), hiring_manager:hiring_manager_id(id, first_name, last_name, job_title)')
         .eq('workspace_id', workspaceId)
         .is('deleted_at', null)
         .order('updated_at', { ascending: false });
@@ -44,7 +46,7 @@ export function useEngagements(workspaceId: string | undefined, filters?: Engage
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data ?? []) as Engagement[];
+      return (data ?? []) as unknown as Engagement[];
     },
     enabled: !!workspaceId,
   });
@@ -57,15 +59,20 @@ export function useCreateEngagement() {
       workspace_id: string;
       name: string;
       company_id?: string | null;
+      contact_id?: string | null;
+      hiring_manager_id?: string | null;
       engagement_type?: string;
       stage?: string;
+      health?: string;
       description?: string | null;
       forecast_value?: number;
+      currency?: string;
       start_date?: string | null;
+      end_date?: string | null;
     }) => {
       const { data, error } = await supabase
         .from('engagements')
-        .insert(input)
+        .insert(input as any)
         .select()
         .single();
       if (error) throw error;
@@ -84,12 +91,12 @@ export function useEngagement(id: string | undefined, workspaceId: string | unde
       if (!id || !workspaceId) return null;
       const { data, error } = await supabase
         .from('engagements')
-        .select('*, companies(name), crm_contacts:contact_id(id, first_name, last_name, job_title)')
+        .select('*, companies(name), primary_contact:contact_id(id, first_name, last_name, job_title), hiring_manager:hiring_manager_id(id, first_name, last_name, job_title)')
         .eq('id', id)
         .eq('workspace_id', workspaceId)
         .maybeSingle();
       if (error) throw error;
-      return data as Engagement | null;
+      return data as unknown as Engagement | null;
     },
     enabled: !!id && !!workspaceId,
   });
@@ -98,10 +105,10 @@ export function useEngagement(id: string | undefined, workspaceId: string | unde
 export function useUpdateEngagement() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string } & Partial<Omit<Engagement, 'id' | 'workspace_id' | 'created_at' | 'updated_at' | 'companies'>>) => {
+    mutationFn: async ({ id, ...updates }: { id: string } & Record<string, any>) => {
       const { data, error } = await supabase
         .from('engagements')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id)
         .select()
         .single();

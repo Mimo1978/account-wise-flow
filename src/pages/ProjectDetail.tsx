@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { useEngagement, useUpdateEngagement } from '@/hooks/use-engagements';
+import { useEngagement, useUpdateEngagement, useCreateEngagement } from '@/hooks/use-engagements';
 import { useSows } from '@/hooks/use-sows';
 import { useInvoices } from '@/hooks/use-invoices';
 import {
@@ -47,6 +47,9 @@ import {
   DollarSign,
   UserCircle,
   Search,
+  Copy,
+  Building2,
+  AlertTriangle,
 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
@@ -56,6 +59,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -111,6 +115,349 @@ const STAGES = [
   { value: 'closed_lost', label: 'Closed Lost' },
 ];
 
+/* ─── Unified Company Search Hook ─── */
+function useCompanySearch(workspaceId: string | undefined, open: boolean) {
+  return useQuery({
+    queryKey: ['unified-companies-list', workspaceId],
+    queryFn: async () => {
+      if (!workspaceId) return [];
+      // Fetch from both tables
+      const [nativeRes, crmRes] = await Promise.all([
+        supabase.from('companies').select('id, name, industry').eq('team_id', workspaceId).is('deleted_at', null).order('name'),
+        supabase.from('crm_companies' as any).select('id, name, industry').is('deleted_at', null).order('name'),
+      ]);
+      const native = (nativeRes.data ?? []) as { id: string; name: string; industry: string | null }[];
+      const crm = (crmRes.data ?? []) as { id: string; name: string; industry: string | null }[];
+      // Deduplicate by name, prefer native (since engagements FK → companies)
+      const seen = new Map<string, typeof native[0]>();
+      for (const c of native) seen.set(c.name.toLowerCase(), c);
+      for (const c of crm) {
+        if (!seen.has(c.name.toLowerCase())) seen.set(c.name.toLowerCase(), c);
+      }
+      return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
+    },
+    enabled: !!workspaceId && open,
+  });
+}
+
+/* ─── Contact Search Hook ─── */
+function useContactSearch(searchTerm: string, enabled: boolean, companyId?: string | null) {
+  return useQuery({
+    queryKey: ['crm-contacts-search', searchTerm, companyId],
+    queryFn: async () => {
+      if (!searchTerm.trim()) return [];
+      // First search within company contacts
+      let results: { id: string; first_name: string; last_name: string; job_title: string | null }[] = [];
+      if (companyId) {
+        const { data } = await supabase
+          .from('crm_contacts')
+          .select('id, first_name, last_name, job_title')
+          .eq('company_id', companyId)
+          .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
+          .is('deleted_at', null)
+          .limit(8);
+        results = (data || []) as typeof results;
+      }
+      // If not enough results, search all
+      if (results.length < 5) {
+        const existingIds = results.map(r => r.id);
+        const { data } = await supabase
+          .from('crm_contacts')
+          .select('id, first_name, last_name, job_title')
+          .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
+          .is('deleted_at', null)
+          .limit(8);
+        const extras = ((data || []) as typeof results).filter(c => !existingIds.includes(c.id));
+        results = [...results, ...extras].slice(0, 10);
+      }
+      return results;
+    },
+    enabled: enabled && searchTerm.length > 1,
+  });
+}
+
+/* ─── Inline Contact Picker ─── */
+function InlineContactPicker({
+  label,
+  icon,
+  contactId,
+  engagementId,
+  fieldName,
+  companyId,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  contactId?: string | null;
+  engagementId: string;
+  fieldName: 'contact_id' | 'hiring_manager_id';
+  companyId?: string | null;
+}) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [searching, setSearching] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: contact } = useQuery({
+    queryKey: ['engagement-contact-detail', contactId],
+    queryFn: async () => {
+      if (!contactId) return null;
+      const { data, error } = await supabase
+        .from('crm_contacts')
+        .select('id, first_name, last_name, job_title')
+        .eq('id', contactId)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!contactId,
+  });
+
+  const { data: searchResults = [] } = useContactSearch(searchTerm, searching, companyId);
+
+  const assignContact = async (id: string) => {
+    const { error } = await supabase.from('engagements').update({ [fieldName]: id } as any).eq('id', engagementId);
+    if (error) {
+      toast.error('Failed to assign contact');
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['engagement'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      queryClient.invalidateQueries({ queryKey: ['engagement-contact-detail'] });
+      toast.success(`${label} assigned`);
+    }
+    setSearching(false);
+    setSearchTerm('');
+  };
+
+  const initials = contact ? `${contact.first_name?.[0] ?? ''}${contact.last_name?.[0] ?? ''}`.toUpperCase() : '';
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          {icon} {label}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {contact ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold">
+                {initials}
+              </div>
+              <div>
+                <button
+                  onClick={() => navigate(`/contacts/${contact.id}`)}
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  {contact.first_name} {contact.last_name}
+                </button>
+                {contact.job_title && (
+                  <p className="text-xs text-muted-foreground">{contact.job_title}</p>
+                )}
+              </div>
+            </div>
+            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSearching(true)}>Change</Button>
+          </div>
+        ) : searching ? null : (
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs text-warning border-warning/30 bg-warning/10">
+              <AlertTriangle className="w-3 h-3 mr-1" />
+              Not assigned
+            </Badge>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setSearching(true)}>
+              <UserCircle className="w-3.5 h-3.5" /> Assign {label}
+            </Button>
+          </div>
+        )}
+        {searching && (
+          <div className="mt-2 space-y-1">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                autoFocus
+                placeholder="Search contacts…"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="h-8 text-sm pl-8"
+                onKeyDown={e => { if (e.key === 'Escape') { setSearching(false); setSearchTerm(''); } }}
+              />
+            </div>
+            <div className="max-h-40 overflow-y-auto">
+              {searchResults.map(c => (
+                <button
+                  key={c.id}
+                  className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent transition-colors"
+                  onClick={() => assignContact(c.id)}
+                >
+                  {c.first_name} {c.last_name}
+                  {c.job_title && <span className="text-muted-foreground ml-1">· {c.job_title}</span>}
+                </button>
+              ))}
+              {searchResults.length === 0 && searchTerm.length > 1 && (
+                <p className="text-xs text-muted-foreground px-2 py-1">No contacts found</p>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── Inline Company Assigner ─── */
+function InlineCompanyAssigner({ engagementId, workspaceId }: { engagementId: string; workspaceId: string }) {
+  const queryClient = useQueryClient();
+  const [searching, setSearching] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const { data: companies = [] } = useCompanySearch(workspaceId, searching);
+
+  const filtered = companies.filter(c => !searchTerm.trim() || c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const assign = async (companyId: string) => {
+    const { error } = await supabase.from('engagements').update({ company_id: companyId } as any).eq('id', engagementId);
+    if (error) {
+      toast.error('Failed to assign company');
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['engagement'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      toast.success('Client assigned');
+    }
+    setSearching(false);
+    setSearchTerm('');
+  };
+
+  return searching ? (
+    <div className="space-y-1 mt-1">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <Input
+          autoFocus
+          placeholder="Search companies…"
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          className="h-8 text-sm pl-8"
+          onKeyDown={e => { if (e.key === 'Escape') { setSearching(false); setSearchTerm(''); } }}
+        />
+      </div>
+      <div className="max-h-40 overflow-y-auto border border-border rounded-md">
+        {filtered.map(c => (
+          <button
+            key={c.id}
+            className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors"
+            onClick={() => assign(c.id)}
+          >
+            {c.name}
+            {c.industry && <span className="text-muted-foreground ml-1 text-xs">· {c.industry}</span>}
+          </button>
+        ))}
+        {filtered.length === 0 && <p className="text-xs text-muted-foreground px-3 py-2">No companies found</p>}
+      </div>
+    </div>
+  ) : (
+    <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setSearching(true)}>
+      <Building2 className="w-3.5 h-3.5" /> Assign Client
+    </Button>
+  );
+}
+
+/* ─── Duplicate Project Modal ─── */
+function DuplicateProjectModal({
+  open,
+  onOpenChange,
+  engagement,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  engagement: any;
+}) {
+  const navigate = useNavigate();
+  const createMutation = useCreateEngagement();
+  const [name, setName] = useState('');
+  const [copyDetails, setCopyDetails] = useState(true);
+  const [copyCompany, setCopyCompany] = useState(true);
+  const [copyContact, setCopyContact] = useState(true);
+  const [copyType, setCopyType] = useState(true);
+
+  useEffect(() => {
+    if (open) {
+      setName(`${engagement.name} — Copy`);
+      setCopyDetails(true);
+      setCopyCompany(true);
+      setCopyContact(true);
+      setCopyType(true);
+    }
+  }, [open, engagement]);
+
+  const handleCreate = async () => {
+    if (!name.trim()) return;
+    try {
+      const input: any = {
+        workspace_id: engagement.workspace_id,
+        name: name.trim(),
+        engagement_type: copyType ? engagement.engagement_type : 'consulting',
+        stage: 'pipeline',
+        health: 'green',
+        forecast_value: copyDetails ? engagement.forecast_value : 0,
+        currency: copyDetails ? engagement.currency : 'GBP',
+        description: copyDetails ? engagement.description : null,
+        company_id: copyCompany ? engagement.company_id : null,
+        contact_id: copyContact ? engagement.contact_id : null,
+        hiring_manager_id: copyContact ? (engagement.hiring_manager_id ?? null) : null,
+      };
+      const result = await createMutation.mutateAsync(input);
+      toast.success("Project duplicated. You're now viewing the copy.");
+      onOpenChange(false);
+      navigate(`/projects/${result.id}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to duplicate project');
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Copy className="w-4 h-4" /> Duplicate Project</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>New project name</Label>
+            <Input value={name} onChange={e => setName(e.target.value)} />
+          </div>
+          <div className="space-y-3">
+            <Label className="text-muted-foreground text-xs font-medium">Copy these elements:</Label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={copyDetails} onCheckedChange={(v) => setCopyDetails(!!v)} />
+                Project details & description
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={copyCompany} onCheckedChange={(v) => setCopyCompany(!!v)} />
+                Client company
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={copyContact} onCheckedChange={(v) => setCopyContact(!!v)} />
+                Primary contact & hiring manager
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox checked={copyType} onCheckedChange={(v) => setCopyType(!!v)} />
+                Project type (stage → Pipeline)
+              </label>
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={handleCreate} disabled={!name.trim() || createMutation.isPending}>
+            {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            Create Copy
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 /* ─── Edit Engagement Modal ─── */
 function EditEngagementModal({
   open,
@@ -150,19 +497,7 @@ function EditEngagementModal({
     }
   }, [open, engagement]);
 
-  const { data: companies = [] } = useQuery({
-    queryKey: ['companies-list', currentWorkspace?.id],
-    queryFn: async () => {
-      if (!currentWorkspace?.id) return [];
-      const { data } = await supabase
-        .from('companies')
-        .select('id, name')
-        .eq('team_id', currentWorkspace.id)
-        .order('name');
-      return data ?? [];
-    },
-    enabled: !!currentWorkspace?.id && open,
-  });
+  const { data: companies = [] } = useCompanySearch(currentWorkspace?.id, open);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -290,7 +625,6 @@ function RecentActivitySection({ engagementId, companyId }: { engagementId: stri
   const { data: activities = [], isLoading } = useQuery({
     queryKey: ['project-activity', engagementId],
     queryFn: async () => {
-      // Get audit log entries for this engagement
       const { data: auditData } = await supabase
         .from('audit_log')
         .select('*')
@@ -298,9 +632,7 @@ function RecentActivitySection({ engagementId, companyId }: { engagementId: stri
         .order('changed_at', { ascending: false })
         .limit(10);
 
-      // Also get related invoice/sow changes
       const items: { id: string; action: string; entity_type: string; changed_at: string; summary: string }[] = [];
-      
       if (auditData) {
         auditData.forEach((a: any) => {
           items.push({
@@ -312,7 +644,6 @@ function RecentActivitySection({ engagementId, companyId }: { engagementId: stri
           });
         });
       }
-
       return items;
     },
     enabled: !!engagementId,
@@ -401,114 +732,6 @@ function OriginatingDealCard({ engagementId }: { engagementId: string }) {
             View Deal <ExternalLink className="w-3 h-3" />
           </Button>
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ─── Primary Contact Card ─── */
-function PrimaryContactCard({ engagementId, contactId }: { engagementId: string; contactId?: string | null }) {
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [searching, setSearching] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  const { data: contact } = useQuery({
-    queryKey: ['engagement-contact', contactId],
-    queryFn: async () => {
-      if (!contactId) return null;
-      const { data, error } = await supabase
-        .from('crm_contacts')
-        .select('id, first_name, last_name, job_title')
-        .eq('id', contactId)
-        .single();
-      if (error) return null;
-      return data;
-    },
-    enabled: !!contactId,
-  });
-
-  const { data: searchResults = [] } = useQuery({
-    queryKey: ['crm-contacts-search', searchTerm],
-    queryFn: async () => {
-      if (!searchTerm.trim()) return [];
-      const { data } = await supabase
-        .from('crm_contacts')
-        .select('id, first_name, last_name, job_title')
-        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
-        .limit(8);
-      return (data || []) as { id: string; first_name: string; last_name: string; job_title: string | null }[];
-    },
-    enabled: searching && searchTerm.length > 1,
-  });
-
-  const assignContact = async (id: string) => {
-    const { error } = await supabase.from('engagements').update({ contact_id: id } as any).eq('id', engagementId);
-    if (error) {
-      toast.error('Failed to assign contact');
-    } else {
-      queryClient.invalidateQueries({ queryKey: ['engagement'] });
-      queryClient.invalidateQueries({ queryKey: ['engagement-contact'] });
-      toast.success('Primary contact assigned');
-    }
-    setSearching(false);
-    setSearchTerm('');
-  };
-
-  return (
-    <Card className="mt-4">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <UserCircle className="w-4 h-4" /> Primary Contact
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {contact ? (
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate(`/contacts/${contact.id}`)}
-              className="text-sm font-medium text-primary hover:underline"
-            >
-              {contact.first_name} {contact.last_name}
-              {contact.job_title && <span className="text-muted-foreground font-normal ml-1">· {contact.job_title}</span>}
-            </button>
-            <Button variant="ghost" size="sm" onClick={() => setSearching(true)}>Change</Button>
-          </div>
-        ) : searching ? null : (
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setSearching(true)}>
-            <UserCircle className="w-3.5 h-3.5" /> Assign Contact
-          </Button>
-        )}
-        {searching && (
-          <div className="mt-2 space-y-1">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input
-                autoFocus
-                placeholder="Search contacts…"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="h-8 text-sm pl-8"
-                onKeyDown={e => { if (e.key === 'Escape') { setSearching(false); setSearchTerm(''); } }}
-              />
-            </div>
-            <div className="max-h-40 overflow-y-auto">
-              {searchResults.map(c => (
-                <button
-                  key={c.id}
-                  className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent transition-colors"
-                  onClick={() => assignContact(c.id)}
-                >
-                  {c.first_name} {c.last_name}
-                  {c.job_title && <span className="text-muted-foreground ml-1">· {c.job_title}</span>}
-                </button>
-              ))}
-              {searchResults.length === 0 && searchTerm.length > 1 && (
-                <p className="text-xs text-muted-foreground px-2 py-1">No contacts found</p>
-              )}
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -771,7 +994,6 @@ function ProjectOutreachTab({ engagementId }: { engagementId: string }) {
 
   return (
     <>
-      {/* Action bar */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
           Campaigns ({linkedCampaigns.length})
@@ -788,7 +1010,6 @@ function ProjectOutreachTab({ engagementId }: { engagementId: string }) {
         </div>
       </div>
 
-      {/* Campaign list or empty state */}
       {linkedCampaigns.length === 0 ? (
         <Card className="flex flex-col items-center justify-center text-center p-10">
           <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
@@ -942,6 +1163,7 @@ const ProjectDetail = () => {
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
   const perm = useDeletionPermission();
 
   const engSows = useMemo(() => {
@@ -980,6 +1202,8 @@ const ProjectDetail = () => {
     );
   }
 
+  const hiringManagerLabel = engagement.engagement_type === 'recruitment' ? 'Hiring Manager' : 'Key Stakeholder';
+
   return (
     <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
       {/* Header */}
@@ -991,8 +1215,18 @@ const ProjectDetail = () => {
             <Badge variant="secondary" className="text-xs capitalize">{engagement.engagement_type.replace('_', ' ')}</Badge>
             <Badge variant="outline" className="text-xs">{STAGE_LABELS[engagement.stage] ?? engagement.stage}</Badge>
             <span className={`inline-block w-2.5 h-2.5 rounded-full ${HEALTH_COLORS[engagement.health]?.split(' ')[0] ?? 'bg-muted'}`} />
-            {engagement.companies?.name && (
-              <span className="text-sm text-muted-foreground">· {engagement.companies.name}</span>
+            {engagement.companies?.name ? (
+              <span
+                className="text-sm text-primary cursor-pointer hover:underline font-medium"
+                onClick={() => navigate(`/companies/${engagement.company_id}`)}
+              >
+                {engagement.companies.name}
+              </span>
+            ) : (
+              <Badge variant="outline" className="text-xs text-warning border-warning/30 bg-warning/10">
+                <AlertTriangle className="w-3 h-3 mr-1" />
+                No company
+              </Badge>
             )}
             <span className="text-xs text-muted-foreground">· Updated {format(new Date(engagement.updated_at), 'dd MMM yyyy')}</span>
           </div>
@@ -1001,6 +1235,10 @@ const ProjectDetail = () => {
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
             <Pencil className="w-4 h-4" />
             Edit
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDuplicateOpen(true)}>
+            <Copy className="w-4 h-4" />
+            Duplicate
           </Button>
           {perm.canSeeDeleteOption && (
             <Button
@@ -1045,8 +1283,51 @@ const ProjectDetail = () => {
           {/* Originating Deal */}
           <OriginatingDealCard engagementId={engagement.id} />
 
-          {/* Primary Contact */}
-          <PrimaryContactCard engagementId={engagement.id} contactId={engagement.contact_id} />
+          {/* Client Card + Contacts */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            {/* Client Card */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Building2 className="w-4 h-4" /> Client
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {engagement.companies?.name ? (
+                  <div>
+                    <p
+                      className="text-sm font-medium text-primary cursor-pointer hover:underline"
+                      onClick={() => navigate(`/companies/${engagement.company_id}`)}
+                    >
+                      {engagement.companies.name}
+                    </p>
+                  </div>
+                ) : (
+                  <InlineCompanyAssigner engagementId={engagement.id} workspaceId={currentWorkspace?.id ?? ''} />
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Primary Contact */}
+            <InlineContactPicker
+              label="Primary Contact"
+              icon={<UserCircle className="w-4 h-4" />}
+              contactId={engagement.contact_id}
+              engagementId={engagement.id}
+              fieldName="contact_id"
+              companyId={engagement.company_id}
+            />
+
+            {/* Hiring Manager / Key Stakeholder */}
+            <InlineContactPicker
+              label={hiringManagerLabel}
+              icon={<Users className="w-4 h-4" />}
+              contactId={engagement.hiring_manager_id}
+              engagementId={engagement.id}
+              fieldName="hiring_manager_id"
+              companyId={engagement.company_id}
+            />
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             <Card>
@@ -1208,6 +1489,7 @@ const ProjectDetail = () => {
       <CreateSowModal open={sowOpen} onOpenChange={setSowOpen} />
       <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} />
       <EditEngagementModal open={editOpen} onOpenChange={setEditOpen} engagement={engagement} />
+      <DuplicateProjectModal open={duplicateOpen} onOpenChange={setDuplicateOpen} engagement={engagement} />
       <DeleteRecordModal
         open={deleteOpen}
         onOpenChange={setDeleteOpen}

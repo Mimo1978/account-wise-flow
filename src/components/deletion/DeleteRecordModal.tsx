@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertTriangle, Loader2, Trash2, ShieldAlert, ExternalLink, ArrowRightLeft } from "lucide-react";
+import { AlertTriangle, Loader2, Trash2, ShieldAlert, ExternalLink } from "lucide-react";
 import {
   useDeletionPermission,
   useHardDelete,

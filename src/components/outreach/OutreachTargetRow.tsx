@@ -96,14 +96,14 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
           <button
             className="text-sm font-medium text-left hover:text-primary hover:underline transition-colors line-clamp-1"
             onClick={() => {
-              const campaignParam = currentCampaignId ? `&campaignId=${currentCampaignId}` : "";
-              const profilePath = target.entity_type === "contact" && target.contact_id
-                ? `/contacts?contact=${target.contact_id}&returnTo=outreach${campaignParam}`
-                : target.candidate_id
-                  ? `/talent/${target.candidate_id}?returnTo=outreach${campaignParam}`
-                  : null;
-              if (profilePath) navigate(profilePath);
-              else onOpen(target);
+              if (target.entity_type === "contact" && target.contact_id) {
+                navigate(`/contacts/${target.contact_id}`);
+              } else if (target.candidate_id) {
+                const campaignParam = currentCampaignId ? `?returnTo=outreach&campaignId=${currentCampaignId}` : "";
+                navigate(`/talent/${target.candidate_id}${campaignParam}`);
+              } else {
+                onOpen(target);
+              }
             }}
           >
             {target.entity_name}

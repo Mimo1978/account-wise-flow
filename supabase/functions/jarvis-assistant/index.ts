@@ -2984,6 +2984,11 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 - If the user says "change the [field]", ask for the new value for that specific field.`;
     }
 
+    // Inject entity memory from frontend session
+    if (entity_memory && typeof entity_memory === "string") {
+      systemWithName += `\n\n${entity_memory}`;
+    }
+
     const messages = [
       { role: "system", content: systemWithName },
       ...(conversation_history || []),

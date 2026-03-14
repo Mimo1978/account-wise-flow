@@ -222,6 +222,7 @@ export default function CompanyDetail() {
   const queryClient = useQueryClient();
   const { isAdmin, isManager } = usePermissions();
   const canAssignOwner = isAdmin || isManager;
+  const perm = useDeletionPermission();
 
   const [editOpen, setEditOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);

@@ -110,10 +110,17 @@ export function useSoftDeleteCrmContact() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await fromTable()
-        .update({ deleted_at: new Date().toISOString() } as any)
+        .delete()
         .eq("id", id);
-      if (error) throw error;
+      if (error) {
+        console.error("[useSoftDeleteCrmContact] Delete failed:", error);
+        throw error;
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_contacts"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm_contacts"] });
+      qc.invalidateQueries({ queryKey: ["contacts"] });
+      qc.invalidateQueries({ queryKey: ["all-contacts"] });
+    },
   });
 }

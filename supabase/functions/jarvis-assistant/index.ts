@@ -835,6 +835,8 @@ Canvas intents:
 - "move [person] to report to [person]" → navigate to canvas, highlight the relevant canvas-node-[slugified-name], explain they need to use Edit Structure mode and drag the node
 
 Company/Contact intents:
+- "open [name]'s contact record" / "show me [name]'s contact" / "go to [name]'s page" / "take me to [name]" → use navigate_to_contact_record tool with the contact name. This searches the database and navigates directly to /contacts/[id]. ALWAYS use this tool when the user asks to open, view, or go to a specific person's contact record. Do NOT just navigate to /contacts list page.
+- "open [company name]" / "show me [company]'s record" / "go to [company]" → use navigate_to_company_record tool with the company name. This searches the database and navigates directly to /companies/[id]. ALWAYS use this tool when the user asks to open, view, or go to a specific company's page.
 - "filter my companies by industry" / "sort companies by sector" → navigate to /companies, highlight companies-filter-industry, explain it filters the list
 - "search for a contact" / "find someone" / "look up a person" → navigate to /contacts, highlight contacts-search-input, explain they can type a name or email
 - "import my contacts" / "upload a spreadsheet of contacts" → navigate to /contacts, highlight contacts-import-button

@@ -1686,7 +1686,7 @@ function LogActivityPanel({ open, onClose, companyId, companyName, defaultType, 
         type: isFlag ? "task" : type,
         subject: isFlag ? `Account Flag: ${ACCOUNT_FLAGS.find(f => f.value === flagValue)?.label || flagValue}` : subject,
         body: body || null, company_id: companyId,
-        contact_id: contactId || null,
+        contact_id: contactId && contactId !== "_none" ? contactId : null,
         status: type === "meeting" ? "scheduled" : "completed",
         direction: "outbound",
       } as any);
@@ -1721,7 +1721,7 @@ function LogActivityPanel({ open, onClose, companyId, companyName, defaultType, 
               <Select value={contactId} onValueChange={setContactId}>
                 <SelectTrigger><SelectValue placeholder="Select contact (optional)" /></SelectTrigger>
                 <SelectContent className="bg-popover z-[9999]">
-                  <SelectItem value="">None — company level</SelectItem>
+                  <SelectItem value="_none">None — company level</SelectItem>
                   {contacts.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select></div>

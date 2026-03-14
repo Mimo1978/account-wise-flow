@@ -1686,7 +1686,7 @@ function LogActivityPanel({ open, onClose, companyId, companyName, defaultType, 
         type: isFlag ? "task" : type,
         subject: isFlag ? `Account Flag: ${ACCOUNT_FLAGS.find(f => f.value === flagValue)?.label || flagValue}` : subject,
         body: body || null, company_id: companyId,
-        contact_id: contactId || null,
+        contact_id: contactId && contactId !== "_none" ? contactId : null,
         status: type === "meeting" ? "scheduled" : "completed",
         direction: "outbound",
       } as any);

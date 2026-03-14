@@ -306,32 +306,15 @@ const Onboarding = () => {
 
             {/* ========== STEP 2 ========== */}
             {step === 2 && (
-              <div className="space-y-6 text-center">
-                <div className="flex justify-center">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-primary flex items-center justify-center">
-                    <Sparkles className="w-10 h-10 text-white" />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <h1 className="text-xl font-semibold text-foreground">Meet Jarvis</h1>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Jarvis is your AI business partner. He lives in the bottom-right corner
-                    of every page. Ask him to create deals, find contacts, navigate the app,
-                    or pull a report — all by voice or text.
-                  </p>
-                </div>
-
-                <AnimatedPrompts />
-
-                <Button onClick={goNext} className="w-full h-11 text-base">
-                  Got it →
-                </Button>
-
-                <p className="text-xs text-muted-foreground/70">
-                  You can always find Jarvis in the bottom-right corner
-                </p>
-              </div>
+              <Step2MeetJarvis
+                preferredName={preferredName || firstName}
+                onNext={() => {
+                  // Stop any ongoing speech and close Jarvis
+                  window.speechSynthesis?.cancel();
+                  window.dispatchEvent(new CustomEvent('jarvis-close'));
+                  goNext();
+                }}
+              />
             )}
 
             {/* ========== STEP 3 ========== */}

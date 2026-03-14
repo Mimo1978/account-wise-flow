@@ -1343,6 +1343,153 @@ async function resolveCompanyIds(
   return { companyId, crmCompanyId: crmCompanyRow.id };
 }
 
+// ---------- Direct save from confirmation cards ----------
+async function executeDirectSave(
+  cardType: string,
+  fields: Record<string, string>,
+  resolvedIds: Record<string, string>,
+  supabaseAdmin: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<{ created?: any; error?: string }> {
+  const teamId = await getUserTeamId(supabaseAdmin, userId);
+
+  switch (cardType) {
+    case "company": {
+      const name = fields.name?.trim();
+      if (!name) return { error: "Company name is required" };
+
+      const headquarters = [fields.city, fields.country].filter(Boolean).join(", ") || null;
+
+      const { data, error } = await supabaseAdmin
+        .from("companies")
+        .insert({
+          name,
+          website: fields.website || null,
+          industry: fields.industry || null,
+          headquarters,
+          owner_id: userId,
+          team_id: teamId,
+        })
+        .select("id, name")
+        .single();
+      if (error) return { error: error.message };
+
+      // Sync to crm_companies
+      let crmId: string | null = null;
+      try {
+        const { data: crmData } = await supabaseAdmin
+          .from("crm_companies")
+          .insert({
+            name,
+            website: fields.website || null,
+            industry: fields.industry || null,
+            city: fields.city || null,
+            country: fields.country || null,
+            created_by: userId,
+          })
+          .select("id")
+          .single();
+        crmId = crmData?.id ?? null;
+      } catch {}
+
+      await logAudit(supabaseAdmin, userId, "direct_save_company", "companies", data?.id, "card_save", `created:${data?.name}`);
+      return { created: { id: data?.id, name: data?.name, crm_id: crmId, type: "company", entity_type: "companies" } };
+    }
+    case "contact": {
+      const firstName = fields.first_name?.trim();
+      const lastName = fields.last_name?.trim();
+      if (!firstName || !lastName) return { error: "First and last name are required" };
+
+      const companyId = resolvedIds.company_id || null;
+      const fullName = `${firstName} ${lastName}`;
+
+      const { data, error } = await supabaseAdmin
+        .from("contacts")
+        .insert({
+          name: fullName,
+          email: fields.email || null,
+          company_id: companyId,
+          title: fields.job_title || null,
+          phone: fields.phone || null,
+          owner_id: userId,
+          team_id: teamId,
+        })
+        .select("id, name")
+        .single();
+      if (error) return { error: error.message };
+
+      await logAudit(supabaseAdmin, userId, "direct_save_contact", "contacts", data?.id, "card_save", `created:${data?.name}`);
+      return { created: { id: data?.id, name: data?.name, type: "contact", entity_type: "contacts" } };
+    }
+    case "deal": {
+      const title = fields.title?.trim();
+      if (!title) return { error: "Deal title is required" };
+
+      const resolved = await resolveCompanyIds(supabaseAdmin, resolvedIds.company_id || null, userId, teamId);
+      const { data, error } = await supabaseAdmin
+        .from("crm_deals")
+        .insert({
+          title,
+          company_id: resolved.crmCompanyId || null,
+          value: parseFloat(fields.value) || 0,
+          currency: fields.currency || "GBP",
+          stage: fields.stage || "lead",
+          created_by: userId,
+        })
+        .select("id, title")
+        .single();
+      if (error) return { error: error.message };
+
+      await logAudit(supabaseAdmin, userId, "direct_save_deal", "crm_deals", data?.id, "card_save", `created:${data?.title}`);
+      return { created: { id: data?.id, name: data?.title, type: "deal", entity_type: "crm_deals" } };
+    }
+    case "project": {
+      const name = fields.name?.trim();
+      if (!name) return { error: "Project name is required" };
+
+      const resolved = await resolveCompanyIds(supabaseAdmin, resolvedIds.company_id || null, userId, teamId);
+      const { data, error } = await supabaseAdmin
+        .from("crm_projects")
+        .insert({
+          name,
+          company_id: resolved.crmCompanyId || null,
+          project_type: fields.project_type || null,
+          description: fields.description || null,
+          created_by: userId,
+        })
+        .select("id, name")
+        .single();
+      if (error) return { error: error.message };
+
+      await logAudit(supabaseAdmin, userId, "direct_save_project", "crm_projects", data?.id, "card_save", `created:${data?.name}`);
+      return { created: { id: data?.id, name: data?.name, type: "project", entity_type: "crm_projects" } };
+    }
+    case "opportunity": {
+      const title = fields.title?.trim();
+      if (!title) return { error: "Opportunity title is required" };
+
+      const resolved = await resolveCompanyIds(supabaseAdmin, resolvedIds.company_id || null, userId, teamId);
+      const { data, error } = await supabaseAdmin
+        .from("crm_opportunities")
+        .insert({
+          title,
+          company_id: resolved.crmCompanyId || null,
+          value: parseFloat(fields.value) || 0,
+          stage: fields.stage || "lead",
+          created_by: userId,
+        })
+        .select("id, title")
+        .single();
+      if (error) return { error: error.message };
+
+      await logAudit(supabaseAdmin, userId, "direct_save_opportunity", "crm_opportunities", data?.id, "card_save", `created:${data?.title}`);
+      return { created: { id: data?.id, name: data?.title, type: "opportunity", entity_type: "crm_opportunities" } };
+    }
+    default:
+      return { error: `Unknown card type: ${cardType}` };
+  }
+}
+
 // ---------- Tool executors ----------
 async function executeTool(
   toolName: string,
@@ -2936,7 +3083,18 @@ serve(async (req) => {
       );
     }
 
-    const { user_message, conversation_history, user_first_name, nav_history, flow_state } = await req.json();
+    const body = await req.json();
+    const { user_message, conversation_history, user_first_name, nav_history, flow_state, entity_memory, direct_save } = body;
+
+    // ── Direct save from confirmation card ──
+    if (direct_save) {
+      const { card_type, fields, resolved_ids } = body;
+      const result = await executeDirectSave(card_type, fields, resolved_ids || {}, supabaseAdmin, userId);
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!user_message || typeof user_message !== "string") {
       return new Response(JSON.stringify({ error: "user_message is required" }), {
         status: 400,
@@ -2971,6 +3129,11 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 - If all fields are collected and awaitingConfirmation is false, present a summary and ask to confirm.
 - If the user says "cancel", "stop", or "start over", abort the flow and confirm cancellation.
 - If the user says "change the [field]", ask for the new value for that specific field.`;
+    }
+
+    // Inject entity memory from frontend session
+    if (entity_memory && typeof entity_memory === "string") {
+      systemWithName += `\n\n${entity_memory}`;
     }
 
     const messages = [
@@ -3306,6 +3469,36 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       }
     }
 
+    // Collect created entities for frontend session memory
+    const createdEntities: Array<{ type: string; id: string; name: string; crm_id?: string }> = [];
+    const creationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "create_deal"]);
+    for (const msg of currentMessages) {
+      if ((msg as any).role === "tool" && typeof (msg as any).content === "string") {
+        try {
+          const parsed = JSON.parse((msg as any).content);
+          if (parsed?.id && parsed?.name && !parsed?.error) {
+            // Determine type from the tool call that produced this result
+            const toolCallId = (msg as any).tool_call_id;
+            const matchingAction = actionsExecuted.find(a => a.entityId === parsed.id);
+            const entityType = parsed.matched_existing ? "company" :
+              matchingAction?.tool === "create_company" ? "company" :
+              matchingAction?.tool === "create_contact" ? "contact" :
+              matchingAction?.tool === "create_deal" ? "deal" :
+              matchingAction?.tool === "create_project" ? "project" :
+              matchingAction?.tool === "create_opportunity" ? "opportunity" : null;
+            if (entityType) {
+              createdEntities.push({
+                type: entityType,
+                id: parsed.id,
+                name: parsed.name || parsed.title || "",
+                crm_id: parsed.crm_company_id,
+              });
+            }
+          }
+        } catch {}
+      }
+    }
+
     return new Response(
       JSON.stringify({
         response: responseText,
@@ -3317,6 +3510,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
         action: actionPayload,
         actions_executed: actionsExecuted.filter(a => mutationTools.has(a.tool)),
         invalidate_queries: invalidateQueries,
+        created_entities: createdEntities.length > 0 ? createdEntities : undefined,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

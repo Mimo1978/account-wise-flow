@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { JarvisConfirmationCard, ConfirmCardData } from "@/components/jarvis/JarvisConfirmationCard";
 import {
   Sparkles,
   X,
@@ -27,6 +28,7 @@ import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/sonner";
 import { useJarvisNavigation } from "@/hooks/use-jarvis-navigation";
 import { GuidedTourPlayer } from "@/components/jarvis/GuidedTourPlayer";
 import { jarvisSpotlight } from "@/lib/JarvisSpotlight";
@@ -556,7 +558,7 @@ function useJarvisPauseDetection(onPause: () => void) {
 /*  Chat panel                                                         */
 /* ------------------------------------------------------------------ */
 function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onActiveChange?: (active: boolean) => void }) {
-  const { messages, isLoading, sendMessage, clearHistory, userFirstName, userPreferredName, flowState, cancelFlow } = useJarvis();
+  const { messages, isLoading, sendMessage, clearHistory, userFirstName, userPreferredName, flowState, cancelFlow, saveFromCard, registerEntity, setMessages } = useJarvis();
   const { settings: jarvisSettings } = useJarvisSettings();
   const [input, setInput] = useState("");
   const [keepListening, setKeepListening] = useState(false);
@@ -1137,19 +1139,60 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
               msg.awaitingConfirmation &&
               i === messages.length - 1;
             return (
-              <MessageBubble
-                key={i}
-                message={msg}
-                onConfirm={isLastAssistant ? handleConfirm : undefined}
-                onCancel={isLastAssistant ? handleCancel : undefined}
-                onReplay={msg.role === "assistant" ? () => handleReplay(msg.content) : undefined}
-                onSuggestionClick={(suggestion) => {
-                  jarvisNav.navigateTo(suggestion.destination);
-                }}
-                onNavigate={(dest) => {
-                  jarvisNav.navigateTo(dest);
-                }}
-              />
+              <div key={i} className="flex flex-col gap-2">
+                <MessageBubble
+                  message={msg}
+                  onConfirm={isLastAssistant ? handleConfirm : undefined}
+                  onCancel={isLastAssistant ? handleCancel : undefined}
+                  onReplay={msg.role === "assistant" ? () => handleReplay(msg.content) : undefined}
+                  onSuggestionClick={(suggestion) => {
+                    jarvisNav.navigateTo(suggestion.destination);
+                  }}
+                  onNavigate={(dest) => {
+                    jarvisNav.navigateTo(dest);
+                  }}
+                />
+                {/* Inline confirmation card */}
+                {msg.confirmCard && (
+                  <div className="ml-8">
+                    <JarvisConfirmationCard
+                      card={msg.confirmCard}
+                      onSave={async (fields, resolvedIds) => {
+                        const result = await saveFromCard(msg.confirmCard!.cardType, fields, resolvedIds);
+                        if (result.success) {
+                          // Collapse card by removing it from the message
+                          setMessages(prev => prev.map((m, idx) =>
+                            idx === i ? { ...m, confirmCard: undefined, isSuccess: true } : m
+                          ));
+                          // Add success message
+                          setMessages(prev => [...prev, {
+                            role: "assistant" as const,
+                            content: `${result.name || "Record"} saved.`,
+                            isSuccess: true,
+                          }]);
+                          if (tts.enabled) {
+                            tts.speak(`${result.name || "Record"} saved.`, relistenAfterSpeech);
+                          }
+                        } else {
+                          toast.error(result.error || "Save failed");
+                        }
+                      }}
+                      onCancel={() => {
+                        setMessages(prev => prev.map((m, idx) =>
+                          idx === i ? { ...m, confirmCard: undefined } : m
+                        ));
+                        setMessages(prev => [...prev, {
+                          role: "assistant" as const,
+                          content: "Cancelled.",
+                        }]);
+                        if (tts.enabled) {
+                          tts.speak("Cancelled.", relistenAfterSpeech);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             );
           })}
 

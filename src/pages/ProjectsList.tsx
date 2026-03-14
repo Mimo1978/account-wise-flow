@@ -75,7 +75,7 @@ const ProjectsList = () => {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Client</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Company</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Contact</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Stage</th>

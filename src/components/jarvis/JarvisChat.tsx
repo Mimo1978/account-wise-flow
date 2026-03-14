@@ -28,6 +28,7 @@ import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/sonner";
 import { useJarvisNavigation } from "@/hooks/use-jarvis-navigation";
 import { GuidedTourPlayer } from "@/components/jarvis/GuidedTourPlayer";
 import { jarvisSpotlight } from "@/lib/JarvisSpotlight";

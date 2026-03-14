@@ -126,8 +126,8 @@ function useCompanySearch(workspaceId: string | undefined, open: boolean) {
         supabase.from('companies').select('id, name, industry').eq('team_id', workspaceId).is('deleted_at', null).order('name'),
         supabase.from('crm_companies' as any).select('id, name, industry').is('deleted_at', null).order('name'),
       ]);
-      const native = (nativeRes.data ?? []) as { id: string; name: string; industry: string | null }[];
-      const crm = (crmRes.data ?? []) as { id: string; name: string; industry: string | null }[];
+      const native = (nativeRes.data ?? []) as unknown as { id: string; name: string; industry: string | null }[];
+      const crm = (crmRes.data ?? []) as unknown as { id: string; name: string; industry: string | null }[];
       // Deduplicate by name, prefer native (since engagements FK → companies)
       const seen = new Map<string, typeof native[0]>();
       for (const c of native) seen.set(c.name.toLowerCase(), c);

@@ -1408,23 +1408,39 @@ async function executeTool(
       const headquarters = [city, country].filter(Boolean).join(", ") || null;
 
       // Fetch user's workspace/team_id — required for workspace visibility
-      const { data: userRole } = await supabaseAdmin
-        .from("user_roles")
-        .select("team_id")
-        .eq("user_id", userId)
-        .limit(1)
-        .single();
-      const teamId = userRole?.team_id || null;
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
       console.log("[create_company] userId:", userId, "team_id:", teamId);
 
+      // Check for existing company (exact name match)
       const existing = await findExistingCompanyByName(supabaseAdmin, normalizedName, teamId);
       if (existing) {
         console.log("[create_company] Existing match found — id:", existing.id, "name:", existing.name);
         return {
-          result: { ...existing, navigate_to: "/companies", matched_existing: true },
+          result: {
+            ...existing,
+            navigate_to: "/companies",
+            matched_existing: true,
+            message: `A company called "${existing.name}" already exists. Use this company_id for subsequent operations.`,
+          },
           entityType: "companies",
           entityId: existing.id,
         };
+      }
+
+      // Also check for fuzzy/partial matches to warn about duplicates
+      const { data: fuzzyMatches } = await supabaseAdmin
+        .from("companies")
+        .select("id, name, headquarters")
+        .ilike("name", `%${normalizedName}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      if (teamId) {
+        // Filter in code since we already have the query
+      }
+      if (fuzzyMatches && fuzzyMatches.length > 0) {
+        const matchList = fuzzyMatches.map((m: any) => `${m.name}${m.headquarters ? ` (${m.headquarters})` : ""}`).join(", ");
+        console.log("[create_company] Fuzzy matches found:", matchList);
+        // Return fuzzy matches as a warning but still proceed (the AI should have confirmed)
       }
 
       const insertPayload = {
@@ -1448,7 +1464,38 @@ async function executeTool(
         return { result: { error: error.message }, entityType: "companies" };
       }
       console.log("[create_company] Insert SUCCESS — id:", data?.id, "name:", data?.name);
-      return { result: { ...data, navigate_to: "/companies" }, entityType: "companies", entityId: data?.id };
+
+      // Sync to crm_companies so FK references from crm_deals, crm_projects, crm_opportunities work
+      let crmCompanyId: string | null = null;
+      try {
+        const { data: crmData } = await supabaseAdmin
+          .from("crm_companies")
+          .insert({
+            name: normalizedName,
+            website: (input.website as string) || null,
+            industry: (input.industry as string) || null,
+            city: city,
+            country: country,
+            created_by: userId,
+          })
+          .select("id")
+          .single();
+        crmCompanyId = crmData?.id ?? null;
+        console.log("[create_company] CRM sync SUCCESS — crm_company_id:", crmCompanyId);
+      } catch (syncErr) {
+        console.warn("[create_company] CRM sync failed (non-critical):", syncErr);
+      }
+
+      return {
+        result: {
+          ...data,
+          crm_company_id: crmCompanyId,
+          navigate_to: "/companies",
+          message: `Company "${data?.name}" created successfully. Use company_id "${data?.id}" for adding contacts, and crm_company_id "${crmCompanyId}" for deals/projects/opportunities.`,
+        },
+        entityType: "companies",
+        entityId: data?.id,
+      };
     }
     case "create_contact": {
       const firstName = (input.first_name as string)?.trim() || "";

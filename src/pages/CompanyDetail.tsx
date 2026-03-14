@@ -46,6 +46,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
+import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBanner";
+import { useDeletionPermission } from "@/hooks/use-deletion";
 
 /* ─── helpers ─── */
 const fmtDate = (d?: string | null) => {

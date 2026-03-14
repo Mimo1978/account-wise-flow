@@ -810,14 +810,14 @@ export default function CompanyDetail() {
                     </tr></thead>
                     <tbody>
                       {contacts.map(c => (
-                        <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                          <td className="p-3 font-medium">{c.name}</td>
+                        <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
+                          <td className="p-3 font-medium text-primary hover:underline cursor-pointer">{c.name}</td>
                           <td className="p-3 text-muted-foreground">{c.title || "—"}</td>
                           <td className="p-3 text-muted-foreground">{c.department || "—"}</td>
                           <td className="p-3 text-muted-foreground truncate max-w-[180px]">{c.email || "—"}</td>
                           <td className="p-3 text-muted-foreground">{c.phone || "—"}</td>
                           <td className="p-3 text-muted-foreground">{fmtDate(c.lastContact)}</td>
-                          <td className="p-3">
+                          <td className="p-3" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center gap-1">
                               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setLogActivityType("call"); setLogActivityOpen(true); }}>Call</Button>
                               <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setLogActivityType("email"); setLogActivityOpen(true); }}>Email</Button>

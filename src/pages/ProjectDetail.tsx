@@ -228,6 +228,18 @@ function InlineContactPicker({
     setSearchTerm('');
   };
 
+  const removeContact = async () => {
+    const { error } = await supabase.from('engagements').update({ [fieldName]: null } as any).eq('id', engagementId);
+    if (error) {
+      toast.error('Failed to remove contact');
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['engagement'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      queryClient.invalidateQueries({ queryKey: ['engagement-contact-detail'] });
+      toast.success(`${label} removed`);
+    }
+  };
+
   const initials = contact ? `${contact.first_name?.[0] ?? ''}${contact.last_name?.[0] ?? ''}`.toUpperCase() : '';
 
   return (
@@ -256,7 +268,10 @@ function InlineContactPicker({
                 )}
               </div>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSearching(true)}>Change</Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSearching(true)}>Change</Button>
+              <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={removeContact}>Remove</Button>
+            </div>
           </div>
         ) : searching ? null : (
           <div className="flex items-center gap-2">
@@ -320,7 +335,7 @@ function InlineCompanyAssigner({ engagementId, workspaceId }: { engagementId: st
     } else {
       queryClient.invalidateQueries({ queryKey: ['engagement'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
-      toast.success('Client assigned');
+      toast.success('Company assigned');
     }
     setSearching(false);
     setSearchTerm('');
@@ -355,12 +370,83 @@ function InlineCompanyAssigner({ engagementId, workspaceId }: { engagementId: st
     </div>
   ) : (
     <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setSearching(true)}>
-      <Building2 className="w-3.5 h-3.5" /> Assign Client
+      <Building2 className="w-3.5 h-3.5" /> Assign Company
     </Button>
   );
 }
 
-/* ─── Duplicate Project Modal ─── */
+/* ─── Company Card with remove + contact count ─── */
+function CompanyCard({ engagementId, companyId, companyName, workspaceId }: {
+  engagementId: string;
+  companyId: string | null;
+  companyName?: string | null;
+  workspaceId: string;
+}) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // Count contacts for this company
+  const { data: contactCount } = useQuery({
+    queryKey: ['company-contact-count', companyId],
+    queryFn: async () => {
+      if (!companyId) return 0;
+      // Try both tables
+      const [nativeRes, crmRes] = await Promise.all([
+        supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('company_id', companyId).is('deleted_at', null),
+        supabase.from('crm_contacts').select('id', { count: 'exact', head: true }).eq('company_id', companyId).is('deleted_at', null),
+      ]);
+      return Math.max(nativeRes.count ?? 0, crmRes.count ?? 0);
+    },
+    enabled: !!companyId,
+  });
+
+  const removeCompany = async () => {
+    const { error } = await supabase.from('engagements').update({ company_id: null } as any).eq('id', engagementId);
+    if (error) {
+      toast.error('Failed to remove company');
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['engagement'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      toast.success('Company removed');
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <Building2 className="w-4 h-4" /> Company
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {companyName && companyId ? (
+          <div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p
+                  className="text-sm font-medium text-primary cursor-pointer hover:underline"
+                  onClick={() => navigate(`/companies/${companyId}`)}
+                >
+                  {companyName}
+                </p>
+                {contactCount !== undefined && contactCount > 0 && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    <Users className="w-3 h-3 inline mr-1" />
+                    {contactCount} contact{contactCount !== 1 ? 's' : ''}
+                  </p>
+                )}
+              </div>
+              <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={removeCompany}>Remove</Button>
+            </div>
+          </div>
+        ) : (
+          <InlineCompanyAssigner engagementId={engagementId} workspaceId={workspaceId} />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function DuplicateProjectModal({
   open,
   onOpenChange,
@@ -433,7 +519,7 @@ function DuplicateProjectModal({
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={copyCompany} onCheckedChange={(v) => setCopyCompany(!!v)} />
-                Client company
+                Company
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={copyContact} onCheckedChange={(v) => setCopyContact(!!v)} />
@@ -1283,30 +1369,10 @@ const ProjectDetail = () => {
           {/* Originating Deal */}
           <OriginatingDealCard engagementId={engagement.id} />
 
-          {/* Client Card + Contacts */}
+          {/* Company + Contacts */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            {/* Client Card */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Building2 className="w-4 h-4" /> Client
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {engagement.companies?.name ? (
-                  <div>
-                    <p
-                      className="text-sm font-medium text-primary cursor-pointer hover:underline"
-                      onClick={() => navigate(`/companies/${engagement.company_id}`)}
-                    >
-                      {engagement.companies.name}
-                    </p>
-                  </div>
-                ) : (
-                  <InlineCompanyAssigner engagementId={engagement.id} workspaceId={currentWorkspace?.id ?? ''} />
-                )}
-              </CardContent>
-            </Card>
+            {/* Company Card */}
+            <CompanyCard engagementId={engagement.id} companyId={engagement.company_id} companyName={engagement.companies?.name} workspaceId={currentWorkspace?.id ?? ''} />
 
             {/* Primary Contact */}
             <InlineContactPicker

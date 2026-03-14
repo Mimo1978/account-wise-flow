@@ -75,7 +75,7 @@ const ProjectsList = () => {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Client</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Company</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Contact</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Stage</th>
@@ -103,7 +103,7 @@ const ProjectsList = () => {
                                 <TooltipTrigger asChild>
                                   <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
                                 </TooltipTrigger>
-                                <TooltipContent>No client assigned</TooltipContent>
+                                <TooltipContent>No company assigned</TooltipContent>
                               </Tooltip>
                             )}
                             {eng.name}

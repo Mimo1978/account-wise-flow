@@ -2136,6 +2136,79 @@ async function executeTool(
         entityId: companies[0].id,
       };
     }
+    case "navigate_to_contact_record": {
+      const contactName = (input.contact_name as string).trim();
+      console.log("[navigate_to_contact_record] Searching for:", contactName);
+      
+      // Search contacts table
+      const { data: contacts } = await supabaseAdmin
+        .from("contacts")
+        .select("id, name, title, company_id, companies(name)")
+        .ilike("name", `%${contactName}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      
+      // Search crm_contacts table
+      const { data: crmContacts } = await supabaseAdmin
+        .from("crm_contacts")
+        .select("id, first_name, last_name, job_title, company_id, crm_companies(name)")
+        .or(`first_name.ilike.%${contactName}%,last_name.ilike.%${contactName}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      
+      const allMatches = [
+        ...(contacts ?? []).map((c: any) => ({ id: c.id, name: c.name, title: c.title, company: c.companies?.name, source: "contacts" })),
+        ...(crmContacts ?? []).map((c: any) => ({ id: c.id, name: `${c.first_name} ${c.last_name}`, title: c.job_title, company: c.crm_companies?.name, source: "crm_contacts" })),
+      ];
+      
+      if (allMatches.length === 0) {
+        return { result: { error: `No contact found matching "${contactName}". Try searching on the contacts page.` }, entityType: "contacts" };
+      }
+      
+      // Use first match
+      const match = allMatches[0];
+      console.log("[navigate_to_contact_record] Navigating to:", match.name, match.id);
+      return {
+        result: { navigate_to: `/contacts/${match.id}`, matched_contact: match.name, matched_title: match.title, matched_company: match.company },
+        entityType: "navigation",
+        entityId: match.id,
+      };
+    }
+    case "navigate_to_company_record": {
+      const companyName = (input.company_name as string).trim();
+      console.log("[navigate_to_company_record] Searching for:", companyName);
+      
+      const { data: companies } = await supabaseAdmin
+        .from("companies")
+        .select("id, name, industry")
+        .ilike("name", `%${companyName}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      
+      const { data: crmCompanies } = await supabaseAdmin
+        .from("crm_companies")
+        .select("id, name, industry")
+        .ilike("name", `%${companyName}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      
+      const allMatches = [
+        ...(companies ?? []).map((c: any) => ({ id: c.id, name: c.name, industry: c.industry, source: "companies" })),
+        ...(crmCompanies ?? []).map((c: any) => ({ id: c.id, name: c.name, industry: c.industry, source: "crm_companies" })),
+      ];
+      
+      if (allMatches.length === 0) {
+        return { result: { error: `No company found matching "${companyName}". Try searching on the companies page.` }, entityType: "companies" };
+      }
+      
+      const match = allMatches[0];
+      console.log("[navigate_to_company_record] Navigating to:", match.name, match.id);
+      return {
+        result: { navigate_to: `/companies/${match.id}`, matched_company: match.name, matched_industry: match.industry },
+        entityType: "navigation",
+        entityId: match.id,
+      };
+    }
     case "lookup_company": {
       const name = (input.name as string).trim();
       const teamId = await getUserTeamId(supabaseAdmin, userId);

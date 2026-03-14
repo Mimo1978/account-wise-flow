@@ -46,6 +46,7 @@ const TYPE_LABELS: Record<string, string> = {
   companies: "Company",
   contacts: "Contact",
   jobs: "Job",
+  engagements: "Project",
 };
 
 export function DeleteRecordModal({

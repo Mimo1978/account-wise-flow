@@ -47,10 +47,14 @@ import {
   AlertCircle,
   Users,
   TrendingUp,
+  Trash2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { cn } from "@/lib/utils";
+import { useDeletionPermission, useSoftDelete, useRequestDeletion } from "@/hooks/use-deletion";
+import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
+import { toast } from "sonner";
 
 const getRelationshipStatusConfig = (status?: RelationshipStatus) => {
   switch (status) {
@@ -108,6 +112,10 @@ export default function CompaniesDatabase() {
   // Permissions
   const { role, canInsert, isLoading: permissionsLoading } = usePermissions();
   const insertTooltip = getPermissionTooltip("insert", role);
+  const perm = useDeletionPermission();
+  const softDelete = useSoftDelete();
+  const requestDeletion = useRequestDeletion();
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   
   // Fetch companies from workspace
   const { data: companies = [], isLoading: companiesLoading } = useQuery({
@@ -336,6 +344,44 @@ export default function CompaniesDatabase() {
                 <Network className="h-4 w-4" />
                 View on Canvas
               </Button>
+              {perm.canSeeDeleteOption && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={perm.canDeleteDirectly ? "gap-1.5 text-destructive hover:text-destructive" : "gap-1.5 text-amber-500 hover:text-amber-600"}
+                  onClick={async () => {
+                    if (perm.canDeleteDirectly) {
+                      const ids = Array.from(selectedIds);
+                      for (const cid of ids) {
+                        const company = filteredCompanies.find(c => c.id === cid);
+                        await softDelete.mutateAsync({
+                          recordType: "companies",
+                          recordId: cid,
+                          recordName: company?.name || "Unknown",
+                          reason: "Bulk deletion",
+                        });
+                      }
+                      setSelectedIds(new Set());
+                    } else {
+                      const ids = Array.from(selectedIds);
+                      for (const cid of ids) {
+                        const company = filteredCompanies.find(c => c.id === cid);
+                        await requestDeletion.mutateAsync({
+                          recordType: "companies",
+                          recordId: cid,
+                          recordName: company?.name || "Unknown",
+                          reason: "Bulk deletion request",
+                        });
+                      }
+                      setSelectedIds(new Set());
+                    }
+                  }}
+                  disabled={softDelete.isPending || requestDeletion.isPending}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {perm.canDeleteDirectly ? "Delete Selected" : "Request Deletion"}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"

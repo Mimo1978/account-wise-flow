@@ -36,7 +36,7 @@ import {
   Pencil, Plus, TrendingUp, User, Mail, Clock, FileText, Activity,
   ChevronDown, ExternalLink, DollarSign, Calendar, StickyNote,
   AlertTriangle, CheckCircle2, Info, Loader2, Flag, BookOpen,
-  CalendarClock, Shield, X, PartyPopper, XCircle,
+  CalendarClock, Shield, X, PartyPopper, XCircle, Trash2,
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -45,6 +45,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
+import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBanner";
+import { useDeletionPermission } from "@/hooks/use-deletion";
 
 /* ─── helpers ─── */
 const fmtDate = (d?: string | null) => {
@@ -218,6 +221,7 @@ export default function CompanyDetail() {
   const queryClient = useQueryClient();
   const { isAdmin, isManager } = usePermissions();
   const canAssignOwner = isAdmin || isManager;
+  const perm = useDeletionPermission();
 
   const [editOpen, setEditOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
@@ -231,6 +235,7 @@ export default function CompanyDetail() {
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const [ownerPopoverOpen, setOwnerPopoverOpen] = useState(false);
   const [addLeadOpen, setAddLeadOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // ── Fetch company (from companies table) ──
   const { data: rawCompany, isLoading } = useQuery({
@@ -534,7 +539,21 @@ export default function CompanyDetail() {
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} data-jarvis-id="company-edit-button">
               <Pencil className="h-4 w-4 mr-1" /> Edit
             </Button>
+            {perm.canSeeDeleteOption && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {perm.canDeleteDirectly ? "Delete" : "Request Deletion"}
+              </Button>
+            )}
           </div>
+
+
+          <DeletionRequestBanner recordType="companies" recordId={id!} />
 
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -946,6 +965,16 @@ export default function CompanyDetail() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ─── DELETE MODAL ─── */}
+      <DeleteRecordModal
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        recordType="companies"
+        recordId={id!}
+        recordName={company.name}
+        onDeleted={() => navigate("/companies")}
+      />
 
       {/* ─── ALL SLIDE-IN PANELS ─── */}
       <EditCompanyPanel open={editOpen} onClose={() => setEditOpen(false)} company={company}

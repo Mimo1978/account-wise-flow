@@ -59,6 +59,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { DeleteRecordModal } from '@/components/deletion/DeleteRecordModal';
+import { DeletionRequestBanner } from '@/components/deletion/DeletionRequestBanner';
+import { useDeletionPermission } from '@/hooks/use-deletion';
+import { Trash2 as TrashIcon } from 'lucide-react';
 
 const STAGE_LABELS: Record<string, string> = {
   pipeline: 'Pipeline',
@@ -937,6 +941,8 @@ const ProjectDetail = () => {
   const [sowOpen, setSowOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const perm = useDeletionPermission();
 
   const engSows = useMemo(() => {
     if (!engagement) return [];
@@ -991,11 +997,26 @@ const ProjectDetail = () => {
             <span className="text-xs text-muted-foreground">· Updated {format(new Date(engagement.updated_at), 'dd MMM yyyy')}</span>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
-          <Pencil className="w-4 h-4" />
-          Edit
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
+            <Pencil className="w-4 h-4" />
+            Edit
+          </Button>
+          {perm.canSeeDeleteOption && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive gap-1.5"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <TrashIcon className="w-4 h-4" />
+              {perm.canDeleteDirectly ? "Delete" : "Request Deletion"}
+            </Button>
+          )}
+        </div>
       </div>
+
+      <DeletionRequestBanner recordType="engagements" recordId={id!} />
 
       {/* Tabs */}
       {(() => {
@@ -1187,6 +1208,14 @@ const ProjectDetail = () => {
       <CreateSowModal open={sowOpen} onOpenChange={setSowOpen} />
       <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} />
       <EditEngagementModal open={editOpen} onOpenChange={setEditOpen} engagement={engagement} />
+      <DeleteRecordModal
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        recordType="engagements"
+        recordId={engagement.id}
+        recordName={engagement.name}
+        onDeleted={() => navigate("/projects")}
+      />
     </div>
   );
 };

@@ -18,6 +18,8 @@ export interface Engagement {
   created_at: string;
   updated_at: string;
   companies?: { name: string } | null;
+  contact_id?: string | null;
+  crm_contacts?: { id: string; first_name: string; last_name: string; job_title: string | null } | null;
 }
 
 export interface EngagementFilters {
@@ -81,7 +83,7 @@ export function useEngagement(id: string | undefined, workspaceId: string | unde
       if (!id || !workspaceId) return null;
       const { data, error } = await supabase
         .from('engagements')
-        .select('*, companies(name)')
+        .select('*, companies(name), crm_contacts:contact_id(id, first_name, last_name, job_title)')
         .eq('id', id)
         .eq('workspace_id', workspaceId)
         .maybeSingle();

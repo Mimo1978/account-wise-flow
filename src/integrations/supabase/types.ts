@@ -2696,6 +2696,7 @@ export type Database = {
       engagements: {
         Row: {
           company_id: string | null
+          contact_id: string | null
           created_at: string
           currency: string
           description: string | null
@@ -2713,6 +2714,7 @@ export type Database = {
         }
         Insert: {
           company_id?: string | null
+          contact_id?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -2730,6 +2732,7 @@ export type Database = {
         }
         Update: {
           company_id?: string | null
+          contact_id?: string | null
           created_at?: string
           currency?: string
           description?: string | null
@@ -2751,6 +2754,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
             referencedColumns: ["id"]
           },
           {
@@ -4041,6 +4051,7 @@ export type Database = {
           deletion_scheduled_purge_at: string | null
           end_date: string | null
           full_spec: string | null
+          hiring_manager_id: string | null
           id: string
           is_confidential: boolean
           job_type: string | null
@@ -4079,6 +4090,7 @@ export type Database = {
           deletion_scheduled_purge_at?: string | null
           end_date?: string | null
           full_spec?: string | null
+          hiring_manager_id?: string | null
           id?: string
           is_confidential?: boolean
           job_type?: string | null
@@ -4117,6 +4129,7 @@ export type Database = {
           deletion_scheduled_purge_at?: string | null
           end_date?: string | null
           full_spec?: string | null
+          hiring_manager_id?: string | null
           id?: string
           is_confidential?: boolean
           job_type?: string | null
@@ -4150,6 +4163,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_hiring_manager_id_fkey"
+            columns: ["hiring_manager_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
             referencedColumns: ["id"]
           },
           {

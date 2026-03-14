@@ -45,6 +45,8 @@ import {
   Pencil,
   Activity,
   DollarSign,
+  UserCircle,
+  Search,
 } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
@@ -54,7 +56,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -395,6 +397,114 @@ function OriginatingDealCard({ engagementId }: { engagementId: string }) {
             View Deal <ExternalLink className="w-3 h-3" />
           </Button>
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── Primary Contact Card ─── */
+function PrimaryContactCard({ engagementId, contactId }: { engagementId: string; contactId?: string | null }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [searching, setSearching] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const { data: contact } = useQuery({
+    queryKey: ['engagement-contact', contactId],
+    queryFn: async () => {
+      if (!contactId) return null;
+      const { data, error } = await supabase
+        .from('crm_contacts')
+        .select('id, first_name, last_name, job_title')
+        .eq('id', contactId)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!contactId,
+  });
+
+  const { data: searchResults = [] } = useQuery({
+    queryKey: ['crm-contacts-search', searchTerm],
+    queryFn: async () => {
+      if (!searchTerm.trim()) return [];
+      const { data } = await supabase
+        .from('crm_contacts')
+        .select('id, first_name, last_name, job_title')
+        .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
+        .limit(8);
+      return (data || []) as { id: string; first_name: string; last_name: string; job_title: string | null }[];
+    },
+    enabled: searching && searchTerm.length > 1,
+  });
+
+  const assignContact = async (id: string) => {
+    const { error } = await supabase.from('engagements').update({ contact_id: id } as any).eq('id', engagementId);
+    if (error) {
+      toast.error('Failed to assign contact');
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['engagement'] });
+      queryClient.invalidateQueries({ queryKey: ['engagement-contact'] });
+      toast.success('Primary contact assigned');
+    }
+    setSearching(false);
+    setSearchTerm('');
+  };
+
+  return (
+    <Card className="mt-4">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm flex items-center gap-2">
+          <UserCircle className="w-4 h-4" /> Primary Contact
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {contact ? (
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigate(`/contacts/${contact.id}`)}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {contact.first_name} {contact.last_name}
+              {contact.job_title && <span className="text-muted-foreground font-normal ml-1">· {contact.job_title}</span>}
+            </button>
+            <Button variant="ghost" size="sm" onClick={() => setSearching(true)}>Change</Button>
+          </div>
+        ) : searching ? null : (
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setSearching(true)}>
+            <UserCircle className="w-3.5 h-3.5" /> Assign Contact
+          </Button>
+        )}
+        {searching && (
+          <div className="mt-2 space-y-1">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                autoFocus
+                placeholder="Search contacts…"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="h-8 text-sm pl-8"
+                onKeyDown={e => { if (e.key === 'Escape') { setSearching(false); setSearchTerm(''); } }}
+              />
+            </div>
+            <div className="max-h-40 overflow-y-auto">
+              {searchResults.map(c => (
+                <button
+                  key={c.id}
+                  className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent transition-colors"
+                  onClick={() => assignContact(c.id)}
+                >
+                  {c.first_name} {c.last_name}
+                  {c.job_title && <span className="text-muted-foreground ml-1">· {c.job_title}</span>}
+                </button>
+              ))}
+              {searchResults.length === 0 && searchTerm.length > 1 && (
+                <p className="text-xs text-muted-foreground px-2 py-1">No contacts found</p>
+              )}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -913,6 +1023,9 @@ const ProjectDetail = () => {
         <TabsContent value="overview">
           {/* Originating Deal */}
           <OriginatingDealCard engagementId={engagement.id} />
+
+          {/* Primary Contact */}
+          <PrimaryContactCard engagementId={engagement.id} contactId={engagement.contact_id} />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             <Card>

@@ -12,16 +12,42 @@ interface Props {
   contact: any;
 }
 
-const stageColors: Record<string, string> = {
-  lead: "bg-blue-500/20 text-blue-400",
-  discovery: "bg-cyan-500/20 text-cyan-400",
-  proposal: "bg-amber-500/20 text-amber-400",
-  negotiation: "bg-violet-500/20 text-violet-400",
-  won: "bg-emerald-500/20 text-emerald-400",
-  lost: "bg-red-500/20 text-red-400",
-  closed_won: "bg-emerald-500/20 text-emerald-400",
-  closed_lost: "bg-red-500/20 text-red-400",
+const PIPELINE_STAGES = ["lead", "qualified", "proposal", "negotiation", "won"];
+const PIPELINE_LABELS: Record<string, string> = {
+  lead: "Lead",
+  qualified: "Qualified",
+  proposal: "Proposal",
+  negotiation: "Negotiation",
+  won: "Won",
 };
+
+function PipelineChevron({ currentStage }: { currentStage: string }) {
+  const normalizedStage = currentStage?.toLowerCase().replace("closed_", "") || "";
+  const activeIndex = PIPELINE_STAGES.indexOf(normalizedStage);
+
+  return (
+    <div className="flex items-center gap-0.5 mt-2">
+      {PIPELINE_STAGES.map((stage, i) => {
+        const isActive = i <= activeIndex && activeIndex >= 0;
+        const isLost = normalizedStage === "lost";
+        return (
+          <div
+            key={stage}
+            className={`
+              relative flex-1 h-6 flex items-center justify-center text-[10px] font-medium
+              ${i === 0 ? "rounded-l-md" : ""} 
+              ${i === PIPELINE_STAGES.length - 1 ? "rounded-r-md" : ""}
+              ${isLost ? "bg-red-500/20 text-red-400" : isActive ? "bg-[#378ADD]/20 text-[#378ADD]" : "bg-muted/50 text-muted-foreground/60"}
+              transition-colors
+            `}
+          >
+            {PIPELINE_LABELS[stage]}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export function ContactDetailTabs({ contact }: Props) {
   const navigate = useNavigate();
@@ -86,10 +112,24 @@ export function ContactDetailTabs({ contact }: Props) {
     },
   });
 
+  // Direct project assignments (engagements where contact_id = this contact)
+  const { data: directProjects = [] } = useQuery({
+    queryKey: ["contact-direct-projects", contact.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("engagements")
+        .select("id, name, engagement_type, stage, health")
+        .eq("contact_id", contact.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []).map((p: any) => ({ ...p, _source: "primary" as const }));
+    },
+  });
+
   // Projects linked via deals
   const dealIds = deals.map((d: any) => d.id);
-  const { data: projects = [] } = useQuery({
-    queryKey: ["contact-projects", dealIds],
+  const { data: dealProjects = [] } = useQuery({
+    queryKey: ["contact-deal-projects", dealIds],
     queryFn: async () => {
       if (dealIds.length === 0) return [];
       const { data, error } = await supabase
@@ -99,10 +139,23 @@ export function ContactDetailTabs({ contact }: Props) {
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data || [];
+      return (data || []).map((p: any) => ({ ...p, _source: "deal" as const }));
     },
     enabled: dealIds.length > 0,
   });
+
+  // Combine projects, deduplicating by id
+  const allProjects = (() => {
+    const seen = new Set<string>();
+    const combined: any[] = [];
+    for (const p of directProjects) {
+      if (!seen.has(p.id)) { seen.add(p.id); combined.push(p); }
+    }
+    for (const p of dealProjects) {
+      if (!seen.has(p.id)) { seen.add(p.id); combined.push(p); }
+    }
+    return combined;
+  })();
 
   return (
     <Tabs defaultValue="overview">
@@ -134,7 +187,7 @@ export function ContactDetailTabs({ contact }: Props) {
               />
             ) : (
               <div className="space-y-2">
-                {deals.map((deal: any) => (
+                {deals.slice(0, 3).map((deal: any) => (
                   <button
                     key={deal.id}
                     onClick={() => navigate(`/crm/deals/${deal.id}`)}
@@ -145,9 +198,6 @@ export function ContactDetailTabs({ contact }: Props) {
                       <p className="text-xs text-muted-foreground">{deal.crm_companies?.name || "—"}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={`text-xs ${stageColors[deal.stage] || "bg-muted text-muted-foreground"}`}>
-                        {deal.stage}
-                      </Badge>
                       <span className="text-sm font-medium text-foreground">
                         {deal.currency} {Number(deal.value).toLocaleString()}
                       </span>
@@ -168,24 +218,24 @@ export function ContactDetailTabs({ contact }: Props) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {projects.length === 0 ? (
-              <EmptyState icon={FolderOpen} text="No projects linked via deals" />
+            {allProjects.length === 0 ? (
+              <EmptyState icon={FolderOpen} text="No projects linked" />
             ) : (
               <div className="space-y-2">
-                {projects.map((project: any) => (
+                {allProjects.slice(0, 3).map((project: any) => (
                   <button
                     key={project.id}
-                    onClick={() => navigate(`/crm/projects/${project.id}`)}
+                    onClick={() => navigate(`/projects/${project.id}`)}
                     className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left"
                   >
                     <div>
                       <p className="text-sm font-medium text-foreground">{project.name}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      {project.project_type && (
-                        <Badge variant="outline" className="text-xs">{project.project_type}</Badge>
-                      )}
-                      <Badge variant="outline" className="text-xs">{project.status}</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        {project._source === "primary" ? "Primary contact" : "Deal contact"}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">{project.status || project.stage}</Badge>
                     </div>
                   </button>
                 ))}
@@ -202,10 +252,7 @@ export function ContactDetailTabs({ contact }: Props) {
               Recent Notes
             </CardTitle>
             {notes.length > 3 && (
-              <button
-                className="text-xs text-[#378ADD] hover:underline"
-                onClick={() => {/* switch to timeline tab */}}
-              >
+              <button className="text-xs text-[#378ADD] hover:underline">
                 View all
               </button>
             )}
@@ -243,7 +290,6 @@ export function ContactDetailTabs({ contact }: Props) {
               <EmptyState icon={Clock} text="No activity yet. Add a note to get started." actionLabel="+ Add Note" />
             ) : (
               <div className="space-y-0">
-                {/* Merge notes and audit entries, sorted by date */}
                 {[
                   ...notes.map((n: any) => ({
                     id: n.id,
@@ -283,7 +329,7 @@ export function ContactDetailTabs({ contact }: Props) {
         </Card>
       </TabsContent>
 
-      {/* DEALS TAB */}
+      {/* DEALS TAB — with pipeline chevrons */}
       <TabsContent value="deals" className="mt-4">
         <Card className="bg-[#1A1F2E] border-border">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -301,26 +347,26 @@ export function ContactDetailTabs({ contact }: Props) {
             {deals.length === 0 ? (
               <EmptyState icon={Briefcase} text="No deals linked to this contact" actionLabel="+ Link Deal" />
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {deals.map((deal: any) => (
                   <button
                     key={deal.id}
                     onClick={() => navigate(`/crm/deals/${deal.id}`)}
-                    className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left"
+                    className="w-full p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left"
                   >
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{deal.title}</p>
-                      <p className="text-xs text-muted-foreground">{deal.crm_companies?.name || "—"}</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{deal.title}</p>
+                        <p className="text-xs text-muted-foreground">{deal.crm_companies?.name || "—"}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium">
+                          {deal.currency} {Number(deal.value).toLocaleString()}
+                        </span>
+                        <Badge variant="outline" className="text-xs">{deal.status}</Badge>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className={`text-xs ${stageColors[deal.stage] || ""}`}>
-                        {deal.stage}
-                      </Badge>
-                      <span className="text-sm font-medium">
-                        {deal.currency} {Number(deal.value).toLocaleString()}
-                      </span>
-                      <Badge variant="outline" className="text-xs">{deal.status}</Badge>
-                    </div>
+                    <PipelineChevron currentStage={deal.stage} />
                   </button>
                 ))}
               </div>
@@ -329,21 +375,21 @@ export function ContactDetailTabs({ contact }: Props) {
         </Card>
       </TabsContent>
 
-      {/* PROJECTS TAB */}
+      {/* PROJECTS TAB — combined direct + via deals */}
       <TabsContent value="projects" className="mt-4">
         <Card className="bg-[#1A1F2E] border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Connected Projects</CardTitle>
           </CardHeader>
           <CardContent>
-            {projects.length === 0 ? (
-              <EmptyState icon={FolderOpen} text="No projects connected via deals" />
+            {allProjects.length === 0 ? (
+              <EmptyState icon={FolderOpen} text="No projects connected" />
             ) : (
               <div className="space-y-2">
-                {projects.map((project: any) => (
+                {allProjects.map((project: any) => (
                   <button
                     key={project.id}
-                    onClick={() => navigate(`/crm/projects/${project.id}`)}
+                    onClick={() => navigate(`/projects/${project.id}`)}
                     className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left"
                   >
                     <div>
@@ -353,8 +399,11 @@ export function ContactDetailTabs({ contact }: Props) {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px]">
+                        {project._source === "primary" ? "Primary contact" : "Deal contact"}
+                      </Badge>
                       {project.project_type && <Badge variant="outline" className="text-xs">{project.project_type}</Badge>}
-                      <Badge variant="outline" className="text-xs">{project.status}</Badge>
+                      <Badge variant="outline" className="text-xs">{project.status || project.stage}</Badge>
                     </div>
                   </button>
                 ))}

@@ -90,6 +90,76 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
+/* Hiring Manager inline field */
+function HiringManagerField({ job }: { job: any }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const hm = (job as any).hiring_manager;
+
+  const { data: results = [] } = useQuery({
+    queryKey: ['hm-search', search],
+    queryFn: async () => {
+      if (!search.trim()) return [];
+      const { data } = await supabase
+        .from('crm_contacts')
+        .select('id, first_name, last_name, job_title')
+        .or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%`)
+        .limit(8);
+      return (data || []) as { id: string; first_name: string; last_name: string; job_title: string | null }[];
+    },
+    enabled: open && search.length > 1,
+  });
+
+  const assign = async (contactId: string) => {
+    const { error } = await supabase.from('jobs').update({ hiring_manager_id: contactId } as any).eq('id', job.id);
+    if (!error) {
+      queryClient.invalidateQueries({ queryKey: ['jobs', job.id] });
+      toast.success('Hiring manager assigned');
+    }
+    setOpen(false);
+    setSearch('');
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="hover:text-foreground transition-colors hover:underline">
+          {hm ? (
+            <span onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${hm.id}`); }}>
+              HM: {hm.first_name} {hm.last_name}
+            </span>
+          ) : 'No hiring manager — click to assign'}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-2" align="start">
+        <Input
+          autoFocus
+          placeholder="Search contacts…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="h-8 text-sm mb-1"
+        />
+        <div className="max-h-40 overflow-y-auto">
+          {results.map(c => (
+            <button
+              key={c.id}
+              className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent transition-colors"
+              onClick={() => assign(c.id)}
+            >
+              {c.first_name} {c.last_name}
+              {c.job_title && <span className="text-muted-foreground ml-1">· {c.job_title}</span>}
+            </button>
+          ))}
+          {results.length === 0 && search.length > 1 && (
+            <p className="text-xs text-muted-foreground px-2 py-1">No contacts found</p>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 /* Inline company search dropdown */
 function CompanySearchInline({ search, onSearchChange, onSelect }: { search: string; onSearchChange: (v: string) => void; onSelect: (id: string) => void }) {
@@ -347,6 +417,8 @@ const JobDetail = () => {
             </Popover>
             {job.location && <><span>·</span><span>{job.location}</span></>}
             {job.job_type && <><span>·</span><span>{job.job_type}</span></>}
+            <span>·</span>
+            <HiringManagerField job={job} />
             <span>·</span>
             <ProjectLinker jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} />
           </div>

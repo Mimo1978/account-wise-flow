@@ -848,10 +848,17 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     }
   }, [flowState.flow, flowState.currentQuestion]);
 
-  // One-time greeting per session
-  useEffect(() => {
+  // One-time greeting per session — only on FIRST open
+  const doSessionGreeting = useCallback(() => {
     const alreadyGreeted = sessionStorage.getItem("jarvis_greeted");
-    if (alreadyGreeted || greetingDoneRef.current) return;
+    if (alreadyGreeted || greetingDoneRef.current) {
+      // Subsequent opens: silent, just start listening
+      conversationActiveRef.current = true;
+      if (speech.supported) {
+        speech.startListening();
+      }
+      return;
+    }
     greetingDoneRef.current = true;
     sessionStorage.setItem("jarvis_greeted", "1");
 
@@ -868,9 +875,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
         conversationActiveRef.current = true;
         if (tts.enabled) {
           tts.speak(greeting1, () => {
-            // After first greeting, deliver stats after 2s
             setTimeout(() => {
-              // We'll add a follow-up message (stats come from the edge function or are spoken directly)
               sendMessage("How many active projects and deals do I have?");
             }, 2000);
           });
@@ -908,6 +913,11 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Trigger greeting when panel mounts
+  useEffect(() => {
+    doSessionGreeting();
+  }, [doSessionGreeting]);
 
   // Keep-listening auto-sleep (60s silence → stop)
   useEffect(() => {

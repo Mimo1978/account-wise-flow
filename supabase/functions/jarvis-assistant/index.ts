@@ -1861,14 +1861,41 @@ async function executeTool(
       const name = (input.name as string).trim();
       const teamId = await getUserTeamId(supabaseAdmin, userId);
 
-      // Search both tables using universal helper
-      const companies = await lookupRecord("companies", "name", name, teamId, supabaseAdmin, "team_id");
-      const crmCompanies = await lookupRecord("crm_companies", "name", name, null, supabaseAdmin, "created_by", (q: any) => q.is("deleted_at", null));
+      // Search both company tables, but de-duplicate by name and prefer core companies
+      const companies = await lookupRecord(
+        "companies",
+        "name",
+        name,
+        teamId,
+        supabaseAdmin,
+        "team_id",
+        (q: any) => q.is("deleted_at", null),
+      );
+      const crmCompanies = await lookupRecord(
+        "crm_companies",
+        "name",
+        name,
+        null,
+        supabaseAdmin,
+        "created_by",
+        (q: any) => q.is("deleted_at", null),
+      );
 
-      const allMatches = [
-        ...companies.map((c: any) => ({ id: c.id, name: c.name, source: "companies" })),
-        ...crmCompanies.map((c: any) => ({ id: c.id, name: c.name, source: "crm_companies" })),
-      ];
+      const dedupedByName = new Map<string, { id: string; name: string; source: "companies" | "crm_companies" }>();
+
+      for (const c of companies) {
+        const key = (c.name || "").trim().toLowerCase();
+        if (!key) continue;
+        if (!dedupedByName.has(key)) dedupedByName.set(key, { id: c.id, name: c.name, source: "companies" });
+      }
+
+      for (const c of crmCompanies) {
+        const key = (c.name || "").trim().toLowerCase();
+        if (!key) continue;
+        if (!dedupedByName.has(key)) dedupedByName.set(key, { id: c.id, name: c.name, source: "crm_companies" });
+      }
+
+      const allMatches = Array.from(dedupedByName.values()).slice(0, 5);
       console.log("[lookup_company] query:", name, "workspace:", teamId, "total_matches:", allMatches.length);
 
       if (allMatches.length === 0) {

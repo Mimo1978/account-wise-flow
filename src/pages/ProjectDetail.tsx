@@ -916,6 +916,9 @@ const ProjectDetail = () => {
           {/* Originating Deal */}
           <OriginatingDealCard engagementId={engagement.id} />
 
+          {/* Primary Contact */}
+          <PrimaryContactCard engagementId={engagement.id} contactId={engagement.contact_id} />
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Stage</CardTitle></CardHeader>

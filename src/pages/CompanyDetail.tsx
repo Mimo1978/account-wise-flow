@@ -412,7 +412,10 @@ export default function CompanyDetail() {
       const { error } = await supabase.from("companies").update(updates).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["companies", id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["companies", id] });
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+    },
   });
 
   const handleInlineUpdate = useCallback(async (field: string, value: string) => {

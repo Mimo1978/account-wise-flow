@@ -47,6 +47,7 @@ import {
   AlertCircle,
   Users,
   TrendingUp,
+  Trash2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";

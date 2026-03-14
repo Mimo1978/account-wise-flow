@@ -36,6 +36,7 @@ import {
   Pencil, Plus, TrendingUp, User, Mail, Clock, FileText, Activity,
   ChevronDown, ExternalLink, DollarSign, Calendar, StickyNote,
   AlertTriangle, CheckCircle2, Info, Loader2, Flag, BookOpen,
+  CalendarClock, Shield, X, PartyPopper, XCircle, Trash2,
   CalendarClock, Shield, X, PartyPopper, XCircle,
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";

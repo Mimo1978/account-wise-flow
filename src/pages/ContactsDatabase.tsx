@@ -57,7 +57,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
-import { useDeletionPermission, useSoftDelete, useRequestDeletion } from "@/hooks/use-deletion";
+import { useDeletionPermission, useHardDelete, useRequestDeletion } from "@/hooks/use-deletion";
 import {
   Search,
   Plus,

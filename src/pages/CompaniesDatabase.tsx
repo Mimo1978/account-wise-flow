@@ -112,6 +112,10 @@ export default function CompaniesDatabase() {
   // Permissions
   const { role, canInsert, isLoading: permissionsLoading } = usePermissions();
   const insertTooltip = getPermissionTooltip("insert", role);
+  const perm = useDeletionPermission();
+  const softDelete = useSoftDelete();
+  const requestDeletion = useRequestDeletion();
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   
   // Fetch companies from workspace
   const { data: companies = [], isLoading: companiesLoading } = useQuery({

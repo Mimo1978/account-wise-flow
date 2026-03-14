@@ -552,6 +552,9 @@ export default function CompanyDetail() {
             )}
           </div>
 
+
+          <DeletionRequestBanner recordType="companies" recordId={id!} />
+
           {/* Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <QuickStat icon={TrendingUp} label="Engagement Score" value={`${company.engagement_score || 50}%`} />

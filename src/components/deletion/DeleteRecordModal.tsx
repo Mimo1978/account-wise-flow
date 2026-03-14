@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Loader2, Trash2, ShieldAlert } from "lucide-react";
 import {
   useDeletionPermission,
-  useSoftDelete,
+  useHardDelete,
   useRequestDeletion,
   usePurgeRecord,
   type DeletableRecordType,

@@ -2060,7 +2060,7 @@ async function executeTool(
       let path = entry?.path || "/home";
       if (entityId) {
         if (dest.includes("compan")) path = `/companies/${entityId}`;
-        else if (dest.includes("contact")) path = `/crm/contacts/${entityId}`;
+        else if (dest.includes("contact")) path = `/contacts/${entityId}`;
         else if (dest.includes("deal")) path = `/crm/deals/${entityId}`;
         else if (dest.includes("project")) path = `/crm/projects/${entityId}`;
         else if (dest.includes("invoice")) path = `/crm/invoices/${entityId}`;

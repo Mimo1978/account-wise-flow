@@ -72,6 +72,8 @@ import {
   ScanLine,
   ArrowLeft,
   Megaphone,
+  Megaphone,
+  Trash2,
 } from "lucide-react";
 import {
   departmentOptions,

@@ -90,10 +90,16 @@ export function useSoftDeleteCrmCompany() {
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await fromTable()
-        .update({ deleted_at: new Date().toISOString() } as any)
+        .delete()
         .eq("id", id);
-      if (error) throw error;
+      if (error) {
+        console.error("[useSoftDeleteCrmCompany] Delete failed:", error);
+        throw error;
+      }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_companies"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm_companies"] });
+      qc.invalidateQueries({ queryKey: ["companies"] });
+    },
   });
 }

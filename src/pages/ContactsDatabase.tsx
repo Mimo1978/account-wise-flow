@@ -57,7 +57,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
-import { useDeletionPermission, useSoftDelete, useRequestDeletion } from "@/hooks/use-deletion";
+import { useDeletionPermission, useHardDelete, useRequestDeletion } from "@/hooks/use-deletion";
 import {
   Search,
   Plus,
@@ -147,7 +147,7 @@ export default function ContactsDatabase() {
   const insertTooltip = getPermissionTooltip("insert", role);
   const editTooltip = getPermissionTooltip("edit", role);
   const perm = useDeletionPermission();
-  const softDelete = useSoftDelete();
+  const softDelete = useHardDelete();
   const requestDeletion = useRequestDeletion();
 
   // Debounce search query (300ms)

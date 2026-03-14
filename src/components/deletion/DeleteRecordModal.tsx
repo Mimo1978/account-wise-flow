@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Loader2, Trash2, ShieldAlert } from "lucide-react";
 import {
   useDeletionPermission,
-  useSoftDelete,
+  useHardDelete,
   useRequestDeletion,
   usePurgeRecord,
   type DeletableRecordType,
@@ -62,12 +62,12 @@ export function DeleteRecordModal({
   const [reason, setReason] = useState("");
   const [confirmText, setConfirmText] = useState("");
   const perm = useDeletionPermission();
-  const softDelete = useSoftDelete();
+  const hardDelete = useHardDelete();
   const requestDeletion = useRequestDeletion();
   const purgeRecord = usePurgeRecord();
 
   const typeLabel = TYPE_LABELS[recordType] || recordType;
-  const isProcessing = softDelete.isPending || requestDeletion.isPending || purgeRecord.isPending;
+  const isProcessing = hardDelete.isPending || requestDeletion.isPending || purgeRecord.isPending;
 
   // Determine which flow to show
   const canDirectDelete = perm.canDeleteDirectly || (perm.canDeleteOwn && isOwner);
@@ -78,9 +78,9 @@ export function DeleteRecordModal({
     onOpenChange(false);
   };
 
-  const handleSoftDelete = async () => {
+  const handleDirectDelete = async () => {
     if (!reason.trim()) return;
-    await softDelete.mutateAsync({
+    await hardDelete.mutateAsync({
       recordType,
       recordId,
       recordName,
@@ -194,7 +194,7 @@ export function DeleteRecordModal({
             <AlertDialogCancel disabled={isProcessing}>Cancel</AlertDialogCancel>
             <Button
               variant="destructive"
-              onClick={handleSoftDelete}
+              onClick={handleDirectDelete}
               disabled={!reason.trim() || isProcessing}
             >
               {isProcessing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}

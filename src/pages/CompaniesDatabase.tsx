@@ -52,7 +52,7 @@ import {
 import { format, parseISO } from "date-fns";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { cn } from "@/lib/utils";
-import { useDeletionPermission, useSoftDelete, useRequestDeletion } from "@/hooks/use-deletion";
+import { useDeletionPermission, useHardDelete, useRequestDeletion } from "@/hooks/use-deletion";
 import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
 import { toast } from "sonner";
 
@@ -113,7 +113,7 @@ export default function CompaniesDatabase() {
   const { role, canInsert, isLoading: permissionsLoading } = usePermissions();
   const insertTooltip = getPermissionTooltip("insert", role);
   const perm = useDeletionPermission();
-  const softDelete = useSoftDelete();
+  const softDelete = useHardDelete();
   const requestDeletion = useRequestDeletion();
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   
@@ -127,6 +127,7 @@ export default function CompaniesDatabase() {
         .from('companies')
         .select('*')
         .eq('team_id', currentWorkspace.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
       
       if (error) {

@@ -58,6 +58,27 @@ export function useDeletionPermission() {
   };
 }
 
+// Cross-table query key invalidation map
+const RELATED_QUERY_KEYS: Record<string, string[][]> = {
+  companies: [["companies"], ["crm_companies"], ["crm-company-sync"]],
+  crm_companies: [["crm_companies"], ["companies"], ["crm-company-sync"]],
+  contacts: [["contacts"], ["all-contacts"], ["crm_contacts"], ["company-contacts"]],
+  crm_contacts: [["crm_contacts"], ["contacts"], ["all-contacts"], ["company-contacts"]],
+  crm_deals: [["crm_deals"], ["deals"], ["company-deals"]],
+  crm_projects: [["crm_projects"], ["company-projects"]],
+  crm_invoices: [["crm_invoices"], ["company-invoices"]],
+  engagements: [["engagements"]],
+  jobs: [["jobs"]],
+  crm_documents: [["crm_documents"]],
+};
+
+function invalidateRelated(qc: ReturnType<typeof useQueryClient>, recordType: string) {
+  const keys = RELATED_QUERY_KEYS[recordType] || [[recordType]];
+  keys.forEach(k => qc.invalidateQueries({ queryKey: k }));
+  qc.invalidateQueries({ queryKey: ["deletion_requests"] });
+  qc.invalidateQueries({ queryKey: ["recycle_bin"] });
+}
+
 export function useSoftDelete() {
   const qc = useQueryClient();
   const { userId } = usePermissions();
@@ -78,7 +99,10 @@ export function useSoftDelete() {
         } as any)
         .eq("id", recordId);
 
-      if (error) throw error;
+      if (error) {
+        console.error(`[useSoftDelete] Failed on ${recordType}/${recordId}:`, error);
+        throw error;
+      }
 
       // Log to audit
       if (currentWorkspace?.id) {
@@ -97,11 +121,53 @@ export function useSoftDelete() {
     },
     onSuccess: (_, vars) => {
       toast.success(`${vars.recordName} has been deleted. Recoverable for 30 days.`);
-      qc.invalidateQueries({ queryKey: [vars.recordType] });
-      qc.invalidateQueries({ queryKey: ["deletion_requests"] });
-      qc.invalidateQueries({ queryKey: ["recycle_bin"] });
+      invalidateRelated(qc, vars.recordType);
     },
     onError: (err: any) => {
+      console.error("[useSoftDelete] Error:", err);
+      toast.error("Failed to delete: " + (err.message || "Unknown error"));
+    },
+  });
+}
+
+export function useHardDelete() {
+  const qc = useQueryClient();
+  const { userId } = usePermissions();
+  const { currentWorkspace } = useWorkspace();
+
+  return useMutation({
+    mutationFn: async ({ recordType, recordId, recordName, reason }: SoftDeleteInput) => {
+      const { error } = await supabase
+        .from(recordType as any)
+        .delete()
+        .eq("id", recordId);
+
+      if (error) {
+        console.error(`[useHardDelete] Failed on ${recordType}/${recordId}:`, error);
+        throw error;
+      }
+
+      // Log to audit
+      if (currentWorkspace?.id) {
+        await supabase.from("audit_log" as any).insert({
+          workspace_id: currentWorkspace.id,
+          entity_type: recordType,
+          entity_id: recordId,
+          action: "record_hard_deleted",
+          changed_by: userId,
+          diff: { record_name: recordName, reason },
+          context: { source: "deletion_system" },
+        } as any);
+      }
+
+      return { recordId, recordType };
+    },
+    onSuccess: (_, vars) => {
+      toast.success(`${vars.recordName} permanently deleted.`);
+      invalidateRelated(qc, vars.recordType);
+    },
+    onError: (err: any) => {
+      console.error("[useHardDelete] Error:", err);
       toast.error("Failed to delete: " + (err.message || "Unknown error"));
     },
   });
@@ -226,9 +292,7 @@ export function useReviewDeletionRequest() {
     },
     onSuccess: (_, vars) => {
       toast.success(`Request ${vars.action}.`);
-      qc.invalidateQueries({ queryKey: ["deletion_requests"] });
-      qc.invalidateQueries({ queryKey: [vars.recordType] });
-      qc.invalidateQueries({ queryKey: ["recycle_bin"] });
+      invalidateRelated(qc, vars.recordType);
     },
     onError: (err: any) => {
       toast.error("Failed: " + (err.message || "Unknown error"));
@@ -269,8 +333,7 @@ export function useRestoreRecord() {
     },
     onSuccess: (_, vars) => {
       toast.success("Record restored successfully.");
-      qc.invalidateQueries({ queryKey: [vars.recordType] });
-      qc.invalidateQueries({ queryKey: ["recycle_bin"] });
+      invalidateRelated(qc, vars.recordType);
     },
     onError: (err: any) => {
       toast.error("Restore failed: " + (err.message || "Unknown error"));
@@ -302,8 +365,7 @@ export function usePurgeRecord() {
     },
     onSuccess: (_, vars) => {
       toast.success("Record permanently purged.");
-      qc.invalidateQueries({ queryKey: [vars.recordType] });
-      qc.invalidateQueries({ queryKey: ["recycle_bin"] });
+      invalidateRelated(qc, vars.recordType);
     },
     onError: (err: any) => {
       toast.error("Purge failed: " + (err.message || "Unknown error"));

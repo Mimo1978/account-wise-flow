@@ -365,8 +365,7 @@ export function usePurgeRecord() {
     },
     onSuccess: (_, vars) => {
       toast.success("Record permanently purged.");
-      qc.invalidateQueries({ queryKey: [vars.recordType] });
-      qc.invalidateQueries({ queryKey: ["recycle_bin"] });
+      invalidateRelated(qc, vars.recordType);
     },
     onError: (err: any) => {
       toast.error("Purge failed: " + (err.message || "Unknown error"));

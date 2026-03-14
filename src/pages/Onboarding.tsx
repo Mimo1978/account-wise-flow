@@ -200,10 +200,24 @@ const Onboarding = () => {
 
   const handleFinish = async () => {
     if (!user) return;
+    // Persist onboarding_phase = 2 and verify
     await supabase
       .from('profiles')
       .update({ onboarding_phase: 2 } as any)
       .eq('id', user.id);
+    // Re-query to confirm persistence
+    const { data: verify } = await supabase
+      .from('profiles')
+      .select('onboarding_phase')
+      .eq('id', user.id)
+      .single();
+    if (verify && (verify as any).onboarding_phase < 2) {
+      // Retry once
+      await supabase
+        .from('profiles')
+        .update({ onboarding_phase: 2 } as any)
+        .eq('id', user.id);
+    }
     sessionStorage.setItem('jarvis_new_user', 'true');
     navigate('/home', { replace: true });
   };

@@ -2699,6 +2699,10 @@ export type Database = {
           contact_id: string | null
           created_at: string
           currency: string
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
+          deletion_scheduled_purge_at: string | null
           description: string | null
           end_date: string | null
           engagement_type: string
@@ -2717,6 +2721,10 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           currency?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           description?: string | null
           end_date?: string | null
           engagement_type?: string
@@ -2735,6 +2743,10 @@ export type Database = {
           contact_id?: string | null
           created_at?: string
           currency?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
+          deletion_scheduled_purge_at?: string | null
           description?: string | null
           end_date?: string | null
           engagement_type?: string

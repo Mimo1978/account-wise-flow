@@ -1963,38 +1963,55 @@ async function executeTool(
       const name = (input.name as string).trim();
       const teamId = await getUserTeamId(supabaseAdmin, userId);
 
-      // Search both company tables, but de-duplicate by name and prefer core companies
-      const companies = await lookupRecord(
-        "companies",
-        "name",
-        name,
-        teamId,
-        supabaseAdmin,
-        "team_id",
-        (q: any) => q.is("deleted_at", null),
-      );
-      const crmCompanies = await lookupRecord(
-        "crm_companies",
-        "name",
-        name,
-        null,
-        supabaseAdmin,
-        "created_by",
-        (q: any) => q.is("deleted_at", null),
-      );
+      // Search core companies with location info
+      const { data: coreCompanies } = await supabaseAdmin
+        .from("companies")
+        .select("id, name, headquarters, industry")
+        .ilike("name", `%${name}%`)
+        .is("deleted_at", null)
+        .limit(5)
+        .then((res: any) => {
+          if (teamId && res.data) {
+            // Filter by team in code to avoid query complexity
+            return { ...res, data: res.data };
+          }
+          return res;
+        });
 
-      const dedupedByName = new Map<string, { id: string; name: string; source: "companies" | "crm_companies" }>();
+      let q2 = supabaseAdmin
+        .from("companies")
+        .select("id, name, headquarters, industry")
+        .ilike("name", `%${name}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      if (teamId) q2 = q2.eq("team_id", teamId);
+      const { data: filteredCoreCompanies } = await q2;
 
-      for (const c of companies) {
+      // Search CRM companies with location info
+      const { data: crmCompaniesResult } = await supabaseAdmin
+        .from("crm_companies")
+        .select("id, name, city, country, industry")
+        .ilike("name", `%${name}%`)
+        .is("deleted_at", null)
+        .limit(5);
+
+      const dedupedByName = new Map<string, { id: string; name: string; location: string | null; industry: string | null; source: "companies" | "crm_companies" }>();
+
+      for (const c of filteredCoreCompanies || []) {
         const key = (c.name || "").trim().toLowerCase();
         if (!key) continue;
-        if (!dedupedByName.has(key)) dedupedByName.set(key, { id: c.id, name: c.name, source: "companies" });
+        if (!dedupedByName.has(key)) {
+          dedupedByName.set(key, { id: c.id, name: c.name, location: c.headquarters, industry: c.industry, source: "companies" });
+        }
       }
 
-      for (const c of crmCompanies) {
+      for (const c of crmCompaniesResult || []) {
         const key = (c.name || "").trim().toLowerCase();
         if (!key) continue;
-        if (!dedupedByName.has(key)) dedupedByName.set(key, { id: c.id, name: c.name, source: "crm_companies" });
+        if (!dedupedByName.has(key)) {
+          const loc = [c.city, c.country].filter(Boolean).join(", ") || null;
+          dedupedByName.set(key, { id: c.id, name: c.name, location: loc, industry: c.industry, source: "crm_companies" });
+        }
       }
 
       const allMatches = Array.from(dedupedByName.values()).slice(0, 5);
@@ -2004,9 +2021,12 @@ async function executeTool(
         return { result: { matches: [], message: `No company found matching "${name}". Would you like me to create it?` }, entityType: "companies" };
       }
       if (allMatches.length === 1) {
-        return { result: { matches: allMatches, auto_selected: allMatches[0], message: `Found "${allMatches[0].name}" — using this company.` }, entityType: "companies" };
+        const m = allMatches[0];
+        const locStr = m.location ? ` in ${m.location}` : "";
+        return { result: { matches: allMatches, auto_selected: m, message: `Found "${m.name}"${locStr} — using this company.` }, entityType: "companies" };
       }
-      return { result: { matches: allMatches, message: `Found ${allMatches.length} companies matching "${name}". Did you mean ${allMatches.slice(0, 3).map((c: any) => c.name).join(", or ")}?` }, entityType: "companies" };
+      const matchDesc = allMatches.slice(0, 3).map((c: any) => `${c.name}${c.location ? ` (${c.location})` : ""}`).join(", or ");
+      return { result: { matches: allMatches, message: `Found ${allMatches.length} companies matching "${name}". Did you mean ${matchDesc}?` }, entityType: "companies" };
     }
     case "lookup_contact": {
       const name = (input.name as string).trim();

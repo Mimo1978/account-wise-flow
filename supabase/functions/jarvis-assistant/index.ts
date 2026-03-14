@@ -290,6 +290,34 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "navigate_to_contact_record",
+      description: "Navigate directly to a specific contact's detail page. Searches for the contact by name and opens their record. Use when the user says 'open [name]'s contact', 'show me [name]'s record', 'go to [name]', 'take me to [name]'s contact page', etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          contact_name: { type: "string", description: "The contact name to search for and navigate to" },
+        },
+        required: ["contact_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "navigate_to_company_record",
+      description: "Navigate directly to a specific company's detail page. Searches for the company by name and opens their record. Use when the user says 'open [company]', 'show me [company]'s record', 'go to [company]', 'take me to [company]'s page', etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          company_name: { type: "string", description: "The company name to search for and navigate to" },
+        },
+        required: ["company_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "lookup_company",
       description: "Look up a company by name within the user's workspace. Use this BEFORE creating contacts, deals, opportunities, or projects that need a company_id. Returns up to 5 matches. If 1 match: use it. If multiple: ask user to pick. If 0: offer to create it.",
       parameters: {
@@ -807,6 +835,8 @@ Canvas intents:
 - "move [person] to report to [person]" → navigate to canvas, highlight the relevant canvas-node-[slugified-name], explain they need to use Edit Structure mode and drag the node
 
 Company/Contact intents:
+- "open [name]'s contact record" / "show me [name]'s contact" / "go to [name]'s page" / "take me to [name]" → use navigate_to_contact_record tool with the contact name. This searches the database and navigates directly to /contacts/[id]. ALWAYS use this tool when the user asks to open, view, or go to a specific person's contact record. Do NOT just navigate to /contacts list page.
+- "open [company name]" / "show me [company]'s record" / "go to [company]" → use navigate_to_company_record tool with the company name. This searches the database and navigates directly to /companies/[id]. ALWAYS use this tool when the user asks to open, view, or go to a specific company's page.
 - "filter my companies by industry" / "sort companies by sector" → navigate to /companies, highlight companies-filter-industry, explain it filters the list
 - "search for a contact" / "find someone" / "look up a person" → navigate to /contacts, highlight contacts-search-input, explain they can type a name or email
 - "import my contacts" / "upload a spreadsheet of contacts" → navigate to /contacts, highlight contacts-import-button
@@ -2104,6 +2134,79 @@ async function executeTool(
         result: { navigate_to: `/canvas?company=${companies[0].id}`, matched_company: companies[0].name },
         entityType: "navigation",
         entityId: companies[0].id,
+      };
+    }
+    case "navigate_to_contact_record": {
+      const contactName = (input.contact_name as string).trim();
+      console.log("[navigate_to_contact_record] Searching for:", contactName);
+      
+      // Search contacts table
+      const { data: contacts } = await supabaseAdmin
+        .from("contacts")
+        .select("id, name, title, company_id, companies(name)")
+        .ilike("name", `%${contactName}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      
+      // Search crm_contacts table
+      const { data: crmContacts } = await supabaseAdmin
+        .from("crm_contacts")
+        .select("id, first_name, last_name, job_title, company_id, crm_companies(name)")
+        .or(`first_name.ilike.%${contactName}%,last_name.ilike.%${contactName}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      
+      const allMatches = [
+        ...(contacts ?? []).map((c: any) => ({ id: c.id, name: c.name, title: c.title, company: c.companies?.name, source: "contacts" })),
+        ...(crmContacts ?? []).map((c: any) => ({ id: c.id, name: `${c.first_name} ${c.last_name}`, title: c.job_title, company: c.crm_companies?.name, source: "crm_contacts" })),
+      ];
+      
+      if (allMatches.length === 0) {
+        return { result: { error: `No contact found matching "${contactName}". Try searching on the contacts page.` }, entityType: "contacts" };
+      }
+      
+      // Use first match
+      const match = allMatches[0];
+      console.log("[navigate_to_contact_record] Navigating to:", match.name, match.id);
+      return {
+        result: { navigate_to: `/contacts/${match.id}`, matched_contact: match.name, matched_title: match.title, matched_company: match.company },
+        entityType: "navigation",
+        entityId: match.id,
+      };
+    }
+    case "navigate_to_company_record": {
+      const companyName = (input.company_name as string).trim();
+      console.log("[navigate_to_company_record] Searching for:", companyName);
+      
+      const { data: companies } = await supabaseAdmin
+        .from("companies")
+        .select("id, name, industry")
+        .ilike("name", `%${companyName}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      
+      const { data: crmCompanies } = await supabaseAdmin
+        .from("crm_companies")
+        .select("id, name, industry")
+        .ilike("name", `%${companyName}%`)
+        .is("deleted_at", null)
+        .limit(5);
+      
+      const allMatches = [
+        ...(companies ?? []).map((c: any) => ({ id: c.id, name: c.name, industry: c.industry, source: "companies" })),
+        ...(crmCompanies ?? []).map((c: any) => ({ id: c.id, name: c.name, industry: c.industry, source: "crm_companies" })),
+      ];
+      
+      if (allMatches.length === 0) {
+        return { result: { error: `No company found matching "${companyName}". Try searching on the companies page.` }, entityType: "companies" };
+      }
+      
+      const match = allMatches[0];
+      console.log("[navigate_to_company_record] Navigating to:", match.name, match.id);
+      return {
+        result: { navigate_to: `/companies/${match.id}`, matched_company: match.name, matched_industry: match.industry },
+        entityType: "navigation",
+        entityId: match.id,
       };
     }
     case "lookup_company": {

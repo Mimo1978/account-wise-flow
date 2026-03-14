@@ -233,6 +233,11 @@ const JobsList = () => {
                     >
                       <TableCell className="font-medium">{job.title}</TableCell>
                       <TableCell className="text-muted-foreground">{(job as any).companies?.name || '—'}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {(job as any).hiring_manager
+                          ? `${(job as any).hiring_manager.first_name} ${(job as any).hiring_manager.last_name}`
+                          : '—'}
+                      </TableCell>
                       <TableCell className="capitalize text-muted-foreground">{job.job_type || '—'}</TableCell>
                       <TableCell className="text-muted-foreground">{job.location || '—'}</TableCell>
                       <TableCell>

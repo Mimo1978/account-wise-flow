@@ -1600,12 +1600,20 @@ async function executeTool(
       return { result: data, entityType: "crm_opportunities", entityId: data?.id };
     }
     case "create_deal": {
+      // crm_deals has FK to crm_companies, so resolve the company ID
+      const dealTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const dealResolved = await resolveCompanyIds(
+        supabaseAdmin,
+        (input.company_id as string) || null,
+        userId,
+        dealTeamId,
+      );
       const { data, error } = await supabaseAdmin
         .from("crm_deals")
         .insert({
           title: input.title as string,
           opportunity_id: (input.opportunity_id as string) || null,
-          company_id: (input.company_id as string) || null,
+          company_id: dealResolved.crmCompanyId || (input.company_id as string) || null,
           value: (input.value as number) || 0,
           signed_date: (input.signed_date as string) || null,
           payment_terms: (input.payment_terms as string) || null,

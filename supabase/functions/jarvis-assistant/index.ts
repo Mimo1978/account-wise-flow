@@ -3469,6 +3469,36 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       }
     }
 
+    // Collect created entities for frontend session memory
+    const createdEntities: Array<{ type: string; id: string; name: string; crm_id?: string }> = [];
+    const creationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "create_deal"]);
+    for (const msg of currentMessages) {
+      if ((msg as any).role === "tool" && typeof (msg as any).content === "string") {
+        try {
+          const parsed = JSON.parse((msg as any).content);
+          if (parsed?.id && parsed?.name && !parsed?.error) {
+            // Determine type from the tool call that produced this result
+            const toolCallId = (msg as any).tool_call_id;
+            const matchingAction = actionsExecuted.find(a => a.entityId === parsed.id);
+            const entityType = parsed.matched_existing ? "company" :
+              matchingAction?.tool === "create_company" ? "company" :
+              matchingAction?.tool === "create_contact" ? "contact" :
+              matchingAction?.tool === "create_deal" ? "deal" :
+              matchingAction?.tool === "create_project" ? "project" :
+              matchingAction?.tool === "create_opportunity" ? "opportunity" : null;
+            if (entityType) {
+              createdEntities.push({
+                type: entityType,
+                id: parsed.id,
+                name: parsed.name || parsed.title || "",
+                crm_id: parsed.crm_company_id,
+              });
+            }
+          }
+        } catch {}
+      }
+    }
+
     return new Response(
       JSON.stringify({
         response: responseText,
@@ -3480,6 +3510,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
         action: actionPayload,
         actions_executed: actionsExecuted.filter(a => mutationTools.has(a.tool)),
         invalidate_queries: invalidateQueries,
+        created_entities: createdEntities.length > 0 ? createdEntities : undefined,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

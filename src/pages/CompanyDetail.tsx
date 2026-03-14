@@ -966,6 +966,16 @@ export default function CompanyDetail() {
         </Tabs>
       </div>
 
+      {/* ─── DELETE MODAL ─── */}
+      <DeleteRecordModal
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        recordType="companies"
+        recordId={id!}
+        recordName={company.name}
+        onDeleted={() => navigate("/companies")}
+      />
+
       {/* ─── ALL SLIDE-IN PANELS ─── */}
       <EditCompanyPanel open={editOpen} onClose={() => setEditOpen(false)} company={company}
         onSaved={() => { setEditOpen(false); handlePanelSaved([["companies", id!]]); }} />

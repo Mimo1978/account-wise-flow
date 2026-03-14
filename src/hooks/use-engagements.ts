@@ -18,6 +18,8 @@ export interface Engagement {
   created_at: string;
   updated_at: string;
   companies?: { name: string } | null;
+  contact_id?: string | null;
+  crm_contacts?: { id: string; first_name: string; last_name: string; job_title: string | null } | null;
 }
 
 export interface EngagementFilters {

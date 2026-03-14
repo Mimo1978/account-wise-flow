@@ -147,7 +147,7 @@ export default function ContactsDatabase() {
   const insertTooltip = getPermissionTooltip("insert", role);
   const editTooltip = getPermissionTooltip("edit", role);
   const perm = useDeletionPermission();
-  const softDelete = useSoftDelete();
+  const softDelete = useHardDelete();
   const requestDeletion = useRequestDeletion();
 
   // Debounce search query (300ms)

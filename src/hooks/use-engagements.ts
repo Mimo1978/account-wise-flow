@@ -81,7 +81,7 @@ export function useEngagement(id: string | undefined, workspaceId: string | unde
       if (!id || !workspaceId) return null;
       const { data, error } = await supabase
         .from('engagements')
-        .select('*, companies(name)')
+        .select('*, companies(name), crm_contacts:contact_id(id, first_name, last_name, job_title)')
         .eq('id', id)
         .eq('workspace_id', workspaceId)
         .maybeSingle();

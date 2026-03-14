@@ -124,7 +124,7 @@ export function useJob(id: string | undefined) {
       if (!id) return null;
       const { data, error } = await supabase
         .from('jobs')
-        .select('*, companies(name)')
+        .select('*, companies(name), hiring_manager:hiring_manager_id(id, first_name, last_name, job_title)')
         .eq('id', id)
         .single();
       if (error) throw error;

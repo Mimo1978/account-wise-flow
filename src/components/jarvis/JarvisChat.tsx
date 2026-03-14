@@ -557,7 +557,7 @@ function useJarvisPauseDetection(onPause: () => void) {
 /*  Chat panel                                                         */
 /* ------------------------------------------------------------------ */
 function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onActiveChange?: (active: boolean) => void }) {
-  const { messages, isLoading, sendMessage, clearHistory, userFirstName, userPreferredName, flowState, cancelFlow } = useJarvis();
+  const { messages, isLoading, sendMessage, clearHistory, userFirstName, userPreferredName, flowState, cancelFlow, saveFromCard, registerEntity, setMessages } = useJarvis();
   const { settings: jarvisSettings } = useJarvisSettings();
   const [input, setInput] = useState("");
   const [keepListening, setKeepListening] = useState(false);

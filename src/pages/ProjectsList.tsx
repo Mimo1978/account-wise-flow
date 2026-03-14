@@ -3,10 +3,11 @@ import { PageBackButton } from '@/components/ui/page-back-button';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useEngagements } from '@/hooks/use-engagements';
 import { CreateEngagementModal } from '@/components/home/CreateEngagementModal';
-import { Plus, Briefcase, Loader2 } from 'lucide-react';
+import { Plus, Briefcase, Loader2, AlertTriangle } from 'lucide-react';
 import { useState } from 'react';
 import { format } from 'date-fns';
 
@@ -67,46 +68,97 @@ const ProjectsList = () => {
           </Button>
         </Card>
       ) : (
-        <Card className="border border-border rounded-xl overflow-hidden" style={{ borderLeft: '4px solid hsl(142 71% 45%)' }}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Stage</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Health</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Company</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {engagements.map((eng) => (
-                  <tr
-                    key={eng.id}
-                    className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/projects/${eng.id}`)}
-                  >
-                    <td className="px-4 py-3 font-medium text-foreground">{eng.name}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant="secondary" className="text-xs capitalize">{eng.engagement_type.replace('_', ' ')}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge variant="outline" className="text-xs">{STAGE_LABELS[eng.stage] ?? eng.stage}</Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-block w-2.5 h-2.5 rounded-full ${HEALTH_COLORS[eng.health] ?? 'bg-muted'}`} />
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{eng.companies?.name ?? '—'}</td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">
-                      {format(new Date(eng.updated_at), 'dd MMM yyyy')}
-                    </td>
+        <TooltipProvider>
+          <Card className="border border-border rounded-xl overflow-hidden" style={{ borderLeft: '4px solid hsl(142 71% 45%)' }}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Client</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Contact</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Stage</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Health</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Updated</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                </thead>
+                <tbody>
+                  {engagements.map((eng) => {
+                    const hasNoCompany = !eng.company_id || !eng.companies?.name;
+                    const contactName = eng.primary_contact
+                      ? `${eng.primary_contact.first_name} ${eng.primary_contact.last_name}`
+                      : null;
+
+                    return (
+                      <tr
+                        key={eng.id}
+                        className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
+                        onClick={() => navigate(`/projects/${eng.id}`)}
+                      >
+                        <td className="px-4 py-3 font-medium text-foreground">
+                          <div className="flex items-center gap-1.5">
+                            {hasNoCompany && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent>No client assigned</TooltipContent>
+                              </Tooltip>
+                            )}
+                            {eng.name}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {eng.companies?.name ? (
+                            <span
+                              className="text-primary hover:underline cursor-pointer text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/companies/${eng.company_id}`);
+                              }}
+                            >
+                              {eng.companies.name}
+                            </span>
+                          ) : (
+                            <span className="text-warning text-sm">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {contactName ? (
+                            <span
+                              className="text-primary hover:underline cursor-pointer text-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/contacts/${eng.contact_id}`);
+                              }}
+                            >
+                              {contactName}
+                            </span>
+                          ) : (
+                            <span className="text-warning text-sm">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="secondary" className="text-xs capitalize">{eng.engagement_type.replace('_', ' ')}</Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="outline" className="text-xs">{STAGE_LABELS[eng.stage] ?? eng.stage}</Badge>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-block w-2.5 h-2.5 rounded-full ${HEALTH_COLORS[eng.health] ?? 'bg-muted'}`} />
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs">
+                          {format(new Date(eng.updated_at), 'dd MMM yyyy')}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </TooltipProvider>
       )}
 
       <CreateEngagementModal open={createOpen} onOpenChange={setCreateOpen} />

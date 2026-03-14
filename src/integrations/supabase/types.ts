@@ -2708,6 +2708,7 @@ export type Database = {
           engagement_type: string
           forecast_value: number
           health: string
+          hiring_manager_id: string | null
           id: string
           name: string
           owner_id: string | null
@@ -2730,6 +2731,7 @@ export type Database = {
           engagement_type?: string
           forecast_value?: number
           health?: string
+          hiring_manager_id?: string | null
           id?: string
           name: string
           owner_id?: string | null
@@ -2752,6 +2754,7 @@ export type Database = {
           engagement_type?: string
           forecast_value?: number
           health?: string
+          hiring_manager_id?: string | null
           id?: string
           name?: string
           owner_id?: string | null
@@ -2771,6 +2774,13 @@ export type Database = {
           {
             foreignKeyName: "engagements_contact_id_fkey"
             columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "crm_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "engagements_hiring_manager_id_fkey"
+            columns: ["hiring_manager_id"]
             isOneToOne: false
             referencedRelation: "crm_contacts"
             referencedColumns: ["id"]

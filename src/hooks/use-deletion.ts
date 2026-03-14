@@ -336,7 +336,7 @@ export function useRecycleBin(workspaceId?: string) {
     queryFn: async () => {
       const tables: DeletableRecordType[] = [
         "crm_projects", "crm_deals", "crm_companies", "crm_contacts",
-        "crm_invoices", "companies", "contacts", "jobs",
+        "crm_invoices", "companies", "contacts", "jobs", "engagements",
       ];
 
       const results: any[] = [];

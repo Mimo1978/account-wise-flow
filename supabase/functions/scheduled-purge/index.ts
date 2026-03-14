@@ -16,6 +16,7 @@ const TABLES_WITH_SOFT_DELETE = [
   "companies",
   "contacts",
   "jobs",
+  "engagements",
 ];
 
 Deno.serve(async (req) => {

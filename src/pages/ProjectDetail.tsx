@@ -519,7 +519,7 @@ function DuplicateProjectModal({
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={copyCompany} onCheckedChange={(v) => setCopyCompany(!!v)} />
-                Client company
+                Company
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <Checkbox checked={copyContact} onCheckedChange={(v) => setCopyContact(!!v)} />

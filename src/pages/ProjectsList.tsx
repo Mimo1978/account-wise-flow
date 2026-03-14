@@ -103,7 +103,7 @@ const ProjectsList = () => {
                                 <TooltipTrigger asChild>
                                   <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
                                 </TooltipTrigger>
-                                <TooltipContent>No client assigned</TooltipContent>
+                                <TooltipContent>No company assigned</TooltipContent>
                               </Tooltip>
                             )}
                             {eng.name}

@@ -335,7 +335,7 @@ function InlineCompanyAssigner({ engagementId, workspaceId }: { engagementId: st
     } else {
       queryClient.invalidateQueries({ queryKey: ['engagement'] });
       queryClient.invalidateQueries({ queryKey: ['engagements'] });
-      toast.success('Client assigned');
+      toast.success('Company assigned');
     }
     setSearching(false);
     setSearchTerm('');
@@ -370,7 +370,7 @@ function InlineCompanyAssigner({ engagementId, workspaceId }: { engagementId: st
     </div>
   ) : (
     <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setSearching(true)}>
-      <Building2 className="w-3.5 h-3.5" /> Assign Client
+      <Building2 className="w-3.5 h-3.5" /> Assign Company
     </Button>
   );
 }

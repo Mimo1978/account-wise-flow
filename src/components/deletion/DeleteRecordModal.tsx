@@ -78,9 +78,9 @@ export function DeleteRecordModal({
     onOpenChange(false);
   };
 
-  const handleSoftDelete = async () => {
+  const handleDirectDelete = async () => {
     if (!reason.trim()) return;
-    await softDelete.mutateAsync({
+    await hardDelete.mutateAsync({
       recordType,
       recordId,
       recordName,

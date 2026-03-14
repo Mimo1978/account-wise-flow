@@ -228,6 +228,18 @@ function InlineContactPicker({
     setSearchTerm('');
   };
 
+  const removeContact = async () => {
+    const { error } = await supabase.from('engagements').update({ [fieldName]: null } as any).eq('id', engagementId);
+    if (error) {
+      toast.error('Failed to remove contact');
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['engagement'] });
+      queryClient.invalidateQueries({ queryKey: ['engagements'] });
+      queryClient.invalidateQueries({ queryKey: ['engagement-contact-detail'] });
+      toast.success(`${label} removed`);
+    }
+  };
+
   const initials = contact ? `${contact.first_name?.[0] ?? ''}${contact.last_name?.[0] ?? ''}`.toUpperCase() : '';
 
   return (
@@ -256,7 +268,10 @@ function InlineContactPicker({
                 )}
               </div>
             </div>
-            <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSearching(true)}>Change</Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => setSearching(true)}>Change</Button>
+              <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={removeContact}>Remove</Button>
+            </div>
           </div>
         ) : searching ? null : (
           <div className="flex items-center gap-2">

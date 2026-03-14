@@ -28,6 +28,11 @@ export const navigationMap: Record<string, NavigationEntry> = {
     label: "Contacts",
     keywords: ["contacts", "people", "leads", "person", "stakeholders"],
   },
+  contactDetail: {
+    path: "/contacts/:id",
+    label: "Contact Detail",
+    keywords: ["contact detail", "view contact", "contact page", "contact profile", "contact record", "open contact", "show contact"],
+  },
   talent: {
     path: "/talent",
     label: "Talent Database",

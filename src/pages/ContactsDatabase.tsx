@@ -314,10 +314,9 @@ export default function ContactsDatabase() {
     openContactRecord(contact);
   };
 
-  // Open Contact Record panel
+  // Open Contact Record — navigate to full page
   const openContactRecord = (contact: Contact) => {
-    setSelectedContact(contact);
-    setContactRecordOpen(true);
+    navigate(`/contacts/${contact.id}`);
   };
 
   // Open Company panel from Contact Record

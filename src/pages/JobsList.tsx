@@ -202,9 +202,10 @@ const JobsList = () => {
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow>
+                 <TableRow>
                   <TableHead>Job Title</TableHead>
                   <TableHead>Company</TableHead>
+                  <TableHead>Hiring Manager</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>

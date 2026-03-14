@@ -1721,7 +1721,7 @@ function LogActivityPanel({ open, onClose, companyId, companyName, defaultType, 
               <Select value={contactId} onValueChange={setContactId}>
                 <SelectTrigger><SelectValue placeholder="Select contact (optional)" /></SelectTrigger>
                 <SelectContent className="bg-popover z-[9999]">
-                  <SelectItem value="">None — company level</SelectItem>
+                  <SelectItem value="_none">None — company level</SelectItem>
                   {contacts.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select></div>

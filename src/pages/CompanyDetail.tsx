@@ -535,6 +535,17 @@ export default function CompanyDetail() {
             <Button variant="outline" size="sm" onClick={() => setEditOpen(true)} data-jarvis-id="company-edit-button">
               <Pencil className="h-4 w-4 mr-1" /> Edit
             </Button>
+            {perm.canSeeDeleteOption && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive hover:text-destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {perm.canDeleteDirectly ? "Delete" : "Request Deletion"}
+              </Button>
+            )}
           </div>
 
           {/* Stats */}

@@ -1198,6 +1198,120 @@ async function getUserTeamId(supabaseAdmin: ReturnType<typeof createClient>, use
   return data?.team_id || null;
 }
 
+async function findExistingCompanyByName(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  companyName: string,
+  teamId: string | null,
+): Promise<{ id: string; name: string } | null> {
+  let q = supabaseAdmin
+    .from("companies")
+    .select("id, name")
+    .ilike("name", companyName)
+    .is("deleted_at", null)
+    .limit(1);
+
+  if (teamId) q = q.eq("team_id", teamId);
+
+  const { data } = await q;
+  return data?.[0] ?? null;
+}
+
+async function resolveCompanyIds(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  inputCompanyId: string | null,
+  userId: string,
+  teamId: string | null,
+): Promise<{ companyId: string | null; crmCompanyId: string | null }> {
+  const rawCompanyId = (inputCompanyId || "").trim();
+  if (!rawCompanyId) return { companyId: null, crmCompanyId: null };
+
+  // Try core companies first
+  const { data: companyRow } = await supabaseAdmin
+    .from("companies")
+    .select("id, name, website, industry, size, switchboard, headquarters")
+    .eq("id", rawCompanyId)
+    .maybeSingle();
+
+  if (companyRow) {
+    let crmCompanyId: string | null = null;
+
+    const { data: crmMatches } = await supabaseAdmin
+      .from("crm_companies")
+      .select("id, name")
+      .ilike("name", companyRow.name)
+      .is("deleted_at", null)
+      .limit(1);
+
+    crmCompanyId = crmMatches?.[0]?.id ?? null;
+
+    if (!crmCompanyId) {
+      const headquartersParts = (companyRow.headquarters || "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+
+      const { data: createdCrmCompany } = await supabaseAdmin
+        .from("crm_companies")
+        .insert({
+          name: companyRow.name,
+          website: companyRow.website || null,
+          industry: companyRow.industry || null,
+          size: companyRow.size || null,
+          phone: companyRow.switchboard || null,
+          city: headquartersParts[0] || null,
+          country: headquartersParts.length > 1 ? headquartersParts.slice(1).join(", ") : null,
+          created_by: userId,
+        })
+        .select("id")
+        .single();
+
+      crmCompanyId = createdCrmCompany?.id ?? null;
+    }
+
+    return { companyId: companyRow.id, crmCompanyId };
+  }
+
+  // Fallback: try CRM companies and map back to core companies
+  const { data: crmCompanyRow } = await supabaseAdmin
+    .from("crm_companies")
+    .select("id, name, website, industry, size, phone, city, country")
+    .eq("id", rawCompanyId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (!crmCompanyRow) {
+    return { companyId: null, crmCompanyId: null };
+  }
+
+  let companyId: string | null = null;
+  const existingCompany = await findExistingCompanyByName(supabaseAdmin, crmCompanyRow.name, teamId);
+
+  if (existingCompany) {
+    companyId = existingCompany.id;
+  } else {
+    const headquarters = [crmCompanyRow.city, crmCompanyRow.country].filter(Boolean).join(", ") || null;
+
+    const { data: createdCompany } = await supabaseAdmin
+      .from("companies")
+      .insert({
+        name: crmCompanyRow.name,
+        website: crmCompanyRow.website || null,
+        industry: crmCompanyRow.industry || null,
+        size: crmCompanyRow.size || null,
+        switchboard: crmCompanyRow.phone || null,
+        headquarters,
+        owner_id: userId,
+        team_id: teamId,
+      })
+      .select("id")
+      .single();
+
+    companyId = createdCompany?.id ?? null;
+  }
+
+  return { companyId, crmCompanyId: crmCompanyRow.id };
+}
+
 // ---------- Tool executors ----------
 async function executeTool(
   toolName: string,

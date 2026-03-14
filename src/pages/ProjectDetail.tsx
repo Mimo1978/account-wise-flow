@@ -1208,6 +1208,14 @@ const ProjectDetail = () => {
       <CreateSowModal open={sowOpen} onOpenChange={setSowOpen} />
       <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} />
       <EditEngagementModal open={editOpen} onOpenChange={setEditOpen} engagement={engagement} />
+      <DeleteRecordModal
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        recordType="engagements"
+        recordId={engagement.id}
+        recordName={engagement.name}
+        onDeleted={() => navigate("/projects")}
+      />
     </div>
   );
 };

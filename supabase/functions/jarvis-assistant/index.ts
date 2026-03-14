@@ -290,6 +290,34 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "navigate_to_contact_record",
+      description: "Navigate directly to a specific contact's detail page. Searches for the contact by name and opens their record. Use when the user says 'open [name]'s contact', 'show me [name]'s record', 'go to [name]', 'take me to [name]'s contact page', etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          contact_name: { type: "string", description: "The contact name to search for and navigate to" },
+        },
+        required: ["contact_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "navigate_to_company_record",
+      description: "Navigate directly to a specific company's detail page. Searches for the company by name and opens their record. Use when the user says 'open [company]', 'show me [company]'s record', 'go to [company]', 'take me to [company]'s page', etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          company_name: { type: "string", description: "The company name to search for and navigate to" },
+        },
+        required: ["company_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "lookup_company",
       description: "Look up a company by name within the user's workspace. Use this BEFORE creating contacts, deals, opportunities, or projects that need a company_id. Returns up to 5 matches. If 1 match: use it. If multiple: ask user to pick. If 0: offer to create it.",
       parameters: {

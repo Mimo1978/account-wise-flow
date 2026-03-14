@@ -62,12 +62,12 @@ export function DeleteRecordModal({
   const [reason, setReason] = useState("");
   const [confirmText, setConfirmText] = useState("");
   const perm = useDeletionPermission();
-  const softDelete = useSoftDelete();
+  const hardDelete = useHardDelete();
   const requestDeletion = useRequestDeletion();
   const purgeRecord = usePurgeRecord();
 
   const typeLabel = TYPE_LABELS[recordType] || recordType;
-  const isProcessing = softDelete.isPending || requestDeletion.isPending || purgeRecord.isPending;
+  const isProcessing = hardDelete.isPending || requestDeletion.isPending || purgeRecord.isPending;
 
   // Determine which flow to show
   const canDirectDelete = perm.canDeleteDirectly || (perm.canDeleteOwn && isOwner);

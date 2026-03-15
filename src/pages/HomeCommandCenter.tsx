@@ -701,41 +701,61 @@ const HomeCommandCenter = () => {
         {/* ═══ ROW 4 — ACTION REQUIRED + DIARY (55/45) ═══ */}
         <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] gap-5">
           {/* Action required */}
-          <SectionCard title="Action required" subtitle={`${myWorkItems.length} items`} icon={CheckSquare} borderColor="#F59E0B"
-            jarvisSection="action-required" jarvisId="home-action-required">
-            {myWorkItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-8">
-                <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: '#22C55E20' }}>
-                  <CheckSquare className="w-7 h-7" style={{ color: '#22C55E' }} />
-                </div>
-                <p className="text-base font-semibold" style={{ color: '#22C55E' }}>✓ All clear</p>
-                <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>No actions required right now</p>
-              </div>
-            ) : (
-              <div className="space-y-0">
-                {myWorkItems.map((item) => (
-                  <button key={item.id} onClick={item.onClick}
-                    className="w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors group"
-                    style={{ borderBottom: `1px solid ${DARK.border}` }}
-                    onMouseEnter={e => (e.currentTarget.style.background = DARK.hover)}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: item.overdue ? '#EF444420' : '#3B82F620' }}>
-                      <item.icon className="w-4 h-4" style={{ color: item.overdue ? '#EF4444' : '#60A5FA' }} />
+          {(() => {
+            const critCount = myWorkItems.filter(i => i.severity === 'critical').length;
+            const warnCount = myWorkItems.filter(i => i.severity === 'warning').length;
+            const infoCount = myWorkItems.filter(i => i.severity === 'info').length;
+            const subtitle = myWorkItems.length === 0 ? '0 items' :
+              [critCount > 0 ? `${critCount} critical` : '', warnCount > 0 ? `${warnCount} warnings` : '', infoCount > 0 ? `${infoCount} info` : ''].filter(Boolean).join(' · ');
+            const SEV_COLORS: Record<ActionSeverity, { bg: string; icon: string }> = {
+              critical: { bg: '#EF444420', icon: '#EF4444' },
+              warning: { bg: '#F59E0B20', icon: '#FBBF24' },
+              info: { bg: '#94A3B820', icon: '#94A3B8' },
+            };
+            return (
+              <SectionCard title="Action required" subtitle={subtitle} icon={CheckSquare} borderColor="#F59E0B"
+                jarvisSection="action-required" jarvisId="home-action-required">
+                {myWorkItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center py-8">
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: '#22C55E20' }}>
+                      <CheckSquare className="w-7 h-7" style={{ color: '#22C55E' }} />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate" style={{ color: DARK.text }}>{item.label}</p>
-                      <p className="text-xs" style={{ color: DARK.textSecondary }}>
-                        {item.overdue ? `${Math.abs(item.daysUntil)}d overdue` : item.daysUntil === 0 ? 'Today' : `in ${item.daysUntil}d`}
-                      </p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: DARK.textSecondary }} />
-                  </button>
-                ))}
-              </div>
-            )}
-          </SectionCard>
+                    <p className="text-base font-semibold" style={{ color: '#22C55E' }}>✓ All clear</p>
+                    <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>No actions required right now</p>
+                  </div>
+                ) : (
+                  <div className="space-y-0">
+                    {myWorkItems.map((item) => {
+                      const sc = SEV_COLORS[item.severity];
+                      return (
+                        <button key={item.id} onClick={item.onClick}
+                          className="w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors group"
+                          style={{ borderBottom: `1px solid ${DARK.border}` }}
+                          onMouseEnter={e => (e.currentTarget.style.background = DARK.hover)}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                            style={{ background: sc.bg }}>
+                            <item.icon className="w-4 h-4" style={{ color: sc.icon }} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: sc.icon }} />
+                              <p className="text-sm font-medium truncate" style={{ color: DARK.text }}>{item.label}</p>
+                            </div>
+                            <p className="text-xs ml-4" style={{ color: DARK.textSecondary }}>
+                              {item.recordName}{item.overdue ? ` · ${Math.abs(item.daysUntil)}d overdue` : item.daysUntil === 0 ? ' · Today' : ` · in ${item.daysUntil}d`}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded shrink-0" style={{ color: sc.icon, background: sc.bg }}>Fix →</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </SectionCard>
+            );
+          })()}
 
           {/* This Week's Diary */}
           <SectionCard title="This Week" subtitle="Next 7 days" icon={CalendarClock} borderColor="#6366F1"

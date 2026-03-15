@@ -207,11 +207,11 @@ export const navigationMap: Record<string, NavigationEntry> = {
     keywords: ["new campaign", "create campaign", "outreach campaign"],
   },
   createInvoice: {
-    path: "/",
+    path: "/accounts",
     label: "Create Invoice",
     action: "click",
-    targetId: "create-invoice-button",
-    keywords: ["create invoice", "new invoice", "add invoice"],
+    targetId: "accounts-create-invoice-button",
+    keywords: ["create invoice", "new invoice", "add invoice", "make invoice"],
   },
   importCompanies: {
     path: "/companies",

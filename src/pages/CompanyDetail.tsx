@@ -825,7 +825,7 @@ export default function CompanyDetail() {
   const [editProjectId, setEditProjectId] = useState<string | null>(null);
   const [statusPopoverOpen, setStatusPopoverOpen] = useState(false);
   const [ownerPopoverOpen, setOwnerPopoverOpen] = useState(false);
-  const [addLeadOpen, setAddLeadOpen] = useState(false);
+  // addLeadOpen removed — Capture Lead replaced by Add Deal
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   // ── Fetch company (from companies table) ──

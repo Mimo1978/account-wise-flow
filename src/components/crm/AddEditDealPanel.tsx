@@ -125,7 +125,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         title: "", company_id: "", contact_id: "", opportunity_id: "", value: "",
         currency: "GBP", stage: "lead", probability: "10",
         signed_date: "", start_date: "", end_date: "", expected_close_date: "",
-        payment_terms: "", status: "active", notes: "", project_id: "",
+        payment_terms: "", status: "active", notes: "", project_id: "", source: "",
       });
       setProbManual(false);
     }

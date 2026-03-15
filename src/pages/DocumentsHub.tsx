@@ -85,11 +85,16 @@ export default function DocumentsHub() {
   const queryClient = useQueryClient();
   const wsId = currentWorkspace?.id;
 
+  const { isAdmin } = usePermissions();
+
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [editDoc, setEditDoc] = useState<any>(null);
+  const [confirmUpload, setConfirmUpload] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteReason, setDeleteReason] = useState("");
 
   // Form state
   const [formType, setFormType] = useState("sow");

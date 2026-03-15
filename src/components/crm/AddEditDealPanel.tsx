@@ -45,7 +45,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
   const updateOpp = useUpdateCrmOpportunity();
   const { data: opps = [] } = useCrmOpportunities();
 
-  const d = deal as any;
+  
 
   const [form, setForm] = useState({
     title: "",

@@ -328,15 +328,27 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
             </div>
           </div>
 
-          <div>
-            <Label>Linked Opportunity</Label>
-            <Select value={form.opportunity_id || "_none"} onValueChange={v => setForm(f => ({ ...f, opportunity_id: v === "_none" ? "" : v }))}>
-              <SelectTrigger><SelectValue placeholder="Select opportunity" /></SelectTrigger>
-              <SelectContent className="bg-popover z-[9999]">
-                <SelectItem value="_none">None</SelectItem>
-                {opps.map(o => <SelectItem key={o.id} value={o.id}>{o.title}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Source</Label>
+              <Select value={form.source || "_none"} onValueChange={v => setForm(f => ({ ...f, source: v === "_none" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="How did this come in?" /></SelectTrigger>
+                <SelectContent className="bg-popover z-[9999]">
+                  <SelectItem value="_none">Not specified</SelectItem>
+                  {SOURCES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Linked Opportunity</Label>
+              <Select value={form.opportunity_id || "_none"} onValueChange={v => setForm(f => ({ ...f, opportunity_id: v === "_none" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="Select opportunity" /></SelectTrigger>
+                <SelectContent className="bg-popover z-[9999]">
+                  <SelectItem value="_none">None</SelectItem>
+                  {opps.map(o => <SelectItem key={o.id} value={o.id}>{o.title}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>

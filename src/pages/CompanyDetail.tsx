@@ -327,19 +327,25 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
     if (!deleteTarget) return;
     try {
       if (isAdmin) {
-        // Admin: hard delete
+        // Admin: hard delete after warning
+        if (deleteTarget.file_url) {
+          await supabase.storage.from("commercial-documents").remove([deleteTarget.file_url]);
+        }
         const { error } = await supabase.from("commercial_documents" as any).delete().eq("id", deleteTarget.id);
         if (error) throw error;
-        toast({ title: "Document permanently deleted" });
+        toast({ title: "Document permanently deleted", description: "The file and all associated records have been removed." });
       } else {
-        // Non-admin: soft-delete request
+        // Non-admin: 30-day soft-delete
+        const purgeDate = new Date();
+        purgeDate.setDate(purgeDate.getDate() + 30);
         const { error } = await supabase.from("commercial_documents" as any).update({
           deleted_at: new Date().toISOString(),
           deleted_by: (await supabase.auth.getUser()).data.user?.id || null,
           deletion_reason: deleteReason || "Requested for removal",
+          deletion_scheduled_purge_at: purgeDate.toISOString(),
         }).eq("id", deleteTarget.id);
         if (error) throw error;
-        toast({ title: "Deletion requested", description: "An administrator will review and approve the removal." });
+        toast({ title: "Scheduled for deletion", description: "This document will be permanently removed in 30 days unless undone." });
       }
       queryClient.invalidateQueries({ queryKey: ["company-commercial-docs", companyId] });
       queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
@@ -348,6 +354,23 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
     } finally {
       setDeleteTarget(null);
       setDeleteReason("");
+    }
+  };
+
+  const handleUndoDelete = async (doc: any) => {
+    try {
+      const { error } = await supabase.from("commercial_documents" as any).update({
+        deleted_at: null,
+        deleted_by: null,
+        deletion_reason: null,
+        deletion_scheduled_purge_at: null,
+      }).eq("id", doc.id);
+      if (error) throw error;
+      toast({ title: "Deletion undone", description: "The document has been restored and is accessible again." });
+      queryClient.invalidateQueries({ queryKey: ["company-commercial-docs", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+    } catch (err: any) {
+      toast({ title: "Failed to undo deletion", description: err.message, variant: "destructive" });
     }
   };
 

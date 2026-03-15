@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Contact } from "@/lib/types";
 import { usePermissions } from "@/hooks/use-permissions";
 import { AccountCanvas } from "@/components/canvas/AccountCanvas";
+import { useOrgChartTree } from "@/hooks/use-org-chart-tree";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -222,6 +223,9 @@ export default function CompanyDetail() {
   const { isAdmin, isManager } = usePermissions();
   const canAssignOwner = isAdmin || isManager;
   const perm = useDeletionPermission();
+
+  // Org chart hierarchy from org_chart_edges (single source of truth)
+  const { nodes: orgNodes } = useOrgChartTree(id);
 
   const [editOpen, setEditOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
@@ -896,27 +900,36 @@ export default function CompanyDetail() {
                   <CardContent className="p-0">
                     <div className="h-[500px] relative">
                       <AccountCanvas
-                        account={{
-                          id: company.id,
-                          name: company.name,
-                          industry: company.industry || 'Other',
-                          size: company.size || 'Unknown',
-                          contacts: contacts.map((c: any) => ({
-                            id: c.id,
-                            name: c.name,
-                            title: c.title || '',
-                            department: c.department || '',
-                            seniority: c.seniority || 'mid',
-                            email: c.email || '',
-                            phone: c.phone || '',
-                            status: c.status || 'unknown',
-                            engagementScore: 50,
-                            managerId: c.manager_id ?? null,
-                            siblingOrder: 0,
-                          })),
+                        account={(() => {
+                          // Build hierarchy maps from org_chart_edges (same source as full Canvas page)
+                          const parentMap = new Map<string, string | null>();
+                          const siblingOrderMap = new Map<string, number>();
+                          for (const node of orgNodes) {
+                            parentMap.set(node.contactId, node.parentContactId);
+                            siblingOrderMap.set(node.contactId, node.siblingOrder);
+                          }
+                          return {
+                            id: company.id,
+                            name: company.name,
+                            industry: company.industry || 'Other',
+                            size: company.size || 'Unknown',
+                            contacts: contacts.map((c: any) => ({
+                              id: c.id,
+                              name: c.name,
+                              title: c.title || '',
+                              department: c.department || '',
+                              seniority: c.seniority || 'mid',
+                              email: c.email || '',
+                              phone: c.phone || '',
+                              status: c.status || 'unknown',
+                              engagementScore: 50,
+                              managerId: parentMap.get(c.id) ?? null,
+                              siblingOrder: siblingOrderMap.get(c.id) ?? 0,
+                            })),
                           lastUpdated: company.updated_at,
                           engagementScore: 50,
-                        }}
+                          };
+                        })()}
                         onContactClick={(contact) => {
                           navigate(`/contacts/${contact.id}`, { state: { from: `/companies/${id}`, fromLabel: `Back to ${company.name}` } });
                         }}

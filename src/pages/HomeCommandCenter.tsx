@@ -47,8 +47,10 @@ const DARK = {
 interface WorkItem {
   id: string;
   type: 'deal' | 'job' | 'outreach' | 'invoice_overdue';
+  severity: ActionSeverity;
   date: Date;
   label: string;
+  recordName: string;
   overdue: boolean;
   daysUntil: number;
   onClick: () => void;

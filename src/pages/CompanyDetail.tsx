@@ -1223,9 +1223,6 @@ export default function CompanyDetail() {
             <Button size="sm" onClick={() => setAddDealOpen(true)} data-jarvis-id="company-add-deal-button">
               <Plus className="h-4 w-4 mr-1" /> Add Deal
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setAddLeadOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Capture Lead
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" data-jarvis-id="company-log-activity-button">

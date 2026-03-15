@@ -106,6 +106,7 @@ export interface CrmDeal {
   end_date: string | null;
   payment_terms: string | null;
   status: CrmDealStatus;
+  source: string | null;
   notes: string | null;
   created_by: string;
   created_at: string;

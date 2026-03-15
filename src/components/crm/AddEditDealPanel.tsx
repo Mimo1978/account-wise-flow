@@ -15,6 +15,14 @@ import type { CrmDeal } from "@/types/crm";
 import { cn } from "@/lib/utils";
 
 const CURRENCIES = ["GBP", "USD", "EUR"];
+const SOURCES = [
+  { value: "inbound", label: "Inbound — they came to us" },
+  { value: "outbound", label: "Outbound — we reached out" },
+  { value: "referral", label: "Referral — introduced by someone" },
+  { value: "existing_client", label: "Existing client — repeat/expansion" },
+  { value: "event", label: "Event — met at an event" },
+  { value: "other", label: "Other" },
+];
 const STATUSES = ["active", "complete", "cancelled"];
 const STAGES = [
   { value: "lead", label: "Lead", color: "bg-blue-500" },
@@ -64,6 +72,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
     status: "active",
     notes: "",
     project_id: "",
+    source: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [probManual, setProbManual] = useState(false);
@@ -87,6 +96,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         status: deal.status || "active",
         notes: deal.notes || "",
         project_id: deal.project_id || "",
+        source: (deal as any).source || "",
       });
       setProbManual(false);
     } else if (fromOpportunity) {
@@ -107,6 +117,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         status: "active",
         notes: "",
         project_id: "",
+        source: "",
       });
       setProbManual(false);
     } else {
@@ -114,7 +125,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         title: "", company_id: "", contact_id: "", opportunity_id: "", value: "",
         currency: "GBP", stage: "lead", probability: "10",
         signed_date: "", start_date: "", end_date: "", expected_close_date: "",
-        payment_terms: "", status: "active", notes: "", project_id: "",
+        payment_terms: "", status: "active", notes: "", project_id: "", source: "",
       });
       setProbManual(false);
     }
@@ -156,6 +167,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
       status: form.status,
       notes: form.notes || null,
       project_id: form.project_id || null,
+      source: form.source || null,
     };
     try {
       if (isEdit && deal) {
@@ -316,15 +328,27 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
             </div>
           </div>
 
-          <div>
-            <Label>Linked Opportunity</Label>
-            <Select value={form.opportunity_id || "_none"} onValueChange={v => setForm(f => ({ ...f, opportunity_id: v === "_none" ? "" : v }))}>
-              <SelectTrigger><SelectValue placeholder="Select opportunity" /></SelectTrigger>
-              <SelectContent className="bg-popover z-[9999]">
-                <SelectItem value="_none">None</SelectItem>
-                {opps.map(o => <SelectItem key={o.id} value={o.id}>{o.title}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Source</Label>
+              <Select value={form.source || "_none"} onValueChange={v => setForm(f => ({ ...f, source: v === "_none" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="How did this come in?" /></SelectTrigger>
+                <SelectContent className="bg-popover z-[9999]">
+                  <SelectItem value="_none">Not specified</SelectItem>
+                  {SOURCES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Linked Opportunity</Label>
+              <Select value={form.opportunity_id || "_none"} onValueChange={v => setForm(f => ({ ...f, opportunity_id: v === "_none" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="Select opportunity" /></SelectTrigger>
+                <SelectContent className="bg-popover z-[9999]">
+                  <SelectItem value="_none">None</SelectItem>
+                  {opps.map(o => <SelectItem key={o.id} value={o.id}>{o.title}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div>

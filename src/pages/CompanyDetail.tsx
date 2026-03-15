@@ -85,6 +85,7 @@ const DOC_STATUSES = [
   { value: "cancelled", label: "Cancelled" },
 ];
 
+const STATUS_OPTIONS = [
   { value: "cold", label: "Cold", color: "bg-muted text-muted-foreground" },
   { value: "warm", label: "Warm", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
   { value: "hot", label: "Hot", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" },

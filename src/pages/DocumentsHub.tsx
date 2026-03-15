@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/use-permissions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,10 +22,14 @@ import {
 import { PageBackButton } from "@/components/ui/page-back-button";
 import {
   FileText, Plus, Search, Upload, Download, Eye, Pencil, Trash2,
-  Building2, Calendar, Loader2, MoreHorizontal, Filter,
+  Building2, Calendar, Loader2, MoreHorizontal, Filter, Shield, AlertTriangle,
 } from "lucide-react";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { toast } from "sonner";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 /* ─── Constants ─── */
 const DOC_TYPES = [
@@ -80,11 +85,16 @@ export default function DocumentsHub() {
   const queryClient = useQueryClient();
   const wsId = currentWorkspace?.id;
 
+  const { isAdmin } = usePermissions();
+
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [editDoc, setEditDoc] = useState<any>(null);
+  const [confirmUpload, setConfirmUpload] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteReason, setDeleteReason] = useState("");
 
   // Form state
   const [formType, setFormType] = useState("sow");
@@ -174,15 +184,23 @@ export default function DocumentsHub() {
     setUploadOpen(true);
   };
 
-  const handleSave = async () => {
+  const initiateUpload = () => {
     if (!formName.trim()) { toast.error("Document name is required"); return; }
+    if (!wsId) return;
+    if (editDoc) {
+      performSave();
+    } else {
+      setConfirmUpload(true);
+    }
+  };
+
+  const performSave = async () => {
     if (!wsId) return;
     setSaving(true);
     try {
       let fileUrl = editDoc?.file_url || null;
       let fileName = editDoc?.file_name || null;
 
-      // Upload file if provided
       if (formFile) {
         const path = `${wsId}/${formType}/${Date.now()}_${formFile.name}`;
         const { error: uploadErr } = await supabase.storage.from("commercial-documents").upload(path, formFile, { upsert: false });
@@ -228,12 +246,29 @@ export default function DocumentsHub() {
     }
   };
 
-  const handleDelete = async (docId: string) => {
-    if (!confirm("Delete this document?")) return;
-    const { error } = await supabase.from("commercial_documents" as any).delete().eq("id", docId);
-    if (error) { toast.error("Failed to delete"); return; }
-    toast.success("Document deleted");
-    queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (isAdmin) {
+        const { error } = await supabase.from("commercial_documents" as any).delete().eq("id", deleteTarget.id);
+        if (error) throw error;
+        toast.success("Document permanently deleted");
+      } else {
+        const { error } = await supabase.from("commercial_documents" as any).update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: (await supabase.auth.getUser()).data.user?.id || null,
+          deletion_reason: deleteReason || "Requested for removal",
+        }).eq("id", deleteTarget.id);
+        if (error) throw error;
+        toast.success("Deletion requested — awaiting admin approval");
+      }
+      queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to process deletion");
+    } finally {
+      setDeleteTarget(null);
+      setDeleteReason("");
+    }
   };
 
   const handleDownload = async (doc: any) => {
@@ -323,6 +358,7 @@ export default function DocumentsHub() {
                       <tr key={doc.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}>
                         <td className="px-4 py-3">
                           <span className="font-medium text-foreground">{doc.name}</span>
+                          {doc.deleted_at && <Badge className="ml-2 text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-0">⚠ Deletion Requested</Badge>}
                           {doc.file_name && <p className="text-xs text-muted-foreground mt-0.5">{doc.file_name}</p>}
                         </td>
                         <td className="px-4 py-3"><Badge className={`text-xs ${typeConf.color} border-0`}>{typeConf.label}</Badge></td>
@@ -342,7 +378,7 @@ export default function DocumentsHub() {
                             <DropdownMenuContent align="end">
                               {doc.file_url && <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="w-3.5 h-3.5 mr-2" /> Download</DropdownMenuItem>}
                               <DropdownMenuItem onClick={() => openUpload(doc)}><Pencil className="w-3.5 h-3.5 mr-2" /> Edit Details</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleDelete(doc.id)} className="text-destructive"><Trash2 className="w-3.5 h-3.5 mr-2" /> Delete</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setDeleteTarget(doc)} className="text-destructive"><Trash2 className="w-3.5 h-3.5 mr-2" /> {isAdmin ? "Delete" : "Request Deletion"}</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </td>
@@ -367,7 +403,7 @@ export default function DocumentsHub() {
         footer={
           <>
             <Button variant="ghost" onClick={() => { setUploadOpen(false); resetForm(); }}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={initiateUpload} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editDoc ? "Save Changes" : "Upload & Save"}
             </Button>
@@ -470,6 +506,85 @@ export default function DocumentsHub() {
           </div>
         </div>
       </SlideInPanel>
+
+      {/* Pre-upload security confirmation */}
+      <AlertDialog open={confirmUpload} onOpenChange={setConfirmUpload}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary" />
+              Confirm Document Upload
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>Please verify the following before proceeding:</p>
+                <ul className="list-disc pl-5 space-y-1.5">
+                  <li>The correct file has been selected{formFile && <> — <span className="font-medium text-foreground">{formFile.name}</span></>}</li>
+                  <li>All document details (name, type, dates) are accurate</li>
+                  <li>The file does not contain malware or sensitive data that should not be stored</li>
+                </ul>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 mt-2">
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    <strong>Important:</strong> Once uploaded, documents become part of the permanent record. Removing a file requires administrator approval and will be logged in the audit trail. You will need to upload a replacement file separately.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Review Details</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmUpload(false); performSave(); }}>
+              Confirm & Upload
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete / Request Deletion confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => { if (!v) { setDeleteTarget(null); setDeleteReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {isAdmin ? (
+                <><Trash2 className="w-5 h-5 text-destructive" /> Permanently Delete Document</>
+              ) : (
+                <><AlertTriangle className="w-5 h-5 text-amber-500" /> Request Document Deletion</>
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                {deleteTarget && (
+                  <p>
+                    {isAdmin
+                      ? <>You are about to permanently delete <span className="font-medium text-foreground">"{deleteTarget.name}"</span>. This action cannot be undone.</>
+                      : <>You are requesting the removal of <span className="font-medium text-foreground">"{deleteTarget.name}"</span>. An administrator will review and approve this request. The document will remain visible with a pending status until approved.</>
+                    }
+                  </p>
+                )}
+                <div>
+                  <Label className="text-xs font-medium">Reason for deletion</Label>
+                  <Textarea
+                    value={deleteReason}
+                    onChange={(e: any) => setDeleteReason(e.target.value)}
+                    placeholder="e.g. Incorrect file uploaded, superseded by newer version..."
+                    rows={2}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className={isAdmin ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
+              {isAdmin ? "Delete Permanently" : "Submit Request"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1323,7 +1323,7 @@ export default function CompanyDetail() {
                     <div className="space-y-1.5">
                       {(deals as any[]).slice(0, 3).map((d: any) => (
                         <div key={d.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card text-sm cursor-pointer hover:bg-muted/50"
-                          onClick={() => setEditDealId(d.id)}>
+                          onClick={() => navigate(`/crm/deals/${d.id}`)}>
                           <div className="flex items-center gap-2">
                             <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className="font-medium">{d.title}</span>

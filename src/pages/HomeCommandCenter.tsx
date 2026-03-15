@@ -402,10 +402,10 @@ const HomeCommandCenter = () => {
       const jobMap = new Map(activeJobs.map(j => [j.id, j]));
       const shortlistByJob = new Map<string, number>();
       for (const s of (shortlistData ?? [])) { if (s.status === 'pending') shortlistByJob.set(s.job_id, (shortlistByJob.get(s.job_id) || 0) + 1); }
-      for (const [jobId, count] of shortlistByJob) { const job = jobMap.get(jobId); if (job) workItems.push({ id: `shortlist-${jobId}`, type: 'job', date: today, label: `Review ${count} shortlisted for ${job.title}`, overdue: false, daysUntil: 0, onClick: () => {}, icon: Users }); }
+      for (const [jobId, count] of shortlistByJob) { const job = jobMap.get(jobId); if (job) workItems.push({ id: `shortlist-${jobId}`, type: 'job', severity: 'warning', recordName: job.title, date: today, label: `Review ${count} shortlisted for ${job.title}`, overdue: false, daysUntil: 0, onClick: () => {}, icon: Users }); }
       const appsByJob = new Map<string, number>();
       for (const a of (applicationsData ?? [])) appsByJob.set(a.job_id, (appsByJob.get(a.job_id) || 0) + 1);
-      for (const [jobId, count] of appsByJob) { const job = jobMap.get(jobId); if (job) workItems.push({ id: `apps-${jobId}`, type: 'job', date: today, label: `${count} new application${count !== 1 ? 's' : ''} for ${job.title}`, overdue: false, daysUntil: 0, onClick: () => {}, icon: Inbox }); }
+      for (const [jobId, count] of appsByJob) { const job = jobMap.get(jobId); if (job) workItems.push({ id: `apps-${jobId}`, type: 'job', severity: 'info', recordName: job.title, date: today, label: `${count} new application${count !== 1 ? 's' : ''} for ${job.title}`, overdue: false, daysUntil: 0, onClick: () => {}, icon: Inbox }); }
       return { activeJobs, jobWorkItems: workItems, jobProjectLinks: jobProjectLinks ?? [] };
     },
     enabled: !!currentWorkspace?.id,

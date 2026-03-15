@@ -403,7 +403,7 @@ export default function DocumentsHub() {
         footer={
           <>
             <Button variant="ghost" onClick={() => { setUploadOpen(false); resetForm(); }}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>
+            <Button onClick={initiateUpload} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editDoc ? "Save Changes" : "Upload & Save"}
             </Button>

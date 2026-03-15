@@ -38,6 +38,7 @@ import {
   ChevronDown, ExternalLink, DollarSign, Calendar, StickyNote,
   AlertTriangle, CheckCircle2, Info, Loader2, Flag, BookOpen,
   CalendarClock, Shield, X, PartyPopper, XCircle, Trash2,
+  Search, Upload, Download, MoreHorizontal,
 } from "lucide-react";
 import { format, parseISO, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,26 @@ const daysAgo = (d?: string | null) => {
   if (!d) return null;
   try { return differenceInDays(new Date(), parseISO(d)); } catch { return null; }
 };
+
+const DOC_TYPES = [
+  { value: "sow", label: "SOW" },
+  { value: "msa", label: "MSA" },
+  { value: "proposal", label: "Proposal" },
+  { value: "rfp", label: "RFP / Bid" },
+  { value: "contract", label: "Contract" },
+  { value: "nda", label: "NDA" },
+  { value: "other", label: "Other" },
+];
+
+const DOC_STATUSES = [
+  { value: "draft", label: "Draft" },
+  { value: "sent", label: "Sent" },
+  { value: "under_review", label: "Under Review" },
+  { value: "signed", label: "Signed" },
+  { value: "active", label: "Active" },
+  { value: "expired", label: "Expired" },
+  { value: "cancelled", label: "Cancelled" },
+];
 
 const STATUS_OPTIONS = [
   { value: "cold", label: "Cold", color: "bg-muted text-muted-foreground" },
@@ -155,58 +176,447 @@ const DOC_STATUS_BADGES: Record<string, { label: string; color: string }> = {
   expired: { label: "Expired", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" },
   cancelled: { label: "Cancelled", color: "bg-muted text-muted-foreground" },
 };
-function CompanyDocumentsSection({ docs, companyName, companyId, onUpload }: { docs: any[]; companyName: string; companyId: string; onUpload: () => void }) {
-  const activeAgreements = docs.filter((d: any) => ["msa", "contract"].includes(d.type) && ["active", "signed"].includes(d.status));
-  const sowDocs = docs.filter((d: any) => d.type === "sow");
-  const proposals = docs.filter((d: any) => ["proposal", "rfp"].includes(d.type));
-  const expiredDocs = docs.filter((d: any) => ["expired", "cancelled"].includes(d.status));
-  const otherDocs = docs.filter((d: any) => !activeAgreements.includes(d) && !sowDocs.includes(d) && !proposals.includes(d) && !expiredDocs.includes(d));
-  const renderGroup = (title: string, items: any[]) => {
-    if (items.length === 0) return null;
-    return (
-      <div className="space-y-2">
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</h4>
-        {items.map((doc: any) => {
-          const t = DOC_TYPE_BADGES[doc.type] || DOC_TYPE_BADGES.other;
-          const s = DOC_STATUS_BADGES[doc.status] || DOC_STATUS_BADGES.draft;
-          return (
-            <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
-              <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{doc.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {doc.value > 0 ? `${doc.currency || "GBP"} ${Number(doc.value).toLocaleString()} · ` : ""}
-                  {doc.start_date && doc.end_date ? `${doc.start_date} – ${doc.end_date}` : doc.start_date ? `From ${doc.start_date}` : ""}
-                </p>
-              </div>
-              <Badge className={`text-[10px] ${t.color} border-0`}>{t.label}</Badge>
-              <Badge className={`text-[10px] ${s.color} border-0`}>{s.label}</Badge>
-            </div>
-          );
-        })}
-      </div>
-    );
+function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: { docs: any[]; companyName: string; companyId: string; workspaceId: string }) {
+  const queryClient = useQueryClient();
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [fullScreen, setFullScreen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [editDoc, setEditDoc] = useState<any>(null);
+
+  // Upload form state
+  const [formType, setFormType] = useState("sow");
+  const [formName, setFormName] = useState("");
+  const [formContactId, setFormContactId] = useState("");
+  const [formValue, setFormValue] = useState("");
+  const [formCurrency, setFormCurrency] = useState("GBP");
+  const [formStartDate, setFormStartDate] = useState("");
+  const [formEndDate, setFormEndDate] = useState("");
+  const [formSignedDate, setFormSignedDate] = useState("");
+  const [formStatus, setFormStatus] = useState("draft");
+  const [formNotes, setFormNotes] = useState("");
+  const [formFile, setFormFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+
+  // Contacts for this company
+  const { data: contactsList = [] } = useQuery({
+    queryKey: ["contacts-for-company-docs", companyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("contacts").select("id, name").eq("company_id", companyId).is("deleted_at", null).order("name");
+      return data || [];
+    },
+    enabled: !!companyId,
+  });
+
+  const resetForm = () => {
+    setFormType("sow"); setFormName(""); setFormContactId("");
+    setFormValue(""); setFormCurrency("GBP"); setFormStartDate(""); setFormEndDate("");
+    setFormSignedDate(""); setFormStatus("draft"); setFormNotes(""); setFormFile(null);
+    setEditDoc(null);
   };
-  if (docs.length === 0) {
-    return (
-      <Card><CardContent className="py-12 text-center">
-        <FileText className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground mb-3">No documents for {companyName}</p>
-        <Button variant="outline" size="sm" onClick={onUpload} className="gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Document</Button>
-      </CardContent></Card>
-    );
-  }
+
+  const openUpload = (doc?: any) => {
+    if (doc) {
+      setEditDoc(doc);
+      setFormType(doc.type); setFormName(doc.name);
+      setFormContactId(doc.contact_id || "");
+      setFormValue(doc.value ? String(doc.value) : "");
+      setFormCurrency(doc.currency || "GBP"); setFormStartDate(doc.start_date || "");
+      setFormEndDate(doc.end_date || ""); setFormSignedDate(doc.signed_date || "");
+      setFormStatus(doc.status); setFormNotes(doc.notes || "");
+    } else {
+      resetForm();
+    }
+    setUploadOpen(true);
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
+    else if (e.type === "dragleave") setDragActive(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files?.[0]) {
+      const file = e.dataTransfer.files[0];
+      const maxSize = 25 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast({ title: "File too large", description: "Maximum file size is 25MB", variant: "destructive" });
+        return;
+      }
+      setFormFile(file);
+      if (!formName) setFormName(file.name.replace(/\.[^.]+$/, ""));
+    }
+  };
+
+  const handleSave = async () => {
+    if (!formName.trim()) { toast({ title: "Document name is required", variant: "destructive" }); return; }
+    if (!formFile && !editDoc) { toast({ title: "Please attach a file", description: "Drag and drop or click to upload a document file", variant: "destructive" }); return; }
+    setSaving(true);
+    try {
+      let fileUrl = editDoc?.file_url || null;
+      let fileName = editDoc?.file_name || null;
+
+      if (formFile) {
+        const path = `${workspaceId}/${formType}/${Date.now()}_${formFile.name}`;
+        const { error: uploadErr } = await supabase.storage.from("commercial-documents").upload(path, formFile, { upsert: false });
+        if (uploadErr) throw uploadErr;
+        fileUrl = path;
+        fileName = formFile.name;
+      }
+
+      const payload: any = {
+        workspace_id: workspaceId,
+        type: formType,
+        name: formName.trim(),
+        company_id: companyId,
+        contact_id: formContactId || null,
+        value: formValue ? parseFloat(formValue) : 0,
+        currency: formCurrency,
+        start_date: formStartDate || null,
+        end_date: formEndDate || null,
+        signed_date: formSignedDate || null,
+        status: formStatus,
+        file_url: fileUrl,
+        file_name: fileName,
+        notes: formNotes || null,
+      };
+
+      if (editDoc) {
+        const { error } = await supabase.from("commercial_documents" as any).update(payload).eq("id", editDoc.id);
+        if (error) throw error;
+        toast({ title: "Document updated" });
+      } else {
+        const { error } = await supabase.from("commercial_documents" as any).insert(payload);
+        if (error) throw error;
+        toast({ title: "Document uploaded successfully" });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["company-commercial-docs", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+      setUploadOpen(false);
+      resetForm();
+    } catch (err: any) {
+      toast({ title: "Failed to save document", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (docId: string) => {
+    if (!confirm("Delete this document?")) return;
+    const { error } = await supabase.from("commercial_documents" as any).delete().eq("id", docId);
+    if (error) { toast({ title: "Failed to delete", variant: "destructive" }); return; }
+    toast({ title: "Document deleted" });
+    queryClient.invalidateQueries({ queryKey: ["company-commercial-docs", companyId] });
+    queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+  };
+
+  const handleDownload = async (doc: any) => {
+    if (!doc.file_url) { toast({ title: "No file attached", variant: "destructive" }); return; }
+    const { data, error } = await supabase.storage.from("commercial-documents").createSignedUrl(doc.file_url, 3600);
+    if (error || !data?.signedUrl) { toast({ title: "Failed to get download link", variant: "destructive" }); return; }
+    window.open(data.signedUrl, "_blank");
+  };
+
+  // Filter docs
+  const filtered = useMemo(() => {
+    return docs.filter((d: any) => {
+      if (filterType !== "all" && d.type !== filterType) return false;
+      if (filterStatus !== "all" && d.status !== filterStatus) return false;
+      if (searchTerm) {
+        const s = searchTerm.toLowerCase();
+        if (!(d.name || "").toLowerCase().includes(s) && !(d.file_name || "").toLowerCase().includes(s) && !(d.notes || "").toLowerCase().includes(s)) return false;
+      }
+      return true;
+    });
+  }, [docs, filterType, filterStatus, searchTerm]);
+
+  const endDateWarning = formEndDate ? (() => {
+    const days = differenceInDays(parseISO(formEndDate), new Date());
+    if (days < 30 && days >= 0) return `⚠️ End date is ${days} days away`;
+    return null;
+  })() : null;
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{docs.length} document{docs.length !== 1 ? "s" : ""}</p>
-        <Button variant="outline" size="sm" onClick={onUpload} className="gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Document</Button>
+    <div className="space-y-4">
+      {/* Header with search, filters, and add button */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input placeholder="Search documents..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-9 h-9" />
+        </div>
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Type" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            {DOC_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            {DOC_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button size="sm" className="gap-1.5 ml-auto" onClick={() => openUpload()}>
+          <Plus className="w-3.5 h-3.5" /> Add Document
+        </Button>
       </div>
-      {renderGroup("Active Agreements", activeAgreements)}
-      {renderGroup("Statements of Work", sowDocs)}
-      {renderGroup("Proposals & Bids", proposals)}
-      {renderGroup("Other", otherDocs)}
-      {renderGroup("Expired / Archived", expiredDocs)}
+
+      {/* Document count */}
+      <p className="text-xs text-muted-foreground">{filtered.length} of {docs.length} document{docs.length !== 1 ? "s" : ""}</p>
+
+      {/* Documents list */}
+      {filtered.length === 0 ? (
+        <Card><CardContent className="py-12 text-center">
+          <FileText className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground mb-3">{docs.length === 0 ? `No documents for ${companyName}` : "No documents match your filters"}</p>
+          {docs.length === 0 && (
+            <Button variant="outline" size="sm" onClick={() => openUpload()} className="gap-1.5"><Plus className="w-3.5 h-3.5" /> Add Document</Button>
+          )}
+        </CardContent></Card>
+      ) : (
+        <Card className="border border-border rounded-xl overflow-hidden" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/30">
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Document Name</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Value</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Start</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">End</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">File</th>
+                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((doc: any, i: number) => {
+                  const typeConf = DOC_TYPE_BADGES[doc.type] || DOC_TYPE_BADGES.other;
+                  const statusConf = DOC_STATUS_BADGES[doc.status] || DOC_STATUS_BADGES.draft;
+                  const endDays = doc.end_date ? differenceInDays(parseISO(doc.end_date), new Date()) : null;
+                  return (
+                    <tr key={doc.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}>
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-foreground">{doc.name}</span>
+                        {doc.file_name && <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">{doc.file_name}</p>}
+                      </td>
+                      <td className="px-4 py-3"><Badge className={`text-xs ${typeConf.color} border-0`}>{typeConf.label}</Badge></td>
+                      <td className="px-4 py-3 text-muted-foreground">{doc.value > 0 ? `${doc.currency || "GBP"} ${Number(doc.value).toLocaleString()}` : "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs">{doc.start_date ? format(parseISO(doc.start_date), "dd MMM yyyy") : "—"}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs ${endDays !== null && endDays <= 30 && endDays >= 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                          {doc.end_date ? format(parseISO(doc.end_date), "dd MMM yyyy") : "—"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3"><Badge className={`text-xs ${statusConf.color} border-0`}>{statusConf.label}</Badge></td>
+                      <td className="px-4 py-3">
+                        {doc.file_url ? (
+                          <Badge variant="outline" className="text-xs gap-1 cursor-pointer hover:bg-muted/50" onClick={() => handleDownload(doc)}>
+                            <FileText className="w-3 h-3" /> Attached
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">None</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-7 w-7 p-0"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {doc.file_url && <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="w-3.5 h-3.5 mr-2" /> Download</DropdownMenuItem>}
+                            <DropdownMenuItem onClick={() => openUpload(doc)}><Pencil className="w-3.5 h-3.5 mr-2" /> Edit Details</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDelete(doc.id)} className="text-destructive"><Trash2 className="w-3.5 h-3.5 mr-2" /> Delete</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Upload / Edit Panel */}
+      <Sheet open={uploadOpen} onOpenChange={v => { if (!v) { setUploadOpen(false); resetForm(); } }}>
+        <SheetContent className={cn(
+          "overflow-y-auto flex flex-col p-0 transition-all duration-200",
+          fullScreen ? "sm:max-w-full w-full" : "sm:max-w-[620px]"
+        )}>
+          <SheetHeader className="px-6 pt-6 pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <SheetTitle>{editDoc ? `Edit — ${formName || "Document"}` : `Upload Document — ${companyName}`}</SheetTitle>
+                <SheetDescription>Attach a file and fill in document details for {companyName}</SheetDescription>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setFullScreen(!fullScreen)} title={fullScreen ? "Exit full screen" : "Full screen"}>
+                {fullScreen ? <X className="w-4 h-4" /> : <ExternalLink className="w-4 h-4" />}
+              </Button>
+            </div>
+          </SheetHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className={cn("space-y-5", fullScreen && "max-w-3xl mx-auto")}>
+              {/* File Upload Zone - REQUIRED */}
+              <div>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                  File Upload <span className="text-destructive">*</span>
+                </Label>
+                <div
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => document.getElementById("company-doc-file-input")?.click()}
+                  className={cn(
+                    "relative flex flex-col items-center justify-center border-2 border-dashed rounded-xl cursor-pointer transition-all",
+                    fullScreen ? "p-12" : "p-8",
+                    dragActive ? "border-primary bg-primary/5 scale-[1.01]" : "border-border hover:border-primary/50 hover:bg-muted/30",
+                    formFile && "border-green-500/50 bg-green-500/5"
+                  )}
+                >
+                  <input
+                    id="company-doc-file-input"
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.doc,.docx,.xlsx,.xls,.png,.jpg,.jpeg"
+                    onChange={e => {
+                      const f = e.target.files?.[0];
+                      if (f) {
+                        if (f.size > 25 * 1024 * 1024) {
+                          toast({ title: "File too large", description: "Max 25MB", variant: "destructive" });
+                          return;
+                        }
+                        setFormFile(f);
+                        if (!formName) setFormName(f.name.replace(/\.[^.]+$/, ""));
+                      }
+                    }}
+                  />
+                  {formFile ? (
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-green-500/10">
+                        <CheckCircle2 className="h-6 w-6 text-green-500" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{formFile.name}</p>
+                        <p className="text-xs text-muted-foreground">{(formFile.size / 1024).toFixed(0)} KB · Click to change</p>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 ml-2" onClick={e => { e.stopPropagation(); setFormFile(null); }}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <Upload className={cn("text-muted-foreground mb-3", fullScreen ? "h-12 w-12" : "h-8 w-8")} />
+                      <p className="text-sm font-medium mb-1">Drag & drop your document here</p>
+                      <p className="text-xs text-muted-foreground">or click to browse your computer</p>
+                      <p className="text-xs text-muted-foreground mt-2">PDF, DOCX, XLSX, PNG, JPG — Max 25MB</p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Document details form */}
+              <div className={cn("space-y-4", fullScreen && "grid grid-cols-2 gap-x-6 gap-y-4 space-y-0")}>
+                <div className={fullScreen ? "col-span-1" : ""}>
+                  <Label className="text-xs font-medium">Document Type <span className="text-destructive">*</span></Label>
+                  <Select value={formType} onValueChange={setFormType}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{DOC_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className={fullScreen ? "col-span-1" : ""}>
+                  <Label className="text-xs font-medium">Document Name <span className="text-destructive">*</span></Label>
+                  <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. LSEG Technology SOW Q1 2026" />
+                </div>
+                <div className={fullScreen ? "col-span-1" : ""}>
+                  <Label className="text-xs font-medium">Company</Label>
+                  <Input value={companyName} disabled className="bg-muted/50" />
+                </div>
+                {contactsList.length > 0 && (
+                  <div className={fullScreen ? "col-span-1" : ""}>
+                    <Label className="text-xs font-medium">Signatory Contact ({contactsList.length} available)</Label>
+                    <Select value={formContactId} onValueChange={setFormContactId}>
+                      <SelectTrigger><SelectValue placeholder="Select contact..." /></SelectTrigger>
+                      <SelectContent>
+                        {contactsList.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className={fullScreen ? "col-span-1" : ""}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-medium">Value</Label>
+                      <Input type="number" value={formValue} onChange={e => setFormValue(e.target.value)} placeholder="0" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium">Currency</Label>
+                      <Select value={formCurrency} onValueChange={setFormCurrency}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+                <div className={fullScreen ? "col-span-1" : ""}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs font-medium">Start Date</Label>
+                      <Input type="date" value={formStartDate} onChange={e => setFormStartDate(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-medium">End Date</Label>
+                      <Input type="date" value={formEndDate} onChange={e => setFormEndDate(e.target.value)} />
+                      {endDateWarning && <p className="text-xs text-destructive mt-1">{endDateWarning}</p>}
+                    </div>
+                  </div>
+                </div>
+                <div className={fullScreen ? "col-span-1" : ""}>
+                  <Label className="text-xs font-medium">Signed Date</Label>
+                  <Input type="date" value={formSignedDate} onChange={e => setFormSignedDate(e.target.value)} />
+                </div>
+                <div className={fullScreen ? "col-span-1" : ""}>
+                  <Label className="text-xs font-medium">Status</Label>
+                  <Select value={formStatus} onValueChange={setFormStatus}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{DOC_STATUSES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className={fullScreen ? "col-span-2" : ""}>
+                  <Label className="text-xs font-medium">Notes</Label>
+                  <Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} rows={3} placeholder="Additional notes..." />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sticky footer */}
+          <div className="sticky bottom-0 border-t border-border bg-background px-6 py-5 pb-20 flex items-center justify-between gap-2">
+            <Button variant="ghost" onClick={() => { setUploadOpen(false); resetForm(); }}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving || (!formFile && !editDoc)}>
+              {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {editDoc ? "Save Changes" : "Upload & Save"}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
@@ -871,7 +1281,7 @@ export default function CompanyDetail() {
 
           {/* ─── DOCUMENTS TAB ─── */}
           <TabsContent value="documents">
-            <CompanyDocumentsSection docs={companyDocs} companyName={company.name} companyId={id!} onUpload={() => navigate('/documents')} />
+            <CompanyDocumentsSection docs={companyDocs} companyName={company.name} companyId={id!} workspaceId={currentWorkspace?.id || ""} />
           </TabsContent>
 
           {/* ─── ACTIVITY TAB ─── */}

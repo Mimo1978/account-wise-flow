@@ -1478,13 +1478,19 @@ export function JarvisFloatingButton() {
       const detail = (e as CustomEvent).detail;
       setIsSpeaking(detail?.speaking ?? false);
     };
+    const handleTourActive = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setIsTourActive(detail?.active ?? false);
+    };
     window.addEventListener('jarvis-open', handleOpen);
     window.addEventListener('jarvis-close', handleClose);
     window.addEventListener('jarvis-speaking', handleSpeaking);
+    window.addEventListener('jarvis-tour-active', handleTourActive);
     return () => {
       window.removeEventListener('jarvis-open', handleOpen);
       window.removeEventListener('jarvis-close', handleClose);
       window.removeEventListener('jarvis-speaking', handleSpeaking);
+      window.removeEventListener('jarvis-tour-active', handleTourActive);
     };
   }, []);
 

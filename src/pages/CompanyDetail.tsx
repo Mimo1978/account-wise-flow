@@ -468,7 +468,7 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
                           <DropdownMenuContent align="end">
                             {doc.file_url && <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="w-3.5 h-3.5 mr-2" /> Download</DropdownMenuItem>}
                             <DropdownMenuItem onClick={() => openUpload(doc)}><Pencil className="w-3.5 h-3.5 mr-2" /> Edit Details</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDelete(doc.id)} className="text-destructive"><Trash2 className="w-3.5 h-3.5 mr-2" /> Delete</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setDeleteTarget(doc)} className="text-destructive"><Trash2 className="w-3.5 h-3.5 mr-2" /> {isAdmin ? "Delete" : "Request Deletion"}</DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>

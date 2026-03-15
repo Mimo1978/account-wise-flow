@@ -1310,34 +1310,57 @@ export default function CompanyDetail() {
                   ))}
                 </div>
 
+                {/* Active Deals section */}
                 <div className="space-y-2">
-                  <p className="text-sm font-semibold">Active Engagements</p>
-                  {(deals as any[]).length === 0 && (projects as any[]).length === 0 ? (
-                    <div className="border border-dashed border-border rounded-lg p-4 text-center max-h-[120px] flex items-center justify-center">
-                      <p className="text-sm text-muted-foreground">No active engagements. Add a deal or project to get started.</p>
+                  <p className="text-sm font-semibold flex items-center gap-1.5"><DollarSign className="h-3.5 w-3.5 text-muted-foreground" /> Active Deals</p>
+                  {(() => {
+                    const activeDeals = (deals as any[]).filter((d: any) => !["won", "lost", "complete", "cancelled"].includes(d.stage || d.status));
+                    return activeDeals.length === 0 ? (
+                      <div className="border border-dashed border-border rounded-lg p-3 text-center">
+                        <p className="text-sm text-muted-foreground">No active deals — <button className="text-primary hover:underline" onClick={() => setAddDealOpen(true)}>+ Add Deal</button></p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {activeDeals.slice(0, 4).map((d: any) => (
+                          <div key={d.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card text-sm cursor-pointer hover:bg-muted/50"
+                            onClick={() => navigate(`/crm/deals/${d.id}`)}>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium truncate">{d.title}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-muted-foreground">£{(d.value || 0).toLocaleString()}</span>
+                              <Badge className={cn("text-xs capitalize", STAGE_COLORS[d.stage || d.status] || "bg-muted text-muted-foreground")}>{d.stage || d.status}</Badge>
+                              <span className="text-xs text-muted-foreground">{d.created_at ? `${differenceInDays(new Date(), parseISO(d.created_at))}d` : ""}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {activeDeals.length > 4 && <p className="text-xs text-muted-foreground text-center">+ {activeDeals.length - 4} more</p>}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Projects section */}
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold flex items-center gap-1.5"><FileText className="h-3.5 w-3.5 text-muted-foreground" /> Projects</p>
+                  {(projects as any[]).length === 0 ? (
+                    <div className="border border-dashed border-border rounded-lg p-3 text-center">
+                      <p className="text-sm text-muted-foreground">No projects yet</p>
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      {(deals as any[]).slice(0, 3).map((d: any) => (
-                        <div key={d.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card text-sm cursor-pointer hover:bg-muted/50"
-                          onClick={() => navigate(`/crm/deals/${d.id}`)}>
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="font-medium">{d.title}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground">£{(d.value || 0).toLocaleString()}</span>
-                            <Badge className={cn("text-xs capitalize", STAGE_COLORS[d.stage || d.status] || "bg-muted text-muted-foreground")}>{d.stage || d.status}</Badge>
-                          </div>
-                        </div>
-                      ))}
-                      {(projects as any[]).slice(0, 3).map((p: any) => (
+                      {(projects as any[]).slice(0, 4).map((p: any) => (
                         <div key={p.id} className="flex items-center justify-between p-2.5 rounded-lg border border-border bg-card text-sm cursor-pointer hover:bg-muted/50"
-                          onClick={() => setEditProjectId(p.id)}>
-                          <div className="flex items-center gap-2"><FileText className="h-3.5 w-3.5 text-muted-foreground" /><span className="font-medium">{p.name}</span></div>
-                          <Badge variant="secondary" className="text-xs capitalize">{p.status}</Badge>
+                          onClick={() => navigate(`/projects/${p.id}`)}>
+                          <div className="flex items-center gap-2"><span className="font-medium truncate">{p.name}</span></div>
+                          <div className="flex items-center gap-2">
+                            {p.project_type && <Badge variant="outline" className="text-xs">{p.project_type}</Badge>}
+                            <Badge variant="secondary" className="text-xs capitalize">{p.status}</Badge>
+                            {p.budget ? <span className="text-xs text-muted-foreground">£{(p.budget || 0).toLocaleString()}</span> : null}
+                          </div>
                         </div>
                       ))}
+                      {(projects as any[]).length > 4 && <p className="text-xs text-muted-foreground text-center">+ {(projects as any[]).length - 4} more</p>}
                     </div>
                   )}
                 </div>

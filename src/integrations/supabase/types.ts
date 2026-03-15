@@ -975,6 +975,7 @@ export type Database = {
           created_by: string | null
           currency: string | null
           deal_id: string | null
+          deletion_scheduled_purge_at: string | null
           end_date: string | null
           file_name: string | null
           file_url: string | null
@@ -996,6 +997,7 @@ export type Database = {
           created_by?: string | null
           currency?: string | null
           deal_id?: string | null
+          deletion_scheduled_purge_at?: string | null
           end_date?: string | null
           file_name?: string | null
           file_url?: string | null
@@ -1017,6 +1019,7 @@ export type Database = {
           created_by?: string | null
           currency?: string | null
           deal_id?: string | null
+          deletion_scheduled_purge_at?: string | null
           end_date?: string | null
           file_name?: string | null
           file_url?: string | null

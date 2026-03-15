@@ -745,18 +745,29 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
               {isAdmin ? (
                 <><Trash2 className="w-5 h-5 text-destructive" /> Permanently Delete Document</>
               ) : (
-                <><AlertTriangle className="w-5 h-5 text-amber-500" /> Request Document Deletion</>
+                <><AlertTriangle className="w-5 h-5 text-amber-500" /> Schedule Document for Deletion</>
               )}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm text-muted-foreground">
-                {deleteTarget && (
-                  <p>
-                    {isAdmin
-                      ? <>You are about to permanently delete <span className="font-medium text-foreground">"{deleteTarget.name}"</span>. This action cannot be undone.</>
-                      : <>You are requesting the removal of <span className="font-medium text-foreground">"{deleteTarget.name}"</span>. An administrator will review and approve this request. The document will remain visible with a pending status until approved.</>
-                    }
-                  </p>
+                {deleteTarget && isAdmin && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                    <p className="text-destructive font-medium text-sm">
+                      Warning: This will permanently delete "{deleteTarget.name}" from the record. This action cannot be undone and the file will be irrecoverably removed.
+                    </p>
+                  </div>
+                )}
+                {deleteTarget && !isAdmin && (
+                  <div className="space-y-2">
+                    <p>
+                      <span className="font-medium text-foreground">"{deleteTarget.name}"</span> will be scheduled for deletion and reviewed within <span className="font-medium text-foreground">30 days</span>.
+                    </p>
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3">
+                      <p className="text-xs text-amber-800 dark:text-amber-200">
+                        Once confirmed, this document will no longer be accessible to your team. However, you may undo this action at any time within the 30-day review period. After 30 days, an administrator will permanently remove the record.
+                      </p>
+                    </div>
+                  </div>
                 )}
                 <div>
                   <Label className="text-xs font-medium">Reason for deletion</Label>
@@ -777,7 +788,7 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
               onClick={handleDelete}
               className={isAdmin ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
             >
-              {isAdmin ? "Delete Permanently" : "Submit Request"}
+              {isAdmin ? "Delete Permanently" : "Confirm & Schedule Deletion"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

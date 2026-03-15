@@ -78,7 +78,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         value: String(deal.value ?? ""),
         currency: deal.currency || "GBP",
         stage: deal.stage || "lead",
-        probability: String(d.probability ?? defaultProbabilityForStage(deal.stage || "lead")),
+        probability: String(deal.probability ?? defaultProbabilityForStage(deal.stage || "lead")),
         signed_date: deal.signed_date || "",
         start_date: deal.start_date || "",
         end_date: deal.end_date || "",

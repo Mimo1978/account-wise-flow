@@ -441,6 +441,7 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
                     <tr key={doc.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}>
                       <td className="px-4 py-3">
                         <span className="font-medium text-foreground">{doc.name}</span>
+                        {doc.deleted_at && <Badge className="ml-2 text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-0">⚠ Deletion Requested</Badge>}
                         {doc.file_name && <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">{doc.file_name}</p>}
                       </td>
                       <td className="px-4 py-3"><Badge className={`text-xs ${typeConf.color} border-0`}>{typeConf.label}</Badge></td>

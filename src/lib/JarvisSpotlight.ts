@@ -51,7 +51,7 @@ const autoSpotlightMap: SpotlightMapping[] = [
   { keywords: ["outreach", "campaigns"], targets: [], navTargets: ["nav-outreach"] },
   { keywords: ["insights", "revenue intelligence"], targets: [], navTargets: ["nav-insights"] },
   { keywords: ["admin", "settings"], targets: [], navTargets: ["nav-admin"] },
-  { keywords: ["billing", "invoices", "outstanding"], targets: ["home-billing-snapshot"], sections: ["billing-snapshot"] },
+  { keywords: ["billing", "invoices", "outstanding", "invoice"], targets: ["home-billing-snapshot"], sections: ["billing-snapshot"] },
   { keywords: ["active projects", "live engagements"], targets: ["home-active-projects"], sections: ["active-projects"], navTargets: ["nav-projects"] },
   { keywords: ["shortlist"], targets: ["job-tab-shortlist"], sections: ["job-shortlist-table"] },
   { keywords: ["adverts", "job adverts"], targets: ["job-tab-adverts"], sections: ["job-adverts-list"] },
@@ -76,6 +76,10 @@ const autoSpotlightMap: SpotlightMapping[] = [
   { keywords: ["new campaign", "create campaign"], targets: ["new-campaign-button"] },
   { keywords: ["new script", "create script"], targets: ["new-script-button"] },
   { keywords: ["add targets"], targets: ["add-targets-button"] },
+  // CRM navigation spotlights
+  { keywords: ["deals", "deal list", "deal page"], targets: [], navTargets: ["nav-crm-deals"] },
+  { keywords: ["crm", "sales"], targets: [], navTargets: ["nav-crm"] },
+  { keywords: ["projects"], targets: [], navTargets: ["nav-projects"] },
   // Integration/setup spotlights
   { keywords: ["integrations", "api keys", "resend", "twilio", "elevenlabs"], targets: ["admin-integrations"], navTargets: ["nav-admin"] },
   { keywords: ["email setup", "configure email", "set up email"], targets: ["admin-integrations"] },
@@ -144,6 +148,9 @@ class JarvisSpotlightManager {
   private _activeElements: HTMLElement[] = [];
   private _activeSections: HTMLElement[] = [];
   private _activeNavItems: HTMLElement[] = [];
+  private _autoElements: HTMLElement[] = [];     // auto-spotlight managed separately
+  private _autoSections: HTMLElement[] = [];
+  private _autoNavItems: HTMLElement[] = [];
   private _settings: SpotlightSettings = { ...DEFAULT_SETTINGS };
 
   /** Update settings — called from React when workspace settings load */
@@ -187,16 +194,19 @@ class JarvisSpotlightManager {
     for (const id of ids) {
       const el = findEl(id);
       if (!el) continue;
-      this._scrollTo(el);
       el.classList.add(HIGHLIGHT_CLASS);
       this._activeElements.push(el);
       if (!firstEl) firstEl = el;
     }
-    if (firstEl) this._emitHighlightEvent(firstEl);
+    // Scroll to and emit dodge event for the first element
+    if (firstEl) {
+      this._scrollTo(firstEl);
+      this._emitHighlightEvent(firstEl);
+    }
     this._scheduleAutoClear(duration);
   }
 
-  /** Highlight a section (gentler glow, no tooltip) */
+  /** Highlight a section (gentler glow) + emit dodge event */
   highlightSection(sectionName: string, _label?: string): void {
     if (!this._settings.spotlight_enabled) return;
     const el = findSection(sectionName);
@@ -204,15 +214,17 @@ class JarvisSpotlightManager {
     this._scrollTo(el, true);
     el.classList.add(SECTION_GLOW_CLASS);
     this._activeSections.push(el);
+    this._emitHighlightEvent(el);
   }
 
-  /** Highlight a nav item with background glow */
+  /** Highlight a nav item with background glow + emit dodge event */
   highlightNav(navId: string): void {
     if (!this._settings.spotlight_enabled) return;
     const el = findEl(navId);
     if (!el) return;
     el.classList.add(NAV_HIGHLIGHT_CLASS);
     this._activeNavItems.push(el);
+    this._emitHighlightEvent(el);
   }
 
   /** Activate full page border glow */
@@ -240,14 +252,24 @@ class JarvisSpotlightManager {
     this._activeElements = [];
     this._activeSections = [];
     this._activeNavItems = [];
+    // Also clear auto-spotlight items
+    this._clearAutoOnly();
     removeTooltip();
     this.deactivatePageGlow();
+    // Notify chat panel to restore position
+    window.dispatchEvent(new CustomEvent("jarvis-highlight-clear"));
   }
 
-  /**
-   * THE KEY METHOD: Parse speech text and auto-highlight matching elements.
-   * Page glow stays active for the entire duration Jarvis speaks.
-   */
+  /** Clear ONLY auto-spotlight items (preserves tour/explicit highlights) */
+  private _clearAutoOnly(): void {
+    for (const el of this._autoElements) el.classList.remove(HIGHLIGHT_CLASS);
+    for (const el of this._autoSections) el.classList.remove(SECTION_GLOW_CLASS);
+    for (const el of this._autoNavItems) el.classList.remove(NAV_HIGHLIGHT_CLASS);
+    this._autoElements = [];
+    this._autoSections = [];
+    this._autoNavItems = [];
+  }
+
   /**
    * THE KEY METHOD: Parse speech text and auto-highlight matching elements.
    * Page glow stays active for the entire duration Jarvis speaks.
@@ -255,7 +277,9 @@ class JarvisSpotlightManager {
    */
   autoSpotlight(speechText: string, noAutoClear = false): void {
     if (!speechText || !this._settings.spotlight_enabled) return;
-    this.clearAll();
+    
+    // Only clear previous auto-spotlight items — NOT tour-managed explicit highlights
+    this._clearAutoOnly();
 
     const lower = speechText.toLowerCase();
     const matchedTargets: string[] = [];
@@ -273,22 +297,41 @@ class JarvisSpotlightManager {
     // Page glow always on while Jarvis speaks
     this.activatePageGlow();
 
-    // Highlight sections (gentler)
+    // Highlight sections (gentler) — tracked as auto items
     for (const s of [...new Set(matchedSections)]) {
-      this.highlightSection(s);
+      const el = findSection(s);
+      if (!el) continue;
+      this._scrollTo(el, true);
+      el.classList.add(SECTION_GLOW_CLASS);
+      this._autoSections.push(el);
+      this._emitHighlightEvent(el);
     }
 
-    // Highlight nav items
+    // Highlight nav items — tracked as auto items
     for (const n of [...new Set(matchedNavs)]) {
-      this.highlightNav(n);
+      const el = findEl(n);
+      if (!el) continue;
+      el.classList.add(NAV_HIGHLIGHT_CLASS);
+      this._autoNavItems.push(el);
+      this._emitHighlightEvent(el);
     }
 
-    // Highlight specific elements
-    if (matchedTargets.length > 0) {
-      this.highlightMany([...new Set(matchedTargets)], noAutoClear ? 999999 : 5000);
+    // Highlight specific elements — tracked as auto items
+    const uniqueTargets = [...new Set(matchedTargets)];
+    let firstAutoEl: HTMLElement | null = null;
+    for (const id of uniqueTargets) {
+      const el = findEl(id);
+      if (!el) continue;
+      el.classList.add(HIGHLIGHT_CLASS);
+      this._autoElements.push(el);
+      if (!firstAutoEl) firstAutoEl = el;
+    }
+    if (firstAutoEl) {
+      this._scrollTo(firstAutoEl);
+      this._emitHighlightEvent(firstAutoEl);
     }
 
-    // Auto-clear after 5s unless tour mode (page glow also clears on speech end via clearAll)
+    // Auto-clear after 5s unless tour mode
     if (!noAutoClear) {
       this._scheduleAutoClear(5000);
     }

@@ -346,14 +346,14 @@ function DiaryEventsSection({ workspaceId }: { workspaceId: string | undefined }
 
 /* ─── Tour Steps ─── */
 const COMMAND_CENTRE_TOUR: GuidedTourStep[] = [
-  { speak: "Welcome to your Command Centre. This is the heartbeat of your business.", delay: 2000 },
-  { highlight: '[data-jarvis-section="stat-cards"]', speak: "These four cards give you your headline numbers." },
-  { highlight: '[data-jarvis-section="pipeline"]', speak: "Your deal pipeline — every deal by stage. Click any chevron to drill in." },
-  { highlight: '[data-jarvis-section="action-required"]', speak: "Action required shows what needs your attention today." },
-  { highlight: '[data-jarvis-section="diary"]', speak: "Your diary shows calls and meetings for the next seven days." },
-  { highlight: '[data-jarvis-section="active-projects"]', speak: "Active Projects shows all your live engagements." },
-  { highlight: '[data-jarvis-section="outreach"]', speak: "Outreach shows campaign stats and response rates." },
-  { speak: "That's your Command Centre. Ask me to take you anywhere.", delay: 2000 },
+  { speak: "Welcome to your Command Centre. This is the heartbeat of your business.", delay: 3000 },
+  { highlight: '[data-jarvis-section="stat-cards"]', speak: "These four numbers are your headline metrics — projects, pipeline value, invoices, and renewals." },
+  { highlight: '[data-jarvis-section="pipeline-snapshot"]', speak: "Your pipeline shows every deal by stage. Click any chevron to filter by that stage." },
+  { highlight: '[data-jarvis-section="action-required"]', speak: "Action required flags things that need your attention today. Red means urgent." },
+  { highlight: '[data-jarvis-section="diary"]', speak: "Your diary shows calls and meetings for the next 7 days." },
+  { highlight: '[data-jarvis-section="active-projects"]', speak: "Active projects shows all your live engagements with health, forecast, and jobs." },
+  { highlight: '[data-jarvis-section="active-outreach"]', speak: "Outreach shows your campaign performance at a glance — targets, booked, conversion rate." },
+  { speak: "That's your Command Centre. Ask me anything or I can guide you anywhere.", delay: 3000 },
 ];
 
 /* ═══════════════════════════════════════════════════════════════ */

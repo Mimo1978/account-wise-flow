@@ -863,7 +863,7 @@ const HomeCommandCenter = () => {
         {/* ═══ ROW 6 — OUTREACH ACTIVITY ═══ */}
         {outreachMetrics && outreachMetrics.totalTargets > 0 && (
           <SectionCard title="Active Outreach" subtitle="Across all active recruitment campaigns" icon={Send} borderColor="#8B5CF6"
-            jarvisSection="outreach"
+            jarvisSection="active-outreach"
             headerRight={<Link to="/outreach" className="text-xs text-purple-400 hover:text-purple-300 transition-colors">View All →</Link>}>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
               {[

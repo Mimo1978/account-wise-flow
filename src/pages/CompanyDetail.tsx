@@ -178,12 +178,16 @@ const DOC_STATUS_BADGES: Record<string, { label: string; color: string }> = {
 };
 function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: { docs: any[]; companyName: string; companyId: string; workspaceId: string }) {
   const queryClient = useQueryClient();
+  const { isAdmin } = usePermissions();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [fullScreen, setFullScreen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [editDoc, setEditDoc] = useState<any>(null);
+  const [confirmUpload, setConfirmUpload] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteReason, setDeleteReason] = useState("");
 
   // Upload form state
   const [formType, setFormType] = useState("sow");

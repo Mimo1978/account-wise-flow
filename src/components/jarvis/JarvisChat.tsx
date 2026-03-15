@@ -1468,6 +1468,7 @@ export function JarvisFloatingButton() {
   const [idlePulse, setIdlePulse] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isTourActive, setIsTourActive] = useState(false);
 
   // Listen for jarvis-open / jarvis-close events (from onboarding)
   useEffect(() => {

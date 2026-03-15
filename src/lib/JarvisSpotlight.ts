@@ -54,6 +54,7 @@ const autoSpotlightMap: SpotlightMapping[] = [
   { keywords: ["admin", "settings"], targets: [], navTargets: ["nav-admin"] },
   { keywords: ["billing", "invoices", "outstanding", "outstanding invoices", "invoice"], targets: ["home-outstanding-invoices-card", "accounts-create-invoice-button"] },
   { keywords: ["active projects", "live engagements"], targets: ["home-active-projects"], sections: ["active-projects"], navTargets: ["nav-projects"] },
+  { keywords: ["outreach stats", "campaign performance", "active outreach"], targets: [], sections: ["active-outreach"] },
   { keywords: ["shortlist"], targets: ["job-tab-shortlist"], sections: ["job-shortlist-table"] },
   { keywords: ["adverts", "job adverts"], targets: ["job-tab-adverts"], sections: ["job-adverts-list"] },
   { keywords: ["applications"], targets: ["job-tab-applications"], sections: ["job-applications-table"] },

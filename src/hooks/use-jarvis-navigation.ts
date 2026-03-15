@@ -548,6 +548,7 @@ export function useJarvisNavigation() {
         const step = steps[i];
 
         // ═══ CLEAR previous highlights before every step (one-at-a-time) ═══
+        jarvisSpotlight.clearAll(); // Clear singleton-managed spotlights
         document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((e) =>
           e.classList.remove(HIGHLIGHT_CLASS)
         );

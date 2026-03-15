@@ -643,6 +643,25 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const isGuideMode =
     jarvisNav.tourState.status === "running" || jarvisNav.tourState.status === "paused";
 
+  // Tour tooltip state — driven by events from the navigation hook
+  const [tourTooltipRect, setTourTooltipRect] = useState<DOMRect | null>(null);
+  const [tourSpeechText, setTourSpeechText] = useState("");
+
+  useEffect(() => {
+    const handleTooltip = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setTourTooltipRect(detail?.rect || null);
+      setTourSpeechText(detail?.speechText || "");
+    };
+    window.addEventListener("jarvis-tour-tooltip", handleTooltip);
+    return () => window.removeEventListener("jarvis-tour-tooltip", handleTooltip);
+  }, []);
+
+  // Emit tour-active state for the FAB
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("jarvis-tour-active", { detail: { active: isGuideMode } }));
+  }, [isGuideMode]);
+
   // Auto-dodge: reposition panel when a highlighted element overlaps with it
   const savedPosBeforeDodge = useRef<{ x: number; y: number } | null>(null);
   const dodgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

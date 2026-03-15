@@ -444,60 +444,87 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Document Name</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Value</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Start</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">End</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">File</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((doc: any, i: number) => {
-                  const typeConf = DOC_TYPE_BADGES[doc.type] || DOC_TYPE_BADGES.other;
-                  const statusConf = DOC_STATUS_BADGES[doc.status] || DOC_STATUS_BADGES.draft;
-                  const endDays = doc.end_date ? differenceInDays(parseISO(doc.end_date), new Date()) : null;
-                  return (
-                    <tr key={doc.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}>
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-foreground">{doc.name}</span>
-                        {doc.deleted_at && <Badge className="ml-2 text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-0">⚠ Deletion Requested</Badge>}
-                        {doc.file_name && <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">{doc.file_name}</p>}
-                      </td>
-                      <td className="px-4 py-3"><Badge className={`text-xs ${typeConf.color} border-0`}>{typeConf.label}</Badge></td>
-                      <td className="px-4 py-3 text-muted-foreground">{doc.value > 0 ? `${doc.currency || "GBP"} ${Number(doc.value).toLocaleString()}` : "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">{doc.start_date ? format(parseISO(doc.start_date), "dd MMM yyyy") : "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs ${endDays !== null && endDays <= 30 && endDays >= 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                          {doc.end_date ? format(parseISO(doc.end_date), "dd MMM yyyy") : "—"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3"><Badge className={`text-xs ${statusConf.color} border-0`}>{statusConf.label}</Badge></td>
-                      <td className="px-4 py-3">
-                        {doc.file_url ? (
-                          <Badge variant="outline" className="text-xs gap-1 cursor-pointer hover:bg-muted/50" onClick={() => handleDownload(doc)}>
-                            <FileText className="w-3 h-3" /> Attached
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">None</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-7 w-7 p-0"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {doc.file_url && <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="w-3.5 h-3.5 mr-2" /> Download</DropdownMenuItem>}
-                            <DropdownMenuItem onClick={() => openUpload(doc)}><Pencil className="w-3.5 h-3.5 mr-2" /> Edit Details</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setDeleteTarget(doc)} className="text-destructive"><Trash2 className="w-3.5 h-3.5 mr-2" /> {isAdmin ? "Delete" : "Request Deletion"}</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  );
-                })}
+                 <tr className="border-b border-border bg-muted/30">
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Document Name</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Value</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Start</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">End</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date Added</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">File</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {filtered.map((doc: any, i: number) => {
+                   const typeConf = DOC_TYPE_BADGES[doc.type] || DOC_TYPE_BADGES.other;
+                   const statusConf = DOC_STATUS_BADGES[doc.status] || DOC_STATUS_BADGES.draft;
+                   const endDays = doc.end_date ? differenceInDays(parseISO(doc.end_date), new Date()) : null;
+                   const isSoftDeleted = !!doc.deleted_at;
+                   const purgeDate = doc.deletion_scheduled_purge_at ? parseISO(doc.deletion_scheduled_purge_at) : null;
+                   const daysUntilPurge = purgeDate ? differenceInDays(purgeDate, new Date()) : null;
+                   return (
+                     <tr key={doc.id} className={cn(
+                       "border-b border-border/50 hover:bg-muted/30 transition-colors",
+                       i % 2 === 1 && "bg-muted/10",
+                       isSoftDeleted && "opacity-60"
+                     )}>
+                       <td className="px-4 py-3">
+                         <span className={cn("font-medium text-foreground", isSoftDeleted && "line-through")}>{doc.name}</span>
+                         {isSoftDeleted && (
+                           <div className="flex items-center gap-2 mt-1">
+                             <Badge className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-0">
+                               ⚠ Deletion scheduled{daysUntilPurge !== null ? ` — ${daysUntilPurge} day${daysUntilPurge !== 1 ? "s" : ""} remaining` : ""}
+                             </Badge>
+                             <Button variant="link" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => handleUndoDelete(doc)}>
+                               Undo
+                             </Button>
+                           </div>
+                         )}
+                         {doc.file_name && !isSoftDeleted && <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">{doc.file_name}</p>}
+                       </td>
+                       <td className="px-4 py-3"><Badge className={`text-xs ${typeConf.color} border-0`}>{typeConf.label}</Badge></td>
+                       <td className="px-4 py-3 text-muted-foreground">{doc.value > 0 ? `${doc.currency || "GBP"} ${Number(doc.value).toLocaleString()}` : "—"}</td>
+                       <td className="px-4 py-3 text-muted-foreground text-xs">{doc.start_date ? format(parseISO(doc.start_date), "dd MMM yyyy") : "—"}</td>
+                       <td className="px-4 py-3">
+                         <span className={`text-xs ${endDays !== null && endDays <= 30 && endDays >= 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                           {doc.end_date ? format(parseISO(doc.end_date), "dd MMM yyyy") : "—"}
+                         </span>
+                       </td>
+                       <td className="px-4 py-3"><Badge className={`text-xs ${statusConf.color} border-0`}>{statusConf.label}</Badge></td>
+                       <td className="px-4 py-3 text-muted-foreground text-xs">{doc.created_at ? format(parseISO(doc.created_at), "dd MMM yyyy") : "—"}</td>
+                       <td className="px-4 py-3">
+                         {doc.file_url ? (
+                           <Badge variant="outline" className="text-xs gap-1 cursor-pointer hover:bg-muted/50" onClick={() => handleDownload(doc)}>
+                             <FileText className="w-3 h-3" /> Attached
+                           </Badge>
+                         ) : (
+                           <span className="text-xs text-muted-foreground">None</span>
+                         )}
+                       </td>
+                       <td className="px-4 py-3">
+                         <div className="flex items-center gap-1">
+                           {!isSoftDeleted && (
+                             <>
+                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Edit details" onClick={() => openUpload(doc)}>
+                                 <Pencil className="w-3.5 h-3.5" />
+                               </Button>
+                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" title={isAdmin ? "Delete permanently" : "Schedule deletion"} onClick={() => setDeleteTarget(doc)}>
+                                 <Trash2 className="w-3.5 h-3.5" />
+                               </Button>
+                             </>
+                           )}
+                           {doc.file_url && (
+                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Download" onClick={() => handleDownload(doc)}>
+                               <Download className="w-3.5 h-3.5" />
+                             </Button>
+                           )}
+                         </div>
+                       </td>
+                     </tr>
+                   );
+                 })}
               </tbody>
             </table>
           </div>

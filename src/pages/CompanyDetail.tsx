@@ -327,19 +327,25 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
     if (!deleteTarget) return;
     try {
       if (isAdmin) {
-        // Admin: hard delete
+        // Admin: hard delete after warning
+        if (deleteTarget.file_url) {
+          await supabase.storage.from("commercial-documents").remove([deleteTarget.file_url]);
+        }
         const { error } = await supabase.from("commercial_documents" as any).delete().eq("id", deleteTarget.id);
         if (error) throw error;
-        toast({ title: "Document permanently deleted" });
+        toast({ title: "Document permanently deleted", description: "The file and all associated records have been removed." });
       } else {
-        // Non-admin: soft-delete request
+        // Non-admin: 30-day soft-delete
+        const purgeDate = new Date();
+        purgeDate.setDate(purgeDate.getDate() + 30);
         const { error } = await supabase.from("commercial_documents" as any).update({
           deleted_at: new Date().toISOString(),
           deleted_by: (await supabase.auth.getUser()).data.user?.id || null,
           deletion_reason: deleteReason || "Requested for removal",
+          deletion_scheduled_purge_at: purgeDate.toISOString(),
         }).eq("id", deleteTarget.id);
         if (error) throw error;
-        toast({ title: "Deletion requested", description: "An administrator will review and approve the removal." });
+        toast({ title: "Scheduled for deletion", description: "This document will be permanently removed in 30 days unless undone." });
       }
       queryClient.invalidateQueries({ queryKey: ["company-commercial-docs", companyId] });
       queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
@@ -348,6 +354,23 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
     } finally {
       setDeleteTarget(null);
       setDeleteReason("");
+    }
+  };
+
+  const handleUndoDelete = async (doc: any) => {
+    try {
+      const { error } = await supabase.from("commercial_documents" as any).update({
+        deleted_at: null,
+        deleted_by: null,
+        deletion_reason: null,
+        deletion_scheduled_purge_at: null,
+      }).eq("id", doc.id);
+      if (error) throw error;
+      toast({ title: "Deletion undone", description: "The document has been restored and is accessible again." });
+      queryClient.invalidateQueries({ queryKey: ["company-commercial-docs", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+    } catch (err: any) {
+      toast({ title: "Failed to undo deletion", description: err.message, variant: "destructive" });
     }
   };
 
@@ -421,60 +444,87 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Document Name</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Value</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Start</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">End</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">File</th>
-                  <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((doc: any, i: number) => {
-                  const typeConf = DOC_TYPE_BADGES[doc.type] || DOC_TYPE_BADGES.other;
-                  const statusConf = DOC_STATUS_BADGES[doc.status] || DOC_STATUS_BADGES.draft;
-                  const endDays = doc.end_date ? differenceInDays(parseISO(doc.end_date), new Date()) : null;
-                  return (
-                    <tr key={doc.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}>
-                      <td className="px-4 py-3">
-                        <span className="font-medium text-foreground">{doc.name}</span>
-                        {doc.deleted_at && <Badge className="ml-2 text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-0">⚠ Deletion Requested</Badge>}
-                        {doc.file_name && <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">{doc.file_name}</p>}
-                      </td>
-                      <td className="px-4 py-3"><Badge className={`text-xs ${typeConf.color} border-0`}>{typeConf.label}</Badge></td>
-                      <td className="px-4 py-3 text-muted-foreground">{doc.value > 0 ? `${doc.currency || "GBP"} ${Number(doc.value).toLocaleString()}` : "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground text-xs">{doc.start_date ? format(parseISO(doc.start_date), "dd MMM yyyy") : "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs ${endDays !== null && endDays <= 30 && endDays >= 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-                          {doc.end_date ? format(parseISO(doc.end_date), "dd MMM yyyy") : "—"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3"><Badge className={`text-xs ${statusConf.color} border-0`}>{statusConf.label}</Badge></td>
-                      <td className="px-4 py-3">
-                        {doc.file_url ? (
-                          <Badge variant="outline" className="text-xs gap-1 cursor-pointer hover:bg-muted/50" onClick={() => handleDownload(doc)}>
-                            <FileText className="w-3 h-3" /> Attached
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">None</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-7 w-7 p-0"><MoreHorizontal className="w-4 h-4" /></Button></DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {doc.file_url && <DropdownMenuItem onClick={() => handleDownload(doc)}><Download className="w-3.5 h-3.5 mr-2" /> Download</DropdownMenuItem>}
-                            <DropdownMenuItem onClick={() => openUpload(doc)}><Pencil className="w-3.5 h-3.5 mr-2" /> Edit Details</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setDeleteTarget(doc)} className="text-destructive"><Trash2 className="w-3.5 h-3.5 mr-2" /> {isAdmin ? "Delete" : "Request Deletion"}</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  );
-                })}
+                 <tr className="border-b border-border bg-muted/30">
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Document Name</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Value</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Start</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">End</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date Added</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">File</th>
+                   <th className="text-left px-4 py-3 font-medium text-muted-foreground">Actions</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {filtered.map((doc: any, i: number) => {
+                   const typeConf = DOC_TYPE_BADGES[doc.type] || DOC_TYPE_BADGES.other;
+                   const statusConf = DOC_STATUS_BADGES[doc.status] || DOC_STATUS_BADGES.draft;
+                   const endDays = doc.end_date ? differenceInDays(parseISO(doc.end_date), new Date()) : null;
+                   const isSoftDeleted = !!doc.deleted_at;
+                   const purgeDate = doc.deletion_scheduled_purge_at ? parseISO(doc.deletion_scheduled_purge_at) : null;
+                   const daysUntilPurge = purgeDate ? differenceInDays(purgeDate, new Date()) : null;
+                   return (
+                     <tr key={doc.id} className={cn(
+                       "border-b border-border/50 hover:bg-muted/30 transition-colors",
+                       i % 2 === 1 && "bg-muted/10",
+                       isSoftDeleted && "opacity-60"
+                     )}>
+                       <td className="px-4 py-3">
+                         <span className={cn("font-medium text-foreground", isSoftDeleted && "line-through")}>{doc.name}</span>
+                         {isSoftDeleted && (
+                           <div className="flex items-center gap-2 mt-1">
+                             <Badge className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-0">
+                               ⚠ Deletion scheduled{daysUntilPurge !== null ? ` — ${daysUntilPurge} day${daysUntilPurge !== 1 ? "s" : ""} remaining` : ""}
+                             </Badge>
+                             <Button variant="link" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => handleUndoDelete(doc)}>
+                               Undo
+                             </Button>
+                           </div>
+                         )}
+                         {doc.file_name && !isSoftDeleted && <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">{doc.file_name}</p>}
+                       </td>
+                       <td className="px-4 py-3"><Badge className={`text-xs ${typeConf.color} border-0`}>{typeConf.label}</Badge></td>
+                       <td className="px-4 py-3 text-muted-foreground">{doc.value > 0 ? `${doc.currency || "GBP"} ${Number(doc.value).toLocaleString()}` : "—"}</td>
+                       <td className="px-4 py-3 text-muted-foreground text-xs">{doc.start_date ? format(parseISO(doc.start_date), "dd MMM yyyy") : "—"}</td>
+                       <td className="px-4 py-3">
+                         <span className={`text-xs ${endDays !== null && endDays <= 30 && endDays >= 0 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                           {doc.end_date ? format(parseISO(doc.end_date), "dd MMM yyyy") : "—"}
+                         </span>
+                       </td>
+                       <td className="px-4 py-3"><Badge className={`text-xs ${statusConf.color} border-0`}>{statusConf.label}</Badge></td>
+                       <td className="px-4 py-3 text-muted-foreground text-xs">{doc.created_at ? format(parseISO(doc.created_at), "dd MMM yyyy") : "—"}</td>
+                       <td className="px-4 py-3">
+                         {doc.file_url ? (
+                           <Badge variant="outline" className="text-xs gap-1 cursor-pointer hover:bg-muted/50" onClick={() => handleDownload(doc)}>
+                             <FileText className="w-3 h-3" /> Attached
+                           </Badge>
+                         ) : (
+                           <span className="text-xs text-muted-foreground">None</span>
+                         )}
+                       </td>
+                       <td className="px-4 py-3">
+                         <div className="flex items-center gap-1">
+                           {!isSoftDeleted && (
+                             <>
+                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Edit details" onClick={() => openUpload(doc)}>
+                                 <Pencil className="w-3.5 h-3.5" />
+                               </Button>
+                               <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" title={isAdmin ? "Delete permanently" : "Schedule deletion"} onClick={() => setDeleteTarget(doc)}>
+                                 <Trash2 className="w-3.5 h-3.5" />
+                               </Button>
+                             </>
+                           )}
+                           {doc.file_url && (
+                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0" title="Download" onClick={() => handleDownload(doc)}>
+                               <Download className="w-3.5 h-3.5" />
+                             </Button>
+                           )}
+                         </div>
+                       </td>
+                     </tr>
+                   );
+                 })}
               </tbody>
             </table>
           </div>
@@ -695,18 +745,29 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
               {isAdmin ? (
                 <><Trash2 className="w-5 h-5 text-destructive" /> Permanently Delete Document</>
               ) : (
-                <><AlertTriangle className="w-5 h-5 text-amber-500" /> Request Document Deletion</>
+                <><AlertTriangle className="w-5 h-5 text-amber-500" /> Schedule Document for Deletion</>
               )}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm text-muted-foreground">
-                {deleteTarget && (
-                  <p>
-                    {isAdmin
-                      ? <>You are about to permanently delete <span className="font-medium text-foreground">"{deleteTarget.name}"</span>. This action cannot be undone.</>
-                      : <>You are requesting the removal of <span className="font-medium text-foreground">"{deleteTarget.name}"</span>. An administrator will review and approve this request. The document will remain visible with a pending status until approved.</>
-                    }
-                  </p>
+                {deleteTarget && isAdmin && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                    <p className="text-destructive font-medium text-sm">
+                      Warning: This will permanently delete "{deleteTarget.name}" from the record. This action cannot be undone and the file will be irrecoverably removed.
+                    </p>
+                  </div>
+                )}
+                {deleteTarget && !isAdmin && (
+                  <div className="space-y-2">
+                    <p>
+                      <span className="font-medium text-foreground">"{deleteTarget.name}"</span> will be scheduled for deletion and reviewed within <span className="font-medium text-foreground">30 days</span>.
+                    </p>
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3">
+                      <p className="text-xs text-amber-800 dark:text-amber-200">
+                        Once confirmed, this document will no longer be accessible to your team. However, you may undo this action at any time within the 30-day review period. After 30 days, an administrator will permanently remove the record.
+                      </p>
+                    </div>
+                  </div>
                 )}
                 <div>
                   <Label className="text-xs font-medium">Reason for deletion</Label>
@@ -727,7 +788,7 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
               onClick={handleDelete}
               className={isAdmin ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
             >
-              {isAdmin ? "Delete Permanently" : "Submit Request"}
+              {isAdmin ? "Delete Permanently" : "Confirm & Schedule Deletion"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

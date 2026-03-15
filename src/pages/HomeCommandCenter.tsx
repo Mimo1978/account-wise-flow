@@ -187,16 +187,26 @@ function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isR
       {/* Integrity badges */}
       {(!deal.contact_id || !deal.project_id) && (
         <div className="flex items-center gap-1 mt-1.5">
-          {!deal.contact_id && (
-            <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-400 bg-amber-500/10">
-              <AlertTriangle className="w-2.5 h-2.5" /> No contact
-            </span>
-          )}
-          {!deal.project_id && (
-            <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-400 bg-amber-500/10">
-              <AlertTriangle className="w-2.5 h-2.5" /> No project
-            </span>
-          )}
+          {!deal.contact_id && (() => {
+            const sev = getContactBadgeSeverity(deal.stage);
+            const s = BADGE_SEVERITY_STYLES_DARK[sev];
+            return (
+              <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                style={{ border: `1px solid ${s.border}`, color: s.text, background: s.bg }}>
+                {sev === 'grey' ? 'ℹ' : <AlertTriangle className="w-2.5 h-2.5" />} No contact
+              </span>
+            );
+          })()}
+          {!deal.project_id && (() => {
+            const sev = getProjectBadgeSeverity(deal.stage);
+            const s = BADGE_SEVERITY_STYLES_DARK[sev];
+            return (
+              <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                style={{ border: `1px solid ${s.border}`, color: s.text, background: s.bg }}>
+                {sev === 'grey' ? 'ℹ' : <AlertTriangle className="w-2.5 h-2.5" />} No project
+              </span>
+            );
+          })()}
         </div>
       )}
       <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: DARK.textSecondary }}>

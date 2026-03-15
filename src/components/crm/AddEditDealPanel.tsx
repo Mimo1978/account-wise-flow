@@ -167,6 +167,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
       status: form.status,
       notes: form.notes || null,
       project_id: form.project_id || null,
+      source: form.source || null,
     };
     try {
       if (isEdit && deal) {

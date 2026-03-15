@@ -96,6 +96,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         status: deal.status || "active",
         notes: deal.notes || "",
         project_id: deal.project_id || "",
+        source: (deal as any).source || "",
       });
       setProbManual(false);
     } else if (fromOpportunity) {

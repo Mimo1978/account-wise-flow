@@ -644,7 +644,7 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
           {/* Sticky footer */}
           <div className="sticky bottom-0 border-t border-border bg-background px-6 py-5 pb-20 flex items-center justify-between gap-2">
             <Button variant="ghost" onClick={() => { setUploadOpen(false); resetForm(); }}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || (!formFile && !editDoc)}>
+            <Button onClick={initiateUpload} disabled={saving || (!formFile && !editDoc)}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editDoc ? "Save Changes" : "Upload & Save"}
             </Button>

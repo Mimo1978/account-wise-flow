@@ -1635,9 +1635,7 @@ export default function CompanyDetail() {
             contacts={contacts}
             onSaved={() => { setLogActivityOpen(false); handlePanelSaved([["company-all-activities", crmCompanyId, id!]]); }} />
 
-          <AddLeadPanel open={addLeadOpen} onClose={() => setAddLeadOpen(false)}
-            companyId={crmCompanyId} companyName={company.name}
-            onSaved={() => { setAddLeadOpen(false); toast({ title: "Lead captured" }); }} />
+          {/* AddLeadPanel removed — unified into Add Deal */}
         </>
       )}
     </div>

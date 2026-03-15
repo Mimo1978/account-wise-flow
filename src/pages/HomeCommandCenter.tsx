@@ -638,7 +638,7 @@ const HomeCommandCenter = () => {
 
         {/* ═══ ROW 3 — DEAL PIPELINE ═══ */}
         <SectionCard title="Deal Pipeline" subtitle={activeDeals.length > 0 ? `£${totalPipelineValue.toLocaleString()} total · £${weightedPipelineValue.toLocaleString()} weighted` : undefined}
-          icon={TrendingUp} borderColor="#3B82F6" jarvisSection="pipeline"
+          icon={TrendingUp} borderColor="#3B82F6" jarvisSection="pipeline-snapshot"
           headerRight={
             <div className="flex items-center gap-2">
               <Link to="/crm/deals" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">View All Deals →</Link>

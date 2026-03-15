@@ -554,6 +554,19 @@ export function useJarvisNavigation() {
 
         setTourState({ steps, currentStep: i, status: "running" });
         const step = steps[i];
+        const stepTarget = step.highlight || step.clickAndOpen || step.click || null;
+
+        window.dispatchEvent(
+          new CustomEvent("jarvis-guide-next-step", {
+            detail: {
+              reason: "tour-step",
+              stepIndex: i,
+              totalSteps: steps.length,
+              navigateTo: step.navigate ?? null,
+              targetId: stepTarget,
+            },
+          })
+        );
 
         // ═══ CLEAR previous highlights before every step (one-at-a-time) ═══
         jarvisSpotlight.clearAll(); // Clear singleton-managed spotlights

@@ -1101,6 +1101,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       ref={panelRef}
       className={cn(
         "fixed z-[60] flex flex-col border border-border bg-background shadow-2xl overflow-hidden",
+        isGuideMode && "bg-background/80 supports-[backdrop-filter]:bg-background/70 backdrop-blur-md",
         isMobile
           ? "inset-0 rounded-none"
           : "w-[420px] h-[580px] rounded-2xl",

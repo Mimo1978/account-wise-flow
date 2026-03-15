@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { resolveNavigation, findDestination, type NavigationEntry } from "@/lib/jarvis-navigation-map";
 import type { GuidedTourStep } from "@/hooks/use-jarvis";
 import type { TourState } from "@/components/jarvis/GuidedTourPlayer";
+import { jarvisSpotlight } from "@/lib/JarvisSpotlight";
 
 /* ------------------------------------------------------------------ */
 /*  Session navigation history (persisted in sessionStorage)           */
@@ -547,6 +548,7 @@ export function useJarvisNavigation() {
         const step = steps[i];
 
         // ═══ CLEAR previous highlights before every step (one-at-a-time) ═══
+        jarvisSpotlight.clearAll(); // Clear singleton-managed spotlights
         document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((e) =>
           e.classList.remove(HIGHLIGHT_CLASS)
         );
@@ -644,6 +646,12 @@ export function useJarvisNavigation() {
         if (tourAbortRef.current) break;
         if (tourSkipRef.current) continue;
 
+        // --- Auto-spotlight: illuminate any UI elements mentioned in speech ---
+        // This runs for EVERY step with speech text, supplementing explicit highlights
+        if (step.speak) {
+          jarvisSpotlight.autoSpotlight(step.speak, true); // noAutoClear=true, tour controls cleanup
+        }
+
         // --- Speak AFTER highlighting/opening so user sees what Jarvis describes ---
         if (step.speak && speakFn && !tourSkipRef.current) {
           await speakFn(step.speak);
@@ -681,6 +689,7 @@ export function useJarvisNavigation() {
       }
 
       // Clean up
+      jarvisSpotlight.clearAll();
       clearVisuals();
       const finalPage = getPageName(lastPath);
       setTourState({ steps, currentStep: steps.length - 1, status: "completed" });

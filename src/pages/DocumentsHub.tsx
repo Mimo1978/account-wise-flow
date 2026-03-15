@@ -22,10 +22,16 @@ import {
 import { PageBackButton } from "@/components/ui/page-back-button";
 import {
   FileText, Plus, Search, Upload, Download, Eye, Pencil, Trash2,
-  Building2, Calendar, Loader2, MoreHorizontal, Filter,
+  Building2, Calendar, Loader2, MoreHorizontal, Filter, Shield, AlertTriangle,
 } from "lucide-react";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { toast } from "sonner";
+import { Label as LabelComp } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 /* ─── Constants ─── */
 const DOC_TYPES = [

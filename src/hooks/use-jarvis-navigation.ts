@@ -556,20 +556,8 @@ export function useJarvisNavigation() {
         const step = steps[i];
         const stepTarget = step.highlight || step.clickAndOpen || step.click || null;
 
-        window.dispatchEvent(
-          new CustomEvent("jarvis-guide-next-step", {
-            detail: {
-              reason: "tour-step",
-              stepIndex: i,
-              totalSteps: steps.length,
-              navigateTo: step.navigate ?? null,
-              targetId: stepTarget,
-            },
-          })
-        );
-
-        // ═══ CLEAR previous highlights before every step (one-at-a-time) ═══
-        jarvisSpotlight.clearAll(); // Clear singleton-managed spotlights
+        // ═══ CLEAR previous highlights before every step ═══
+        jarvisSpotlight.clearAll();
         document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach((e) =>
           e.classList.remove(HIGHLIGHT_CLASS)
         );
@@ -647,30 +635,63 @@ export function useJarvisNavigation() {
         if (tourAbortRef.current) break;
         if (tourSkipRef.current) continue;
 
-        // --- Highlight element (stays glowing until next step clears it) ---
+        // --- Highlight element + auto-scroll + emit tooltip rect ---
+        let highlightedRect: DOMRect | null = null;
+
         if (step.highlight) {
           await new Promise<void>((resolve) => {
             findElement(step.highlight!, 10, (el) => {
               const isSection = el.hasAttribute("data-jarvis-section");
-              scrollToElement(el, isSection);
-              el.classList.add(isSection ? SECTION_GLOW_CLASS : HIGHLIGHT_CLASS);
-              if (step.speak) showTooltip(el, step.speak.slice(0, 60));
-              // Emit dodge event
-              const rect = el.getBoundingClientRect();
-              window.dispatchEvent(new CustomEvent("jarvis-highlight", { detail: { rect: { top: rect.top, left: rect.left, right: rect.right, bottom: rect.bottom, width: rect.width, height: rect.height } } }));
-              resolve();
+
+              // Auto-scroll to element using getBoundingClientRect
+              el.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+                inline: "center",
+              });
+
+              // Wait for scroll to complete, then highlight
+              setTimeout(() => {
+                el.classList.add(isSection ? SECTION_GLOW_CLASS : HIGHLIGHT_CLASS);
+                highlightedRect = el.getBoundingClientRect();
+
+                // Emit tooltip positioning event
+                window.dispatchEvent(
+                  new CustomEvent("jarvis-tour-tooltip", {
+                    detail: {
+                      rect: highlightedRect,
+                      stepIndex: i,
+                      totalSteps: steps.length,
+                      speechText: step.speak || "",
+                    },
+                  })
+                );
+
+                resolve();
+              }, 400);
             });
-            setTimeout(resolve, 3000);
+            setTimeout(resolve, 3500);
           });
+        } else {
+          // No highlight target — centre tooltip
+          window.dispatchEvent(
+            new CustomEvent("jarvis-tour-tooltip", {
+              detail: {
+                rect: null,
+                stepIndex: i,
+                totalSteps: steps.length,
+                speechText: step.speak || "",
+              },
+            })
+          );
         }
 
         if (tourAbortRef.current) break;
         if (tourSkipRef.current) continue;
 
         // --- Auto-spotlight: illuminate any UI elements mentioned in speech ---
-        // This runs for EVERY step with speech text, supplementing explicit highlights
         if (step.speak) {
-          jarvisSpotlight.autoSpotlight(step.speak, true); // noAutoClear=true, tour controls cleanup
+          jarvisSpotlight.autoSpotlight(step.speak, true);
         }
 
         // --- Speak AFTER highlighting/opening so user sees what Jarvis describes ---

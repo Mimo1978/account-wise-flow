@@ -15,6 +15,14 @@ import type { CrmDeal } from "@/types/crm";
 import { cn } from "@/lib/utils";
 
 const CURRENCIES = ["GBP", "USD", "EUR"];
+const SOURCES = [
+  { value: "inbound", label: "Inbound — they came to us" },
+  { value: "outbound", label: "Outbound — we reached out" },
+  { value: "referral", label: "Referral — introduced by someone" },
+  { value: "existing_client", label: "Existing client — repeat/expansion" },
+  { value: "event", label: "Event — met at an event" },
+  { value: "other", label: "Other" },
+];
 const STATUSES = ["active", "complete", "cancelled"];
 const STAGES = [
   { value: "lead", label: "Lead", color: "bg-blue-500" },

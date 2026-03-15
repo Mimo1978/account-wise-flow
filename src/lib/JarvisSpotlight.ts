@@ -53,7 +53,7 @@ const autoSpotlightMap: SpotlightMapping[] = [
   { keywords: ["insights", "revenue intelligence"], targets: [], navTargets: ["nav-insights"] },
   { keywords: ["admin", "settings"], targets: [], navTargets: ["nav-admin"] },
   { keywords: ["billing", "invoices", "outstanding", "outstanding invoices", "invoice"], targets: ["home-outstanding-invoices-card", "accounts-create-invoice-button"] },
-  { keywords: ["active projects", "live engagements"], targets: ["home-active-projects"], sections: ["active-projects"], navTargets: ["nav-projects"] }
+  { keywords: ["active projects", "live engagements"], targets: ["home-active-projects"], sections: ["active-projects"], navTargets: ["nav-projects"] },
   { keywords: ["shortlist"], targets: ["job-tab-shortlist"], sections: ["job-shortlist-table"] },
   { keywords: ["adverts", "job adverts"], targets: ["job-tab-adverts"], sections: ["job-adverts-list"] },
   { keywords: ["applications"], targets: ["job-tab-applications"], sections: ["job-applications-table"] },
@@ -62,7 +62,7 @@ const autoSpotlightMap: SpotlightMapping[] = [
   { keywords: ["add contact", "new contact"], targets: ["add-contact-button"] },
   { keywords: ["add candidate"], targets: ["add-candidate-button"] },
   { keywords: ["refresh"], targets: ["home-refresh-button"] },
-  { keywords: ["create invoice"], targets: ["home-create-invoice-button"] },
+  { keywords: ["create invoice"], targets: ["accounts-create-invoice-button", "home-outstanding-invoices-card"] },
   { keywords: ["stat cards", "top cards", "overview cards", "top-line", "headline numbers", "four cards"], targets: ["home-kpi-row"], sections: ["stat-cards"] },
   { keywords: ["alerts", "billing alerts", "overdue or expiring"], targets: ["home-alerts-strip"], sections: ["alerts-strip"] },
   { keywords: ["sows", "contracts", "statements of work"], targets: [], sections: ["sows-contracts"] },

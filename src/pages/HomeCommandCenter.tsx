@@ -18,6 +18,7 @@ import { ReportBuilderPanel, type ReportType } from '@/components/home/ReportBui
 import { useJarvisNavigation } from '@/hooks/use-jarvis-navigation';
 import { GuidedTourPlayer } from '@/components/jarvis/GuidedTourPlayer';
 import type { GuidedTourStep } from '@/hooks/use-jarvis';
+import { getContactBadgeSeverity, getProjectBadgeSeverity, BADGE_SEVERITY_STYLES_DARK, type ActionSeverity } from '@/lib/deal-utils';
 
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -25,7 +26,7 @@ import {
   Plus, Building2, ArrowRight, LayoutGrid, Clock, Receipt, Loader2,
   AlertTriangle, ChevronRight, DollarSign, Target, Phone,
   Users, Zap, Video, CheckSquare, Inbox, Send, FileBarChart, Compass,
-  ArrowUpRight,
+  ArrowUpRight, Circle,
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';

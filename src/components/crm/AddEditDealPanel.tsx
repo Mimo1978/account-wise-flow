@@ -73,7 +73,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
       setForm({
         title: deal.title || "",
         company_id: deal.company_id || "",
-        contact_id: d.contact_id || "",
+        contact_id: deal.contact_id || "",
         opportunity_id: deal.opportunity_id || "",
         value: String(deal.value ?? ""),
         currency: deal.currency || "GBP",

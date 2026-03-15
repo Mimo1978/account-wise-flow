@@ -65,7 +65,26 @@ const daysAgo = (d?: string | null) => {
   try { return differenceInDays(new Date(), parseISO(d)); } catch { return null; }
 };
 
-const STATUS_OPTIONS = [
+const DOC_TYPES = [
+  { value: "sow", label: "SOW" },
+  { value: "msa", label: "MSA" },
+  { value: "proposal", label: "Proposal" },
+  { value: "rfp", label: "RFP / Bid" },
+  { value: "contract", label: "Contract" },
+  { value: "nda", label: "NDA" },
+  { value: "other", label: "Other" },
+];
+
+const DOC_STATUSES = [
+  { value: "draft", label: "Draft" },
+  { value: "sent", label: "Sent" },
+  { value: "under_review", label: "Under Review" },
+  { value: "signed", label: "Signed" },
+  { value: "active", label: "Active" },
+  { value: "expired", label: "Expired" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
   { value: "cold", label: "Cold", color: "bg-muted text-muted-foreground" },
   { value: "warm", label: "Warm", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
   { value: "hot", label: "Hot", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" },

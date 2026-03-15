@@ -1116,12 +1116,43 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     idle: "AI CRM Assistant",
   };
 
+  // When tour is active, render tooltip bubble instead of full panel
+  if (isGuideMode) {
+    return (
+      <>
+        <TourTooltipBubble
+          tour={jarvisNav.tourState}
+          speechText={tourSpeechText}
+          targetRect={tourTooltipRect}
+          onPrevious={() => {
+            // No built-in "go back" — skip is forward only, so we just skip
+            jarvisNav.skipTourStep();
+          }}
+          onNext={() => {
+            if (jarvisNav.tourState.status === "paused") {
+              jarvisNav.resumeTour();
+            } else {
+              jarvisNav.skipTourStep();
+            }
+          }}
+          onExit={() => {
+            // Store progress for resume
+            try {
+              sessionStorage.setItem("jarvis_tour_step", String(jarvisNav.tourState.currentStep));
+            } catch {}
+            jarvisNav.stopTour();
+          }}
+          isFinalStep={jarvisNav.tourState.currentStep === jarvisNav.tourState.steps.length - 1}
+        />
+      </>
+    );
+  }
+
   return (
     <div
       ref={panelRef}
       className={cn(
         "fixed z-[60] flex flex-col border border-border bg-background shadow-2xl overflow-hidden",
-        isGuideMode && "bg-background/80 supports-[backdrop-filter]:bg-background/70 backdrop-blur-md",
         isMobile
           ? "inset-0 rounded-none"
           : "w-[420px] h-[580px] rounded-2xl",

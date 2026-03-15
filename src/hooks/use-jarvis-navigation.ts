@@ -111,6 +111,8 @@ function clearVisuals() {
   document.getElementById(TOOLTIP_ID)?.remove();
   removeOverlay();
   deactivatePageGlow();
+  // Notify chat panel to restore position after dodge
+  window.dispatchEvent(new CustomEvent("jarvis-highlight-clear"));
 }
 
 function showOverlay() {

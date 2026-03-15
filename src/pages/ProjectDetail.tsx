@@ -140,14 +140,31 @@ function useCompanySearch(workspaceId: string | undefined, open: boolean) {
   });
 }
 
+/* ─── Company Contacts Hook (all contacts for a company) ─── */
+function useCompanyContacts(companyId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['company-contacts-list', companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const { data } = await supabase
+        .from('crm_contacts')
+        .select('id, first_name, last_name, job_title')
+        .eq('company_id', companyId)
+        .is('deleted_at', null)
+        .order('last_name');
+      return (data || []) as { id: string; first_name: string; last_name: string; job_title: string | null }[];
+    },
+    enabled: !!companyId,
+  });
+}
+
 /* ─── Contact Search Hook ─── */
 function useContactSearch(searchTerm: string, enabled: boolean, companyId?: string | null) {
   return useQuery({
     queryKey: ['crm-contacts-search', searchTerm, companyId],
     queryFn: async () => {
       if (!searchTerm.trim()) return [];
-      // First search within company contacts
-      let results: { id: string; first_name: string; last_name: string; job_title: string | null }[] = [];
+      let results: { id: string; first_name: string; last_name: string; job_title: string | null; fromCompany?: boolean }[] = [];
       if (companyId) {
         const { data } = await supabase
           .from('crm_contacts')
@@ -156,9 +173,8 @@ function useContactSearch(searchTerm: string, enabled: boolean, companyId?: stri
           .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
           .is('deleted_at', null)
           .limit(8);
-        results = (data || []) as typeof results;
+        results = ((data || []) as typeof results).map(c => ({ ...c, fromCompany: true }));
       }
-      // If not enough results, search all
       if (results.length < 5) {
         const existingIds = results.map(r => r.id);
         const { data } = await supabase
@@ -167,7 +183,7 @@ function useContactSearch(searchTerm: string, enabled: boolean, companyId?: stri
           .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
           .is('deleted_at', null)
           .limit(8);
-        const extras = ((data || []) as typeof results).filter(c => !existingIds.includes(c.id));
+        const extras = ((data || []) as typeof results).filter(c => !existingIds.includes(c.id)).map(c => ({ ...c, fromCompany: false }));
         results = [...results, ...extras].slice(0, 10);
       }
       return results;

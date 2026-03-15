@@ -102,12 +102,19 @@ function SectionCard({
 }
 
 /* ─── KPI Card ─── */
-function KPICard({ title, value, subtitle, icon: Icon, accentColor, onClick }: {
-  title: string; value: string; subtitle: string; icon: React.ElementType; accentColor: string; onClick?: () => void;
+function KPICard({ title, value, subtitle, icon: Icon, accentColor, onClick, jarvisId }: {
+  title: string;
+  value: string;
+  subtitle: string;
+  icon: React.ElementType;
+  accentColor: string;
+  onClick?: () => void;
+  jarvisId?: string;
 }) {
   return (
     <button
       onClick={onClick}
+      data-jarvis-id={jarvisId}
       className={`relative overflow-hidden rounded-xl text-left transition-all duration-150 group w-full ${onClick ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
       style={{ background: DARK.card, border: `1px solid ${DARK.border}` }}
     >

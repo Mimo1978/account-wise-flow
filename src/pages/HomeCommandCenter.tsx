@@ -455,47 +455,82 @@ const HomeCommandCenter = () => {
   const renewalCount = renewalItems.length;
   const overdueRenewalCount = renewalItems.filter((i) => i.overdue).length;
 
-  // Action required items
+  // Action required items with severity
   const myWorkItems = useMemo(() => {
     const items: WorkItem[] = [];
     const today = startOfDay(new Date());
 
-    // Overdue invoices
+    // 🔴 CRITICAL: Won deal with no project
+    for (const deal of deals) {
+      if (deal.stage === 'won' && !deal.project_id && !deal.engagement_id) {
+        const daysIn = differenceInDays(today, startOfDay(new Date(deal.updated_at)));
+        items.push({ id: `won-no-proj-${deal.id}`, type: 'deal', severity: 'critical', recordName: deal.name, date: new Date(deal.updated_at), label: `Won deal with no delivery project`, overdue: true, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
+      }
+    }
+
+    // 🔴 CRITICAL: Overdue invoices (>7 days)
     for (const inv of invoices) {
       if (inv.status === 'paid' || inv.status === 'void' || inv.status === 'draft') continue;
       if (inv.due_date && isBefore(startOfDay(new Date(inv.due_date)), today) && !inv.paid_date) {
-        items.push({ id: `inv-${inv.id}`, type: 'invoice_overdue', date: new Date(inv.due_date), label: `⚠️ Invoice ${inv.invoice_number || '#' + inv.id.slice(0, 6)} overdue — ${inv.companies?.name ?? 'Unknown'}`, overdue: true, daysUntil: differenceInDays(new Date(inv.due_date), today), onClick: () => {}, icon: AlertTriangle });
+        const overdueDays = Math.abs(differenceInDays(new Date(inv.due_date), today));
+        const sev: ActionSeverity = overdueDays > 7 ? 'critical' : 'warning';
+        items.push({ id: `inv-${inv.id}`, type: 'invoice_overdue', severity: sev, recordName: inv.invoice_number || `#${inv.id.slice(0, 6)}`, date: new Date(inv.due_date), label: `Invoice ${inv.invoice_number || '#' + inv.id.slice(0, 6)} overdue — ${inv.companies?.name ?? 'Unknown'}`, overdue: true, daysUntil: differenceInDays(new Date(inv.due_date), today), onClick: () => navigate(`/accounts`), icon: AlertTriangle });
       }
     }
-    // Deals closing in 7 days
+
+    // 🟡 WARNING: Negotiation deals missing contact or project
+    for (const deal of deals) {
+      if (deal.stage === 'negotiation') {
+        if (!deal.contact_id) {
+          items.push({ id: `neg-no-contact-${deal.id}`, type: 'deal', severity: 'warning', recordName: deal.name, date: today, label: `Deal in negotiation with no contact`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
+        }
+        if (!deal.project_id && !deal.engagement_id) {
+          items.push({ id: `neg-no-proj-${deal.id}`, type: 'deal', severity: 'warning', recordName: deal.name, date: today, label: `Deal in negotiation with no project linked`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
+        }
+      }
+    }
+
+    // 🟡 WARNING: Deal missing company (any stage)
+    for (const deal of deals) {
+      if (deal.stage === 'won' || deal.stage === 'lost') continue;
+      if (!deal.company_id) {
+        items.push({ id: `no-company-${deal.id}`, type: 'deal', severity: 'warning', recordName: deal.name, date: today, label: `Deal missing company assignment`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
+      }
+    }
+
+    // 🟡 WARNING: Deals closing in 7 days
     for (const deal of deals) {
       if (deal.stage === 'won' || deal.stage === 'lost' || !deal.expected_close_date) continue;
       const d = startOfDay(new Date(deal.expected_close_date));
       const diff = differenceInDays(d, today);
       if (diff >= 0 && diff <= 7) {
-        items.push({ id: `deal-${deal.id}`, type: 'deal', date: d, label: `💼 ${deal.name} closing in ${diff} day${diff !== 1 ? 's' : ''}`, overdue: false, daysUntil: diff, onClick: () => {}, icon: Target });
+        items.push({ id: `deal-${deal.id}`, type: 'deal', severity: 'warning', recordName: deal.name, date: d, label: `${deal.name} closing in ${diff} day${diff !== 1 ? 's' : ''}`, overdue: false, daysUntil: diff, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: Target });
       }
     }
-    // Data integrity: deals missing contact
+
+    // ⚪ INFO: Early stage deals missing contact/project (grey)
     for (const deal of deals) {
-      if (deal.stage === 'won' || deal.stage === 'lost') continue;
-      if (!deal.contact_id) {
-        items.push({ id: `no-contact-${deal.id}`, type: 'deal', date: today, label: `Assign contact to ${deal.name}`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
+      if (['lead', 'qualified', 'proposal'].includes(deal.stage)) {
+        if (!deal.contact_id) {
+          items.push({ id: `info-no-contact-${deal.id}`, type: 'deal', severity: 'info', recordName: deal.name, date: today, label: `Assign contact to ${deal.name}`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: Circle });
+        }
+        if (!deal.project_id && !deal.engagement_id) {
+          items.push({ id: `info-no-proj-${deal.id}`, type: 'deal', severity: 'info', recordName: deal.name, date: today, label: `Link ${deal.name} to a project`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: Circle });
+        }
       }
     }
-    // Data integrity: deals missing project
-    for (const deal of deals) {
-      if (deal.stage === 'won' || deal.stage === 'lost') continue;
-      if (!deal.project_id) {
-        items.push({ id: `no-project-${deal.id}`, type: 'deal', date: today, label: `Link ${deal.name} to a project`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
-      }
-    }
+
     // Job work items
     items.push(...(jobsSummary?.jobWorkItems ?? []));
 
-    items.sort((a, b) => { if (a.overdue !== b.overdue) return a.overdue ? -1 : 1; return a.date.getTime() - b.date.getTime(); });
-    return items.slice(0, 12);
-  }, [invoices, deals, jobsSummary?.jobWorkItems, navigate]);
+    // Sort by severity: critical → warning → info
+    const sevOrder: Record<ActionSeverity, number> = { critical: 0, warning: 1, info: 2 };
+    items.sort((a, b) => {
+      if (sevOrder[a.severity] !== sevOrder[b.severity]) return sevOrder[a.severity] - sevOrder[b.severity];
+      return a.date.getTime() - b.date.getTime();
+    });
+    return items.slice(0, 20);
+  }, [invoices, deals, jobsSummary?.jobWorkItems, navigate, engagements]);
 
   // ── Pipeline cascade animation ──
   const [litStages, setLitStages] = useState<string[]>([]);

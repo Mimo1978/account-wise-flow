@@ -506,6 +506,85 @@ export default function DocumentsHub() {
           </div>
         </div>
       </SlideInPanel>
+
+      {/* Pre-upload security confirmation */}
+      <AlertDialog open={confirmUpload} onOpenChange={setConfirmUpload}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-primary" />
+              Confirm Document Upload
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>Please verify the following before proceeding:</p>
+                <ul className="list-disc pl-5 space-y-1.5">
+                  <li>The correct file has been selected{formFile && <> — <span className="font-medium text-foreground">{formFile.name}</span></>}</li>
+                  <li>All document details (name, type, dates) are accurate</li>
+                  <li>The file does not contain malware or sensitive data that should not be stored</li>
+                </ul>
+                <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3 mt-2">
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    <strong>Important:</strong> Once uploaded, documents become part of the permanent record. Removing a file requires administrator approval and will be logged in the audit trail. You will need to upload a replacement file separately.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Review Details</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmUpload(false); performSave(); }}>
+              Confirm & Upload
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete / Request Deletion confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={v => { if (!v) { setDeleteTarget(null); setDeleteReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {isAdmin ? (
+                <><Trash2 className="w-5 h-5 text-destructive" /> Permanently Delete Document</>
+              ) : (
+                <><AlertTriangle className="w-5 h-5 text-amber-500" /> Request Document Deletion</>
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                {deleteTarget && (
+                  <p>
+                    {isAdmin
+                      ? <>You are about to permanently delete <span className="font-medium text-foreground">"{deleteTarget.name}"</span>. This action cannot be undone.</>
+                      : <>You are requesting the removal of <span className="font-medium text-foreground">"{deleteTarget.name}"</span>. An administrator will review and approve this request. The document will remain visible with a pending status until approved.</>
+                    }
+                  </p>
+                )}
+                <div>
+                  <Label className="text-xs font-medium">Reason for deletion</Label>
+                  <Textarea
+                    value={deleteReason}
+                    onChange={(e: any) => setDeleteReason(e.target.value)}
+                    placeholder="e.g. Incorrect file uploaded, superseded by newer version..."
+                    rows={2}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className={isAdmin ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            >
+              {isAdmin ? "Delete Permanently" : "Submit Request"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

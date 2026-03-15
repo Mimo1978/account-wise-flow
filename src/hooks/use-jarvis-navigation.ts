@@ -645,6 +645,12 @@ export function useJarvisNavigation() {
         if (tourAbortRef.current) break;
         if (tourSkipRef.current) continue;
 
+        // --- Auto-spotlight: illuminate any UI elements mentioned in speech ---
+        // This runs for EVERY step with speech text, supplementing explicit highlights
+        if (step.speak) {
+          jarvisSpotlight.autoSpotlight(step.speak, true); // noAutoClear=true, tour controls cleanup
+        }
+
         // --- Speak AFTER highlighting/opening so user sees what Jarvis describes ---
         if (step.speak && speakFn && !tourSkipRef.current) {
           await speakFn(step.speak);

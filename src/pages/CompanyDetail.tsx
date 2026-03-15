@@ -2573,41 +2573,4 @@ function AddInvoicePanel({ open, onClose, companyId, companyName, onSaved }: {
   );
 }
 
-function AddLeadPanel({ open, onClose, companyId, companyName, onSaved }: {
-  open: boolean; onClose: () => void; companyId: string; companyName: string; onSaved: () => void;
-}) {
-  const [title, setTitle] = useState(""); const [source, setSource] = useState("inbound");
-  const [notes, setNotes] = useState(""); const [saving, setSaving] = useState(false);
-  useEffect(() => { if (open) { setTitle(""); setSource("inbound"); setNotes(""); } }, [open]);
-  const handleSave = async () => {
-    if (!title.trim()) { toast({ title: "Lead title required", variant: "destructive" }); return; }
-    setSaving(true);
-    try {
-      const { error } = await supabase.from("leads" as any).insert({
-        title, source, notes: notes || null, company_id: companyId, status: "new",
-      } as any);
-      if (error) throw error;
-      onSaved();
-    } catch (err: any) { toast({ title: "Error", description: err.message, variant: "destructive" }); }
-    finally { setSaving(false); }
-  };
-  return (
-    <SlideInPanel open={open} onClose={onClose} title="Capture Lead" subtitle={companyName}
-      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Capture Lead"}</Button></>}>
-      <div className="bg-muted/50 rounded-lg p-3 text-sm"><span className="text-muted-foreground">Company:</span> <span className="font-medium">{companyName}</span></div>
-      <div><Label>Lead Title <span className="text-red-500">*</span></Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Infrastructure consulting opportunity" /></div>
-      <div><Label>Source</Label>
-        <Select value={source} onValueChange={setSource}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent className="bg-popover z-[9999]">
-            <SelectItem value="inbound">Inbound</SelectItem>
-            <SelectItem value="referral">Referral</SelectItem>
-            <SelectItem value="outbound">Outbound</SelectItem>
-            <SelectItem value="job_board">Job Board</SelectItem>
-            <SelectItem value="other">Other</SelectItem>
-          </SelectContent>
-        </Select></div>
-      <div><Label>Notes</Label><Textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} /></div>
-    </SlideInPanel>
-  );
-}
+/* AddLeadPanel removed — "Capture Lead" unified into "Add Deal" at lead stage */

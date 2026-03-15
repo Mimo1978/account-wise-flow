@@ -412,6 +412,12 @@ export function useJarvisNavigation() {
       const label = options?.label || entry?.label || destination;
       const isSamePage = location.pathname === path;
 
+      window.dispatchEvent(
+        new CustomEvent("jarvis-guide-next-step", {
+          detail: { reason: "navigate", destination: path, targetId: targetId ?? null },
+        })
+      );
+
       activatePageGlow();
       track(setTimeout(() => deactivatePageGlow(), 3000));
 

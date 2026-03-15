@@ -1,0 +1,1 @@
+ALTER TABLE public.crm_deals ADD COLUMN IF NOT EXISTS source TEXT;

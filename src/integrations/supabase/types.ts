@@ -1647,6 +1647,7 @@ export type Database = {
           probability: number | null
           project_id: string | null
           signed_date: string | null
+          source: string | null
           stage: string
           start_date: string | null
           status: string
@@ -1678,6 +1679,7 @@ export type Database = {
           probability?: number | null
           project_id?: string | null
           signed_date?: string | null
+          source?: string | null
           stage?: string
           start_date?: string | null
           status?: string
@@ -1709,6 +1711,7 @@ export type Database = {
           probability?: number | null
           project_id?: string | null
           signed_date?: string | null
+          source?: string | null
           stage?: string
           start_date?: string | null
           status?: string

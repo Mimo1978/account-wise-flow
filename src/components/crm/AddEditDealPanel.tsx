@@ -86,7 +86,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         payment_terms: deal.payment_terms || "",
         status: deal.status || "active",
         notes: deal.notes || "",
-        project_id: d.project_id || "",
+        project_id: deal.project_id || "",
       });
       setProbManual(false);
     } else if (fromOpportunity) {

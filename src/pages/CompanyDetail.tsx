@@ -259,9 +259,19 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
     }
   };
 
-  const handleSave = async () => {
+  // Pre-upload confirmation gate
+  const initiateUpload = () => {
     if (!formName.trim()) { toast({ title: "Document name is required", variant: "destructive" }); return; }
     if (!formFile && !editDoc) { toast({ title: "Please attach a file", description: "Drag and drop or click to upload a document file", variant: "destructive" }); return; }
+    if (editDoc) {
+      // Edits don't need the security warning
+      performSave();
+    } else {
+      setConfirmUpload(true);
+    }
+  };
+
+  const performSave = async () => {
     setSaving(true);
     try {
       let fileUrl = editDoc?.file_url || null;
@@ -313,13 +323,32 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
     }
   };
 
-  const handleDelete = async (docId: string) => {
-    if (!confirm("Delete this document?")) return;
-    const { error } = await supabase.from("commercial_documents" as any).delete().eq("id", docId);
-    if (error) { toast({ title: "Failed to delete", variant: "destructive" }); return; }
-    toast({ title: "Document deleted" });
-    queryClient.invalidateQueries({ queryKey: ["company-commercial-docs", companyId] });
-    queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (isAdmin) {
+        // Admin: hard delete
+        const { error } = await supabase.from("commercial_documents" as any).delete().eq("id", deleteTarget.id);
+        if (error) throw error;
+        toast({ title: "Document permanently deleted" });
+      } else {
+        // Non-admin: soft-delete request
+        const { error } = await supabase.from("commercial_documents" as any).update({
+          deleted_at: new Date().toISOString(),
+          deleted_by: (await supabase.auth.getUser()).data.user?.id || null,
+          deletion_reason: deleteReason || "Requested for removal",
+        }).eq("id", deleteTarget.id);
+        if (error) throw error;
+        toast({ title: "Deletion requested", description: "An administrator will review and approve the removal." });
+      }
+      queryClient.invalidateQueries({ queryKey: ["company-commercial-docs", companyId] });
+      queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+    } catch (err: any) {
+      toast({ title: "Failed to process deletion", description: err.message, variant: "destructive" });
+    } finally {
+      setDeleteTarget(null);
+      setDeleteReason("");
+    }
   };
 
   const handleDownload = async (doc: any) => {

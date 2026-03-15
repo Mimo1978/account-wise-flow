@@ -641,30 +641,54 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
   // Auto-dodge: reposition panel when a highlighted element overlaps with it
   const savedPosBeforeDodge = useRef<{ x: number; y: number } | null>(null);
+  const dodgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (isMobile) return;
     const handleHighlight = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (!detail?.rect) return;
       const hlRect = detail.rect as DOMRect;
-      // Check if panel overlaps the highlighted element
-      const panelRect = { left: panelPos.x, top: panelPos.y, right: panelPos.x + PANEL_W, bottom: panelPos.y + PANEL_H };
-      const overlaps = !(panelRect.right < hlRect.left || panelRect.left > hlRect.right || panelRect.bottom < hlRect.top || panelRect.top > hlRect.bottom);
+
+      // Use the actual panel DOM rect for accuracy (position may have changed)
+      const panelEl = panelRef.current;
+      const currentPos = panelEl
+        ? { x: panelEl.getBoundingClientRect().left, y: panelEl.getBoundingClientRect().top }
+        : panelPos;
+
+      const panelRect = {
+        left: currentPos.x,
+        top: currentPos.y,
+        right: currentPos.x + PANEL_W,
+        bottom: currentPos.y + PANEL_H,
+      };
+      const overlaps = !(
+        panelRect.right < hlRect.left ||
+        panelRect.left > hlRect.right ||
+        panelRect.bottom < hlRect.top ||
+        panelRect.top > hlRect.bottom
+      );
       if (!overlaps) return;
-      // Save current position so we can restore later
+
+      // Save original position so we can restore later (only save once per dodge sequence)
       if (!savedPosBeforeDodge.current) {
-        savedPosBeforeDodge.current = { ...panelPos };
+        savedPosBeforeDodge.current = { ...currentPos };
       }
-      // Try to move panel: prefer left side if highlighted element is on right, vice versa
+
+      // Cancel any pending restore
+      if (dodgeTimerRef.current) {
+        clearTimeout(dodgeTimerRef.current);
+        dodgeTimerRef.current = null;
+      }
+
       const viewW = window.innerWidth;
       const viewH = window.innerHeight;
-      let newX = panelPos.x;
-      let newY = panelPos.y;
-      // If element is on the right half, move panel to left
+      let newX = currentPos.x;
+      let newY = currentPos.y;
+
+      // If element is on the right half, move panel to left; otherwise move right
       if (hlRect.left > viewW / 2) {
         newX = Math.max(16, hlRect.left - PANEL_W - 32);
       } else {
-        // Element is on the left, move panel to right
         newX = Math.min(viewW - PANEL_W - 16, hlRect.right + 32);
       }
       // If still overlapping vertically, also adjust Y
@@ -679,8 +703,27 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       newY = Math.max(0, Math.min(viewH - PANEL_H, newY));
       setPanelPos({ x: newX, y: newY });
     };
+
+    // Restore panel position when highlights are cleared
+    const handleClear = () => {
+      if (savedPosBeforeDodge.current) {
+        // Small delay so the restore doesn't fight with the next dodge
+        dodgeTimerRef.current = setTimeout(() => {
+          if (savedPosBeforeDodge.current) {
+            setPanelPos(savedPosBeforeDodge.current);
+            savedPosBeforeDodge.current = null;
+          }
+        }, 300);
+      }
+    };
+
     window.addEventListener("jarvis-highlight", handleHighlight);
-    return () => window.removeEventListener("jarvis-highlight", handleHighlight);
+    window.addEventListener("jarvis-highlight-clear", handleClear);
+    return () => {
+      window.removeEventListener("jarvis-highlight", handleHighlight);
+      window.removeEventListener("jarvis-highlight-clear", handleClear);
+      if (dodgeTimerRef.current) clearTimeout(dodgeTimerRef.current);
+    };
   }, [panelPos, isMobile]);
 
   // Show drag hint during tours

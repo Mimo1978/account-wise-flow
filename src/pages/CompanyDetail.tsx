@@ -224,6 +224,9 @@ export default function CompanyDetail() {
   const canAssignOwner = isAdmin || isManager;
   const perm = useDeletionPermission();
 
+  // Org chart hierarchy from org_chart_edges (single source of truth)
+  const { nodes: orgNodes } = useOrgChartTree(id);
+
   const [editOpen, setEditOpen] = useState(false);
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [addDealOpen, setAddDealOpen] = useState(false);

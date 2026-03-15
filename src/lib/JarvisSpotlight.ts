@@ -248,7 +248,12 @@ class JarvisSpotlightManager {
    * THE KEY METHOD: Parse speech text and auto-highlight matching elements.
    * Page glow stays active for the entire duration Jarvis speaks.
    */
-  autoSpotlight(speechText: string): void {
+  /**
+   * THE KEY METHOD: Parse speech text and auto-highlight matching elements.
+   * Page glow stays active for the entire duration Jarvis speaks.
+   * @param noAutoClear — when true, highlights persist until manually cleared (used by guided tours)
+   */
+  autoSpotlight(speechText: string, noAutoClear = false): void {
     if (!speechText || !this._settings.spotlight_enabled) return;
     this.clearAll();
 
@@ -280,11 +285,13 @@ class JarvisSpotlightManager {
 
     // Highlight specific elements
     if (matchedTargets.length > 0) {
-      this.highlightMany([...new Set(matchedTargets)], 5000);
+      this.highlightMany([...new Set(matchedTargets)], noAutoClear ? 999999 : 5000);
     }
 
-    // Auto-clear after 5s (page glow also clears on speech end via clearAll)
-    this._scheduleAutoClear(5000);
+    // Auto-clear after 5s unless tour mode (page glow also clears on speech end via clearAll)
+    if (!noAutoClear) {
+      this._scheduleAutoClear(5000);
+    }
   }
 
   /* ---- private ---- */

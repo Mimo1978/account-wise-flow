@@ -140,14 +140,31 @@ function useCompanySearch(workspaceId: string | undefined, open: boolean) {
   });
 }
 
+/* ─── Company Contacts Hook (all contacts for a company) ─── */
+function useCompanyContacts(companyId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['company-contacts-list', companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      const { data } = await supabase
+        .from('crm_contacts')
+        .select('id, first_name, last_name, job_title')
+        .eq('company_id', companyId)
+        .is('deleted_at', null)
+        .order('last_name');
+      return (data || []) as { id: string; first_name: string; last_name: string; job_title: string | null }[];
+    },
+    enabled: !!companyId,
+  });
+}
+
 /* ─── Contact Search Hook ─── */
 function useContactSearch(searchTerm: string, enabled: boolean, companyId?: string | null) {
   return useQuery({
     queryKey: ['crm-contacts-search', searchTerm, companyId],
     queryFn: async () => {
       if (!searchTerm.trim()) return [];
-      // First search within company contacts
-      let results: { id: string; first_name: string; last_name: string; job_title: string | null }[] = [];
+      let results: { id: string; first_name: string; last_name: string; job_title: string | null; fromCompany?: boolean }[] = [];
       if (companyId) {
         const { data } = await supabase
           .from('crm_contacts')
@@ -156,9 +173,8 @@ function useContactSearch(searchTerm: string, enabled: boolean, companyId?: stri
           .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
           .is('deleted_at', null)
           .limit(8);
-        results = (data || []) as typeof results;
+        results = ((data || []) as typeof results).map(c => ({ ...c, fromCompany: true }));
       }
-      // If not enough results, search all
       if (results.length < 5) {
         const existingIds = results.map(r => r.id);
         const { data } = await supabase
@@ -167,7 +183,7 @@ function useContactSearch(searchTerm: string, enabled: boolean, companyId?: stri
           .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
           .is('deleted_at', null)
           .limit(8);
-        const extras = ((data || []) as typeof results).filter(c => !existingIds.includes(c.id));
+        const extras = ((data || []) as typeof results).filter(c => !existingIds.includes(c.id)).map(c => ({ ...c, fromCompany: false }));
         results = [...results, ...extras].slice(0, 10);
       }
       return results;
@@ -196,6 +212,11 @@ function InlineContactPicker({
   const queryClient = useQueryClient();
   const [searching, setSearching] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [quickCreating, setQuickCreating] = useState(false);
+  const [newFirst, setNewFirst] = useState('');
+  const [newLast, setNewLast] = useState('');
+  const [newTitle, setNewTitle] = useState('');
+  const [creating, setCreating] = useState(false);
 
   const { data: contact } = useQuery({
     queryKey: ['engagement-contact-detail', contactId],
@@ -212,7 +233,16 @@ function InlineContactPicker({
     enabled: !!contactId,
   });
 
-  const { data: searchResults = [] } = useContactSearch(searchTerm, searching, companyId);
+  // All contacts for the assigned company
+  const { data: companyContacts = [] } = useCompanyContacts(companyId);
+  const { data: searchResults = [] } = useContactSearch(searchTerm, searching && searchTerm.length > 1, companyId);
+
+  // Filter company contacts by search term for the browse list
+  const filteredCompanyContacts = companyContacts.filter(c => {
+    if (!searchTerm.trim()) return true;
+    const full = `${c.first_name} ${c.last_name} ${c.job_title || ''}`.toLowerCase();
+    return full.includes(searchTerm.toLowerCase());
+  });
 
   const assignContact = async (id: string) => {
     const { error } = await supabase.from('engagements').update({ [fieldName]: id } as any).eq('id', engagementId);
@@ -226,6 +256,7 @@ function InlineContactPicker({
     }
     setSearching(false);
     setSearchTerm('');
+    setQuickCreating(false);
   };
 
   const removeContact = async () => {
@@ -240,7 +271,45 @@ function InlineContactPicker({
     }
   };
 
+  const quickCreateAndAssign = async () => {
+    if (!newFirst.trim() || !newLast.trim()) {
+      toast.error('First and last name are required');
+      return;
+    }
+    setCreating(true);
+    try {
+      const { data, error } = await supabase
+        .from('crm_contacts')
+        .insert({
+          first_name: newFirst.trim(),
+          last_name: newLast.trim(),
+          job_title: newTitle.trim() || null,
+          company_id: companyId || null,
+        } as any)
+        .select('id')
+        .single();
+      if (error) throw error;
+      const newId = (data as any).id;
+      queryClient.invalidateQueries({ queryKey: ['company-contacts-list'] });
+      queryClient.invalidateQueries({ queryKey: ['company-contact-count'] });
+      await assignContact(newId);
+      toast.success('Contact created and assigned');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to create contact');
+    } finally {
+      setCreating(false);
+      setNewFirst('');
+      setNewLast('');
+      setNewTitle('');
+      setQuickCreating(false);
+    }
+  };
+
   const initials = contact ? `${contact.first_name?.[0] ?? ''}${contact.last_name?.[0] ?? ''}`.toUpperCase() : '';
+
+  const contactCountLabel = companyId
+    ? `${companyContacts.length} contact${companyContacts.length !== 1 ? 's' : ''} at this company`
+    : null;
 
   return (
     <Card>
@@ -274,14 +343,24 @@ function InlineContactPicker({
             </div>
           </div>
         ) : searching ? null : (
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs text-warning border-warning/30 bg-warning/10">
-              <AlertTriangle className="w-3 h-3 mr-1" />
-              Not assigned
-            </Badge>
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setSearching(true)}>
-              <UserCircle className="w-3.5 h-3.5" /> Assign {label}
-            </Button>
+          <div>
+            {!companyId ? (
+              <div className="text-xs text-muted-foreground italic">Assign a company first to browse contacts</div>
+            ) : (
+              <div className="space-y-1.5">
+                <Badge variant="outline" className="text-xs text-warning border-warning/30 bg-warning/10">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Not assigned
+                </Badge>
+                <p className="text-xs text-muted-foreground">
+                  <Users className="w-3 h-3 inline mr-1" />
+                  {contactCountLabel}
+                </p>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setSearching(true)}>
+                  <UserCircle className="w-3.5 h-3.5" /> Assign {label}
+                </Button>
+              </div>
+            )}
           </div>
         )}
         {searching && (
@@ -290,28 +369,92 @@ function InlineContactPicker({
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
                 autoFocus
-                placeholder="Search contacts…"
+                placeholder={companyId ? "Filter company contacts or search all…" : "Search contacts…"}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="h-8 text-sm pl-8"
                 onKeyDown={e => { if (e.key === 'Escape') { setSearching(false); setSearchTerm(''); } }}
               />
             </div>
-            <div className="max-h-40 overflow-y-auto">
-              {searchResults.map(c => (
-                <button
-                  key={c.id}
-                  className="w-full text-left px-2 py-1.5 text-sm rounded hover:bg-accent transition-colors"
-                  onClick={() => assignContact(c.id)}
-                >
-                  {c.first_name} {c.last_name}
-                  {c.job_title && <span className="text-muted-foreground ml-1">· {c.job_title}</span>}
-                </button>
-              ))}
-              {searchResults.length === 0 && searchTerm.length > 1 && (
-                <p className="text-xs text-muted-foreground px-2 py-1">No contacts found</p>
+            {companyId && contactCountLabel && (
+              <p className="text-xs text-muted-foreground px-1">
+                <Users className="w-3 h-3 inline mr-1" />
+                {contactCountLabel}
+              </p>
+            )}
+            <div className="max-h-48 overflow-y-auto border border-border rounded-md">
+              {/* Show company contacts first if company assigned */}
+              {companyId && filteredCompanyContacts.length > 0 && (
+                <>
+                  <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50 border-b border-border">
+                    Company contacts
+                  </div>
+                  {filteredCompanyContacts.map(c => (
+                    <button
+                      key={c.id}
+                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors"
+                      onClick={() => assignContact(c.id)}
+                    >
+                      {c.first_name} {c.last_name}
+                      {c.job_title && <span className="text-muted-foreground ml-1">· {c.job_title}</span>}
+                    </button>
+                  ))}
+                </>
+              )}
+              {/* Show broader search results if user is typing */}
+              {searchTerm.length > 1 && searchResults.filter(r => !companyContacts.find(cc => cc.id === r.id)).length > 0 && (
+                <>
+                  <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50 border-b border-t border-border">
+                    All contacts
+                  </div>
+                  {searchResults.filter(r => !companyContacts.find(cc => cc.id === r.id)).map(c => (
+                    <button
+                      key={c.id}
+                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent transition-colors"
+                      onClick={() => assignContact(c.id)}
+                    >
+                      {c.first_name} {c.last_name}
+                      {c.job_title && <span className="text-muted-foreground ml-1">· {c.job_title}</span>}
+                    </button>
+                  ))}
+                </>
+              )}
+              {/* No results at all */}
+              {companyId && filteredCompanyContacts.length === 0 && (searchTerm.length <= 1 || searchResults.length === 0) && (
+                <div className="px-3 py-2 text-xs text-muted-foreground">
+                  {companyContacts.length === 0
+                    ? 'No contacts at this company yet'
+                    : 'No matching contacts found'}
+                </div>
+              )}
+              {!companyId && searchResults.length === 0 && searchTerm.length > 1 && (
+                <p className="text-xs text-muted-foreground px-3 py-2">No contacts found</p>
               )}
             </div>
+            {/* Quick create */}
+            {!quickCreating ? (
+              <Button variant="ghost" size="sm" className="text-xs gap-1 w-full justify-start text-primary" onClick={() => setQuickCreating(true)}>
+                <Plus className="w-3.5 h-3.5" /> Add new contact{companyId ? ' to this company' : ''}
+              </Button>
+            ) : (
+              <div className="border border-border rounded-md p-2.5 space-y-2 bg-muted/30">
+                <p className="text-xs font-medium">Quick add contact{companyId ? ' (linked to company)' : ''}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input placeholder="First name *" value={newFirst} onChange={e => setNewFirst(e.target.value)} className="h-7 text-xs" />
+                  <Input placeholder="Last name *" value={newLast} onChange={e => setNewLast(e.target.value)} className="h-7 text-xs" />
+                </div>
+                <Input placeholder="Job title" value={newTitle} onChange={e => setNewTitle(e.target.value)} className="h-7 text-xs" />
+                <div className="flex gap-2">
+                  <Button size="sm" className="text-xs h-7 flex-1" onClick={quickCreateAndAssign} disabled={creating || !newFirst.trim() || !newLast.trim()}>
+                    {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create & Assign'}
+                  </Button>
+                  <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setQuickCreating(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+            <Button variant="ghost" size="sm" className="text-xs w-full" onClick={() => { setSearching(false); setSearchTerm(''); setQuickCreating(false); }}>
+              Cancel
+            </Button>
           </div>
         )}
       </CardContent>

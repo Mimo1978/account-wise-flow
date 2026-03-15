@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { resolveNavigation, findDestination, type NavigationEntry } from "@/lib/jarvis-navigation-map";
 import type { GuidedTourStep } from "@/hooks/use-jarvis";
 import type { TourState } from "@/components/jarvis/GuidedTourPlayer";
+import { jarvisSpotlight } from "@/lib/JarvisSpotlight";
 
 /* ------------------------------------------------------------------ */
 /*  Session navigation history (persisted in sessionStorage)           */

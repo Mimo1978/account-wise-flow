@@ -72,6 +72,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
     status: "active",
     notes: "",
     project_id: "",
+    source: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [probManual, setProbManual] = useState(false);

@@ -93,9 +93,14 @@ export interface CrmDeal {
   id: string;
   opportunity_id: string | null;
   company_id: string | null;
+  contact_id: string | null;
+  project_id: string | null;
   title: string;
   value: number;
   currency: string;
+  stage: string;
+  probability: number | null;
+  expected_close_date: string | null;
   signed_date: string | null;
   start_date: string | null;
   end_date: string | null;

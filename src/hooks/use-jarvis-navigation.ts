@@ -689,6 +689,7 @@ export function useJarvisNavigation() {
       }
 
       // Clean up
+      jarvisSpotlight.clearAll();
       clearVisuals();
       const finalPage = getPageName(lastPath);
       setTourState({ steps, currentStep: steps.length - 1, status: "completed" });

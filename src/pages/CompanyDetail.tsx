@@ -1706,40 +1706,45 @@ function DealsTab({ deals, companyName, onAddDeal, onEditDeal }: {
 }
 
 function DealGroup({ title, deals, onEdit }: { title: string; deals: any[]; onEdit: (id: string) => void }) {
+  const navigate = useNavigate();
   return (
     <div>
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{title}</p>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {deals.map(d => (
-          <Card key={d.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onEdit(d.id)}>
-            <CardContent className="p-4 space-y-2">
-              <p className="font-semibold text-sm truncate">{d.title}</p>
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-bold text-foreground">£{(d.value || 0).toLocaleString()}</span>
-                <Badge className={cn("text-xs capitalize", STAGE_COLORS[d.stage || d.status] || "bg-muted text-muted-foreground")}>{d.stage || d.status}</Badge>
-              </div>
-              {/* Integrity badges */}
-              {(!d.contact_id || !d.project_id) && (
-                <div className="flex items-center gap-1">
-                  {!d.contact_id && (
-                    <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10">
-                      ! No contact
-                    </span>
-                  )}
-                  {!d.project_id && (
-                    <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10">
-                      ! No project
-                    </span>
-                  )}
+        {deals.map(d => {
+          const stage = d.stage || d.status || 'lead';
+          const contactSev = !d.contact_id ? getContactBadgeSeverity(stage) : null;
+          const projectSev = !d.project_id ? getProjectBadgeSeverity(stage) : null;
+          return (
+            <Card key={d.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate(`/crm/deals/${d.id}`)}>
+              <CardContent className="p-4 space-y-2">
+                <p className="font-semibold text-sm truncate">{d.title}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-bold text-foreground">£{(d.value || 0).toLocaleString()}</span>
+                  <Badge className={cn("text-xs capitalize", STAGE_COLORS[d.stage || d.status] || "bg-muted text-muted-foreground")}>{d.stage || d.status}</Badge>
                 </div>
-              )}
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Close: {fmtDateShort(d.end_date || d.signed_date)}</span>
-                <span>{d.created_at ? `${differenceInDays(new Date(), parseISO(d.created_at))}d open` : ""}</span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                {(contactSev || projectSev) && (
+                  <div className="flex items-center gap-1">
+                    {contactSev && (
+                      <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border", BADGE_SEVERITY_STYLES[contactSev])}>
+                        {contactSev === 'grey' ? 'ℹ' : '!'} No contact
+                      </span>
+                    )}
+                    {projectSev && (
+                      <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border", BADGE_SEVERITY_STYLES[projectSev])}>
+                        {projectSev === 'grey' ? 'ℹ' : '!'} No project
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Close: {fmtDateShort(d.end_date || d.signed_date)}</span>
+                  <span>{d.created_at ? `${differenceInDays(new Date(), parseISO(d.created_at))}d open` : ""}</span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

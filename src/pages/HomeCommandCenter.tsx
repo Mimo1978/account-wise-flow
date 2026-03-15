@@ -18,6 +18,7 @@ import { ReportBuilderPanel, type ReportType } from '@/components/home/ReportBui
 import { useJarvisNavigation } from '@/hooks/use-jarvis-navigation';
 import { GuidedTourPlayer } from '@/components/jarvis/GuidedTourPlayer';
 import type { GuidedTourStep } from '@/hooks/use-jarvis';
+import { getContactBadgeSeverity, getProjectBadgeSeverity, BADGE_SEVERITY_STYLES_DARK, type ActionSeverity } from '@/lib/deal-utils';
 
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -25,7 +26,7 @@ import {
   Plus, Building2, ArrowRight, LayoutGrid, Clock, Receipt, Loader2,
   AlertTriangle, ChevronRight, DollarSign, Target, Phone,
   Users, Zap, Video, CheckSquare, Inbox, Send, FileBarChart, Compass,
-  ArrowUpRight,
+  ArrowUpRight, Circle,
 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { format, differenceInDays, addDays, isBefore, startOfDay } from 'date-fns';
@@ -46,8 +47,10 @@ const DARK = {
 interface WorkItem {
   id: string;
   type: 'deal' | 'job' | 'outreach' | 'invoice_overdue';
+  severity: ActionSeverity;
   date: Date;
   label: string;
+  recordName: string;
   overdue: boolean;
   daysUntil: number;
   onClick: () => void;
@@ -186,16 +189,26 @@ function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isR
       {/* Integrity badges */}
       {(!deal.contact_id || !deal.project_id) && (
         <div className="flex items-center gap-1 mt-1.5">
-          {!deal.contact_id && (
-            <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-400 bg-amber-500/10">
-              <AlertTriangle className="w-2.5 h-2.5" /> No contact
-            </span>
-          )}
-          {!deal.project_id && (
-            <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-400 bg-amber-500/10">
-              <AlertTriangle className="w-2.5 h-2.5" /> No project
-            </span>
-          )}
+          {!deal.contact_id && (() => {
+            const sev = getContactBadgeSeverity(deal.stage);
+            const s = BADGE_SEVERITY_STYLES_DARK[sev];
+            return (
+              <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                style={{ border: `1px solid ${s.border}`, color: s.text, background: s.bg }}>
+                {sev === 'grey' ? 'ℹ' : <AlertTriangle className="w-2.5 h-2.5" />} No contact
+              </span>
+            );
+          })()}
+          {!deal.project_id && (() => {
+            const sev = getProjectBadgeSeverity(deal.stage);
+            const s = BADGE_SEVERITY_STYLES_DARK[sev];
+            return (
+              <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                style={{ border: `1px solid ${s.border}`, color: s.text, background: s.bg }}>
+                {sev === 'grey' ? 'ℹ' : <AlertTriangle className="w-2.5 h-2.5" />} No project
+              </span>
+            );
+          })()}
         </div>
       )}
       <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: DARK.textSecondary }}>
@@ -389,10 +402,10 @@ const HomeCommandCenter = () => {
       const jobMap = new Map(activeJobs.map(j => [j.id, j]));
       const shortlistByJob = new Map<string, number>();
       for (const s of (shortlistData ?? [])) { if (s.status === 'pending') shortlistByJob.set(s.job_id, (shortlistByJob.get(s.job_id) || 0) + 1); }
-      for (const [jobId, count] of shortlistByJob) { const job = jobMap.get(jobId); if (job) workItems.push({ id: `shortlist-${jobId}`, type: 'job', date: today, label: `Review ${count} shortlisted for ${job.title}`, overdue: false, daysUntil: 0, onClick: () => {}, icon: Users }); }
+      for (const [jobId, count] of shortlistByJob) { const job = jobMap.get(jobId); if (job) workItems.push({ id: `shortlist-${jobId}`, type: 'job', severity: 'warning', recordName: job.title, date: today, label: `Review ${count} shortlisted for ${job.title}`, overdue: false, daysUntil: 0, onClick: () => {}, icon: Users }); }
       const appsByJob = new Map<string, number>();
       for (const a of (applicationsData ?? [])) appsByJob.set(a.job_id, (appsByJob.get(a.job_id) || 0) + 1);
-      for (const [jobId, count] of appsByJob) { const job = jobMap.get(jobId); if (job) workItems.push({ id: `apps-${jobId}`, type: 'job', date: today, label: `${count} new application${count !== 1 ? 's' : ''} for ${job.title}`, overdue: false, daysUntil: 0, onClick: () => {}, icon: Inbox }); }
+      for (const [jobId, count] of appsByJob) { const job = jobMap.get(jobId); if (job) workItems.push({ id: `apps-${jobId}`, type: 'job', severity: 'info', recordName: job.title, date: today, label: `${count} new application${count !== 1 ? 's' : ''} for ${job.title}`, overdue: false, daysUntil: 0, onClick: () => {}, icon: Inbox }); }
       return { activeJobs, jobWorkItems: workItems, jobProjectLinks: jobProjectLinks ?? [] };
     },
     enabled: !!currentWorkspace?.id,
@@ -442,47 +455,82 @@ const HomeCommandCenter = () => {
   const renewalCount = renewalItems.length;
   const overdueRenewalCount = renewalItems.filter((i) => i.overdue).length;
 
-  // Action required items
+  // Action required items with severity
   const myWorkItems = useMemo(() => {
     const items: WorkItem[] = [];
     const today = startOfDay(new Date());
 
-    // Overdue invoices
+    // 🔴 CRITICAL: Won deal with no project
+    for (const deal of deals) {
+      if (deal.stage === 'won' && !deal.project_id && !deal.engagement_id) {
+        const daysIn = differenceInDays(today, startOfDay(new Date(deal.updated_at)));
+        items.push({ id: `won-no-proj-${deal.id}`, type: 'deal', severity: 'critical', recordName: deal.name, date: new Date(deal.updated_at), label: `Won deal with no delivery project`, overdue: true, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
+      }
+    }
+
+    // 🔴 CRITICAL: Overdue invoices (>7 days)
     for (const inv of invoices) {
       if (inv.status === 'paid' || inv.status === 'void' || inv.status === 'draft') continue;
       if (inv.due_date && isBefore(startOfDay(new Date(inv.due_date)), today) && !inv.paid_date) {
-        items.push({ id: `inv-${inv.id}`, type: 'invoice_overdue', date: new Date(inv.due_date), label: `⚠️ Invoice ${inv.invoice_number || '#' + inv.id.slice(0, 6)} overdue — ${inv.companies?.name ?? 'Unknown'}`, overdue: true, daysUntil: differenceInDays(new Date(inv.due_date), today), onClick: () => {}, icon: AlertTriangle });
+        const overdueDays = Math.abs(differenceInDays(new Date(inv.due_date), today));
+        const sev: ActionSeverity = overdueDays > 7 ? 'critical' : 'warning';
+        items.push({ id: `inv-${inv.id}`, type: 'invoice_overdue', severity: sev, recordName: inv.invoice_number || `#${inv.id.slice(0, 6)}`, date: new Date(inv.due_date), label: `Invoice ${inv.invoice_number || '#' + inv.id.slice(0, 6)} overdue — ${inv.companies?.name ?? 'Unknown'}`, overdue: true, daysUntil: differenceInDays(new Date(inv.due_date), today), onClick: () => navigate(`/accounts`), icon: AlertTriangle });
       }
     }
-    // Deals closing in 7 days
+
+    // 🟡 WARNING: Negotiation deals missing contact or project
+    for (const deal of deals) {
+      if (deal.stage === 'negotiation') {
+        if (!deal.contact_id) {
+          items.push({ id: `neg-no-contact-${deal.id}`, type: 'deal', severity: 'warning', recordName: deal.name, date: today, label: `Deal in negotiation with no contact`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
+        }
+        if (!deal.project_id && !deal.engagement_id) {
+          items.push({ id: `neg-no-proj-${deal.id}`, type: 'deal', severity: 'warning', recordName: deal.name, date: today, label: `Deal in negotiation with no project linked`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
+        }
+      }
+    }
+
+    // 🟡 WARNING: Deal missing company (any stage)
+    for (const deal of deals) {
+      if (deal.stage === 'won' || deal.stage === 'lost') continue;
+      if (!deal.company_id) {
+        items.push({ id: `no-company-${deal.id}`, type: 'deal', severity: 'warning', recordName: deal.name, date: today, label: `Deal missing company assignment`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
+      }
+    }
+
+    // 🟡 WARNING: Deals closing in 7 days
     for (const deal of deals) {
       if (deal.stage === 'won' || deal.stage === 'lost' || !deal.expected_close_date) continue;
       const d = startOfDay(new Date(deal.expected_close_date));
       const diff = differenceInDays(d, today);
       if (diff >= 0 && diff <= 7) {
-        items.push({ id: `deal-${deal.id}`, type: 'deal', date: d, label: `💼 ${deal.name} closing in ${diff} day${diff !== 1 ? 's' : ''}`, overdue: false, daysUntil: diff, onClick: () => {}, icon: Target });
+        items.push({ id: `deal-${deal.id}`, type: 'deal', severity: 'warning', recordName: deal.name, date: d, label: `${deal.name} closing in ${diff} day${diff !== 1 ? 's' : ''}`, overdue: false, daysUntil: diff, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: Target });
       }
     }
-    // Data integrity: deals missing contact
+
+    // ⚪ INFO: Early stage deals missing contact/project (grey)
     for (const deal of deals) {
-      if (deal.stage === 'won' || deal.stage === 'lost') continue;
-      if (!deal.contact_id) {
-        items.push({ id: `no-contact-${deal.id}`, type: 'deal', date: today, label: `Assign contact to ${deal.name}`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
+      if (['lead', 'qualified', 'proposal'].includes(deal.stage)) {
+        if (!deal.contact_id) {
+          items.push({ id: `info-no-contact-${deal.id}`, type: 'deal', severity: 'info', recordName: deal.name, date: today, label: `Assign contact to ${deal.name}`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: Circle });
+        }
+        if (!deal.project_id && !deal.engagement_id) {
+          items.push({ id: `info-no-proj-${deal.id}`, type: 'deal', severity: 'info', recordName: deal.name, date: today, label: `Link ${deal.name} to a project`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: Circle });
+        }
       }
     }
-    // Data integrity: deals missing project
-    for (const deal of deals) {
-      if (deal.stage === 'won' || deal.stage === 'lost') continue;
-      if (!deal.project_id) {
-        items.push({ id: `no-project-${deal.id}`, type: 'deal', date: today, label: `Link ${deal.name} to a project`, overdue: false, daysUntil: 0, onClick: () => navigate(`/crm/deals/${deal.id}`), icon: AlertTriangle });
-      }
-    }
+
     // Job work items
     items.push(...(jobsSummary?.jobWorkItems ?? []));
 
-    items.sort((a, b) => { if (a.overdue !== b.overdue) return a.overdue ? -1 : 1; return a.date.getTime() - b.date.getTime(); });
-    return items.slice(0, 12);
-  }, [invoices, deals, jobsSummary?.jobWorkItems, navigate]);
+    // Sort by severity: critical → warning → info
+    const sevOrder: Record<ActionSeverity, number> = { critical: 0, warning: 1, info: 2 };
+    items.sort((a, b) => {
+      if (sevOrder[a.severity] !== sevOrder[b.severity]) return sevOrder[a.severity] - sevOrder[b.severity];
+      return a.date.getTime() - b.date.getTime();
+    });
+    return items.slice(0, 20);
+  }, [invoices, deals, jobsSummary?.jobWorkItems, navigate, engagements]);
 
   // ── Pipeline cascade animation ──
   const [litStages, setLitStages] = useState<string[]>([]);
@@ -653,41 +701,61 @@ const HomeCommandCenter = () => {
         {/* ═══ ROW 4 — ACTION REQUIRED + DIARY (55/45) ═══ */}
         <div className="grid grid-cols-1 lg:grid-cols-[55fr_45fr] gap-5">
           {/* Action required */}
-          <SectionCard title="Action required" subtitle={`${myWorkItems.length} items`} icon={CheckSquare} borderColor="#F59E0B"
-            jarvisSection="action-required" jarvisId="home-action-required">
-            {myWorkItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center text-center py-8">
-                <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: '#22C55E20' }}>
-                  <CheckSquare className="w-7 h-7" style={{ color: '#22C55E' }} />
-                </div>
-                <p className="text-base font-semibold" style={{ color: '#22C55E' }}>✓ All clear</p>
-                <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>No actions required right now</p>
-              </div>
-            ) : (
-              <div className="space-y-0">
-                {myWorkItems.map((item) => (
-                  <button key={item.id} onClick={item.onClick}
-                    className="w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors group"
-                    style={{ borderBottom: `1px solid ${DARK.border}` }}
-                    onMouseEnter={e => (e.currentTarget.style.background = DARK.hover)}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: item.overdue ? '#EF444420' : '#3B82F620' }}>
-                      <item.icon className="w-4 h-4" style={{ color: item.overdue ? '#EF4444' : '#60A5FA' }} />
+          {(() => {
+            const critCount = myWorkItems.filter(i => i.severity === 'critical').length;
+            const warnCount = myWorkItems.filter(i => i.severity === 'warning').length;
+            const infoCount = myWorkItems.filter(i => i.severity === 'info').length;
+            const subtitle = myWorkItems.length === 0 ? '0 items' :
+              [critCount > 0 ? `${critCount} critical` : '', warnCount > 0 ? `${warnCount} warnings` : '', infoCount > 0 ? `${infoCount} info` : ''].filter(Boolean).join(' · ');
+            const SEV_COLORS: Record<ActionSeverity, { bg: string; icon: string }> = {
+              critical: { bg: '#EF444420', icon: '#EF4444' },
+              warning: { bg: '#F59E0B20', icon: '#FBBF24' },
+              info: { bg: '#94A3B820', icon: '#94A3B8' },
+            };
+            return (
+              <SectionCard title="Action required" subtitle={subtitle} icon={CheckSquare} borderColor="#F59E0B"
+                jarvisSection="action-required" jarvisId="home-action-required">
+                {myWorkItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center text-center py-8">
+                    <div className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: '#22C55E20' }}>
+                      <CheckSquare className="w-7 h-7" style={{ color: '#22C55E' }} />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium truncate" style={{ color: DARK.text }}>{item.label}</p>
-                      <p className="text-xs" style={{ color: DARK.textSecondary }}>
-                        {item.overdue ? `${Math.abs(item.daysUntil)}d overdue` : item.daysUntil === 0 ? 'Today' : `in ${item.daysUntil}d`}
-                      </p>
-                    </div>
-                    <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: DARK.textSecondary }} />
-                  </button>
-                ))}
-              </div>
-            )}
-          </SectionCard>
+                    <p className="text-base font-semibold" style={{ color: '#22C55E' }}>✓ All clear</p>
+                    <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>No actions required right now</p>
+                  </div>
+                ) : (
+                  <div className="space-y-0">
+                    {myWorkItems.map((item) => {
+                      const sc = SEV_COLORS[item.severity];
+                      return (
+                        <button key={item.id} onClick={item.onClick}
+                          className="w-full flex items-center gap-3 px-3 py-3 text-left rounded-lg transition-colors group"
+                          style={{ borderBottom: `1px solid ${DARK.border}` }}
+                          onMouseEnter={e => (e.currentTarget.style.background = DARK.hover)}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                            style={{ background: sc.bg }}>
+                            <item.icon className="w-4 h-4" style={{ color: sc.icon }} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ background: sc.icon }} />
+                              <p className="text-sm font-medium truncate" style={{ color: DARK.text }}>{item.label}</p>
+                            </div>
+                            <p className="text-xs ml-4" style={{ color: DARK.textSecondary }}>
+                              {item.recordName}{item.overdue ? ` · ${Math.abs(item.daysUntil)}d overdue` : item.daysUntil === 0 ? ' · Today' : ` · in ${item.daysUntil}d`}
+                            </p>
+                          </div>
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded shrink-0" style={{ color: sc.icon, background: sc.bg }}>Fix →</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </SectionCard>
+            );
+          })()}
 
           {/* This Week's Diary */}
           <SectionCard title="This Week" subtitle="Next 7 days" icon={CalendarClock} borderColor="#6366F1"

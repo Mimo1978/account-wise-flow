@@ -236,6 +236,37 @@ export default function CrmDealDetail() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          {/* Pipeline Position */}
+          <Card>
+            <CardContent className="py-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pipeline Position</p>
+              <div className="flex items-center gap-1">
+                {['lead', 'qualified', 'proposal', 'negotiation', 'won'].map((s, i) => {
+                  const isActive = s === d.stage;
+                  const isPast = ['lead', 'qualified', 'proposal', 'negotiation', 'won'].indexOf(d.stage || 'lead') >= i;
+                  return (
+                    <div key={s} className={`flex-1 h-8 rounded flex items-center justify-center text-[10px] font-semibold uppercase tracking-wider transition-all ${isPast ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'} ${isActive ? 'ring-2 ring-primary ring-offset-1 ring-offset-background' : ''}`}>
+                      {s === 'lead' ? 'Lead' : s === 'qualified' ? 'Qualified' : s === 'proposal' ? 'Proposal' : s === 'negotiation' ? 'Negotiation' : 'Won'}
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Financial Summary */}
+          <Card>
+            <CardContent className="py-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Financial Summary</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div><span className="text-muted-foreground">Deal Value</span><p className="text-lg font-bold">{currencySymbol}{deal.value.toLocaleString()}</p></div>
+                <div><span className="text-muted-foreground">Probability</span><p className="text-lg font-bold">{d.probability ?? 0}%</p></div>
+                <div><span className="text-muted-foreground">Weighted Value</span><p className="text-lg font-bold">{currencySymbol}{Math.round(deal.value * (d.probability ?? 0) / 100).toLocaleString()}</p></div>
+                <div><span className="text-muted-foreground">Invoiced</span><p className="text-lg font-bold">{currencySymbol}{invoices.reduce((s, inv) => s + (inv.total || 0), 0).toLocaleString()}</p></div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Dates & payment terms */}
           <Card>
             <CardContent className="py-6 space-y-4 text-sm">

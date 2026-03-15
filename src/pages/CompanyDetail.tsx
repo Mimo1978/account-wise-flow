@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { getContactBadgeSeverity, getProjectBadgeSeverity, BADGE_SEVERITY_STYLES } from "@/lib/deal-utils";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Contact } from "@/lib/types";
@@ -1706,40 +1707,45 @@ function DealsTab({ deals, companyName, onAddDeal, onEditDeal }: {
 }
 
 function DealGroup({ title, deals, onEdit }: { title: string; deals: any[]; onEdit: (id: string) => void }) {
+  const navigate = useNavigate();
   return (
     <div>
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">{title}</p>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {deals.map(d => (
-          <Card key={d.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => onEdit(d.id)}>
-            <CardContent className="p-4 space-y-2">
-              <p className="font-semibold text-sm truncate">{d.title}</p>
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-bold text-foreground">£{(d.value || 0).toLocaleString()}</span>
-                <Badge className={cn("text-xs capitalize", STAGE_COLORS[d.stage || d.status] || "bg-muted text-muted-foreground")}>{d.stage || d.status}</Badge>
-              </div>
-              {/* Integrity badges */}
-              {(!d.contact_id || !d.project_id) && (
-                <div className="flex items-center gap-1">
-                  {!d.contact_id && (
-                    <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10">
-                      ! No contact
-                    </span>
-                  )}
-                  {!d.project_id && (
-                    <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border border-amber-500/40 text-amber-600 dark:text-amber-400 bg-amber-500/10">
-                      ! No project
-                    </span>
-                  )}
+        {deals.map(d => {
+          const stage = d.stage || d.status || 'lead';
+          const contactSev = !d.contact_id ? getContactBadgeSeverity(stage) : null;
+          const projectSev = !d.project_id ? getProjectBadgeSeverity(stage) : null;
+          return (
+            <Card key={d.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate(`/crm/deals/${d.id}`)}>
+              <CardContent className="p-4 space-y-2">
+                <p className="font-semibold text-sm truncate">{d.title}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-bold text-foreground">£{(d.value || 0).toLocaleString()}</span>
+                  <Badge className={cn("text-xs capitalize", STAGE_COLORS[d.stage || d.status] || "bg-muted text-muted-foreground")}>{d.stage || d.status}</Badge>
                 </div>
-              )}
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Close: {fmtDateShort(d.end_date || d.signed_date)}</span>
-                <span>{d.created_at ? `${differenceInDays(new Date(), parseISO(d.created_at))}d open` : ""}</span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                {(contactSev || projectSev) && (
+                  <div className="flex items-center gap-1">
+                    {contactSev && (
+                      <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border", BADGE_SEVERITY_STYLES[contactSev])}>
+                        {contactSev === 'grey' ? 'ℹ' : '!'} No contact
+                      </span>
+                    )}
+                    {projectSev && (
+                      <span className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium border", BADGE_SEVERITY_STYLES[projectSev])}>
+                        {projectSev === 'grey' ? 'ℹ' : '!'} No project
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Close: {fmtDateShort(d.end_date || d.signed_date)}</span>
+                  <span>{d.created_at ? `${differenceInDays(new Date(), parseISO(d.created_at))}d open` : ""}</span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
@@ -2098,33 +2104,63 @@ function EditDealPanel({ open, onClose, dealId, companyName, crmCompanyId, onSav
   open: boolean; onClose: () => void; dealId: string; companyName: string; crmCompanyId: string;
   onSaved: () => void; onCreateProject: (title: string) => void;
 }) {
+  const navigate = useNavigate();
   const { data: deal } = useQuery({
     queryKey: ["crm_deals", dealId],
     queryFn: async () => { const { data } = await supabase.from("crm_deals" as any).select("*").eq("id", dealId).single(); return data as any; },
     enabled: !!dealId && open,
   });
+
+  // Contacts for company
+  const { data: companyContacts = [] } = useQuery({
+    queryKey: ["crm-contacts-for-edit-deal", crmCompanyId],
+    queryFn: async () => {
+      const { data } = await supabase.from("crm_contacts").select("id, first_name, last_name, job_title").is("deleted_at", null).eq("company_id", crmCompanyId).order("last_name");
+      return (data ?? []) as { id: string; first_name: string; last_name: string; job_title: string | null }[];
+    },
+    enabled: !!crmCompanyId && open,
+  });
+
+  // Engagements for linking
+  const { data: companyEngagements = [] } = useQuery({
+    queryKey: ["engagements-for-deal-link", crmCompanyId],
+    queryFn: async () => {
+      let q = supabase.from("engagements").select("id, name").is("deleted_at", null);
+      if (crmCompanyId) q = q.eq("company_id", crmCompanyId);
+      const { data } = await q.order("name").limit(50);
+      return (data ?? []) as { id: string; name: string }[];
+    },
+    enabled: open,
+  });
+
   const [title, setTitle] = useState(""); const [value, setValue] = useState(""); const [stage, setStage] = useState("lead");
   const [endDate, setEndDate] = useState(""); const [notes, setNotes] = useState(""); const [saving, setSaving] = useState(false);
+  const [contactId, setContactId] = useState(""); const [engagementId, setEngagementId] = useState("");
+  const [probability, setProbability] = useState(""); const [paymentTerms, setPaymentTerms] = useState("");
   const [confirmStage, setConfirmStage] = useState<string | null>(null);
-  const [showProjectPrompt, setShowProjectPrompt] = useState(false);
+  const [wonModalOpen, setWonModalOpen] = useState(false);
+  const [wonChoice, setWonChoice] = useState<'create' | 'link' | 'later'>('create');
 
   useEffect(() => {
     if (deal) {
       setTitle(deal.title || ""); setValue(String(deal.value || ""));
       setStage(deal.stage || deal.status || "lead");
-      setEndDate(deal.end_date || ""); setNotes(deal.notes || "");
+      setEndDate(deal.end_date || deal.expected_close_date || ""); setNotes(deal.notes || "");
+      setContactId(deal.contact_id || ""); setEngagementId(deal.engagement_id || "");
+      setProbability(String(deal.probability ?? "")); setPaymentTerms(deal.payment_terms || "");
     }
   }, [deal]);
 
   const handleStageChange = (newStage: string) => {
-    if (newStage === "won" || newStage === "lost") {
+    if (newStage === "won") {
+      setWonModalOpen(true);
+    } else if (newStage === "lost") {
       setConfirmStage(newStage);
     } else {
       setStage(newStage);
-      // Prompt project creation on proposal+
-      if (newStage === "proposal" || newStage === "negotiation") {
-        setShowProjectPrompt(true);
-      }
+      // Auto-set probability if not overridden
+      const defaults: Record<string, number> = { lead: 10, qualified: 25, proposal: 50, negotiation: 75 };
+      if (defaults[newStage] !== undefined) setProbability(String(defaults[newStage]));
     }
   };
 
@@ -2134,11 +2170,51 @@ function EditDealPanel({ open, onClose, dealId, companyName, crmCompanyId, onSav
       const { error } = await supabase.from("crm_deals" as any).update({
         title, value: parseFloat(value) || 0,
         status: stage === "won" ? "complete" : stage === "lost" ? "cancelled" : "active",
-        stage,
-        end_date: endDate || null, notes: notes || null,
+        stage, contact_id: contactId || null, engagement_id: engagementId || null,
+        probability: parseFloat(probability) || null, payment_terms: paymentTerms || null,
+        expected_close_date: endDate || null, end_date: endDate || null, notes: notes || null,
       } as any).eq("id", dealId);
       if (error) throw error;
       toast({ title: "Deal updated" }); onSaved();
+    } catch (err: any) { toast({ title: "Error", description: err.message, variant: "destructive" }); }
+    finally { setSaving(false); }
+  };
+
+  const handleWonConfirm = async () => {
+    setStage("won"); setProbability("100"); setWonModalOpen(false);
+    // Save the won stage first
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("crm_deals" as any).update({
+        title, value: parseFloat(value) || 0, status: "complete", stage: "won",
+        contact_id: contactId || null, probability: 100, payment_terms: paymentTerms || null,
+        expected_close_date: endDate || null, end_date: endDate || null, notes: notes || null,
+      } as any).eq("id", dealId);
+      if (error) throw error;
+
+      if (wonChoice === 'create') {
+        // Create engagement and link
+        const { data: eng, error: engErr } = await supabase.from("engagements").insert({
+          name: title, company_id: crmCompanyId || null, contact_id: contactId || null,
+          engagement_type: 'consulting', stage: 'active', forecast_value: parseFloat(value) || 0, currency: 'GBP',
+          workspace_id: deal?.workspace_id,
+        } as any).select().single();
+        if (!engErr && eng) {
+          await supabase.from("crm_deals" as any).update({ engagement_id: (eng as any).id } as any).eq("id", dealId);
+          toast({ title: "🎉 Deal won! Project created and linked." });
+          onSaved(); navigate(`/projects/${(eng as any).id}`);
+        } else {
+          toast({ title: "Deal marked as Won", description: "Project creation failed — link manually." });
+          onSaved();
+        }
+      } else if (wonChoice === 'link' && engagementId) {
+        await supabase.from("crm_deals" as any).update({ engagement_id: engagementId } as any).eq("id", dealId);
+        toast({ title: "🎉 Deal won and linked to project!" });
+        onSaved();
+      } else {
+        toast({ title: "🎉 Deal marked as Won", description: "Remember to link a project — this will show as critical on Command Centre." });
+        onSaved();
+      }
     } catch (err: any) { toast({ title: "Error", description: err.message, variant: "destructive" }); }
     finally { setSaving(false); }
   };
@@ -2147,9 +2223,26 @@ function EditDealPanel({ open, onClose, dealId, companyName, crmCompanyId, onSav
     <>
       <SlideInPanel open={open} onClose={onClose} title="Edit Deal" subtitle={companyName}
         footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</Button></>}>
+
+        {/* Section 1: Core */}
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Deal Details</p>
         <div><Label>Deal Name</Label><Input value={title} onChange={e => setTitle(e.target.value)} /></div>
+        <div className="bg-muted/50 rounded-lg p-3 text-sm"><span className="text-muted-foreground">Company:</span> <span className="font-medium">{companyName}</span></div>
+        <div>
+          <Label>Key Contact</Label>
+          <Select value={contactId} onValueChange={setContactId}>
+            <SelectTrigger><SelectValue placeholder="Select contact" /></SelectTrigger>
+            <SelectContent className="bg-popover z-[9999]">
+              <SelectItem value="">None</SelectItem>
+              {companyContacts.map(c => <SelectItem key={c.id} value={c.id}>{c.first_name} {c.last_name}{c.job_title ? ` · ${c.job_title}` : ''}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {!contactId && stage === 'negotiation' && <p className="text-xs text-amber-500 mt-1">⚠ Recommended at negotiation stage</p>}
+        </div>
+
+        <Separator className="my-2" />
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Pipeline</p>
         <div className="grid grid-cols-2 gap-4">
-          <div><Label>Value (£)</Label><Input type="number" value={value} onChange={e => setValue(e.target.value)} /></div>
           <div><Label>Stage</Label>
             <Select value={stage} onValueChange={handleStageChange}>
               <SelectTrigger><SelectValue /></SelectTrigger>
@@ -2157,36 +2250,105 @@ function EditDealPanel({ open, onClose, dealId, companyName, crmCompanyId, onSav
                 {PIPELINE_STAGES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
               </SelectContent>
             </Select></div>
+          <div><Label>Value (£)</Label><Input type="number" value={value} onChange={e => setValue(e.target.value)} /></div>
         </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><Label>Probability (%)</Label><Input type="number" min="0" max="100" value={probability} onChange={e => setProbability(e.target.value)} /></div>
+          <div><Label>Payment Terms</Label>
+            <Select value={paymentTerms} onValueChange={v => setPaymentTerms(v === "_none" ? "" : v)}>
+              <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+              <SelectContent className="bg-popover z-[9999]">
+                <SelectItem value="_none">None</SelectItem>
+                <SelectItem value="30 days">30 days</SelectItem>
+                <SelectItem value="60 days">60 days</SelectItem>
+                <SelectItem value="90 days">90 days</SelectItem>
+                <SelectItem value="on_completion">On completion</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
+              </SelectContent>
+            </Select></div>
+        </div>
+
+        <Separator className="my-2" />
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Dates</p>
         <div><Label>Expected Close Date</Label><Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
+
+        <Separator className="my-2" />
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Delivery</p>
+        <div>
+          <Label>Link to Project</Label>
+          <Select value={engagementId} onValueChange={v => setEngagementId(v === "_none" ? "" : v)}>
+            <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
+            <SelectContent className="bg-popover z-[9999]">
+              <SelectItem value="_none">None</SelectItem>
+              {companyEngagements.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          {!engagementId && stage === 'won' && <p className="text-xs text-red-500 mt-1">🔴 Won deals must have a linked project</p>}
+          {!engagementId && stage === 'negotiation' && <p className="text-xs text-amber-500 mt-1">⚠ Consider linking at negotiation stage</p>}
+          {!engagementId && ['lead', 'qualified', 'proposal'].includes(stage) && <p className="text-xs text-muted-foreground mt-1">ℹ Project will typically be created when deal is won</p>}
+        </div>
+
+        <Separator className="my-2" />
         <div><Label>Notes</Label><Textarea rows={3} value={notes} onChange={e => setNotes(e.target.value)} /></div>
       </SlideInPanel>
 
+      {/* Lost confirmation */}
       <AlertDialog open={!!confirmStage} onOpenChange={() => setConfirmStage(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              {confirmStage === "won" ? <><PartyPopper className="h-5 w-5 text-green-600" /> Mark this deal as Won?</> : <><XCircle className="h-5 w-5 text-red-600" /> Mark this deal as Lost?</>}
+              <XCircle className="h-5 w-5 text-red-600" /> Mark this deal as Lost?
             </AlertDialogTitle>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setStage(confirmStage!); setConfirmStage(null); }}>
-              {confirmStage === "won" ? "Yes, mark as Won 🎉" : "Yes, mark as Lost"}
+            <AlertDialogAction onClick={() => { setStage(confirmStage!); setProbability("0"); setConfirmStage(null); }}>
+              Yes, mark as Lost
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={showProjectPrompt} onOpenChange={setShowProjectPrompt}>
-        <AlertDialogContent>
+      {/* Won conversion modal */}
+      <AlertDialog open={wonModalOpen} onOpenChange={setWonModalOpen}>
+        <AlertDialogContent className="sm:max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Create a project for this deal?</AlertDialogTitle>
-            <AlertDialogDescription>This deal is progressing — would you like to create a project to track delivery?</AlertDialogDescription>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <PartyPopper className="h-5 w-5 text-green-600" /> Deal Won!
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{title}</strong> is now Won. Ready to start delivery?
+            </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <label className={cn("flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors", wonChoice === 'create' ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50")}>
+              <input type="radio" name="won-choice" checked={wonChoice === 'create'} onChange={() => setWonChoice('create')} className="mt-0.5" />
+              <div><p className="text-sm font-medium">Create a new project now</p><p className="text-xs text-muted-foreground">Pre-filled from deal details</p></div>
+            </label>
+            <label className={cn("flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors", wonChoice === 'link' ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50")}>
+              <input type="radio" name="won-choice" checked={wonChoice === 'link'} onChange={() => setWonChoice('link')} className="mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium">Link to existing project</p>
+                {wonChoice === 'link' && (
+                  <Select value={engagementId} onValueChange={setEngagementId}>
+                    <SelectTrigger className="mt-2 h-8"><SelectValue placeholder="Search projects..." /></SelectTrigger>
+                    <SelectContent className="bg-popover z-[9999]">
+                      {companyEngagements.map(e => <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </label>
+            <label className={cn("flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors", wonChoice === 'later' ? "border-primary bg-primary/5" : "border-border hover:bg-muted/50")}>
+              <input type="radio" name="won-choice" checked={wonChoice === 'later'} onChange={() => setWonChoice('later')} className="mt-0.5" />
+              <div><p className="text-sm font-medium">I'll do this later</p><p className="text-xs text-muted-foreground">Deal flagged as critical on Command Centre until project is linked</p></div>
+            </label>
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Not yet</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowProjectPrompt(false); onCreateProject(title); }}>Create Project</AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleWonConfirm} disabled={wonChoice === 'link' && !engagementId}>
+              Continue
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

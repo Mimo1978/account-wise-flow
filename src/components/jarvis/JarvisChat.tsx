@@ -1567,7 +1567,15 @@ export function JarvisFloatingButton() {
 
   return (
     <>
-      {isOpen && (
+      {isOpen && !isTourActive && (
+        <JarvisChatPanel
+          onClose={() => setIsOpen(false)}
+          onActiveChange={(active) => {
+            setIsActive(active);
+          }}
+        />
+      )}
+      {isOpen && isTourActive && (
         <JarvisChatPanel
           onClose={() => setIsOpen(false)}
           onActiveChange={(active) => {

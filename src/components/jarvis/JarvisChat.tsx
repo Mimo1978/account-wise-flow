@@ -1553,7 +1553,9 @@ export function JarvisFloatingButton() {
   );
 
   // Determine button visual class
-  const buttonAnimClass = isOpen
+  const buttonAnimClass = isTourActive
+    ? "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse"
+    : isOpen
     ? isSpeaking
       ? "" // speaking: no ring, wave icon shown instead
       : isListening

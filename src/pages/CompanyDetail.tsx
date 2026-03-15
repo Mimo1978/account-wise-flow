@@ -1280,7 +1280,7 @@ export default function CompanyDetail() {
 
           {/* ─── DOCUMENTS TAB ─── */}
           <TabsContent value="documents">
-            <CompanyDocumentsSection docs={companyDocs} companyName={company.name} companyId={id!} onUpload={() => navigate('/documents')} />
+            <CompanyDocumentsSection docs={companyDocs} companyName={company.name} companyId={id!} workspaceId={currentWorkspace?.id || ""} />
           </TabsContent>
 
           {/* ─── ACTIVITY TAB ─── */}

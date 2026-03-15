@@ -16,7 +16,12 @@ export const navigationMap: Record<string, NavigationEntry> = {
   companies: {
     path: "/companies",
     label: "Companies",
-    keywords: ["companies", "accounts", "clients", "firms", "company list"],
+    keywords: ["companies", "clients", "firms", "company list"],
+  },
+  accounts: {
+    path: "/accounts",
+    label: "Accounts & Billing",
+    keywords: ["accounts", "billing", "accounts hub", "billing hub", "outstanding invoices"],
   },
   companyDetail: {
     path: "/companies/:id",
@@ -202,11 +207,11 @@ export const navigationMap: Record<string, NavigationEntry> = {
     keywords: ["new campaign", "create campaign", "outreach campaign"],
   },
   createInvoice: {
-    path: "/",
+    path: "/accounts",
     label: "Create Invoice",
     action: "click",
-    targetId: "create-invoice-button",
-    keywords: ["create invoice", "new invoice", "add invoice"],
+    targetId: "accounts-create-invoice-button",
+    keywords: ["create invoice", "new invoice", "add invoice", "make invoice"],
   },
   importCompanies: {
     path: "/companies",

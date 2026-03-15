@@ -552,7 +552,7 @@ const AccountsBillingHub = () => {
           <p className="text-sm text-muted-foreground mt-0.5">Financial overview across all clients and projects</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
+          <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)} data-jarvis-id="accounts-create-invoice-button">
             <Plus className="w-3.5 h-3.5" /> Create Invoice
           </Button>
         </div>

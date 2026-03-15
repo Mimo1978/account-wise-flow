@@ -639,22 +639,50 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     }
   }, [panelPos, isDragging, isMobile]);
 
+  const isGuideMode =
+    jarvisNav.tourState.status === "running" || jarvisNav.tourState.status === "paused";
+
   // Auto-dodge: reposition panel when a highlighted element overlaps with it
   const savedPosBeforeDodge = useRef<{ x: number; y: number } | null>(null);
   const dodgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (isMobile) return;
+
+    const getCurrentPos = () => {
+      const panelEl = panelRef.current;
+      return panelEl
+        ? { x: panelEl.getBoundingClientRect().left, y: panelEl.getBoundingClientRect().top }
+        : panelPos;
+    };
+
+    const moveToOppositeSide = () => {
+      const currentPos = getCurrentPos();
+      const viewW = window.innerWidth;
+      const viewH = window.innerHeight;
+      const margin = 16;
+      const onRightHalf = currentPos.x + PANEL_W / 2 > viewW / 2;
+      const targetX = onRightHalf
+        ? margin
+        : Math.max(margin, viewW - PANEL_W - margin);
+      const targetY = Math.max(margin, Math.min(viewH - PANEL_H - margin, currentPos.y));
+      setPanelPos({ x: targetX, y: targetY });
+    };
+
+    const handleGuideStep = () => {
+      if (dodgeTimerRef.current) {
+        clearTimeout(dodgeTimerRef.current);
+        dodgeTimerRef.current = null;
+      }
+      savedPosBeforeDodge.current = null;
+      moveToOppositeSide();
+    };
+
     const handleHighlight = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (!detail?.rect) return;
       const hlRect = detail.rect as DOMRect;
 
-      // Use the actual panel DOM rect for accuracy (position may have changed)
-      const panelEl = panelRef.current;
-      const currentPos = panelEl
-        ? { x: panelEl.getBoundingClientRect().left, y: panelEl.getBoundingClientRect().top }
-        : panelPos;
-
+      const currentPos = getCurrentPos();
       const panelRect = {
         left: currentPos.x,
         top: currentPos.y,
@@ -669,12 +697,10 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       );
       if (!overlaps) return;
 
-      // Save original position so we can restore later (only save once per dodge sequence)
       if (!savedPosBeforeDodge.current) {
         savedPosBeforeDodge.current = { ...currentPos };
       }
 
-      // Cancel any pending restore
       if (dodgeTimerRef.current) {
         clearTimeout(dodgeTimerRef.current);
         dodgeTimerRef.current = null;
@@ -685,13 +711,11 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       let newX = currentPos.x;
       let newY = currentPos.y;
 
-      // If element is on the right half, move panel to left; otherwise move right
       if (hlRect.left > viewW / 2) {
         newX = Math.max(16, hlRect.left - PANEL_W - 32);
       } else {
         newX = Math.min(viewW - PANEL_W - 16, hlRect.right + 32);
       }
-      // If still overlapping vertically, also adjust Y
       if (newY + PANEL_H > hlRect.top && newY < hlRect.bottom) {
         if (hlRect.top > PANEL_H + 32) {
           newY = hlRect.top - PANEL_H - 32;
@@ -704,10 +728,13 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       setPanelPos({ x: newX, y: newY });
     };
 
-    // Restore panel position when highlights are cleared
+    // Restore panel position when highlights are cleared (outside guided mode)
     const handleClear = () => {
+      if (isGuideMode) {
+        savedPosBeforeDodge.current = null;
+        return;
+      }
       if (savedPosBeforeDodge.current) {
-        // Small delay so the restore doesn't fight with the next dodge
         dodgeTimerRef.current = setTimeout(() => {
           if (savedPosBeforeDodge.current) {
             setPanelPos(savedPosBeforeDodge.current);
@@ -717,14 +744,16 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       }
     };
 
+    window.addEventListener("jarvis-guide-next-step", handleGuideStep);
     window.addEventListener("jarvis-highlight", handleHighlight);
     window.addEventListener("jarvis-highlight-clear", handleClear);
     return () => {
+      window.removeEventListener("jarvis-guide-next-step", handleGuideStep);
       window.removeEventListener("jarvis-highlight", handleHighlight);
       window.removeEventListener("jarvis-highlight-clear", handleClear);
       if (dodgeTimerRef.current) clearTimeout(dodgeTimerRef.current);
     };
-  }, [panelPos, isMobile]);
+  }, [panelPos, isMobile, isGuideMode]);
 
   // Show drag hint during tours
   useEffect(() => {
@@ -1072,6 +1101,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       ref={panelRef}
       className={cn(
         "fixed z-[60] flex flex-col border border-border bg-background shadow-2xl overflow-hidden",
+        isGuideMode && "bg-background/80 supports-[backdrop-filter]:bg-background/70 backdrop-blur-md",
         isMobile
           ? "inset-0 rounded-none"
           : "w-[420px] h-[580px] rounded-2xl",

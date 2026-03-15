@@ -412,6 +412,12 @@ export function useJarvisNavigation() {
       const label = options?.label || entry?.label || destination;
       const isSamePage = location.pathname === path;
 
+      window.dispatchEvent(
+        new CustomEvent("jarvis-guide-next-step", {
+          detail: { reason: "navigate", destination: path, targetId: targetId ?? null },
+        })
+      );
+
       activatePageGlow();
       track(setTimeout(() => deactivatePageGlow(), 3000));
 
@@ -548,6 +554,19 @@ export function useJarvisNavigation() {
 
         setTourState({ steps, currentStep: i, status: "running" });
         const step = steps[i];
+        const stepTarget = step.highlight || step.clickAndOpen || step.click || null;
+
+        window.dispatchEvent(
+          new CustomEvent("jarvis-guide-next-step", {
+            detail: {
+              reason: "tour-step",
+              stepIndex: i,
+              totalSteps: steps.length,
+              navigateTo: step.navigate ?? null,
+              targetId: stepTarget,
+            },
+          })
+        );
 
         // ═══ CLEAR previous highlights before every step (one-at-a-time) ═══
         jarvisSpotlight.clearAll(); // Clear singleton-managed spotlights

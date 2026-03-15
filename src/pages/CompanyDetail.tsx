@@ -1757,8 +1757,8 @@ function DealGroup({ title, deals, onEdit }: { title: string; deals: any[]; onEd
                   </div>
                 )}
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Close: {fmtDateShort(d.end_date || d.signed_date)}</span>
                   <span>{d.created_at ? `${differenceInDays(new Date(), parseISO(d.created_at))}d open` : ""}</span>
+                  <span className="text-primary hover:underline">Open →</span>
                 </div>
               </CardContent>
             </Card>

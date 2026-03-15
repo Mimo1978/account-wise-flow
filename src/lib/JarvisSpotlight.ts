@@ -256,6 +256,8 @@ class JarvisSpotlightManager {
     this._clearAutoOnly();
     removeTooltip();
     this.deactivatePageGlow();
+    // Notify chat panel to restore position
+    window.dispatchEvent(new CustomEvent("jarvis-highlight-clear"));
   }
 
   /** Clear ONLY auto-spotlight items (preserves tour/explicit highlights) */

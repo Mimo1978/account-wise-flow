@@ -928,7 +928,8 @@ export default function CompanyDetail() {
                             })),
                           lastUpdated: company.updated_at,
                           engagementScore: 50,
-                        }}
+                          };
+                        })()}
                         onContactClick={(contact) => {
                           navigate(`/contacts/${contact.id}`, { state: { from: `/companies/${id}`, fromLabel: `Back to ${company.name}` } });
                         }}

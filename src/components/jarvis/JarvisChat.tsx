@@ -31,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/sonner";
 import { useJarvisNavigation } from "@/hooks/use-jarvis-navigation";
 import { GuidedTourPlayer } from "@/components/jarvis/GuidedTourPlayer";
+import { TourTooltipBubble } from "@/components/jarvis/TourTooltipBubble";
 import { jarvisSpotlight } from "@/lib/JarvisSpotlight";
 
 /* ------------------------------------------------------------------ */
@@ -642,6 +643,25 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const isGuideMode =
     jarvisNav.tourState.status === "running" || jarvisNav.tourState.status === "paused";
 
+  // Tour tooltip state — driven by events from the navigation hook
+  const [tourTooltipRect, setTourTooltipRect] = useState<DOMRect | null>(null);
+  const [tourSpeechText, setTourSpeechText] = useState("");
+
+  useEffect(() => {
+    const handleTooltip = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setTourTooltipRect(detail?.rect || null);
+      setTourSpeechText(detail?.speechText || "");
+    };
+    window.addEventListener("jarvis-tour-tooltip", handleTooltip);
+    return () => window.removeEventListener("jarvis-tour-tooltip", handleTooltip);
+  }, []);
+
+  // Emit tour-active state for the FAB
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("jarvis-tour-active", { detail: { active: isGuideMode } }));
+  }, [isGuideMode]);
+
   // Auto-dodge: reposition panel when a highlighted element overlaps with it
   const savedPosBeforeDodge = useRef<{ x: number; y: number } | null>(null);
   const dodgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1096,12 +1116,43 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     idle: "AI CRM Assistant",
   };
 
+  // When tour is active, render tooltip bubble instead of full panel
+  if (isGuideMode) {
+    return (
+      <>
+        <TourTooltipBubble
+          tour={jarvisNav.tourState}
+          speechText={tourSpeechText}
+          targetRect={tourTooltipRect}
+          onPrevious={() => {
+            // No built-in "go back" — skip is forward only, so we just skip
+            jarvisNav.skipTourStep();
+          }}
+          onNext={() => {
+            if (jarvisNav.tourState.status === "paused") {
+              jarvisNav.resumeTour();
+            } else {
+              jarvisNav.skipTourStep();
+            }
+          }}
+          onExit={() => {
+            // Store progress for resume
+            try {
+              sessionStorage.setItem("jarvis_tour_step", String(jarvisNav.tourState.currentStep));
+            } catch {}
+            jarvisNav.stopTour();
+          }}
+          isFinalStep={jarvisNav.tourState.currentStep === jarvisNav.tourState.steps.length - 1}
+        />
+      </>
+    );
+  }
+
   return (
     <div
       ref={panelRef}
       className={cn(
         "fixed z-[60] flex flex-col border border-border bg-background shadow-2xl overflow-hidden",
-        isGuideMode && "bg-background/80 supports-[backdrop-filter]:bg-background/70 backdrop-blur-md",
         isMobile
           ? "inset-0 rounded-none"
           : "w-[420px] h-[580px] rounded-2xl",
@@ -1417,6 +1468,7 @@ export function JarvisFloatingButton() {
   const [idlePulse, setIdlePulse] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isTourActive, setIsTourActive] = useState(false);
 
   // Listen for jarvis-open / jarvis-close events (from onboarding)
   useEffect(() => {
@@ -1426,13 +1478,19 @@ export function JarvisFloatingButton() {
       const detail = (e as CustomEvent).detail;
       setIsSpeaking(detail?.speaking ?? false);
     };
+    const handleTourActive = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setIsTourActive(detail?.active ?? false);
+    };
     window.addEventListener('jarvis-open', handleOpen);
     window.addEventListener('jarvis-close', handleClose);
     window.addEventListener('jarvis-speaking', handleSpeaking);
+    window.addEventListener('jarvis-tour-active', handleTourActive);
     return () => {
       window.removeEventListener('jarvis-open', handleOpen);
       window.removeEventListener('jarvis-close', handleClose);
       window.removeEventListener('jarvis-speaking', handleSpeaking);
+      window.removeEventListener('jarvis-tour-active', handleTourActive);
     };
   }, []);
 
@@ -1495,7 +1553,9 @@ export function JarvisFloatingButton() {
   );
 
   // Determine button visual class
-  const buttonAnimClass = isOpen
+  const buttonAnimClass = isTourActive
+    ? "ring-2 ring-primary ring-offset-2 ring-offset-background animate-pulse"
+    : isOpen
     ? isSpeaking
       ? "" // speaking: no ring, wave icon shown instead
       : isListening

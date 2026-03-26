@@ -4149,7 +4149,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 
     // Collect created entities for frontend session memory
     const createdEntities: Array<{ type: string; id: string; name: string; crm_id?: string }> = [];
-    const creationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "create_deal"]);
+    const creationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "create_deal", "create_candidate", "create_sow", "create_outreach_campaign"]);
     for (const msg of currentMessages) {
       if ((msg as any).role === "tool" && typeof (msg as any).content === "string") {
         try {

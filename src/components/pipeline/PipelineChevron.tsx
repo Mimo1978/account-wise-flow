@@ -265,7 +265,7 @@ export function PipelineChevron({
   }
 
   return (
-    <div className="flex items-stretch -space-x-[2px] overflow-x-auto rounded-xl" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
+    <div className="flex items-stretch overflow-hidden rounded-xl" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.3)', gap: '2px', width: '100%' }}>
       {PIPELINE_STAGES.map((stage, idx) => {
         const data = stageTotals[stage.key];
         const isActive = selectedStage === null || selectedStage === undefined || selectedStage === stage.key;

@@ -905,6 +905,17 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
           setBannerData(banner);
         }
       }
+
+      // Auto-navigate after successful creation/mutation actions
+      const hasSuccessfulMutation = last.actionsExecuted?.some(
+        (a) => a.success && /^(create_|generate_|initiate_|mark_|send_|update_|delete_)/.test(a.tool)
+      );
+      if (last.navigateTo && hasSuccessfulMutation) {
+        setTimeout(() => {
+          navigate(last.navigateTo!);
+        }, 1500);
+      }
+
       // Check for guided tour first
       if (last.guidedTour && last.guidedTour.length > 0) {
         const speakAsync = (text: string) =>

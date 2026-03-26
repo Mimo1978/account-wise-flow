@@ -354,7 +354,7 @@ function PipelineByStageChart({ data, isLoading }: { data: PipelineByStage[]; is
   const totalDeals = data.reduce((s, d) => s + d.count, 0);
   const totalValue = data.reduce((s, d) => s + d.totalValue, 0);
 
-  if (isLoading) return <div id="sec-pipeline"><AnalyticsCard borderColor="#3B82F6" icon={BarChart3} title="Pipeline Value by Stage" viewAllHref="/deals"><Skeleton className="h-[300px] rounded-xl" /></AnalyticsCard></div>;
+  if (isLoading) return <div id="sec-pipeline"><AnalyticsCard borderColor="#3B82F6" icon={BarChart3} title="Pipeline Value by Stage" viewAllHref="/crm/deals"><Skeleton className="h-[300px] rounded-xl" /></AnalyticsCard></div>;
 
   const formatted = data.map(d => ({ ...d, totalK: Math.round(d.totalValue / 1000), weightedK: Math.round(d.weightedValue / 1000) }));
 
@@ -364,7 +364,7 @@ function PipelineByStageChart({ data, isLoading }: { data: PipelineByStage[]; is
       borderColor="#3B82F6"
       icon={BarChart3}
       title="Pipeline Value by Stage"
-      viewAllHref="/deals"
+      viewAllHref="/crm/deals"
       viewAllLabel="View All Deals"
       dataJarvisId="analytics-pipeline-chart"
     >

@@ -1715,7 +1715,61 @@ async function executeTool(
         .single();
 
       if (error) return { result: { error: error.message }, entityType: "contacts" };
-      return { result: data, entityType: "contacts", entityId: data?.id };
+
+      // Sync to crm_contacts so send_email/send_sms tools can find this contact
+      let crmContactId: string | null = null;
+      try {
+        // Find matching crm_companies record for the company_id
+        let crmCompanyId: string | null = null;
+        if (resolved.companyId) {
+          const { data: coreCompany } = await supabaseAdmin
+            .from("companies")
+            .select("name")
+            .eq("id", resolved.companyId)
+            .single();
+          if (coreCompany?.name) {
+            const { data: crmCompany } = await supabaseAdmin
+              .from("crm_companies")
+              .select("id")
+              .ilike("name", coreCompany.name)
+              .limit(1)
+              .single();
+            crmCompanyId = crmCompany?.id ?? null;
+          }
+        }
+        // Also use resolved.crmCompanyId if available
+        if (!crmCompanyId && resolved.crmCompanyId) {
+          crmCompanyId = resolved.crmCompanyId;
+        }
+
+        const { data: crmContactData } = await supabaseAdmin
+          .from("crm_contacts")
+          .insert({
+            first_name: firstName,
+            last_name: lastName,
+            email: (input.email as string) || null,
+            phone: (input.phone as string) || null,
+            job_title: (input.job_title as string) || null,
+            company_id: crmCompanyId,
+            team_id: teamId,
+            created_by: userId,
+            gdpr_consent: (input.gdpr_consent as boolean) ?? false,
+            gdpr_consent_method: (input.gdpr_consent_method as string) || null,
+            gdpr_consent_date: (input.gdpr_consent as boolean) ? new Date().toISOString() : null,
+          })
+          .select("id")
+          .single();
+        crmContactId = crmContactData?.id ?? null;
+        console.log("[create_contact] CRM sync SUCCESS — crm_contact_id:", crmContactId);
+      } catch (syncErr) {
+        console.warn("[create_contact] CRM sync failed (non-critical):", syncErr);
+      }
+
+      return {
+        result: { ...data, crm_contact_id: crmContactId },
+        entityType: "contacts",
+        entityId: data?.id,
+      };
     }
     case "create_project": {
       // crm_projects has FK to crm_companies, so resolve the company ID
@@ -3548,7 +3602,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
     const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate", "book_diary_event", "cancel_diary_event", "reschedule_diary_event"]);
     const entityQueryMap: Record<string, string[]> = {
       companies: ["companies", "canvas-companies", "crm_companies"],
-      contacts: ["contacts", "company-contacts"],
+      contacts: ["contacts", "company-contacts", "crm_contacts", "all-contacts"],
       crm_companies: ["crm_companies"],
       crm_contacts: ["crm_contacts"],
       crm_projects: ["crm_projects"],

@@ -449,9 +449,40 @@ export default function ContactsDatabase() {
         company_id: companyFilterId || null,
       });
       if (error) throw error;
+
+      // Sync to crm_contacts so email/SMS tools can find this contact
+      try {
+        const nameParts = contact.name.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || nameParts[0] || '';
+        
+        // If there's a company filter, try to find the matching crm_companies record
+        let crmCompanyId: string | null = null;
+        if (companyFilterId) {
+          const { data: coreCompany } = await supabase.from('companies').select('name').eq('id', companyFilterId).single();
+          if (coreCompany?.name) {
+            const { data: crmCompany } = await supabase.from('crm_companies' as any).select('id').ilike('name', coreCompany.name).limit(1).single();
+            crmCompanyId = (crmCompany as any)?.id || null;
+          }
+        }
+
+        await supabase.from('crm_contacts' as any).insert({
+          first_name: firstName,
+          last_name: lastName,
+          email: contact.email || null,
+          phone: contact.phone || null,
+          job_title: contact.title || null,
+          company_id: crmCompanyId,
+          team_id: workspaceId,
+          created_by: user?.id || null,
+        } as any);
+      } catch (syncErr) {
+        console.warn('[ContactsDatabase] CRM contact sync failed (non-critical):', syncErr);
+      }
+
       toast.success(`${contact.name} added to database`);
-      // Refresh the contacts list
       queryClient.invalidateQueries({ queryKey: ["all-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["crm_contacts"] });
     } catch (err: any) {
       console.error("[ContactsDatabase] Insert contact failed:", err);
       toast.error(`Failed to add contact: ${err.message}`);

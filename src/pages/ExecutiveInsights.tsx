@@ -82,7 +82,7 @@ function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLab
       id={id}
       data-jarvis-id={dataJarvisId}
       className="overflow-hidden"
-      style={{ background: D.card, border: `1px solid ${D.border}`, borderLeft: `4px solid ${borderColor}`, borderRadius: 10, minHeight: 130 }}
+      style={{ background: D.card, border: `1px solid ${D.border}`, borderLeft: `4px solid ${borderColor}`, borderRadius: 10, minHeight: isEmpty ? 140 : undefined }}
     >
       <div className="flex items-center justify-between" style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${D.border}` }}>
         <div className="flex items-center gap-2.5">
@@ -97,9 +97,9 @@ function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLab
           </Link>
         )}
       </div>
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: 16 }} className={isEmpty ? 'flex flex-col items-center justify-center' : ''}>
         {isEmpty ? (
-          <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}>
+          <div className="flex flex-col items-center justify-center w-full" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}>
             <span className="text-xs" style={{ color: D.muted }}>No data yet</span>
           </div>
         ) : children}
@@ -238,7 +238,7 @@ const ExecutiveInsights = () => {
         <StickyNav />
 
         {/* ═══ ROW 1: 4 KPI HEADLINE CARDS ═══ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5" style={{ alignItems: 'stretch' }}>
           {kpiCards.map((kpi) => (
             <div
               key={kpi.label}
@@ -261,7 +261,7 @@ const ExecutiveInsights = () => {
         </div>
 
         {/* ═══ MAIN GRID ═══ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 10 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 12, alignItems: 'start' }}>
           {/* Pipeline (spans full) */}
           <div className="lg:col-span-1">
             <PipelineByStageChart data={pipelineByStage} isLoading={chartsLoading} />
@@ -282,11 +282,11 @@ const ExecutiveInsights = () => {
               viewAllLabel="View All Companies"
             >
               {riLoading ? (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4" style={{ gap: 10, alignItems: 'stretch' }}>
                   {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4" style={{ gap: 10, alignItems: 'stretch' }}>
                   <IntelCard label="At-Risk Accounts" description="No activity in 60+ days with open deals" count={atRiskCount} icon={AlertTriangle} severity="danger" onClick={() => navigate('/companies?filter=at-risk')} />
                   <IntelCard label="Single-Threaded" description="Only 1 contact engaged at this company" count={singleThreadedCount} icon={UserX} severity="warning" onClick={() => navigate('/companies?filter=single-threaded')} />
                   <IntelCard label="Dormant Accounts" description="No contact in 90+ days" count={dormantCount} icon={Clock} severity="warning" onClick={() => navigate('/companies?filter=dormant')} />
@@ -341,8 +341,8 @@ function IntelCard({ label, description, count, icon: Icon, severity, onClick }:
   return (
     <div
       onClick={onClick}
-      className="rounded-lg p-4 cursor-pointer transition-all"
-      style={{ background: D.hover, border: `1px solid ${D.border}` }}
+      className="rounded-lg cursor-pointer transition-all"
+      style={{ background: D.hover, border: `1px solid ${D.border}`, minHeight: 90, padding: 14 }}
       onMouseEnter={e => (e.currentTarget.style.background = '#2D3748')}
       onMouseLeave={e => (e.currentTarget.style.background = D.hover)}
     >

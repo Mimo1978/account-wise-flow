@@ -1,3 +1,4 @@
+import { PipelineChevron as SharedPipelineChevron } from '@/components/pipeline/PipelineChevron';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -136,39 +137,11 @@ function KPICard({ title, value, subtitle, icon: Icon, accentColor, onClick, jar
   );
 }
 
-/* ─── Pipeline Chevron Stage ─── */
+/* ─── Pipeline Chevron colors (used by deal cards) ─── */
 const CHEVRON_COLORS: Record<string, string> = {
-  lead: '#3B82F6', qualified: '#6366F1', proposal: '#F59E0B',
-  negotiation: '#F97316', won: '#22C55E', lost: '#EF4444',
+  lead: '#4F7FE8', qualified: '#7B5FD4', proposal: '#E8A020',
+  negotiation: '#E86820', won: '#2EAA6E', lost: '#E84040',
 };
-
-function PipelineChevron({ stage, label, count, total, isFirst, isLast, isActive, onClick, isLit }: {
-  stage: string; label: string; count: number; total: number; isFirst: boolean; isLast: boolean; isActive: boolean; onClick: () => void; isLit: boolean;
-}) {
-  const color = CHEVRON_COLORS[stage] ?? '#6B7280';
-
-  return (
-    <button onClick={onClick} className="relative flex-1 min-w-[130px] group"
-      style={{
-        filter: isLit ? (isActive ? 'brightness(1)' : 'brightness(0.85)') : 'brightness(0.6)',
-        opacity: isLit ? (isActive ? 1 : 0.75) : 0.35,
-        transform: isLit ? 'scale(1)' : 'scale(0.97)',
-        transition: 'filter 0.15s ease-out, opacity 0.15s ease-out, transform 0.15s ease-out',
-      }}>
-      <svg viewBox="0 0 200 56" preserveAspectRatio="none" className="w-full h-14" aria-hidden>
-        <polygon
-          points={isFirst ? '0,0 180,0 200,28 180,56 0,56' : isLast ? '0,0 180,0 200,0 200,56 180,56 0,56 20,28' : '0,0 180,0 200,28 180,56 0,56 20,28'}
-          fill={color} className="transition-all duration-200 group-hover:brightness-110"
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2">
-        <span className="text-[10px] font-semibold text-white uppercase tracking-wider leading-none">{label}</span>
-        <span className="text-lg font-bold text-white leading-tight mt-0.5">{count}</span>
-        <span className="text-[9px] text-white/80 leading-none">£{total.toLocaleString()}</span>
-      </div>
-    </button>
-  );
-}
 
 /* ─── Deal Card ─── */
 function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isRecruitment, onReversalConfirm, onClick }: {
@@ -539,47 +512,9 @@ const HomeCommandCenter = () => {
     return items.slice(0, 20);
   }, [invoices, deals, jobsSummary?.jobWorkItems, navigate, engagements]);
 
-  // ── Pipeline cascade animation ──
-  const [litStages, setLitStages] = useState<string[]>([]);
-  const animationTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Pipeline animation removed — handled inside SharedPipelineChevron
 
-  const runChevronAnimation = useCallback(() => {
-    const stages = DEAL_STAGES as readonly string[];
-    // Clear previous timers
-    animationTimers.current.forEach(clearTimeout);
-    animationTimers.current = [];
-    // Reset
-    setLitStages([]);
-
-    // First pass
-    stages.forEach((stage, index) => {
-      const t = setTimeout(() => {
-        setLitStages(prev => [...prev, stage]);
-      }, 400 + index * 200);
-      animationTimers.current.push(t);
-    });
-
-    // Second pass
-    const firstPassDuration = 400 + stages.length * 200 + 300;
-    const tReset = setTimeout(() => setLitStages([]), firstPassDuration);
-    animationTimers.current.push(tReset);
-
-    stages.forEach((stage, index) => {
-      const t = setTimeout(() => {
-        setLitStages(prev => [...prev, stage]);
-      }, firstPassDuration + 200 + index * 200);
-      animationTimers.current.push(t);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (location.pathname === '/home' || location.pathname === '/') {
-      runChevronAnimation();
-    }
-    return () => { animationTimers.current.forEach(clearTimeout); };
-  }, [location.pathname, runChevronAnimation]);
-
-  const handleRefresh = async () => { runChevronAnimation(); setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
+  const handleRefresh = async () => { setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
 
   return (
     <div className="min-h-screen" style={{ background: DARK.page }}>
@@ -662,17 +597,14 @@ const HomeCommandCenter = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-stretch -space-x-1 overflow-x-auto rounded-xl" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
-                {DEAL_STAGES.map((stage, idx) => {
-                  const stageDeals = deals.filter((d) => (d.stage || 'lead') === stage);
-                  const stageTotal = stageDeals.reduce((s, d) => s + d.value, 0);
-                  const isActive = pipelineFilter === null || pipelineFilter === stage;
-                  return <PipelineChevron key={stage} stage={stage} label={DEAL_STAGE_LABELS[stage]} count={stageDeals.length} total={stageTotal}
-                    isFirst={idx === 0} isLast={idx === DEAL_STAGES.length - 1} isActive={isActive}
-                    isLit={litStages.includes(stage)}
-                    onClick={() => setPipelineFilter(pipelineFilter === stage ? null : stage)} />;
-                })}
-              </div>
+              <SharedPipelineChevron
+                mode="filter"
+                deals={deals}
+                selectedStage={pipelineFilter}
+                onStageClick={(stage) => setPipelineFilter(stage)}
+                showCounts={true}
+                showValues={true}
+              />
               {(() => {
                 const filteredDeals = pipelineFilter ? enrichedDeals.filter(d => (d.stage || 'lead') === pipelineFilter) : enrichedDeals;
                 if (filteredDeals.length === 0) return (

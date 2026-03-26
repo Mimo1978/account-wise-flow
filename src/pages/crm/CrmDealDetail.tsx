@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PipelineChevron as SharedPipelineChevron } from "@/components/pipeline/PipelineChevron";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -320,84 +321,14 @@ export default function CrmDealDetail() {
           <Card>
             <CardContent className="py-4">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pipeline Position</p>
-              <div className="flex items-center gap-1">
-                {STAGES.map((s, i) => {
-                  const isActive = s === d.stage;
-                  const isPast = currentStageIdx >= i;
-                  const isAhead = i > currentStageIdx;
-                  const isBehind = i < currentStageIdx;
-                  return (
-                    <Popover key={s} onOpenChange={(open) => { if (!open) setStageConfirm(null); }}>
-                      <PopoverTrigger asChild>
-                        <button
-                          onClick={() => {
-                            if (isActive) return;
-                            if (isAhead) setStageConfirm({ stage: s, direction: "forward" });
-                            if (isBehind) setStageConfirm({ stage: s, direction: "backward" });
-                          }}
-                          className={cn(
-                            "flex-1 min-h-[44px] rounded flex items-center justify-center text-xs font-semibold uppercase tracking-wider transition-all cursor-pointer hover:opacity-80",
-                            isPast ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
-                            isActive && "ring-2 ring-primary ring-offset-1 ring-offset-background",
-                          )}
-                        >
-                          {STAGE_LABELS[s]}
-                        </button>
-                      </PopoverTrigger>
-                      {stageConfirm?.stage === s && (
-                        <PopoverContent className="w-72 p-4 z-[9999]" align="center">
-                          <div className="flex items-start gap-2 mb-3">
-                            {stageConfirm.direction === "backward" ? (
-                              <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                            )}
-                            <p className="text-sm">
-                              {stageConfirm.direction === "backward"
-                                ? <>Move <strong>{deal.title}</strong> back to <strong>{STAGE_LABELS[s]}</strong>? This will update your pipeline metrics.</>
-                                : <>Move <strong>{deal.title}</strong> to <strong>{STAGE_LABELS[s]}</strong>?</>
-                              }
-                            </p>
-                          </div>
-                          <div className="flex gap-2 justify-end">
-                            <Button size="sm" variant="ghost" onClick={() => setStageConfirm(null)}>Cancel</Button>
-                            <Button size="sm" onClick={() => handleStageChange(s)}>
-                              {stageConfirm.direction === "backward" ? "Move Back" : "Confirm"}
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      )}
-                    </Popover>
-                  );
-                })}
-                {/* Lost segment */}
-                <div className={cn(
-                  "flex-1 min-h-[44px] rounded flex items-center justify-center text-xs font-semibold uppercase tracking-wider transition-all",
-                  d.stage === "lost" ? "bg-red-500 text-white" : "bg-muted/50 text-muted-foreground/50",
-                )}>
-                  Lost
-                </div>
-              </div>
-
-              {/* Advance / Won / Lost buttons */}
-              {!isTerminal && (
-                <div className="flex items-center justify-end gap-2 mt-3">
-                  {d.stage === "negotiation" ? (
-                    <>
-                      <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white gap-1" onClick={() => handleStageChange("won")}>
-                        <CheckCircle className="w-3.5 h-3.5" /> Mark as Won
-                      </Button>
-                      <Button size="sm" variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10 gap-1" onClick={() => handleStageChange("lost")}>
-                        <XCircle className="w-3.5 h-3.5" /> Mark as Lost
-                      </Button>
-                    </>
-                  ) : nextStage ? (
-                    <Button size="sm" className="gap-1" onClick={() => handleStageChange(nextStage)}>
-                      Advance to {STAGE_LABELS[nextStage]} <ArrowRight className="w-3.5 h-3.5" />
-                    </Button>
-                  ) : null}
-                </div>
-              )}
+              <SharedPipelineChevron
+                mode="progress"
+                currentStage={d.stage}
+                onStageSelect={(stage) => handleStageChange(stage)}
+                dealTitle={deal.title}
+                showCounts={false}
+                showValues={false}
+              />
               {isTerminal && (
                 <div className="flex justify-end mt-3">
                   <Badge className={d.stage === "won" ? "bg-green-500/20 text-green-400 border-green-500/30" : "bg-red-500/20 text-red-400 border-red-500/30"}>

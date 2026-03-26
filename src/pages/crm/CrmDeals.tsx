@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Search, ArrowUpDown, Handshake, Pencil, LayoutGrid, List, DollarSign, Link2 } from "lucide-react";
+import { Plus, Search, ArrowUpDown, Pencil, LayoutGrid, List, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,21 +11,13 @@ import { useCrmDeals, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS, type CrmDealWithRe
 import { useCrmCompanies } from "@/hooks/use-crm-companies";
 import { AddEditDealPanel } from "@/components/crm/AddEditDealPanel";
 import { DealIntegrityBadges } from "@/components/deals/DealIntegrityBadges";
+import { PipelineChevron as SharedPipelineChevron } from "@/components/pipeline/PipelineChevron";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { CrmDeal } from "@/types/crm";
 
 type SortKey = "title" | "value" | "status" | "signed_date" | "start_date";
 type ViewMode = "cards" | "table";
-
-const PIPELINE_STAGES = [
-  { value: "lead", label: "Lead", color: "bg-blue-500" },
-  { value: "qualified", label: "Qualified", color: "bg-cyan-500" },
-  { value: "proposal", label: "Proposal", color: "bg-amber-500" },
-  { value: "negotiation", label: "Negotiation", color: "bg-purple-500" },
-  { value: "won", label: "Won", color: "bg-green-500" },
-  { value: "lost", label: "Lost", color: "bg-red-500" },
-];
 
 const STAGE_BADGE: Record<string, string> = {
   lead: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
@@ -35,6 +27,7 @@ const STAGE_BADGE: Record<string, string> = {
   won: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   lost: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 };
+
 
 export default function CrmDealsPage() {
   const navigate = useNavigate();
@@ -84,23 +77,12 @@ export default function CrmDealsPage() {
     return arr;
   }, [stageFiltered, sortKey, sortAsc]);
 
-  const stageTotals = useMemo(() => {
-    const map: Record<string, { count: number; value: number }> = {};
-    PIPELINE_STAGES.forEach(s => { map[s.value] = { count: 0, value: 0 }; });
-    deals.forEach(d => {
-      const stage = (d as any).stage || "lead";
-      if (map[stage]) { map[stage].count++; map[stage].value += d.value || 0; }
-    });
-    return map;
-  }, [deals]);
-
   const totalValue = deals.reduce((s, d) => s + (d.value || 0), 0);
 
-  const handleStageFilter = (stage: string) => {
-    const newStage = stageFilter === stage ? null : stage;
-    setStageFilter(newStage);
-    if (newStage) {
-      setSearchParams({ stage: newStage });
+  const handleStageFilter = (stage: string | null) => {
+    setStageFilter(stage);
+    if (stage) {
+      setSearchParams({ stage });
     } else {
       setSearchParams({});
     }
@@ -133,22 +115,15 @@ export default function CrmDealsPage() {
       </div>
 
       {/* Pipeline chevrons */}
-      <div className="flex gap-0 overflow-x-auto" data-jarvis-section="pipeline-snapshot">
-        {PIPELINE_STAGES.map((s, i) => {
-          const data = stageTotals[s.value];
-          const isActive = stageFilter === s.value;
-          return (
-            <button key={s.value} onClick={() => handleStageFilter(s.value)}
-              className={cn(
-                "relative flex-1 min-w-[120px] py-3 px-4 text-center transition-all text-sm cursor-pointer",
-                i === 0 ? "rounded-l-lg" : "", i === PIPELINE_STAGES.length - 1 ? "rounded-r-lg" : "",
-                isActive ? `${s.color} text-white ring-2 ring-white ring-offset-2` : "bg-muted hover:brightness-110 text-foreground",
-              )}>
-              <p className="font-semibold">{s.label}</p>
-              <p className={cn("text-xs", isActive ? "text-white/80" : "text-muted-foreground")}>{data.count} · £{(data.value / 1000).toFixed(0)}k</p>
-            </button>
-          );
-        })}
+      <div data-jarvis-section="pipeline-snapshot">
+        <SharedPipelineChevron
+          mode="filter"
+          deals={deals}
+          selectedStage={stageFilter}
+          onStageClick={(stage) => handleStageFilter(stage)}
+          showCounts={true}
+          showValues={true}
+        />
       </div>
 
       {/* Filters + view toggle */}
@@ -172,7 +147,7 @@ export default function CrmDealsPage() {
           </SelectContent>
         </Select>
         {stageFilter && (
-          <Button variant="ghost" size="sm" onClick={() => handleStageFilter(stageFilter)}>Clear stage filter</Button>
+          <Button variant="ghost" size="sm" onClick={() => handleStageFilter(null)}>Clear stage filter</Button>
         )}
         <div className="ml-auto flex items-center border rounded-md overflow-hidden">
           <button

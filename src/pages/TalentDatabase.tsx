@@ -1074,15 +1074,13 @@ export default function TalentDatabase() {
                     : undefined;
                     
                   const rowBg = index % 2 === 1
-                    ? "rgba(255,255,255,0.04)"
+                    ? "rgba(255,255,255,0.03)"
                     : "transparent";
                   return (
                     <TableRow
                       key={talent.id}
                       style={{ background: rowBg }}
-                      className="cursor-pointer transition-colors group/row"
-                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.15)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}
+                      className="cursor-pointer transition-colors group/row hover:bg-muted/30"
                       onClick={() => handleRowClick(talent)}
                     >
                       <TableCell 

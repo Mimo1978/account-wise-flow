@@ -535,16 +535,14 @@ export default function CompaniesDatabase() {
                   const rowBg = isSelected
                     ? "rgba(99,102,241,0.12)"
                     : index % 2 === 1
-                      ? "rgba(255,255,255,0.04)"
+                      ? "rgba(255,255,255,0.03)"
                       : "transparent";
                   
                   return (
                     <TableRow
                       key={account.id}
                       style={{ background: rowBg }}
-                      className="cursor-pointer transition-colors group"
-                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.15)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}
+                      className="cursor-pointer transition-colors group hover:bg-muted/30"
                       onClick={(e) => handleRowClick(account, e)}
                     >
                       <TableCell 

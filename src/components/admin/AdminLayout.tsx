@@ -27,22 +27,25 @@ interface NavItem {
   path: string;
   icon: React.ElementType;
   section: AdminSection;
+  accent: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Overview', path: '/admin/overview', icon: LayoutDashboard, section: 'overview' },
-  { label: 'Workspace & Roles', path: '/admin/access', icon: Shield, section: 'access' },
-  { label: 'Data Governance', path: '/admin/governance', icon: Shield, section: 'governance' },
-  { label: 'Data Quality', path: '/admin/data-quality', icon: Database, section: 'data-quality' },
-  { label: 'Outreach Defaults', path: '/admin/outreach', icon: Megaphone, section: 'outreach' },
-  { label: 'Billing & Invoices', path: '/admin/billing', icon: Receipt, section: 'integrations' },
-  { label: 'Schema Inventory', path: '/admin/schema', icon: Database, section: 'schema' },
-  { label: 'Jarvis AI Guide', path: '/admin/jarvis-guide', icon: Sparkles, section: 'integrations' },
-  { label: 'Jarvis Settings', path: '/admin/jarvis-settings', icon: Settings2, section: 'integrations' },
-  { label: 'Email Guide', path: '/admin/email-guide', icon: Mail, section: 'integrations' },
-  { label: 'SMS Guide', path: '/admin/sms-guide', icon: Phone, section: 'integrations' },
-  { label: 'AI Calling Guide', path: '/admin/ai-calling-guide', icon: Mic, section: 'integrations' },
+  { label: 'Overview', path: '/admin/overview', icon: LayoutDashboard, section: 'overview', accent: '#818CF8' },
+  { label: 'Workspace & Roles', path: '/admin/access', icon: Shield, section: 'access', accent: '#38BDF8' },
+  { label: 'Data Governance', path: '/admin/governance', icon: Shield, section: 'governance', accent: '#34D399' },
+  { label: 'Data Quality', path: '/admin/data-quality', icon: Database, section: 'data-quality', accent: '#FB923C' },
+  { label: 'Outreach Defaults', path: '/admin/outreach', icon: Megaphone, section: 'outreach', accent: '#F472B6' },
+  { label: 'Billing & Invoices', path: '/admin/billing', icon: Receipt, section: 'integrations', accent: '#A78BFA' },
+  { label: 'Schema Inventory', path: '/admin/schema', icon: Database, section: 'schema', accent: '#FBBF24' },
+  { label: 'Jarvis AI Guide', path: '/admin/jarvis-guide', icon: Sparkles, section: 'integrations', accent: '#60A5FA' },
+  { label: 'Jarvis Settings', path: '/admin/jarvis-settings', icon: Settings2, section: 'integrations', accent: '#2DD4BF' },
+  { label: 'Email Guide', path: '/admin/email-guide', icon: Mail, section: 'integrations', accent: '#FB7185' },
+  { label: 'SMS Guide', path: '/admin/sms-guide', icon: Phone, section: 'integrations', accent: '#A3E635' },
+  { label: 'AI Calling Guide', path: '/admin/ai-calling-guide', icon: Mic, section: 'integrations', accent: '#22D3EE' },
 ];
+
+export { NAV_ITEMS };
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Admin',
@@ -152,17 +155,22 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         <nav className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
           {NAV_ITEMS.map((item) => {
             if (!canAccess(role, item.section)) return null;
+            const active = isActive(item.path);
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors',
-                  isActive(item.path)
+                  'flex items-center gap-2 pl-1 pr-3 py-1.5 rounded-md text-sm transition-colors',
+                  active
                     ? 'bg-primary/10 text-primary font-medium'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 )}
               >
+                <span
+                  className="w-[3px] self-stretch rounded-full shrink-0"
+                  style={{ backgroundColor: item.accent }}
+                />
                 <item.icon className="w-4 h-4 shrink-0" />
                 {item.label}
               </Link>

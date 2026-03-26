@@ -1772,7 +1772,7 @@ async function executeTool(
       };
     }
     case "create_project": {
-      // crm_projects has FK to crm_companies, so resolve the company ID
+      // Write to engagements table (the Projects page reads from engagements)
       const projTeamId = await getUserTeamId(supabaseAdmin, userId);
       const projResolved = await resolveCompanyIds(
         supabaseAdmin,
@@ -1780,14 +1780,21 @@ async function executeTool(
         userId,
         projTeamId,
       );
+      // Use core company_id (not crm_companies) since engagements FK references companies
+      const engagementCompanyId = projResolved.companyId || (input.company_id as string) || null;
       const { data, error } = await supabaseAdmin
-        .from("crm_projects")
+        .from("engagements")
         .insert({
           name: input.name as string,
-          company_id: projResolved.crmCompanyId || (input.company_id as string) || null,
-          project_type: (input.project_type as string) || null,
+          company_id: engagementCompanyId,
+          engagement_type: (input.project_type as string) || "project",
           description: (input.description as string) || null,
-          created_by: userId,
+          owner_id: userId,
+          workspace_id: projTeamId,
+          stage: "active",
+          health: "on_track",
+          forecast_value: 0,
+          currency: "GBP",
         })
         .select("id, name")
         .single();

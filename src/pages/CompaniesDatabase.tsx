@@ -536,14 +536,14 @@ export default function CompaniesDatabase() {
                   return (
                     <TableRow
                       key={account.id}
-                      className={cn(
-                        "cursor-pointer transition-colors group",
-                        isSelected
-                          ? "bg-primary/10 hover:bg-indigo-500/15"
+                      style={{
+                        background: isSelected
+                          ? "rgba(99,102,241,0.12)"
                           : index % 2 === 1
-                            ? "bg-white/[0.04] hover:bg-indigo-500/15"
-                            : "hover:bg-indigo-500/15"
-                      )}
+                            ? "rgba(255,255,255,0.04)"
+                            : "transparent",
+                      }}
+                      className={cn("cursor-pointer transition-colors group hover:!bg-indigo-500/15")}
                       onClick={(e) => handleRowClick(account, e)}
                     >
                       <TableCell 

@@ -1,3 +1,4 @@
+import { PipelineChevron as SharedPipelineChevron } from '@/components/pipeline/PipelineChevron';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -511,47 +512,9 @@ const HomeCommandCenter = () => {
     return items.slice(0, 20);
   }, [invoices, deals, jobsSummary?.jobWorkItems, navigate, engagements]);
 
-  // ── Pipeline cascade animation ──
-  const [litStages, setLitStages] = useState<string[]>([]);
-  const animationTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Pipeline animation removed — handled inside SharedPipelineChevron
 
-  const runChevronAnimation = useCallback(() => {
-    const stages = DEAL_STAGES as readonly string[];
-    // Clear previous timers
-    animationTimers.current.forEach(clearTimeout);
-    animationTimers.current = [];
-    // Reset
-    setLitStages([]);
-
-    // First pass
-    stages.forEach((stage, index) => {
-      const t = setTimeout(() => {
-        setLitStages(prev => [...prev, stage]);
-      }, 400 + index * 200);
-      animationTimers.current.push(t);
-    });
-
-    // Second pass
-    const firstPassDuration = 400 + stages.length * 200 + 300;
-    const tReset = setTimeout(() => setLitStages([]), firstPassDuration);
-    animationTimers.current.push(tReset);
-
-    stages.forEach((stage, index) => {
-      const t = setTimeout(() => {
-        setLitStages(prev => [...prev, stage]);
-      }, firstPassDuration + 200 + index * 200);
-      animationTimers.current.push(t);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (location.pathname === '/home' || location.pathname === '/') {
-      runChevronAnimation();
-    }
-    return () => { animationTimers.current.forEach(clearTimeout); };
-  }, [location.pathname, runChevronAnimation]);
-
-  const handleRefresh = async () => { runChevronAnimation(); setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
+  const handleRefresh = async () => { setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
 
   return (
     <div className="min-h-screen" style={{ background: DARK.page }}>

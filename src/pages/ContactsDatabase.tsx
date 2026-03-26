@@ -184,39 +184,55 @@ export default function ContactsDatabase() {
   const { data: dbContacts = [], isLoading } = useQuery({
     queryKey: ['all-contacts', companyFilterId, workspaceId],
     queryFn: async () => {
-      let query = supabase
+      // Fetch from core contacts table
+      let coreQuery = supabase
         .from('contacts')
         .select('*, companies!contacts_company_id_fkey(name)')
         .order('name');
       
       if (companyFilterId) {
-        query = query.eq('company_id', companyFilterId);
+        coreQuery = coreQuery.eq('company_id', companyFilterId);
       }
-
-      // Workspace scoping via team_id (RLS also enforces this)
       if (workspaceId) {
-        query = query.eq('team_id', workspaceId);
+        coreQuery = coreQuery.eq('team_id', workspaceId);
+      }
+      coreQuery = coreQuery.is('deleted_at', null);
+
+      // Fetch from crm_contacts table
+      let crmQuery = supabase
+        .from('crm_contacts' as any)
+        .select('*, crm_companies(id, name)')
+        .is('deleted_at', null)
+        .order('last_name');
+      
+      if (workspaceId) {
+        crmQuery = crmQuery.eq('team_id', workspaceId);
       }
 
-      // Exclude soft-deleted contacts
-      query = query.is('deleted_at', null);
+      const [{ data: coreContacts, error }, { data: crmContacts }] = await Promise.all([
+        coreQuery,
+        crmQuery,
+      ]);
 
-      const { data: contacts, error } = await query;
       if (error) {
         console.error('Error fetching contacts:', error);
         return [];
       }
 
-      // Dev-mode debug log
       if (import.meta.env.DEV) {
         console.debug('[ContactsDatabase] query params:', {
           workspaceId,
           companyFilterId,
-          resultCount: contacts?.length ?? 0,
+          coreCount: coreContacts?.length ?? 0,
+          crmCount: (crmContacts as any[])?.length ?? 0,
         });
       }
 
-      return (contacts || []).map((c: any) => ({
+      // Merge and deduplicate: by email first, then by full name
+      const seen = new Set<string>();
+      const merged: any[] = [];
+
+      const mapCore = (c: any) => ({
         id: c.id,
         name: c.name,
         title: c.title || '',
@@ -235,7 +251,53 @@ export default function ContactsDatabase() {
         _companyName: c.companies?.name || '',
         _companyId: c.company_id || '',
         _ownerId: c.owner_id || null,
-      }));
+      });
+
+      for (const c of (coreContacts || [])) {
+        const emailKey = c.email?.toLowerCase().trim();
+        const nameKey = c.name?.toLowerCase().trim();
+        const dedupeKey = emailKey || nameKey || c.id;
+        if (!seen.has(dedupeKey)) {
+          seen.add(dedupeKey);
+          if (emailKey && emailKey !== dedupeKey) seen.add(emailKey);
+          if (nameKey && nameKey !== dedupeKey) seen.add(nameKey);
+          merged.push(mapCore(c));
+        }
+      }
+
+      for (const c of ((crmContacts as any[]) || [])) {
+        const emailKey = c.email?.toLowerCase().trim();
+        const nameKey = `${c.first_name || ''} ${c.last_name || ''}`.toLowerCase().trim();
+        const dedupeKey = emailKey || nameKey || c.id;
+        if (!seen.has(dedupeKey)) {
+          seen.add(dedupeKey);
+          if (emailKey && emailKey !== dedupeKey) seen.add(emailKey);
+          if (nameKey && nameKey !== dedupeKey) seen.add(nameKey);
+          merged.push({
+            id: c.id,
+            name: `${c.first_name || ''} ${c.last_name || ''}`.trim(),
+            title: c.job_title || '',
+            department: '',
+            seniority: 'mid' as Contact['seniority'],
+            email: c.email || '',
+            phone: c.phone || c.mobile || '',
+            phoneNumbers: (c.phone || c.mobile) ? [{ value: c.phone || c.mobile, label: 'Work' as const, preferred: true }] : [],
+            privateEmail: '',
+            status: 'unknown' as Contact['status'],
+            engagementScore: 50,
+            linkedIn: c.linkedin_url || '',
+            notes: [] as any,
+            contactOwner: '',
+            lastContact: '',
+            _companyName: c.crm_companies?.name || '',
+            _companyId: c.company_id || '',
+            _ownerId: null,
+            _source: 'crm_contacts',
+          });
+        }
+      }
+
+      return merged;
     },
     enabled: !!workspaceId,
   });

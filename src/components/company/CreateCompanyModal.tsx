@@ -231,6 +231,21 @@ export function CreateCompanyModal({ open, onOpenChange, onCompanyCreated, openR
         throw error;
       }
 
+      // Sync to crm_companies for FK references from deals/projects/opportunities
+      try {
+        await supabase
+          .from('crm_companies' as any)
+          .insert({
+            name: data.name,
+            industry: data.industry || null,
+            city: data.headquarters || null,
+            created_by: user?.id || null,
+            team_id: currentWorkspace.id,
+          } as any);
+      } catch (syncErr) {
+        console.warn('[CreateCompanyModal] CRM sync failed (non-critical):', syncErr);
+      }
+
       // Transform to Account format for the callback
       const newCompany: Account = {
         id: insertedCompany.id,

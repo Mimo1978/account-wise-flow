@@ -1654,6 +1654,7 @@ async function executeTool(
             city: city,
             country: country,
             created_by: userId,
+            team_id: teamId,
           })
           .select("id")
           .single();
@@ -3546,7 +3547,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
     const invalidateQueries: string[] = [];
     const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate", "book_diary_event", "cancel_diary_event", "reschedule_diary_event"]);
     const entityQueryMap: Record<string, string[]> = {
-      companies: ["companies", "canvas-companies"],
+      companies: ["companies", "canvas-companies", "crm_companies"],
       contacts: ["contacts", "company-contacts"],
       crm_companies: ["crm_companies"],
       crm_contacts: ["crm_contacts"],

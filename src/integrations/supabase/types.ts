@@ -1496,6 +1496,7 @@ export type Database = {
           phone: string | null
           postcode: string | null
           size: string | null
+          team_id: string | null
           updated_at: string
           website: string | null
         }
@@ -1517,6 +1518,7 @@ export type Database = {
           phone?: string | null
           postcode?: string | null
           size?: string | null
+          team_id?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -1538,10 +1540,19 @@ export type Database = {
           phone?: string | null
           postcode?: string | null
           size?: string | null
+          team_id?: string | null
           updated_at?: string
           website?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "crm_companies_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crm_contacts: {
         Row: {
@@ -1565,6 +1576,7 @@ export type Database = {
           notes: string | null
           phone: string | null
           preferred_contact: string | null
+          team_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1588,6 +1600,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           preferred_contact?: string | null
+          team_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1611,6 +1624,7 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           preferred_contact?: string | null
+          team_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1619,6 +1633,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_contacts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]

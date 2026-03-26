@@ -5,6 +5,7 @@ import { EmailComposeModal } from "@/components/outreach/EmailComposeModal";
 import { SMSComposeModal } from "@/components/outreach/SMSComposeModal";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { AddToOutreachPopover } from "@/components/outreach/AddToOutreachPopover";
+import { ScheduleCallbackPopover } from "@/components/outreach/ScheduleCallbackPopover";
 import type { OutreachTarget } from "@/hooks/use-outreach";
 
 interface RowInlineActionsProps {
@@ -16,6 +17,7 @@ interface RowInlineActionsProps {
   entityCompany?: string;
   contactId?: string;
   candidateId?: string;
+  companyId?: string;
   /** Extra className for the wrapper */
   className?: string;
 }
@@ -33,6 +35,7 @@ export function RowInlineActions({
   entityCompany,
   contactId,
   candidateId,
+  companyId,
   className,
 }: RowInlineActionsProps) {
   const [emailOpen, setEmailOpen] = useState(false);
@@ -92,6 +95,13 @@ export function RowInlineActions({
         >
           <Bot className="h-3.5 w-3.5 text-muted-foreground" />
         </Button>
+        <ScheduleCallbackPopover
+          workspaceId={workspaceId}
+          entityName={entityName}
+          contactId={contactId}
+          candidateId={candidateId}
+          companyId={companyId}
+        />
         <AddToOutreachPopover
           workspaceId={workspaceId}
           entityName={entityName}

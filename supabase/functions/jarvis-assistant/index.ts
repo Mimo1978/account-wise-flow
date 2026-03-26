@@ -1416,6 +1416,13 @@ REMINDER vs MEETING distinction:
    → book_diary_event(title: "Call back Ken Beinert", event_type: "reminder", start_time: Thursday 09:00, end_time: Thursday 09:00, contact_id: ken_id)
    → say "Done — reminder set for Thursday at 9am to call Ken back. You'll see it in your diary on the Command Centre."
 
+CALLBACK intents — "call [name] back [time]", "remind me to call [name]", "schedule a callback with [name]", "[name] asked me to call back [time]":
+  1. Look up contact/candidate using lookup_contact or lookup_candidate.
+  2. Book as reminder type (NOT a meeting slot):
+     book_diary_event(title: "Call back [name]", event_type: "reminder", start_time: [parsed time], end_time: [same], contact_id or candidate_id: [resolved id])
+  3. Say: "Done — I'll remind you to call [name] back on [day] at [time]. You'll see it in the Reminders tab on your Command Centre."
+  Do not book callbacks as meetings — they are reminders only.
+
 RECRUITMENT WORKFLOW — full end-to-end intents:
 
 JOB LOOKUP — CRITICAL:

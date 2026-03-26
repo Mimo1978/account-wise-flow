@@ -492,29 +492,30 @@ function InvoicesByWeekCard({ data, isLoading }: { data: InvoiceWeek[]; isLoadin
   const totalDue = data.reduce((s, w) => s + w.due, 0);
   const totalOverdue = data.reduce((s, w) => s + w.overdue, 0);
 
+  const isEmpty = !hasData;
   return (
-    <AnalyticsCard borderColor="#EF4444" icon={Receipt} title="Invoice Timeline — Due & Overdue (8 Weeks)" viewAllHref="/documents" viewAllLabel="View All Documents" dataJarvisId="analytics-invoice-timeline">
-      {hasData && (
-        <p className="text-xs mb-3" style={{ color: D.muted }}>
-          Due: <span className="font-semibold" style={{ color: D.text }}>{totalDue}</span> | Overdue: <span className="font-semibold" style={{ color: '#EF4444' }}>{totalOverdue}</span>
-        </p>
-      )}
-      {!hasData ? (
-        <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}><span className="text-xs" style={{ color: D.muted }}>No data yet</span></div>
-      ) : (
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={data} barGap={2} style={{ background: 'transparent' }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={D.border} vertical={false} />
-            <XAxis dataKey="weekLabel" tick={AXIS_TICK} axisLine={false} tickLine={false} />
-            <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
-            <Tooltip contentStyle={TOOLTIP_STYLE} />
-            <Legend wrapperStyle={LEGEND_STYLE} />
-            <Bar dataKey="due" name="Due" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="overdue" name="Overdue" fill="#EF4444" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      )}
-    </AnalyticsCard>
+    <div style={isEmpty ? { maxHeight: 100 } : undefined}>
+      <AnalyticsCard borderColor="#EF4444" icon={Receipt} title="Invoice Timeline — Due & Overdue (8 Weeks)" viewAllHref="/documents" viewAllLabel="View All Documents" dataJarvisId="analytics-invoice-timeline" isEmpty={isEmpty}>
+        {hasData && (
+          <p className="text-xs mb-3" style={{ color: D.muted }}>
+            Due: <span className="font-semibold" style={{ color: D.text }}>{totalDue}</span> | Overdue: <span className="font-semibold" style={{ color: '#EF4444' }}>{totalOverdue}</span>
+          </p>
+        )}
+        {hasData && (
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={data} barGap={2} style={{ background: 'transparent' }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={D.border} vertical={false} />
+              <XAxis dataKey="weekLabel" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+              <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip contentStyle={TOOLTIP_STYLE} />
+              <Legend wrapperStyle={LEGEND_STYLE} />
+              <Bar dataKey="due" name="Due" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="overdue" name="Overdue" fill="#EF4444" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </AnalyticsCard>
+    </div>
   );
 }
 
@@ -638,38 +639,31 @@ function RelationshipStrengthCard({ avgRsi, distribution, companies, isLoading }
   const medPct = Math.round((distribution.medium / total) * 100);
   const lowPct = Math.round((distribution.low / total) * 100);
 
+  const isEmpty = companies.length < 3;
   return (
-    <AnalyticsCard borderColor="#6366F1" icon={Network} title="Relationship Strength Index" viewAllHref="/companies?sort=rsi" viewAllLabel="View All Companies" dataJarvisId="analytics-rsi">
-      {companies.length < 3 ? (
-        <div className="flex items-center gap-4 py-4 justify-center max-h-[120px]">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: D.border }}>
-            <Users className="w-6 h-6" style={{ color: D.muted }} />
-          </div>
-          <div>
-            <p className="text-sm" style={{ color: D.muted }}>Add more companies and log activities to see your relationship health scores.</p>
-            <Button size="sm" className="mt-2 bg-blue-600 hover:bg-blue-500 text-white" asChild><Link to="/companies">Add Companies</Link></Button>
-          </div>
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-3 gap-4">
-          <div className="rounded-lg p-4" style={{ background: D.hover, border: `1px solid ${D.border}` }}>
-            <div className="text-sm mb-2" style={{ color: D.muted }}>Average RSI</div>
-            <div className="text-4xl font-bold" style={{ color: D.text }}>{avgRsi}<span className="text-lg font-normal" style={{ color: D.muted }}>/100</span></div>
-            <div className="mt-3 h-2.5 rounded-full overflow-hidden" style={{ background: D.border }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${avgRsi}%`, background: '#6366F1' }} />
+    <div style={isEmpty ? { maxHeight: 120 } : undefined}>
+      <AnalyticsCard borderColor="#6366F1" icon={Network} title="Relationship Strength Index" viewAllHref="/companies?sort=rsi" viewAllLabel="View All Companies" dataJarvisId="analytics-rsi" isEmpty={isEmpty}>
+        {!isEmpty && (
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="rounded-lg p-4" style={{ background: D.hover, border: `1px solid ${D.border}` }}>
+              <div className="text-sm mb-2" style={{ color: D.muted }}>Average RSI</div>
+              <div className="text-4xl font-bold" style={{ color: D.text }}>{avgRsi}<span className="text-lg font-normal" style={{ color: D.muted }}>/100</span></div>
+              <div className="mt-3 h-2.5 rounded-full overflow-hidden" style={{ background: D.border }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${avgRsi}%`, background: '#6366F1' }} />
+              </div>
+            </div>
+            <div className="md:col-span-2 rounded-lg p-4" style={{ background: D.hover, border: `1px solid ${D.border}` }}>
+              <div className="text-sm mb-3" style={{ color: D.muted }}>Distribution</div>
+              <div className="flex gap-3">
+                <DistBar label="High (70+)" count={distribution.high} pct={highPct} color="#22C55E" />
+                <DistBar label="Medium (40–69)" count={distribution.medium} pct={medPct} color="#F59E0B" />
+                <DistBar label="Low (<40)" count={distribution.low} pct={lowPct} color="#EF4444" />
+              </div>
             </div>
           </div>
-          <div className="md:col-span-2 rounded-lg p-4" style={{ background: D.hover, border: `1px solid ${D.border}` }}>
-            <div className="text-sm mb-3" style={{ color: D.muted }}>Distribution</div>
-            <div className="flex gap-3">
-              <DistBar label="High (70+)" count={distribution.high} pct={highPct} color="#22C55E" />
-              <DistBar label="Medium (40–69)" count={distribution.medium} pct={medPct} color="#F59E0B" />
-              <DistBar label="Low (<40)" count={distribution.low} pct={lowPct} color="#EF4444" />
-            </div>
-          </div>
-        </div>
-      )}
-    </AnalyticsCard>
+        )}
+      </AnalyticsCard>
+    </div>
   );
 }
 

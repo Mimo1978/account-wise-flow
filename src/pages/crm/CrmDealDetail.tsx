@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PipelineChevron as SharedPipelineChevron } from "@/components/pipeline/PipelineChevron";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";

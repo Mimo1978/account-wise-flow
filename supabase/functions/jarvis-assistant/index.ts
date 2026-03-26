@@ -3407,6 +3407,284 @@ Return ONLY valid JSON, no markdown fences.`,
         invalidate_queries: ["jobs_projects", "jobs_projects_list"],
       };
     }
+    // ─── New CRUD tools ───
+    case "update_record": {
+      const tableMap: Record<string, string> = {
+        company: "companies",
+        contact: "contacts",
+        deal: "crm_deals",
+        opportunity: "crm_opportunities",
+        engagement: "engagements",
+        invoice: "crm_invoices",
+        candidate: "candidates",
+      };
+      const table = tableMap[input.entity_type as string];
+      if (!table) return { result: { error: "Unknown entity type" }, entityType: "unknown" };
+
+      const { data, error } = await supabaseAdmin
+        .from(table)
+        .update({ ...(input.fields as object), updated_at: new Date().toISOString() })
+        .eq("id", input.entity_id as string)
+        .select()
+        .single();
+      if (error) return { result: { error: error.message }, entityType: table };
+      return { result: { success: true, updated: data }, entityType: table, entityId: input.entity_id as string };
+    }
+    case "delete_record": {
+      const delTableMap: Record<string, string> = {
+        company: "companies",
+        contact: "contacts",
+        deal: "crm_deals",
+        opportunity: "crm_opportunities",
+        engagement: "engagements",
+        candidate: "candidates",
+      };
+      const delTable = delTableMap[input.entity_type as string];
+      if (!delTable) return { result: { error: "Unknown entity type" }, entityType: "unknown" };
+
+      // Soft delete where possible (tables with deleted_at column)
+      const softDeleteTables = new Set(["companies", "contacts", "crm_deals", "crm_opportunities"]);
+      if (softDeleteTables.has(delTable)) {
+        const { error } = await supabaseAdmin
+          .from(delTable)
+          .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq("id", input.entity_id as string);
+        if (error) return { result: { error: error.message }, entityType: delTable };
+      } else {
+        const { error } = await supabaseAdmin
+          .from(delTable)
+          .delete()
+          .eq("id", input.entity_id as string);
+        if (error) return { result: { error: error.message }, entityType: delTable };
+      }
+      return { result: { success: true, deleted: input.entity_name }, entityType: delTable, entityId: input.entity_id as string };
+    }
+    case "create_candidate": {
+      const candTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const { data, error } = await supabaseAdmin
+        .from("candidates")
+        .insert({
+          name: input.name as string,
+          email: (input.email as string) || null,
+          phone: (input.phone as string) || null,
+          current_title: (input.current_title as string) || null,
+          current_company: (input.current_company as string) || null,
+          location: (input.location as string) || null,
+          skills: input.skills
+            ? { primary_skills: (input.skills as string).split(",").map((s: string) => s.trim()) }
+            : [],
+          tenant_id: candTeamId,
+          owner_id: userId,
+          source: "jarvis",
+          status: "active",
+        })
+        .select("id, name")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "candidates" };
+      return { result: { ...data, navigate_to: `/talent` }, entityType: "candidates", entityId: data?.id };
+    }
+    case "generate_and_send_invoice": {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+      // Step 1: Generate PDF via existing edge function
+      const pdfRes = await fetch(`${supabaseUrl}/functions/v1/invoice-generate-pdf`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice_id: input.invoice_id }),
+      });
+      const pdfData = await pdfRes.json();
+      if (!pdfRes.ok) return { result: { error: pdfData.error || "PDF generation failed" }, entityType: "crm_invoices" };
+
+      // Step 2: Get invoice details
+      const { data: invoice } = await supabaseAdmin
+        .from("crm_invoices")
+        .select("*, crm_companies(name), crm_deals(title)")
+        .eq("id", input.invoice_id as string)
+        .single();
+
+      // Step 3: Send email via Resend if contact_id provided
+      if (input.contact_id) {
+        const { data: invContact } = await supabaseAdmin
+          .from("contacts")
+          .select("email, name")
+          .eq("id", input.contact_id as string)
+          .maybeSingle();
+        if (invContact?.email) {
+          const { data: invKeys } = await supabaseAdmin
+            .from("integration_settings")
+            .select("key_name, key_value")
+            .eq("user_id", userId)
+            .eq("service", "resend");
+          const invKeyMap = Object.fromEntries((invKeys ?? []).map((k: any) => [k.key_name, k.key_value]));
+          if (invKeyMap.RESEND_API_KEY && invKeyMap.FROM_EMAIL_ADDRESS) {
+            const emailBody = `<p>Dear ${invContact.name},</p><p>Please find attached invoice ${invoice?.invoice_number} for £${invoice?.total?.toLocaleString()}.</p><p>Due date: ${invoice?.due_date ? new Date(invoice.due_date).toLocaleDateString('en-GB') : 'As agreed'}.</p><p>Kind regards</p>`;
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${invKeyMap.RESEND_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                from: invKeyMap.FROM_EMAIL_ADDRESS,
+                to: invContact.email,
+                subject: `Invoice ${invoice?.invoice_number} — ${(invoice?.crm_companies as any)?.name || ""}`,
+                html: emailBody,
+              }),
+            });
+          }
+        }
+      }
+
+      return {
+        result: {
+          success: true,
+          invoice_number: invoice?.invoice_number || pdfData.invoice_number,
+          message: `Invoice ${invoice?.invoice_number || ""} generated and sent.`,
+          navigate_to: `/crm/invoices/${input.invoice_id}`,
+        },
+        entityType: "crm_invoices",
+        entityId: input.invoice_id as string,
+      };
+    }
+    case "initiate_ai_call": {
+      let toNumber = input.phone_number as string;
+      if (!toNumber && input.contact_id) {
+        const { data: callContact } = await supabaseAdmin
+          .from("contacts")
+          .select("phone, name")
+          .eq("id", input.contact_id as string)
+          .maybeSingle();
+        toNumber = callContact?.phone || "";
+        if (!toNumber) {
+          const { data: callCand } = await supabaseAdmin
+            .from("candidates")
+            .select("phone, name")
+            .eq("id", input.contact_id as string)
+            .maybeSingle();
+          toNumber = callCand?.phone || "";
+        }
+      }
+      if (!toNumber) return { result: { error: "No phone number found. Please provide a number." }, entityType: "calls" };
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+      const callRes = await fetch(`${supabaseUrl}/functions/v1/initiate-ai-call`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contact_id: input.contact_id || null,
+          to_number: toNumber,
+          purpose: input.purpose,
+          custom_instructions: input.custom_instructions || null,
+        }),
+      });
+      const callData = await callRes.json();
+      if (!callRes.ok) return { result: { error: callData.message || "Call failed to connect" }, entityType: "calls" };
+      return {
+        result: { success: true, call_sid: callData.call_sid, message: `Call initiated to ${toNumber}. Call SID: ${callData.call_sid}` },
+        entityType: "calls",
+      };
+    }
+    case "create_sow": {
+      const sowTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const sowResolved = await resolveCompanyIds(supabaseAdmin, input.company_id as string, userId, sowTeamId);
+      const { data, error } = await supabaseAdmin
+        .from("sows")
+        .insert({
+          workspace_id: sowTeamId,
+          company_id: sowResolved.companyId || input.company_id,
+          engagement_id: (input.engagement_id as string) || null,
+          sow_ref: (input.sow_ref as string) || null,
+          value: (input.value as number) || 0,
+          currency: (input.currency as string) || "GBP",
+          billing_model: (input.billing_model as string) || "fixed",
+          start_date: (input.start_date as string) || null,
+          end_date: (input.end_date as string) || null,
+          notes: (input.notes as string) || null,
+          status: "draft",
+        })
+        .select("id, sow_ref, value")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "sows" };
+      return { result: { ...data, navigate_to: "/home" }, entityType: "sows", entityId: data?.id };
+    }
+    case "create_outreach_campaign": {
+      const campTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const { data, error } = await supabaseAdmin
+        .from("outreach_campaigns")
+        .insert({
+          workspace_id: campTeamId,
+          name: input.name as string,
+          channel: input.channel as string,
+          description: (input.description as string) || null,
+          status: "draft",
+          owner_id: userId,
+        })
+        .select("id, name")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "outreach_campaigns" };
+      return { result: { ...data, navigate_to: "/outreach" }, entityType: "outreach_campaigns", entityId: data?.id };
+    }
+    case "add_to_outreach": {
+      const outTeamId = await getUserTeamId(supabaseAdmin, userId);
+      let entityEmail = input.entity_email as string;
+      let entityPhone = input.entity_phone as string;
+
+      if (input.contact_id && !entityEmail) {
+        const { data: outContact } = await supabaseAdmin
+          .from("contacts").select("email, phone, name")
+          .eq("id", input.contact_id as string).maybeSingle();
+        entityEmail = entityEmail || outContact?.email || "";
+        entityPhone = entityPhone || outContact?.phone || "";
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("outreach_targets")
+        .insert({
+          workspace_id: outTeamId,
+          campaign_id: input.campaign_id as string,
+          contact_id: (input.contact_id as string) || null,
+          candidate_id: (input.candidate_id as string) || null,
+          entity_name: input.entity_name as string,
+          entity_email: entityEmail || null,
+          entity_phone: entityPhone || null,
+          state: "queued",
+          priority: 5,
+        })
+        .select("id")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "outreach_targets" };
+      return { result: { success: true, navigate_to: "/outreach" }, entityType: "outreach_targets", entityId: data?.id };
+    }
+    case "mark_invoice_paid": {
+      let invoiceId = input.invoice_id as string;
+      if (!invoiceId && input.company_name) {
+        const { data: inv } = await supabaseAdmin
+          .from("crm_invoices")
+          .select("id, invoice_number, total, crm_companies(name)")
+          .neq("status", "paid")
+          .order("created_at", { ascending: false })
+          .limit(10);
+        // Filter in code for company name match
+        const match = (inv ?? []).find((i: any) => 
+          (i.crm_companies as any)?.name?.toLowerCase().includes((input.company_name as string).toLowerCase())
+        );
+        invoiceId = match?.id;
+      }
+      if (!invoiceId) return { result: { error: "No unpaid invoice found. Which invoice?" }, entityType: "crm_invoices" };
+
+      const { data, error } = await supabaseAdmin
+        .from("crm_invoices")
+        .update({ status: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("id", invoiceId)
+        .select("id, invoice_number, total")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "crm_invoices" };
+      return {
+        result: { success: true, ...data, message: `Invoice ${data?.invoice_number} marked as paid.` },
+        entityType: "crm_invoices",
+        entityId: invoiceId,
+      };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }

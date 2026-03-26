@@ -1073,6 +1073,7 @@ export default function TalentDatabase() {
                       </TableHead>
                     );
                   })}
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted w-[120px]" style={{ zIndex: 10 }}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

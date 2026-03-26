@@ -888,6 +888,23 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "add_note",
+      description: "Add a note to a contact or company record. Use when user says 'add a note', 'make a note', 'note that', 'write this down about [name]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          entity_type: { type: "string", enum: ["contact", "company"], description: "Whether this note is for a contact or company" },
+          entity_id: { type: "string", description: "The UUID of the contact or company" },
+          content: { type: "string", description: "The note text to save" },
+          pinned: { type: "boolean", description: "Whether to pin this note. Default false." },
+        },
+        required: ["entity_type", "entity_id", "content"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "mark_invoice_paid",
       description: "Mark an invoice as paid. Use when user says 'mark invoice paid', '[company] paid', 'invoice received'.",
       parameters: {
@@ -2288,6 +2305,22 @@ async function executeTool(
       };
     }
     case "log_call": {
+      // Resolve contact - check contacts table first for company_id
+      const contactId = input.contact_id as string;
+      let resolvedContactId = contactId;
+      let callCompanyId: string | null = null;
+
+      const { data: coreContact } = await supabaseAdmin
+        .from("contacts")
+        .select("id, company_id")
+        .eq("id", contactId)
+        .maybeSingle();
+
+      if (coreContact) {
+        resolvedContactId = coreContact.id;
+        callCompanyId = coreContact.company_id;
+      }
+
       const { data, error } = await supabaseAdmin
         .from("crm_activities")
         .insert({
@@ -2295,7 +2328,8 @@ async function executeTool(
           direction: "outbound",
           subject: (input.subject as string) || "Call logged",
           body: (input.body as string) || null,
-          contact_id: input.contact_id as string,
+          contact_id: resolvedContactId,
+          company_id: callCompanyId,
           status: "completed",
           completed_at: new Date().toISOString(),
           created_by: userId,
@@ -3666,6 +3700,29 @@ Return ONLY valid JSON, no markdown fences.`,
         .single();
       if (error) return { result: { error: error.message }, entityType: "outreach_targets" };
       return { result: { success: true, navigate_to: "/outreach" }, entityType: "outreach_targets", entityId: data?.id };
+    }
+    case "add_note": {
+      const noteTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const { data, error } = await supabaseAdmin
+        .from("notes")
+        .insert({
+          entity_type: input.entity_type as string,
+          entity_id: input.entity_id as string,
+          content: input.content as string,
+          pinned: (input.pinned as boolean) || false,
+          owner_id: userId,
+          team_id: noteTeamId,
+          source: "voice",
+          visibility: "team",
+        })
+        .select("id")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "notes" };
+      return {
+        result: { success: true, note_id: data?.id },
+        entityType: "notes",
+        entityId: input.entity_id as string,
+      };
     }
     case "mark_invoice_paid": {
       let invoiceId = input.invoice_id as string;

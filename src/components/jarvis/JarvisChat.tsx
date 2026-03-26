@@ -1168,6 +1168,13 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   }
 
   return (
+    <>
+      {bannerData && (
+        <JarvisSuccessBanner
+          data={bannerData}
+          onDismiss={() => setBannerData(null)}
+        />
+      )}
     <div
       ref={panelRef}
       className={cn(

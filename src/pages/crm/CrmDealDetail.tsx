@@ -21,6 +21,7 @@ import { useDeletionPermission } from "@/hooks/use-deletion";
 import { getProjectBadgeSeverity, getContactBadgeSeverity, BADGE_SEVERITY_STYLES } from "@/lib/deal-utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { useConfirmation } from "@/contexts/ConfirmationContext";
 import {
   Pencil, ArrowLeft, Loader2, ExternalLink, Upload, Send, CheckCircle, FileText, Download, Plus,
   ChevronLeft, Trash2, AlertTriangle, ArrowRight, Briefcase, User, FolderOpen, Search, Building2,
@@ -51,6 +52,7 @@ export default function CrmDealDetail() {
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const perm = useDeletionPermission();
+  const { showConfirmation } = useConfirmation();
 
   // Popover states
   const [contactPopoverOpen, setContactPopoverOpen] = useState(false);

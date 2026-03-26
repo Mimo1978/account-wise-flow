@@ -290,7 +290,7 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
         workspace_id: workspaceId,
         type: formType,
         name: formName.trim(),
-        company_id: companyId,
+        company_id: crmCompanyId || companyId,
         contact_id: formContactId || null,
         value: formValue ? parseFloat(formValue) : 0,
         currency: formCurrency,

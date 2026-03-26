@@ -73,18 +73,18 @@ const STAGE_COLORS: Record<string, string> = {
 };
 
 // ── Analytics Section Card wrapper ──
-function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLabel = 'View All', children, id, dataJarvisId }: {
+function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLabel = 'View All', children, id, dataJarvisId, isEmpty }: {
   borderColor: string; icon: React.ElementType; title: string; viewAllHref?: string; viewAllLabel?: string;
-  children: React.ReactNode; id?: string; dataJarvisId?: string;
+  children: React.ReactNode; id?: string; dataJarvisId?: string; isEmpty?: boolean;
 }) {
   return (
     <div
       id={id}
       data-jarvis-id={dataJarvisId}
-      className="rounded-xl overflow-hidden"
-      style={{ background: D.card, border: `1px solid ${D.border}`, borderLeft: `4px solid ${borderColor}` }}
+      className="overflow-hidden"
+      style={{ background: D.card, border: `1px solid ${D.border}`, borderLeft: `4px solid ${borderColor}`, borderRadius: 10, minHeight: 130 }}
     >
-      <div className="flex items-center justify-between px-5 pt-5 pb-3" style={{ borderBottom: `1px solid ${D.border}` }}>
+      <div className="flex items-center justify-between" style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${D.border}` }}>
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${borderColor}15` }}>
             <Icon className="w-3.5 h-3.5" style={{ color: borderColor }} />
@@ -97,7 +97,13 @@ function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLab
           </Link>
         )}
       </div>
-      <div className="px-5 py-4">{children}</div>
+      <div style={{ padding: 16 }}>
+        {isEmpty ? (
+          <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}>
+            <span className="text-xs" style={{ color: D.muted }}>No data yet</span>
+          </div>
+        ) : children}
+      </div>
     </div>
   );
 }
@@ -232,65 +238,65 @@ const ExecutiveInsights = () => {
         <StickyNav />
 
         {/* ═══ ROW 1: 4 KPI HEADLINE CARDS ═══ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           {kpiCards.map((kpi) => (
             <div
               key={kpi.label}
               onClick={kpi.onClick}
-              className="rounded-xl cursor-pointer transition-all duration-150 overflow-hidden hover:scale-[1.02]"
-              style={{ background: D.card, border: `1px solid ${D.border}` }}
+              className="cursor-pointer transition-all duration-150 overflow-hidden hover:scale-[1.02]"
+              style={{ background: D.card, border: `1px solid ${D.border}`, borderLeft: `3px solid ${kpi.accent}`, borderRadius: 10 }}
             >
-              <div className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${kpi.accent}15` }}>
-                    <kpi.icon className="w-4 h-4" style={{ color: kpi.accent }} />
+              <div style={{ padding: 14 }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${kpi.accent}1A` }}>
+                    <kpi.icon className="w-3.5 h-3.5" style={{ color: kpi.accent }} />
                   </div>
-                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: D.muted }}>{kpi.label}</span>
+                  <span className="font-medium uppercase tracking-wider" style={{ color: D.muted, fontSize: 10 }}>{kpi.label}</span>
                 </div>
-                <div className="text-2xl font-bold tracking-tight" style={{ color: D.text }}>{kpi.value}</div>
-                <div className="text-xs mt-1" style={{ color: D.muted }}>{kpi.subtitle}</div>
+                <div className="font-bold tracking-tight" style={{ color: D.text, fontSize: 21 }}>{kpi.value}</div>
+                <div className="mt-0.5" style={{ color: D.muted, fontSize: 10 }}>{kpi.subtitle}</div>
               </div>
-              <div className="h-1" style={{ backgroundColor: kpi.accent }} />
             </div>
           ))}
         </div>
 
-        {/* ═══ ROW 2: PIPELINE CHART + REVENUE FORECAST ═══ */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-          <div className="lg:col-span-3">
+        {/* ═══ MAIN GRID ═══ */}
+        <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 10 }}>
+          {/* Pipeline (spans full) */}
+          <div className="lg:col-span-1">
             <PipelineByStageChart data={pipelineByStage} isLoading={chartsLoading} />
           </div>
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-1">
             <RevenueForecast deals={deals} workspaceId={currentWorkspace?.id} />
           </div>
-        </div>
 
-        {/* ═══ ROW 3: ACCOUNT INTELLIGENCE ═══ */}
-        <AnalyticsCard
-          id="sec-intelligence"
-          dataJarvisId="analytics-account-intelligence"
-          borderColor="#F59E0B"
-          icon={ShieldAlert}
-          title="Account Intelligence"
-          viewAllHref="/companies"
-          viewAllLabel="View All Companies"
-        >
-          {riLoading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <IntelCard label="At-Risk Accounts" description="No activity in 60+ days with open deals" count={atRiskCount} icon={AlertTriangle} severity="danger" onClick={() => navigate('/companies?filter=at-risk')} />
-              <IntelCard label="Single-Threaded" description="Only 1 contact engaged at this company" count={singleThreadedCount} icon={UserX} severity="warning" onClick={() => navigate('/companies?filter=single-threaded')} />
-              <IntelCard label="Dormant Accounts" description="No contact in 90+ days" count={dormantCount} icon={Clock} severity="warning" onClick={() => navigate('/companies?filter=dormant')} />
-              <IntelCard label="High-Momentum" description="Responded and booked in last 30 days" count={riData?.pipeline?.highResponseCampaigns?.length ?? 0} icon={Rocket} severity="positive" onClick={() => navigate('/outreach?filter=high-momentum')} />
-            </div>
-          )}
-        </AnalyticsCard>
+          {/* Account Intelligence — full width */}
+          <div className="lg:col-span-2">
+            <AnalyticsCard
+              id="sec-intelligence"
+              dataJarvisId="analytics-account-intelligence"
+              borderColor="#F59E0B"
+              icon={ShieldAlert}
+              title="Account Intelligence"
+              viewAllHref="/companies"
+              viewAllLabel="View All Companies"
+            >
+              {riLoading ? (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <IntelCard label="At-Risk Accounts" description="No activity in 60+ days with open deals" count={atRiskCount} icon={AlertTriangle} severity="danger" onClick={() => navigate('/companies?filter=at-risk')} />
+                  <IntelCard label="Single-Threaded" description="Only 1 contact engaged at this company" count={singleThreadedCount} icon={UserX} severity="warning" onClick={() => navigate('/companies?filter=single-threaded')} />
+                  <IntelCard label="Dormant Accounts" description="No contact in 90+ days" count={dormantCount} icon={Clock} severity="warning" onClick={() => navigate('/companies?filter=dormant')} />
+                  <IntelCard label="High-Momentum" description="Responded and booked in last 30 days" count={riData?.pipeline?.highResponseCampaigns?.length ?? 0} icon={Rocket} severity="positive" onClick={() => navigate('/outreach?filter=high-momentum')} />
+                </div>
+              )}
+            </AnalyticsCard>
+          </div>
 
-        {/* ═══ ROW 4: OUTREACH + SALES MOMENTUM ═══ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Outreach + Sales Momentum */}
           <LazySection height={350} id="sec-outreach">
             <AnalyticsCard borderColor="#8B5CF6" icon={Target} title="Outreach Outcomes (30 Days)" viewAllHref="/outreach" dataJarvisId="analytics-outreach">
               <OutreachOutcomesContent data={outreachOutcomes} isLoading={chartsLoading} />
@@ -301,17 +307,21 @@ const ExecutiveInsights = () => {
               <SalesMomentumContent momentum={salesMomentum} isLoading={riLoading} />
             </AnalyticsCard>
           </LazySection>
+
+          {/* Invoices — full width */}
+          <div className="lg:col-span-2">
+            <LazySection height={280} id="sec-invoices">
+              <InvoicesByWeekCard data={invoiceWeeks} isLoading={chartsLoading} />
+            </LazySection>
+          </div>
+
+          {/* RSI — full width */}
+          <div className="lg:col-span-2">
+            <LazySection height={200} id="sec-rsi">
+              <RelationshipStrengthCard avgRsi={avgRsi} distribution={rsiDistribution} companies={companies} isLoading={riLoading} />
+            </LazySection>
+          </div>
         </div>
-
-        {/* ═══ ROW 5: INVOICES TIMELINE ═══ */}
-        <LazySection height={280} id="sec-invoices">
-          <InvoicesByWeekCard data={invoiceWeeks} isLoading={chartsLoading} />
-        </LazySection>
-
-        {/* ═══ ROW 6: RELATIONSHIP STRENGTH INDEX ═══ */}
-        <LazySection height={200} id="sec-rsi">
-          <RelationshipStrengthCard avgRsi={avgRsi} distribution={rsiDistribution} companies={companies} isLoading={riLoading} />
-        </LazySection>
 
       </div>
     </div>
@@ -370,7 +380,7 @@ function PipelineByStageChart({ data, isLoading }: { data: PipelineByStage[]; is
     >
       {totalDeals > 0 && <p className="text-xs mb-3" style={{ color: D.muted }}>Total pipeline: £{totalValue.toLocaleString()} across {totalDeals} deals</p>}
       {data.length === 0 ? (
-        <div className="text-center py-12 text-sm" style={{ color: D.muted }}>No deals yet. Create deals to see pipeline analytics.</div>
+        <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}><span className="text-xs" style={{ color: D.muted }}>No deals yet — create deals to see pipeline analytics.</span></div>
       ) : (
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={formatted} barGap={4} style={{ background: 'transparent' }}>
@@ -490,7 +500,7 @@ function InvoicesByWeekCard({ data, isLoading }: { data: InvoiceWeek[]; isLoadin
         </p>
       )}
       {!hasData ? (
-        <div className="text-center py-12 text-sm" style={{ color: D.muted }}>No invoices due in the next 8 weeks.</div>
+        <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}><span className="text-xs" style={{ color: D.muted }}>No data yet</span></div>
       ) : (
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data} barGap={2} style={{ background: 'transparent' }}>
@@ -518,7 +528,7 @@ function OutreachOutcomesContent({ data, isLoading }: { data: OutreachOutcomeDat
   const STATE_COLORS_ARR = ['#3B82F6', '#22C55E', '#F59E0B', '#EF4444', '#94A3B8'];
 
   if (!hasTargets && !hasCalls) {
-    return <div className="text-center py-12 text-sm" style={{ color: D.muted }}>No outreach activity in the last 30 days.</div>;
+    return <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}><span className="text-xs" style={{ color: D.muted }}>No data yet</span></div>;
   }
 
   return (
@@ -561,7 +571,7 @@ function OutreachOutcomesContent({ data, isLoading }: { data: OutreachOutcomeDat
 function SalesMomentumContent({ momentum, isLoading }: { momentum?: SalesMomentum; isLoading: boolean }) {
   if (isLoading) return <Skeleton className="h-[300px] rounded-xl" />;
   if (!momentum || (momentum.totalTargets === 0 && momentum.totalCalls === 0)) {
-    return <div className="text-center py-12 text-sm" style={{ color: D.muted }}>Create campaigns and log calls to track sales momentum.</div>;
+    return <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}><span className="text-xs" style={{ color: D.muted }}>No data yet</span></div>;
   }
 
   return (

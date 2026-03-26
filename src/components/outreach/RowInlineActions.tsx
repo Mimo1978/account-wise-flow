@@ -95,6 +95,13 @@ export function RowInlineActions({
         >
           <Bot className="h-3.5 w-3.5 text-muted-foreground" />
         </Button>
+        <ScheduleCallbackPopover
+          workspaceId={workspaceId}
+          entityName={entityName}
+          contactId={contactId}
+          candidateId={candidateId}
+          companyId={companyId}
+        />
         <AddToOutreachPopover
           workspaceId={workspaceId}
           entityName={entityName}

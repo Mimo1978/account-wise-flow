@@ -885,10 +885,26 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     if (speech.interimTranscript) setInput(speech.interimTranscript);
   }, [speech.interimTranscript]);
 
-  // Speak assistant responses + handle navigation + guided tours
+  // Speak assistant responses + handle navigation + guided tours + success banner
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
+      // Show success banner for completed actions
+      const msgIdx = messages.length - 1;
+      if (
+        msgIdx > lastBannerMsgIdx.current &&
+        last.actionsExecuted?.some((a) => a.success)
+      ) {
+        const banner = buildBannerData(
+          last.actionsExecuted!,
+          last.content,
+          last.navigateTo
+        );
+        if (banner) {
+          lastBannerMsgIdx.current = msgIdx;
+          setBannerData(banner);
+        }
+      }
       // Check for guided tour first
       if (last.guidedTour && last.guidedTour.length > 0) {
         const speakAsync = (text: string) =>

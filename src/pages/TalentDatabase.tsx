@@ -1067,7 +1067,7 @@ export default function TalentDatabase() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTalents.map((talent) => {
+                {filteredTalents.map((talent, index) => {
                   // Get search result for this talent (if in Boolean mode)
                   const searchResult = booleanSearch.isBooleanMode && booleanSearch.hasResults
                     ? booleanSearch.results.find(r => r.candidate.id === talent.id)
@@ -1076,7 +1076,13 @@ export default function TalentDatabase() {
                   return (
                     <TableRow
                       key={talent.id}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors group/row bg-card"
+                      className="cursor-pointer group/row"
+                      style={{
+                        background: index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                        transition: 'background 0.1s ease',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
                       onClick={() => handleRowClick(talent)}
                     >
                       <TableCell 

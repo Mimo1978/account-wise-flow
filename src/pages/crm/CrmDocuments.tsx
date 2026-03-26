@@ -117,8 +117,14 @@ export default function CrmDocumentsPage() {
               <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
             ) : docs.length === 0 ? (
               <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">No documents found</TableCell></TableRow>
-            ) : docs.map(doc => (
-              <TableRow key={doc.id}>
+            ) : docs.map((doc, index) => (
+              <TableRow key={doc.id} className="cursor-pointer"
+                style={{
+                  background: index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                  transition: 'background 0.1s ease',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}>
                 <TableCell className="font-medium">{doc.title}</TableCell>
                 <TableCell><Badge variant="outline">{DOC_TYPE_LABELS[doc.type]}</Badge></TableCell>
                 <TableCell>

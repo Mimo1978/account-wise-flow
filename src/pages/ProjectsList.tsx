@@ -87,7 +87,7 @@ const ProjectsList = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {engagements.map((eng) => {
+                      {engagements.map((eng, index) => {
                         const hasNoCompany = !eng.company_id || !eng.companies?.name;
                         const contactName = eng.primary_contact
                           ? `${eng.primary_contact.first_name} ${eng.primary_contact.last_name}`
@@ -96,8 +96,14 @@ const ProjectsList = () => {
                         return (
                           <tr
                             key={eng.id}
-                            className="hover:bg-muted/30 transition-colors cursor-pointer"
-                            style={{ borderBottom: '1px solid rgba(45,55,72,0.5)' }}
+                            className="cursor-pointer"
+                            style={{
+                              borderBottom: '1px solid rgba(45,55,72,0.5)',
+                              background: index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                              transition: 'background 0.1s ease',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
                             onClick={() => navigate(`/projects/${eng.id}`)}
                           >
                             <td className="px-4 py-3 font-medium" style={{ color: '#F8FAFC' }}>

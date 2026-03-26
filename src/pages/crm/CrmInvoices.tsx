@@ -124,10 +124,17 @@ export default function CrmInvoicesPage() {
               <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
             ) : invoices.length === 0 ? (
               <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No invoices found</TableCell></TableRow>
-            ) : invoices.map(inv => {
+            ) : invoices.map((inv, index) => {
               const displayStatus = getDisplayStatus(inv);
               return (
-                <TableRow key={inv.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/crm/invoices/${inv.id}`)}>
+                <TableRow key={inv.id} className="cursor-pointer"
+                  style={{
+                    background: index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                    transition: 'background 0.1s ease',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
+                  onClick={() => navigate(`/crm/invoices/${inv.id}`)}>
                   <TableCell className="font-medium text-primary">{inv.invoice_number || "—"}</TableCell>
                   <TableCell>
                     {inv.crm_companies ? (

@@ -619,11 +619,17 @@ const AccountsBillingHub = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {clientBalances.slice(0, 10).map((c) => {
+                      {clientBalances.slice(0, 10).map((c, index) => {
                         const hasOverdue = c.oldest && isBefore(c.oldest, today);
                         const balanceStatus = hasOverdue ? (c.total > 10000 ? 'At Risk' : 'Overdue') : 'Outstanding';
                         return (
-                          <tr key={c.companyId} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
+                          <tr key={c.companyId} className="border-b border-border/50 cursor-pointer"
+                            style={{
+                              background: index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                              transition: 'background 0.1s ease',
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}>
                             <td className="px-4 py-3">
                               <button onClick={() => navigate(`/companies/${c.companyId}`)} className="font-medium text-foreground hover:text-primary transition-colors">
                                 {c.name}
@@ -692,10 +698,17 @@ const AccountsBillingHub = () => {
                   <tbody>
                     {filtered.length === 0 ? (
                       <tr><td colSpan={8} className="text-center py-12 text-muted-foreground">No invoices match your filters</td></tr>
-                    ) : filtered.map((inv) => {
+                    ) : filtered.map((inv, index) => {
                       const invStatus = getStatus(inv);
                       return (
-                        <tr key={inv.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelectedInvoice(inv)}>
+                        <tr key={inv.id} className="border-b border-border/50 cursor-pointer"
+                          style={{
+                            background: index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                            transition: 'background 0.1s ease',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
+                          onClick={() => setSelectedInvoice(inv)}>
                           <td className="px-4 py-3 font-medium text-foreground">{inv.invoice_number || '#' + inv.id.slice(0, 6)}</td>
                           <td className="px-4 py-3 text-muted-foreground">{inv.companies?.name ?? '—'}</td>
                           <td className="px-4 py-3 text-muted-foreground">{inv.engagements?.name ?? '—'}</td>

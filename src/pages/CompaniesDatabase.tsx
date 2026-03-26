@@ -528,17 +528,25 @@ export default function CompaniesDatabase() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCompanies.map((account) => {
+                {filteredCompanies.map((account, index) => {
                   const statusConfig = getRelationshipStatusConfig(account.relationshipStatus);
                   const qualityConfig = getDataQualityConfig(account.dataQuality);
+                  const isSelected = selectedIds.has(account.id);
                   
                   return (
                     <TableRow
                       key={account.id}
-                      className={cn(
-                        "cursor-pointer hover:bg-muted/50 transition-colors group",
-                        selectedIds.has(account.id) && "bg-primary/5"
-                      )}
+                      className="cursor-pointer group"
+                      style={{
+                        background: isSelected
+                          ? 'rgba(99, 102, 241, 0.2)'
+                          : index % 2 === 1
+                            ? 'rgba(255, 255, 255, 0.04)'
+                            : 'transparent',
+                        transition: 'background 0.1s ease',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.15)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = isSelected ? 'rgba(99, 102, 241, 0.2)' : index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
                       onClick={(e) => handleRowClick(account, e)}
                     >
                       <TableCell 

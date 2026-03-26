@@ -209,7 +209,7 @@ const JobsList = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map(job => {
+                  {filtered.map((job, index) => {
                     const badge = STATUS_BADGE[job.status] || STATUS_BADGE.draft;
                     const appCount = counts?.appCounts?.[job.id] ?? 0;
                     const shortCount = counts?.shortCounts?.[job.id] ?? 0;
@@ -218,7 +218,14 @@ const JobsList = () => {
                     const linkedDeal = dealByJobTitle[dealKey];
                     const isActiveUnlinked = job.status === 'active' && !linkedProject;
                     return (
-                      <TableRow key={job.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/jobs/${job.id}`)}>
+                      <TableRow key={job.id} className="cursor-pointer"
+                        style={{
+                          background: index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                          transition: 'background 0.1s ease',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
+                        onClick={() => navigate(`/jobs/${job.id}`)}>
                         <TableCell className="font-medium">{job.title}</TableCell>
                         <TableCell style={{ color: '#94A3B8' }}>{(job as any).companies?.name || '—'}</TableCell>
                         <TableCell className="text-sm" style={{ color: '#94A3B8' }}>

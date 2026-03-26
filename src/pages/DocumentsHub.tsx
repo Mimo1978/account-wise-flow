@@ -20,6 +20,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PageBackButton } from "@/components/ui/page-back-button";
+import { SectionCard } from "@/components/ui/SectionCard";
 import {
   FileText, Plus, Search, Upload, Download, Eye, Pencil, Trash2,
   Building2, Calendar, Loader2, MoreHorizontal, Filter, Shield, AlertTriangle,

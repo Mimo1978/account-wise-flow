@@ -66,15 +66,15 @@ function FilterChevron({
       onClick={onClick}
       className="relative flex-1 group"
       style={{
-        minWidth: 120,
+        minWidth: 100,
         filter: isLit ? (isActive ? 'brightness(1)' : 'brightness(0.85)') : 'brightness(0.5)',
         opacity: isLit ? (isActive ? 1 : 0.75) : 0.3,
-        transform: isLit ? 'scale(1)' : 'scale(0.95)',
-        transition: 'filter 300ms ease-out, opacity 300ms ease-out, transform 300ms ease-out',
+        transform: isLit ? (isActive ? 'scale(1.02)' : 'scale(1)') : 'scale(0.97)',
+        transition: 'filter 280ms ease-out, opacity 280ms ease-out, transform 280ms ease-out',
         animation: pulse ? 'chevron-pulse 0.6s ease-in-out' : undefined,
       }}
     >
-      <svg viewBox="0 0 200 56" preserveAspectRatio="none" style={{ width: '100%', height: h }} aria-hidden>
+      <svg viewBox="0 0 200 56" preserveAspectRatio="none" style={{ width: '100%', height: h, display: 'block' }} aria-hidden>
         <polygon
           points={isFirst
             ? '0,0 186,0 200,28 186,56 0,56'
@@ -83,10 +83,10 @@ function FilterChevron({
           className="transition-all duration-200 group-hover:brightness-110"
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2">
-        <span className="text-[10px] font-semibold text-white uppercase tracking-wider leading-none">{stage.label}</span>
-        <span className="text-lg font-bold text-white leading-tight mt-0.5">{count}</span>
-        <span className="text-[9px] text-white/80 leading-none">£{value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toLocaleString()}</span>
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ padding: '0 4px' }}>
+        <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.05em', lineHeight: 1, color: '#fff', textTransform: 'uppercase' as const }}>{stage.label}</span>
+        <span style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1.2, color: '#fff', marginTop: '2px' }}>{count}</span>
+        <span style={{ fontSize: '11px', lineHeight: 1, color: 'rgba(255,255,255,0.8)' }}>£{value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value.toLocaleString()}</span>
       </div>
     </button>
   );

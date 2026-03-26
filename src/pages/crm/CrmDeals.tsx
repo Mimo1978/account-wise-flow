@@ -85,23 +85,12 @@ export default function CrmDealsPage() {
     return arr;
   }, [stageFiltered, sortKey, sortAsc]);
 
-  const stageTotals = useMemo(() => {
-    const map: Record<string, { count: number; value: number }> = {};
-    PIPELINE_STAGES.forEach(s => { map[s.value] = { count: 0, value: 0 }; });
-    deals.forEach(d => {
-      const stage = (d as any).stage || "lead";
-      if (map[stage]) { map[stage].count++; map[stage].value += d.value || 0; }
-    });
-    return map;
-  }, [deals]);
-
   const totalValue = deals.reduce((s, d) => s + (d.value || 0), 0);
 
-  const handleStageFilter = (stage: string) => {
-    const newStage = stageFilter === stage ? null : stage;
-    setStageFilter(newStage);
-    if (newStage) {
-      setSearchParams({ stage: newStage });
+  const handleStageFilter = (stage: string | null) => {
+    setStageFilter(stage);
+    if (stage) {
+      setSearchParams({ stage });
     } else {
       setSearchParams({});
     }

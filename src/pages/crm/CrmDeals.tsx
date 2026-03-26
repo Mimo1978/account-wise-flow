@@ -28,14 +28,6 @@ const STAGE_BADGE: Record<string, string> = {
   lost: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 };
 
-const STAGE_BADGE: Record<string, string> = {
-  lead: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  qualified: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
-  proposal: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  negotiation: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  won: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  lost: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-};
 
 export default function CrmDealsPage() {
   const navigate = useNavigate();

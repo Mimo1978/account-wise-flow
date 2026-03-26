@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Search, ArrowUpDown, Handshake, Pencil, LayoutGrid, List, DollarSign, Link2 } from "lucide-react";
+import { Plus, Search, ArrowUpDown, Pencil, LayoutGrid, List, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { useCrmDeals, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS, type CrmDealWithRe
 import { useCrmCompanies } from "@/hooks/use-crm-companies";
 import { AddEditDealPanel } from "@/components/crm/AddEditDealPanel";
 import { DealIntegrityBadges } from "@/components/deals/DealIntegrityBadges";
+import { PipelineChevron as SharedPipelineChevron } from "@/components/pipeline/PipelineChevron";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { CrmDeal } from "@/types/crm";
@@ -18,14 +19,14 @@ import type { CrmDeal } from "@/types/crm";
 type SortKey = "title" | "value" | "status" | "signed_date" | "start_date";
 type ViewMode = "cards" | "table";
 
-const PIPELINE_STAGES = [
-  { value: "lead", label: "Lead", color: "bg-blue-500" },
-  { value: "qualified", label: "Qualified", color: "bg-cyan-500" },
-  { value: "proposal", label: "Proposal", color: "bg-amber-500" },
-  { value: "negotiation", label: "Negotiation", color: "bg-purple-500" },
-  { value: "won", label: "Won", color: "bg-green-500" },
-  { value: "lost", label: "Lost", color: "bg-red-500" },
-];
+const STAGE_BADGE: Record<string, string> = {
+  lead: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  qualified: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+  proposal: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  negotiation: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  won: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  lost: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+};
 
 const STAGE_BADGE: Record<string, string> = {
   lead: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",

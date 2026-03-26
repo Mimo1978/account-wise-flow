@@ -597,17 +597,14 @@ const HomeCommandCenter = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-stretch -space-x-1 overflow-x-auto rounded-xl" style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
-                {DEAL_STAGES.map((stage, idx) => {
-                  const stageDeals = deals.filter((d) => (d.stage || 'lead') === stage);
-                  const stageTotal = stageDeals.reduce((s, d) => s + d.value, 0);
-                  const isActive = pipelineFilter === null || pipelineFilter === stage;
-                  return <PipelineChevron key={stage} stage={stage} label={DEAL_STAGE_LABELS[stage]} count={stageDeals.length} total={stageTotal}
-                    isFirst={idx === 0} isLast={idx === DEAL_STAGES.length - 1} isActive={isActive}
-                    isLit={litStages.includes(stage)}
-                    onClick={() => setPipelineFilter(pipelineFilter === stage ? null : stage)} />;
-                })}
-              </div>
+              <SharedPipelineChevron
+                mode="filter"
+                deals={deals}
+                selectedStage={pipelineFilter}
+                onStageClick={(stage) => setPipelineFilter(stage)}
+                showCounts={true}
+                showValues={true}
+              />
               {(() => {
                 const filteredDeals = pipelineFilter ? enrichedDeals.filter(d => (d.stage || 'lead') === pipelineFilter) : enrichedDeals;
                 if (filteredDeals.length === 0) return (

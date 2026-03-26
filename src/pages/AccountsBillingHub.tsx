@@ -515,19 +515,18 @@ const AccountsBillingHub = () => {
       const todayStr = new Date().toISOString().split('T')[0];
       const dueStr = addDays(new Date(), 30).toISOString().split('T')[0];
       const result = await createInvoice.mutateAsync({
-        workspace_id: currentWorkspace.id,
         company_id: inv.company_id,
-        engagement_id: inv.engagement_id,
         status: 'draft',
-        amount: inv.amount,
+        subtotal: inv.amount || 0,
+        total: inv.amount || 0,
         currency: inv.currency,
-        issued_date: todayStr,
+        issue_date: todayStr,
         due_date: dueStr,
         notes: inv.notes,
       });
       toast.success('Invoice duplicated as Draft');
       // Open the new invoice in edit mode
-      const newInv: Invoice = { ...inv, ...result, status: 'draft', issued_date: todayStr, due_date: dueStr, paid_date: null };
+      const newInv: Invoice = { ...inv, ...(result as any), status: 'draft', issued_date: todayStr, due_date: dueStr, paid_date: null };
       setSelectedInvoice(newInv);
     } catch { toast.error('Failed to duplicate invoice'); }
   };

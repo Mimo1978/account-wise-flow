@@ -94,12 +94,12 @@ export function CreateInvoiceModal({ open, onOpenChange, prefillCompanyId, prefi
     }
 
     try {
+      const subtotal = parseInt(amount) || 0;
       await createInvoice.mutateAsync({
-        workspace_id: currentWorkspace.id,
         company_id: companyId,
-        engagement_id: engagementId || null,
         invoice_number: invoiceNumber || null,
-        amount: parseInt(amount) || 0,
+        subtotal,
+        total: subtotal,
         due_date: dueDate || null,
         status,
         notes: notes || null,

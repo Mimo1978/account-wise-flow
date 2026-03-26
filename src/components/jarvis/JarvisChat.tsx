@@ -1481,6 +1481,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
         </div>
       </div>
     </div>
+    </>
   );
 }
 

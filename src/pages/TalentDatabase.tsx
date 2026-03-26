@@ -1073,21 +1073,22 @@ export default function TalentDatabase() {
                     ? booleanSearch.results.find(r => r.candidate.id === talent.id)
                     : undefined;
                     
+                  const rowBg = index % 2 === 1
+                    ? "rgba(255,255,255,0.04)"
+                    : "transparent";
                   return (
                     <TableRow
                       key={talent.id}
-                      style={{
-                        background: index % 2 === 1
-                          ? "rgba(255,255,255,0.04)"
-                          : "transparent",
-                      }}
-                      className={cn("cursor-pointer transition-colors group/row hover:!bg-indigo-500/15")}
+                      style={{ background: rowBg }}
+                      className="cursor-pointer transition-colors group/row"
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.15)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}
                       onClick={() => handleRowClick(talent)}
                     >
                       <TableCell 
                         onClick={(e) => e.stopPropagation()} 
-                        className="relative bg-card"
-                        style={getCheckboxCellStyles(false)}
+                        className="relative"
+                        style={{ ...getCheckboxCellStyles(false), background: rowBg }}
                       >
                         <div className="flex items-center gap-1">
                           <Checkbox
@@ -1132,12 +1133,10 @@ export default function TalentDatabase() {
                               viewPreferences.wrapText && wrappableColumns.has(column.id)
                                 ? "whitespace-normal"
                                 : "whitespace-nowrap",
-                              // ALL body cells get solid background - critical for scroll overlap
-                              "bg-card",
                               // Pinned cells override with slightly different styling on hover
                               pinPosition && "group-hover/row:bg-muted/50"
                             )}
-                            style={getCellStyles(column.id, false)}
+                            style={{ ...getCellStyles(column.id, false), ...(pinPosition ? { background: rowBg } : {}) }}
                           >
                             <div className="min-w-0 overflow-hidden text-ellipsis">
                               {renderCellContent(column.id, talent, viewPreferences.wrapText)}

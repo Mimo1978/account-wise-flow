@@ -858,25 +858,26 @@ export default function ContactsDatabase() {
               {filteredContacts.map((contact, index) => {
                 const isReady = isContactReady(contact);
                 const isSelected = selectedIds.has(contact.id) || selectedRowId === contact.id;
+                const rowBg = isSelected
+                  ? "rgba(99,102,241,0.12)"
+                  : index % 2 === 1
+                    ? "rgba(255,255,255,0.04)"
+                    : "transparent";
                 return (
                   <TableRow
                     key={contact.id}
-                    style={{
-                      background: isSelected
-                        ? "rgba(99,102,241,0.12)"
-                        : index % 2 === 1
-                          ? "rgba(255,255,255,0.04)"
-                          : "transparent",
-                    }}
-                    className={cn("cursor-pointer transition-colors group hover:!bg-indigo-500/15")}
+                    style={{ background: rowBg }}
+                    className="cursor-pointer transition-colors group"
+                    onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.15)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}
                     onClick={(e) => handleRowClick(contact, e)}
                     onDoubleClick={(e) => handleRowDoubleClick(contact, e)}
                   >
                     {/* Checkbox cell */}
                     <TableCell
                       data-quality-action
-                      className="bg-card w-10"
-                      style={{ position: "sticky", left: 0, zIndex: 20 }}
+                      className="w-10"
+                      style={{ position: "sticky", left: 0, zIndex: 20, background: rowBg }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Checkbox
@@ -892,12 +893,12 @@ export default function ContactsDatabase() {
                     </TableCell>
                     <TableCell 
                       data-quality-action
-                      className="bg-card"
                       style={{ 
                         position: "sticky", 
                         left: 40, 
                         zIndex: 20,
                         minWidth: 100,
+                        background: rowBg,
                       }}
                     >
                       {isReady ? (
@@ -1040,13 +1041,14 @@ export default function ContactsDatabase() {
                       )}
                     </TableCell>
                     <TableCell 
-                      className="font-medium bg-card"
+                      className="font-medium"
                       style={{ 
                         position: "sticky", 
                         left: 140, 
                         zIndex: 20,
                         minWidth: 180,
                         boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
+                        background: rowBg,
                       }}
                     >
                       <div className="flex items-center gap-2 group/name">
@@ -1067,18 +1069,18 @@ export default function ContactsDatabase() {
                         </button>
                       </div>
                     </TableCell>
-                    <TableCell className="bg-card" style={{ zIndex: 1 }}>{(contact as any)._companyName || "—"}</TableCell>
-                    <TableCell className="bg-card" style={{ zIndex: 1 }}>{contact.department || <span className="text-muted-foreground italic">—</span>}</TableCell>
-                    <TableCell className="bg-card" style={{ zIndex: 1 }}>{contact.title || <span className="text-muted-foreground italic">—</span>}</TableCell>
-                    <TableCell className="bg-card" style={{ zIndex: 1 }}>
+                    <TableCell style={{ zIndex: 1 }}>{(contact as any)._companyName || "—"}</TableCell>
+                    <TableCell style={{ zIndex: 1 }}>{contact.department || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                    <TableCell style={{ zIndex: 1 }}>{contact.title || <span className="text-muted-foreground italic">—</span>}</TableCell>
+                    <TableCell style={{ zIndex: 1 }}>
                       <span className="text-muted-foreground">
                         {seniorityLabels[contact.seniority] || contact.seniority}
                       </span>
                     </TableCell>
-                    <TableCell className="text-muted-foreground bg-card" style={{ zIndex: 1 }}>
+                    <TableCell className="text-muted-foreground" style={{ zIndex: 1 }}>
                       {contact.email}
                     </TableCell>
-                    <TableCell data-quality-action className="bg-card" style={{ zIndex: 1 }}>
+                    <TableCell data-quality-action style={{ zIndex: 1 }}>
                       <PrivateEmailEditor
                         privateEmail={contact.privateEmail}
                         onSave={(email) => {
@@ -1086,7 +1088,7 @@ export default function ContactsDatabase() {
                         }}
                       />
                     </TableCell>
-                    <TableCell data-quality-action className="bg-card" style={{ zIndex: 1 }}>
+                    <TableCell data-quality-action style={{ zIndex: 1 }}>
                       <PhoneInlineEditor
                         phoneNumbers={contact.phoneNumbers || []}
                         legacyPhone={contact.phone}
@@ -1095,7 +1097,7 @@ export default function ContactsDatabase() {
                         }}
                       />
                     </TableCell>
-                    <TableCell data-quality-action className="bg-card" style={{ zIndex: 1 }}>
+                    <TableCell data-quality-action style={{ zIndex: 1 }}>
                       <InlineEditCell
                         value={contact.status}
                         displayValue={
@@ -1114,10 +1116,10 @@ export default function ContactsDatabase() {
                         placeholder="Select status"
                       />
                     </TableCell>
-                    <TableCell className="text-muted-foreground bg-card" style={{ zIndex: 1 }}>
+                    <TableCell className="text-muted-foreground" style={{ zIndex: 1 }}>
                       {(contact as any)._ownerId ? "Assigned" : "—"}
                     </TableCell>
-                    <TableCell className="text-muted-foreground bg-card" style={{ zIndex: 1 }}>
+                    <TableCell className="text-muted-foreground" style={{ zIndex: 1 }}>
                       {contact.lastContact || "—"}
                     </TableCell>
                   </TableRow>

@@ -1,7 +1,9 @@
 import { PipelineChevron as SharedPipelineChevron } from '@/components/pipeline/PipelineChevron';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { DiarySection } from '@/components/home/DiarySection';
 import { useEngagements } from '@/hooks/use-engagements';
 import { useSows, type Sow } from '@/hooks/use-sows';
 import { useInvoices, type Invoice } from '@/hooks/use-invoices';
@@ -260,62 +262,7 @@ function buildCriticalDates(sows: Sow[], windowDays: number) {
   return items;
 }
 
-/* ─── Diary Events Section ─── */
-function DiaryEventsSection({ workspaceId }: { workspaceId: string | undefined }) {
-  const { data: diaryEvents = [] } = useQuery({
-    queryKey: ['diary_events', workspaceId],
-    queryFn: async () => {
-      if (!workspaceId) return [];
-      const now = new Date();
-      const end = addDays(now, 7);
-      const { data, error } = await supabase
-        .from('diary_events')
-        .select('id, title, description, start_time, end_time, event_type, status, candidate_id, contact_id, job_id')
-        .eq('workspace_id', workspaceId).eq('status', 'scheduled')
-        .gte('start_time', now.toISOString()).lte('start_time', end.toISOString())
-        .order('start_time');
-      if (error) return [];
-      return data || [];
-    },
-    enabled: !!workspaceId, refetchInterval: 30000,
-  });
-  const EVENT_ICONS: Record<string, React.ElementType> = { call: Phone, meeting: Video, task: CheckSquare };
-
-  if (diaryEvents.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center text-center py-8">
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: `${DARK.border}` }}>
-          <CalendarClock className="w-6 h-6" style={{ color: DARK.textSecondary }} />
-        </div>
-        <p className="text-sm font-medium" style={{ color: DARK.text }}>No events this week</p>
-        <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>Booked calls, meetings and tasks will appear here.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-0 divide-y" style={{ borderColor: DARK.border }}>
-      {diaryEvents.map((evt: any) => {
-        const Icon = EVENT_ICONS[evt.event_type] || CalendarClock;
-        const startDate = new Date(evt.start_time);
-        return (
-          <div key={evt.id} className="flex items-center gap-3 py-3 transition-colors rounded-lg cursor-pointer hover:brightness-110">
-            <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#6366F120' }}>
-              <Icon className="w-4 h-4" style={{ color: '#818CF8' }} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate" style={{ color: DARK.text }}>{evt.title}</p>
-              <p className="text-xs" style={{ color: DARK.textSecondary }}>
-                {format(startDate, 'EEEE')} · {format(startDate, 'HH:mm')}–{format(new Date(evt.end_time), 'HH:mm')}
-              </p>
-            </div>
-            <span className="text-xs" style={{ color: DARK.textSecondary }}>{format(startDate, 'dd MMM')}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+/* ─── Diary Events Section — now in src/components/home/DiarySection.tsx ─── */
 
 /* ─── Tour Steps ─── */
 const COMMAND_CENTRE_TOUR: GuidedTourStep[] = [
@@ -336,6 +283,7 @@ const HomeCommandCenter = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentWorkspace, refreshWorkspaces } = useWorkspace();
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [sowOpen, setSowOpen] = useState(false);
@@ -703,7 +651,7 @@ const HomeCommandCenter = () => {
           {/* This Week's Diary */}
           <SectionCard title="This Week" subtitle="Next 7 days" icon={CalendarClock} borderColor="#6366F1"
             jarvisSection="diary" jarvisId="home-diary">
-            <DiaryEventsSection workspaceId={currentWorkspace?.id} />
+            <DiarySection workspaceId={currentWorkspace?.id} userId={user?.id} />
           </SectionCard>
         </div>
 

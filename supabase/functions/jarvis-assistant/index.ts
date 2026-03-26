@@ -3188,7 +3188,7 @@ Return ONLY valid JSON, no markdown fences.`,
       });
       const data = await res.json();
       if (!res.ok) return { result: { error: data.error || "Failed to cancel" }, entityType: "diary_events" };
-      return { result: { ...data, navigate_to: "/home" }, entityType: "diary_events", entityId: eventId };
+      return { result: { ...data, navigate_to: "/home#diary" }, entityType: "diary_events", entityId: eventId };
     }
     case "reschedule_diary_event": {
       const teamId = await getUserTeamId(supabaseAdmin, userId);
@@ -3234,7 +3234,7 @@ Return ONLY valid JSON, no markdown fences.`,
       });
       const data = await res.json();
       if (!res.ok) return { result: { error: data.error || "Failed to reschedule" }, entityType: "diary_events" };
-      return { result: { ...data, navigate_to: "/home" }, entityType: "diary_events", entityId: eventId };
+      return { result: { ...data, navigate_to: "/home#diary" }, entityType: "diary_events", entityId: eventId };
     }
     // ─── Recruitment workflow tools ───
     case "lookup_job": {

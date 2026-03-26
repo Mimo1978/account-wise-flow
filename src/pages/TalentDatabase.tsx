@@ -1186,7 +1186,7 @@ export default function TalentDatabase() {
                           entityName={talent.name}
                           entityEmail={talent.email}
                           entityPhone={talent.phone}
-                          entityTitle={talent.currentTitle}
+                          entityTitle={talent.roleType}
                           candidateId={talent.id}
                         />
                       </TableCell>

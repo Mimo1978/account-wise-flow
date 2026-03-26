@@ -34,6 +34,7 @@ import { useJarvisNavigation } from "@/hooks/use-jarvis-navigation";
 import { GuidedTourPlayer } from "@/components/jarvis/GuidedTourPlayer";
 import { TourTooltipBubble } from "@/components/jarvis/TourTooltipBubble";
 import { jarvisSpotlight } from "@/lib/JarvisSpotlight";
+import { playYourTurnChime, playListeningPing } from "@/lib/jarvis-sounds";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                   */
@@ -335,6 +336,7 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
     recognition.start();
     setIsListening(true);
     setInterimTranscript("");
+    playListeningPing();
   }, [onFinalTranscript, clearSilenceTimer, stopListening]);
 
   const supported =
@@ -840,13 +842,14 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     if (pausedRef.current) return;
     // Always re-listen after Jarvis speaks during an active conversation
     if (conversationActiveRef.current || keepListening) {
+      if (tts.enabled) playYourTurnChime();
       setTimeout(() => {
         if (!pausedRef.current) {
           speech.startListening();
         }
       }, 200);
     }
-  }, [speech, keepListening]);
+  }, [speech, keepListening, tts.enabled]);
 
   // --- Auto-pause on modals/form focus ---
   const pauseListening = useCallback(() => {

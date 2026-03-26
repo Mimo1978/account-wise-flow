@@ -8,6 +8,7 @@ function fromTable() { return supabase.from(TABLE as any); }
 export type CrmDealWithRelations = CrmDeal & {
   crm_companies: { id: string; name: string } | null;
   crm_opportunities: { id: string; title: string } | null;
+  crm_contacts: { id: string; first_name: string; last_name: string } | null;
 };
 
 export function useCrmDeals(filters?: {
@@ -19,7 +20,7 @@ export function useCrmDeals(filters?: {
     queryKey: ["crm_deals", filters],
     queryFn: async () => {
       let q = fromTable()
-        .select("*, crm_companies(id, name), crm_opportunities(id, title)")
+        .select("*, crm_companies(id, name), crm_opportunities(id, title), crm_contacts(id, first_name, last_name)")
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
 
@@ -40,7 +41,7 @@ export function useCrmDeal(id: string | undefined) {
     queryFn: async () => {
       if (!id) return null;
       const { data, error } = await fromTable()
-        .select("*, crm_companies(id, name), crm_opportunities(id, title)")
+        .select("*, crm_companies(id, name), crm_opportunities(id, title), crm_contacts(id, first_name, last_name)")
         .eq("id", id)
         .single();
       if (error) throw error;

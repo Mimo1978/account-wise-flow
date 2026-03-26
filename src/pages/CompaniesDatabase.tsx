@@ -448,7 +448,7 @@ export default function CompaniesDatabase() {
                     style={{ 
                       position: "sticky", 
                       left: 0, 
-                      zIndex: 31,
+                      zIndex: 40,
                       width: 48,
                       minWidth: 48,
                     }}
@@ -465,7 +465,7 @@ export default function CompaniesDatabase() {
                     style={{ 
                       position: "sticky", 
                       left: 48, 
-                      zIndex: 30,
+                      zIndex: 40,
                       minWidth: 200,
                       boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
                     }}
@@ -550,10 +550,11 @@ export default function CompaniesDatabase() {
                         style={{ 
                           position: "sticky", 
                           left: 0, 
-                          zIndex: 21,
+                          zIndex: 30,
                           width: 48,
                           minWidth: 48,
                           background: rowBg,
+                          backgroundClip: "padding-box",
                         }}
                       >
                         <Checkbox
@@ -570,10 +571,11 @@ export default function CompaniesDatabase() {
                         style={{ 
                           position: "sticky", 
                           left: 48, 
-                          zIndex: 20,
+                          zIndex: 30,
                           minWidth: 200,
                           boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
                           background: rowBg,
+                          backgroundClip: "padding-box",
                         }}
                       >
                         <div className="flex items-center gap-2">

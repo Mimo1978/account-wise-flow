@@ -114,15 +114,15 @@ export default function DocumentsHub() {
 
   // Fetch documents
   const { data: docs = [], isLoading } = useQuery({
-    queryKey: ["commercial_documents", wsId],
+    queryKey: ["crm_documents", wsId],
     queryFn: async () => {
       if (!wsId) return [];
       const { data, error } = await supabase
-        .from("commercial_documents" as any)
-        .select("*, companies(id, name), contacts(id, name)")
+        .from("crm_documents" as any)
+        .select("*, crm_companies(id, name), contacts(id, name)")
         .eq("workspace_id", wsId)
         .order("created_at", { ascending: false });
-      if (error) { console.error("commercial_documents error:", error); return []; }
+      if (error) { console.error("crm_documents error:", error); return []; }
       return data || [];
     },
     enabled: !!wsId,
@@ -157,7 +157,7 @@ export default function DocumentsHub() {
       if (search) {
         const s = search.toLowerCase();
         const name = (d.name || "").toLowerCase();
-        const company = (d.companies?.name || "").toLowerCase();
+        const company = (d.crm_companies?.name || d.companies?.name || "").toLowerCase();
         if (!name.includes(s) && !company.includes(s)) return false;
       }
       return true;
@@ -228,16 +228,16 @@ export default function DocumentsHub() {
       };
 
       if (editDoc) {
-        const { error } = await supabase.from("commercial_documents" as any).update(payload).eq("id", editDoc.id);
+        const { error } = await supabase.from("crm_documents" as any).update(payload).eq("id", editDoc.id);
         if (error) throw error;
         toast.success("Document updated");
       } else {
-        const { error } = await supabase.from("commercial_documents" as any).insert(payload);
+        const { error } = await supabase.from("crm_documents" as any).insert(payload);
         if (error) throw error;
         toast.success("Document uploaded");
       }
 
-      queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+      queryClient.invalidateQueries({ queryKey: ["crm_documents"] });
       setUploadOpen(false);
       resetForm();
     } catch (err: any) {
@@ -251,11 +251,11 @@ export default function DocumentsHub() {
     if (!deleteTarget) return;
     try {
       if (isAdmin) {
-        const { error } = await supabase.from("commercial_documents" as any).delete().eq("id", deleteTarget.id);
+        const { error } = await supabase.from("crm_documents" as any).delete().eq("id", deleteTarget.id);
         if (error) throw error;
         toast.success("Document permanently deleted");
       } else {
-        const { error } = await supabase.from("commercial_documents" as any).update({
+        const { error } = await supabase.from("crm_documents" as any).update({
           deleted_at: new Date().toISOString(),
           deleted_by: (await supabase.auth.getUser()).data.user?.id || null,
           deletion_reason: deleteReason || "Requested for removal",
@@ -263,7 +263,7 @@ export default function DocumentsHub() {
         if (error) throw error;
         toast.success("Deletion requested — awaiting admin approval");
       }
-      queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+      queryClient.invalidateQueries({ queryKey: ["crm_documents"] });
     } catch (err: any) {
       toast.error(err.message || "Failed to process deletion");
     } finally {
@@ -370,7 +370,7 @@ export default function DocumentsHub() {
                           {doc.file_name && <p className="text-xs text-muted-foreground mt-0.5">{doc.file_name}</p>}
                         </td>
                         <td className="px-4 py-3"><Badge className={`text-xs ${typeConf.color} border-0`}>{typeConf.label}</Badge></td>
-                        <td className="px-4 py-3 text-muted-foreground">{doc.companies?.name || "—"}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{doc.crm_companies?.name || doc.companies?.name || "—"}</td>
                         <td className="px-4 py-3 text-muted-foreground">{doc.value > 0 ? `${doc.currency} ${Number(doc.value).toLocaleString()}` : "—"}</td>
                         <td className="px-4 py-3 text-muted-foreground text-xs">{doc.start_date ? format(parseISO(doc.start_date), "dd MMM yyyy") : "—"}</td>
                         <td className="px-4 py-3">

@@ -304,17 +304,17 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
       };
 
       if (editDoc) {
-        const { error } = await supabase.from("commercial_documents" as any).update(payload).eq("id", editDoc.id);
+        const { error } = await supabase.from("crm_documents" as any).update(payload).eq("id", editDoc.id);
         if (error) throw error;
         toast({ title: "Document updated" });
       } else {
-        const { error } = await supabase.from("commercial_documents" as any).insert(payload);
+        const { error } = await supabase.from("crm_documents" as any).insert(payload);
         if (error) throw error;
         toast({ title: "Document uploaded successfully" });
       }
 
       queryClient.invalidateQueries({ queryKey: ["company-commercial-docs", companyId] });
-      queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+      queryClient.invalidateQueries({ queryKey: ["crm_documents"] });
       setUploadOpen(false);
       resetForm();
     } catch (err: any) {
@@ -332,14 +332,14 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
         if (deleteTarget.file_url) {
           await supabase.storage.from("commercial-documents").remove([deleteTarget.file_url]);
         }
-        const { error } = await supabase.from("commercial_documents" as any).delete().eq("id", deleteTarget.id);
+        const { error } = await supabase.from("crm_documents" as any).delete().eq("id", deleteTarget.id);
         if (error) throw error;
         toast({ title: "Document permanently deleted", description: "The file and all associated records have been removed." });
       } else {
         // Non-admin: 30-day soft-delete
         const purgeDate = new Date();
         purgeDate.setDate(purgeDate.getDate() + 30);
-        const { error } = await supabase.from("commercial_documents" as any).update({
+        const { error } = await supabase.from("crm_documents" as any).update({
           deleted_at: new Date().toISOString(),
           deleted_by: (await supabase.auth.getUser()).data.user?.id || null,
           deletion_reason: deleteReason || "Requested for removal",
@@ -349,7 +349,7 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
         toast({ title: "Scheduled for deletion", description: "This document will be permanently removed in 30 days unless undone." });
       }
       queryClient.invalidateQueries({ queryKey: ["company-commercial-docs", companyId] });
-      queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+      queryClient.invalidateQueries({ queryKey: ["crm_documents"] });
     } catch (err: any) {
       toast({ title: "Failed to process deletion", description: err.message, variant: "destructive" });
     } finally {
@@ -360,7 +360,7 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
 
   const handleUndoDelete = async (doc: any) => {
     try {
-      const { error } = await supabase.from("commercial_documents" as any).update({
+      const { error } = await supabase.from("crm_documents" as any).update({
         deleted_at: null,
         deleted_by: null,
         deletion_reason: null,
@@ -369,7 +369,7 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
       if (error) throw error;
       toast({ title: "Deletion undone", description: "The document has been restored and is accessible again." });
       queryClient.invalidateQueries({ queryKey: ["company-commercial-docs", companyId] });
-      queryClient.invalidateQueries({ queryKey: ["commercial_documents"] });
+      queryClient.invalidateQueries({ queryKey: ["crm_documents"] });
     } catch (err: any) {
       toast({ title: "Failed to undo deletion", description: err.message, variant: "destructive" });
     }
@@ -993,7 +993,7 @@ export default function CompanyDetail() {
     queryFn: async () => {
       if (!id) return [];
       const { data, error } = await supabase
-        .from("commercial_documents" as any).select("*")
+        .from("crm_documents" as any).select("*")
         .eq("company_id", id).order("created_at", { ascending: false });
       if (error) { console.error("company docs error:", error); return []; }
       return data || [];

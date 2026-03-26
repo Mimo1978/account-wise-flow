@@ -414,7 +414,7 @@ const HomeCommandCenter = () => {
     queryKey: ['commercial_documents_expiring', currentWorkspace?.id],
     queryFn: async () => {
       if (!currentWorkspace?.id) return [];
-      const { data } = await supabase.from('commercial_documents' as any).select('id, name, type, end_date, status, companies(id, name)')
+      const { data } = await supabase.from('crm_documents' as any).select('id, name, type, end_date, status, crm_companies(id, name)')
         .eq('workspace_id', currentWorkspace.id).not('end_date', 'is', null).not('status', 'in', '("cancelled","expired")').order('end_date');
       return data || [];
     },

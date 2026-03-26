@@ -380,7 +380,7 @@ function PipelineByStageChart({ data, isLoading }: { data: PipelineByStage[]; is
     >
       {totalDeals > 0 && <p className="text-xs mb-3" style={{ color: D.muted }}>Total pipeline: £{totalValue.toLocaleString()} across {totalDeals} deals</p>}
       {data.length === 0 ? (
-        <div className="text-center py-12 text-sm" style={{ color: D.muted }}>No deals yet. Create deals to see pipeline analytics.</div>
+        <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}><span className="text-xs" style={{ color: D.muted }}>No deals yet — create deals to see pipeline analytics.</span></div>
       ) : (
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={formatted} barGap={4} style={{ background: 'transparent' }}>
@@ -500,7 +500,7 @@ function InvoicesByWeekCard({ data, isLoading }: { data: InvoiceWeek[]; isLoadin
         </p>
       )}
       {!hasData ? (
-        <div className="text-center py-12 text-sm" style={{ color: D.muted }}>No invoices due in the next 8 weeks.</div>
+        <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}><span className="text-xs" style={{ color: D.muted }}>No data yet</span></div>
       ) : (
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={data} barGap={2} style={{ background: 'transparent' }}>
@@ -528,7 +528,7 @@ function OutreachOutcomesContent({ data, isLoading }: { data: OutreachOutcomeDat
   const STATE_COLORS_ARR = ['#3B82F6', '#22C55E', '#F59E0B', '#EF4444', '#94A3B8'];
 
   if (!hasTargets && !hasCalls) {
-    return <div className="text-center py-12 text-sm" style={{ color: D.muted }}>No outreach activity in the last 30 days.</div>;
+    return <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}><span className="text-xs" style={{ color: D.muted }}>No data yet</span></div>;
   }
 
   return (
@@ -571,7 +571,7 @@ function OutreachOutcomesContent({ data, isLoading }: { data: OutreachOutcomeDat
 function SalesMomentumContent({ momentum, isLoading }: { momentum?: SalesMomentum; isLoading: boolean }) {
   if (isLoading) return <Skeleton className="h-[300px] rounded-xl" />;
   if (!momentum || (momentum.totalTargets === 0 && momentum.totalCalls === 0)) {
-    return <div className="text-center py-12 text-sm" style={{ color: D.muted }}>Create campaigns and log calls to track sales momentum.</div>;
+    return <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}><span className="text-xs" style={{ color: D.muted }}>No data yet</span></div>;
   }
 
   return (

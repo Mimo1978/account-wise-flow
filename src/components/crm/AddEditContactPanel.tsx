@@ -9,6 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { QuickCreateSelect, COMPANY_QUICK_FIELDS } from "@/components/shared/QuickCreateSelect";
 import { useCreateCrmContact, useUpdateCrmContact } from "@/hooks/use-crm-contacts";
+import { supabase } from "@/integrations/supabase/client";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import type { CrmContact } from "@/types/crm";
 import { format } from "date-fns";
@@ -27,6 +30,8 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
   const isEdit = !!contact;
   const createMut = useCreateCrmContact();
   const updateMut = useUpdateCrmContact();
+  const { currentWorkspace } = useWorkspace();
+  const { user } = useAuth();
 
   const [form, setForm] = useState({
     first_name: "",

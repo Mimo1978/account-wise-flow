@@ -532,29 +532,30 @@ export default function CompaniesDatabase() {
                   const statusConfig = getRelationshipStatusConfig(account.relationshipStatus);
                   const qualityConfig = getDataQualityConfig(account.dataQuality);
                   const isSelected = selectedIds.has(account.id);
+                  const rowBg = isSelected
+                    ? "rgba(99,102,241,0.12)"
+                    : index % 2 === 1
+                      ? "rgba(255,255,255,0.04)"
+                      : "transparent";
                   
                   return (
                     <TableRow
                       key={account.id}
-                      style={{
-                        background: isSelected
-                          ? "rgba(99,102,241,0.12)"
-                          : index % 2 === 1
-                            ? "rgba(255,255,255,0.04)"
-                            : "transparent",
-                      }}
-                      className={cn("cursor-pointer transition-colors group hover:!bg-indigo-500/15")}
+                      style={{ background: rowBg }}
+                      className="cursor-pointer transition-colors group"
+                      onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.15)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = rowBg; }}
                       onClick={(e) => handleRowClick(account, e)}
                     >
                       <TableCell 
                         data-checkbox 
-                        className="bg-card"
                         style={{ 
                           position: "sticky", 
                           left: 0, 
                           zIndex: 21,
                           width: 48,
                           minWidth: 48,
+                          background: rowBg,
                         }}
                       >
                         <Checkbox
@@ -567,13 +568,14 @@ export default function CompaniesDatabase() {
                         />
                       </TableCell>
                       <TableCell 
-                        className="font-medium bg-card"
+                        className="font-medium"
                         style={{ 
                           position: "sticky", 
                           left: 48, 
                           zIndex: 20,
                           minWidth: 200,
                           boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
+                          background: rowBg,
                         }}
                       >
                         <div className="flex items-center gap-2">
@@ -586,7 +588,7 @@ export default function CompaniesDatabase() {
                         </div>
                       </TableCell>
                       {/* Contacts Count */}
-                      <TableCell className="bg-card text-center" style={{ zIndex: 1 }}>
+                      <TableCell className="text-center" style={{ zIndex: 1 }}>
                         {account.contacts.length > 0 ? (
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -611,7 +613,7 @@ export default function CompaniesDatabase() {
                         )}
                       </TableCell>
                       {/* Engagement Score */}
-                      <TableCell className="bg-card text-center" style={{ zIndex: 1 }}>
+                      <TableCell className="text-center" style={{ zIndex: 1 }}>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <div className={cn(
@@ -630,22 +632,22 @@ export default function CompaniesDatabase() {
                           </TooltipContent>
                         </Tooltip>
                       </TableCell>
-                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
+                      <TableCell style={{ zIndex: 1 }}>
                         <span className="text-sm text-muted-foreground">
                           {account.headquarters || "—"}
                         </span>
                       </TableCell>
-                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
+                      <TableCell style={{ zIndex: 1 }}>
                         <span className="text-sm text-muted-foreground font-mono">
                           {account.switchboard || "—"}
                         </span>
                       </TableCell>
-                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
+                      <TableCell style={{ zIndex: 1 }}>
                         <Badge variant="secondary" className="font-normal">
                           {account.industry}
                         </Badge>
                       </TableCell>
-                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
+                      <TableCell style={{ zIndex: 1 }}>
                         <div className="flex items-center gap-1 flex-wrap">
                           {account.regions && account.regions.length > 0 ? (
                             <>
@@ -663,12 +665,12 @@ export default function CompaniesDatabase() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
+                      <TableCell style={{ zIndex: 1 }}>
                         <Badge className={cn("font-normal", statusConfig.className)}>
                           {statusConfig.label}
                         </Badge>
                       </TableCell>
-                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
+                      <TableCell style={{ zIndex: 1 }}>
                         {account.accountManager ? (
                           <div className="flex items-center gap-2">
                             <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center text-xs shrink-0">
@@ -682,16 +684,16 @@ export default function CompaniesDatabase() {
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm bg-card" style={{ zIndex: 1 }}>
+                      <TableCell className="text-muted-foreground text-sm" style={{ zIndex: 1 }}>
                         {formatDate(account.lastInteraction || account.lastUpdated)}
                       </TableCell>
-                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
+                      <TableCell style={{ zIndex: 1 }}>
                         <div className={cn("flex items-center gap-1 text-sm", qualityConfig.className)}>
                           {qualityConfig.icon && <qualityConfig.icon className="h-3.5 w-3.5" />}
                           <span>{qualityConfig.label}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="bg-card" style={{ zIndex: 1 }}>
+                      <TableCell style={{ zIndex: 1 }}>
                         <Button
                           variant="ghost"
                           size="icon"

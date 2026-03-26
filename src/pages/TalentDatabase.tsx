@@ -1179,6 +1179,17 @@ export default function TalentDatabase() {
                           </TableCell>
                         );
                       })}
+                      <TableCell style={{ zIndex: 1 }}>
+                        <RowInlineActions
+                          className="flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                          workspaceId={currentWorkspace?.id || ""}
+                          entityName={talent.name}
+                          entityEmail={talent.email}
+                          entityPhone={talent.phone}
+                          entityTitle={talent.currentTitle}
+                          candidateId={talent.id}
+                        />
+                      </TableCell>
                     </TableRow>
                   );
                 })}

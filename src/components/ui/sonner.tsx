@@ -1,5 +1,6 @@
 import { useTheme } from "next-themes";
-import { Toaster as Sonner, toast } from "sonner";
+import { Toaster as Sonner, toast as sonnerToast } from "sonner";
+import { flashConfirm } from "@/components/ui/flash-confirm";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
@@ -57,5 +58,35 @@ const Toaster = ({ ...props }: ToasterProps) => {
     />
   );
 };
+
+const toast = Object.assign(
+  (msg: string | React.ReactNode, opts?: any) => {
+    flashConfirm(String(msg), "info", opts?.description);
+    return sonnerToast(msg, opts);
+  },
+  {
+    success: (msg: string | React.ReactNode, opts?: any) => {
+      flashConfirm(String(msg), "success", opts?.description);
+      return sonnerToast.success(msg, opts);
+    },
+    error: (msg: string | React.ReactNode, opts?: any) => {
+      flashConfirm(String(msg), "error", opts?.description);
+      return sonnerToast.error(msg, opts);
+    },
+    warning: (msg: string | React.ReactNode, opts?: any) => {
+      flashConfirm(String(msg), "warning", opts?.description);
+      return sonnerToast.warning(msg, opts);
+    },
+    info: (msg: string | React.ReactNode, opts?: any) => {
+      flashConfirm(String(msg), "info", opts?.description);
+      return sonnerToast.info(msg, opts);
+    },
+    dismiss: sonnerToast.dismiss,
+    loading: sonnerToast.loading,
+    promise: sonnerToast.promise,
+    custom: sonnerToast.custom,
+    message: sonnerToast.message,
+  }
+);
 
 export { Toaster, toast };

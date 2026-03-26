@@ -1221,7 +1221,7 @@ export default function CompanyDetail() {
               <Plus className="h-4 w-4 mr-1" /> Add Contact
             </Button>
             <Button size="sm" onClick={() => setAddDealOpen(true)} data-jarvis-id="company-add-deal-button">
-              <Plus className="h-4 w-4 mr-1" /> Add Deal
+              <Plus className="h-4 w-4 mr-1" /> + New Deal
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1317,7 +1317,7 @@ export default function CompanyDetail() {
                     const activeDeals = (deals as any[]).filter((d: any) => !["won", "lost", "complete", "cancelled"].includes(d.stage || d.status));
                     return activeDeals.length === 0 ? (
                       <div className="border border-dashed border-border rounded-lg p-3 text-center">
-                        <p className="text-sm text-muted-foreground">No active deals — <button className="text-primary hover:underline" onClick={() => setAddDealOpen(true)}>+ Add Deal</button></p>
+                        <p className="text-sm text-muted-foreground">No active deals — <button className="text-primary hover:underline" onClick={() => setAddDealOpen(true)}>+ New Deal</button></p>
                       </div>
                     ) : (
                       <div className="space-y-1.5">
@@ -1705,13 +1705,13 @@ function DealsTab({ deals, companyName, onAddDeal, onEditDeal }: {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{deals.length} deals at {companyName}</p>
-        <Button size="sm" onClick={onAddDeal}><Plus className="h-4 w-4 mr-1" /> Add Deal</Button>
+        <Button size="sm" onClick={onAddDeal}><Plus className="h-4 w-4 mr-1" /> + New Deal</Button>
       </div>
       {deals.length === 0 ? (
         <Card><CardContent className="py-12 text-center">
           <DollarSign className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
           <p className="text-muted-foreground mb-3">No deals yet.</p>
-          <Button size="sm" onClick={onAddDeal}><Plus className="h-4 w-4 mr-1" /> Add Deal</Button>
+          <Button size="sm" onClick={onAddDeal}><Plus className="h-4 w-4 mr-1" /> + New Deal</Button>
         </CardContent></Card>
       ) : (
         <div className="space-y-5">

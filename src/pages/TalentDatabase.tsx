@@ -87,6 +87,8 @@ import {
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { RowInlineActions } from "@/components/outreach/RowInlineActions";
 
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -154,6 +156,7 @@ const initialColumns: ColumnConfig[] = [
 export default function TalentDatabase() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { currentWorkspace } = useWorkspace();
   const returnToCampaignId = searchParams.get("campaignId") ?? undefined;
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
   const [roleTypeFilter, setRoleTypeFilter] = useState<string>("all");
@@ -1070,6 +1073,7 @@ export default function TalentDatabase() {
                       </TableHead>
                     );
                   })}
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted w-[120px]" style={{ zIndex: 10 }}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1176,6 +1180,17 @@ export default function TalentDatabase() {
                           </TableCell>
                         );
                       })}
+                      <TableCell style={{ zIndex: 1 }}>
+                        <RowInlineActions
+                          className="flex items-center gap-0.5 opacity-0 group-hover/row:opacity-100 transition-opacity"
+                          workspaceId={currentWorkspace?.id || ""}
+                          entityName={talent.name}
+                          entityEmail={talent.email}
+                          entityPhone={talent.phone}
+                          entityTitle={talent.roleType}
+                          candidateId={talent.id}
+                        />
+                      </TableCell>
                     </TableRow>
                   );
                 })}

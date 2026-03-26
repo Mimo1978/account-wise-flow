@@ -81,7 +81,7 @@ import {
   seniorityOptions,
 } from "@/lib/dropdown-options";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { RowInlineActions } from "@/components/outreach/RowInlineActions";
 
 
 // Helper to check data quality
@@ -852,6 +852,7 @@ export default function ContactsDatabase() {
                   <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Status</TableHead>
                   <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Owner</TableHead>
                   <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Last Contacted</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted w-[120px]" style={{ zIndex: 10 }}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
             <TableBody>
@@ -1121,6 +1122,18 @@ export default function ContactsDatabase() {
                     </TableCell>
                     <TableCell className="text-muted-foreground" style={{ zIndex: 1 }}>
                       {contact.lastContact || "—"}
+                    </TableCell>
+                    <TableCell style={{ zIndex: 1 }}>
+                      <RowInlineActions
+                        className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        workspaceId={workspaceId || ""}
+                        entityName={contact.name}
+                        entityEmail={contact.email}
+                        entityPhone={contact.phone}
+                        entityTitle={contact.title}
+                        entityCompany={(contact as any)._companyName}
+                        contactId={contact.id}
+                      />
                     </TableCell>
                   </TableRow>
                 );

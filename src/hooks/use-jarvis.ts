@@ -200,15 +200,20 @@ function stripIds(text: string): string {
 }
 
 const ENTITY_QUERY_KEY_MAP: Record<string, string[]> = {
-  companies: ['companies', 'canvas-companies'],
-  contacts: ['contacts', 'company-contacts'],
-  crm_companies: ['crm_companies'],
-  crm_contacts: ['crm_contacts'],
+  companies: ['companies', 'canvas-companies', 'crm_companies'],
+  contacts: ['contacts', 'company-contacts', 'all-contacts', 'crm_contacts'],
+  crm_companies: ['crm_companies', 'companies'],
+  crm_contacts: ['crm_contacts', 'all-contacts', 'contacts'],
   crm_deals: ['crm_deals'],
   crm_opportunities: ['crm_opportunities'],
-  crm_projects: ['crm_projects'],
-  crm_invoices: ['crm_invoices'],
+  crm_projects: ['crm_projects', 'engagements'],
+  crm_invoices: ['crm_invoices', 'invoices'],
   crm_activities: ['crm_activities'],
+  candidates: ['candidates', 'talent'],
+  engagements: ['engagements', 'crm_projects'],
+  sows: ['sows'],
+  outreach_campaigns: ['outreach_campaigns'],
+  outreach_targets: ['outreach_targets'],
   jobs: ['jobs'],
   job_adverts: ['job_adverts'],
   job_shortlist: ['job_shortlist'],
@@ -376,9 +381,9 @@ export function useJarvis() {
         }
         if (allKeysToInvalidate.size > 0) {
           for (const key of allKeysToInvalidate) {
-            queryClient.invalidateQueries({ queryKey: [key] });
+            queryClient.invalidateQueries({ queryKey: [key], exact: false });
           }
-          console.log("[Jarvis] Invalidated queries:", Array.from(allKeysToInvalidate));
+          console.log("[Jarvis] Invalidated queries (prefix match):", Array.from(allKeysToInvalidate));
         }
 
         const hasSuccessfulMutation = actionsExecuted.some(a => a.success);

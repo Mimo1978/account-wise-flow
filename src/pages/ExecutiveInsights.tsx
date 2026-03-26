@@ -380,7 +380,7 @@ function PipelineByStageChart({ data, isLoading }: { data: PipelineByStage[]; is
     >
       {totalDeals > 0 && <p className="text-xs mb-3" style={{ color: D.muted }}>Total pipeline: £{totalValue.toLocaleString()} across {totalDeals} deals</p>}
       {data.length === 0 ? (
-        <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}><span className="text-xs" style={{ color: D.muted }}>No deals yet — create deals to see pipeline analytics.</span></div>
+        <div className="flex flex-col items-center justify-center" style={{ minHeight: 200, border: `1px dashed ${D.border}`, borderRadius: 8 }}><span className="text-xs" style={{ color: D.muted }}>No deals yet — create deals to see pipeline analytics.</span></div>
       ) : (
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={formatted} barGap={4} style={{ background: 'transparent' }}>

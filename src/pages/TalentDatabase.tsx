@@ -156,6 +156,7 @@ const initialColumns: ColumnConfig[] = [
 export default function TalentDatabase() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { currentWorkspace } = useWorkspace();
   const returnToCampaignId = searchParams.get("campaignId") ?? undefined;
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
   const [roleTypeFilter, setRoleTypeFilter] = useState<string>("all");

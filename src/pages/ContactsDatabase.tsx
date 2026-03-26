@@ -81,7 +81,7 @@ import {
   seniorityOptions,
 } from "@/lib/dropdown-options";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { RowInlineActions } from "@/components/outreach/RowInlineActions";
 
 
 // Helper to check data quality
@@ -852,6 +852,7 @@ export default function ContactsDatabase() {
                   <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Status</TableHead>
                   <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Owner</TableHead>
                   <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Last Contacted</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted w-[120px]" style={{ zIndex: 10 }}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
             <TableBody>

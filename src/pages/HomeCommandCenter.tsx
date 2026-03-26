@@ -117,7 +117,7 @@ function KPICard({ title, value, subtitle, icon: Icon, accentColor, onClick, jar
       onClick={onClick}
       data-jarvis-id={jarvisId}
       className={`relative overflow-hidden rounded-xl text-left transition-all duration-150 group w-full ${onClick ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
-      style={{ background: DARK.card, border: `1px solid ${DARK.border}` }}
+      style={{ background: `${accentColor}14`, border: `1px solid ${DARK.border}` }}
     >
       <div className="absolute inset-y-0 left-0 w-1 rounded-l-xl" style={{ background: accentColor }} />
       <div className="p-5 flex items-start gap-4">
@@ -548,15 +548,15 @@ const HomeCommandCenter = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-jarvis-section="stat-cards" data-jarvis-id="home-kpi-row">
           <KPICard title="Active Projects" value={activeCount > 0 ? String(activeCount) : '—'}
             subtitle={activeCount > 0 ? `${activeCount} active${activeJobCount > 0 ? ` · ${activeJobCount} open roles` : ''}` : 'No projects yet'}
-            icon={Briefcase} accentColor="#3B82F6"
+            icon={Briefcase} accentColor="#6366f1"
             onClick={() => { const s = document.querySelector('[data-jarvis-section="active-projects"]'); if (s) s.scrollIntoView({ behavior: 'smooth' }); }} />
           <KPICard title="Deal Pipeline" value={`£${totalPipelineValue.toLocaleString()}`}
             subtitle={`${activeDeals.length} deal${activeDeals.length !== 1 ? 's' : ''} · £${weightedPipelineValue.toLocaleString()} weighted`}
-            icon={TrendingUp} accentColor="#8B5CF6"
+            icon={TrendingUp} accentColor="#fb923c"
             onClick={() => navigate('/crm/deals')} />
           <KPICard title="Outstanding Invoices" value={billing.outstandingCount > 0 ? `£${billing.outstandingAmount.toLocaleString()}` : '—'}
             subtitle={billing.overdueCount > 0 ? `${billing.overdueCount} overdue · £${billing.overdueAmount.toLocaleString()}` : billing.outstandingCount > 0 ? `${billing.outstandingCount} unpaid` : 'No outstanding invoices'}
-            icon={Receipt} accentColor="#F59E0B" jarvisId="home-outstanding-invoices-card"
+            icon={Receipt} accentColor="#fbbf24" jarvisId="home-outstanding-invoices-card"
             onClick={() => navigate('/accounts?filter=outstanding')} />
           {(() => {
             const docExpiringCount = (expiringDocs as any[]).filter((d: any) => d.end_date && differenceInDays(startOfDay(new Date(d.end_date)), startOfDay(new Date())) <= 90).length;
@@ -565,7 +565,7 @@ const HomeCommandCenter = () => {
             return (
               <KPICard title="Renewals & Key Dates" value={totalExpiring > 0 ? String(totalExpiring) : '—'}
                 subtitle={totalOverdue > 0 ? `${totalOverdue} overdue` : totalExpiring > 0 ? `${totalExpiring} expiring` : 'Nothing upcoming'}
-                icon={CalendarClock} accentColor="#22C55E"
+                icon={CalendarClock} accentColor="#34d399"
                 onClick={() => navigate('/documents')} />
             );
           })()}

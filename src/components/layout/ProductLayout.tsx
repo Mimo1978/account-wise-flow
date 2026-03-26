@@ -29,6 +29,7 @@ import {
   Receipt,
   ChevronDown,
 } from 'lucide-react';
+import { NAV_COLOURS, getNavColour } from '@/lib/nav-colours';
 import { useTheme } from 'next-themes';
 import {
   DropdownMenu,
@@ -125,24 +126,50 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
 
   const NavItem = ({ item }: { item: { path: string; label: string; icon: any; jarvisId: string; badge?: boolean } }) => {
     const active = isActive(item.path);
+    const dotColour = NAV_COLOURS[item.path] ?? '#94A3B8';
     return (
       <Link
         to={item.path}
         data-jarvis-id={item.jarvisId}
-        className={`relative flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap shrink-0
-          ${active
-            ? 'text-[#378ADD]'
-            : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
-          }
-        `}
+        className="relative flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap shrink-0"
         style={{
-          borderBottom: active ? '2px solid #378ADD' : '2px solid transparent',
+          background: active ? `${dotColour}1F` : undefined,
+          color: active ? dotColour : undefined,
+          borderBottom: active ? `2px solid ${dotColour}` : '2px solid transparent',
         }}
-        onMouseEnter={(e) => { if (!active) (e.currentTarget.style.borderBottom = '2px solid #378ADD'); }}
-        onMouseLeave={(e) => { if (!active) (e.currentTarget.style.borderBottom = '2px solid transparent'); }}
+        onMouseEnter={(e) => {
+          if (!active) {
+            e.currentTarget.style.borderBottom = `2px solid ${dotColour}`;
+            e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+            const dot = e.currentTarget.querySelector('[data-nav-dot]') as HTMLElement;
+            const lbl = e.currentTarget.querySelector('[data-nav-label]') as HTMLElement;
+            if (dot) dot.style.opacity = '1';
+            if (lbl) lbl.style.opacity = '1';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!active) {
+            e.currentTarget.style.borderBottom = '2px solid transparent';
+            e.currentTarget.style.background = '';
+            const dot = e.currentTarget.querySelector('[data-nav-dot]') as HTMLElement;
+            const lbl = e.currentTarget.querySelector('[data-nav-label]') as HTMLElement;
+            if (dot) dot.style.opacity = '0.7';
+            if (lbl) lbl.style.opacity = '0.5';
+          }
+        }}
       >
+        <span
+          data-nav-dot
+          className="shrink-0 rounded-full"
+          style={{
+            width: 6, height: 6,
+            backgroundColor: dotColour,
+            opacity: active ? 1 : 0.7,
+            transition: 'opacity 150ms',
+          }}
+        />
         <item.icon className="w-4 h-4 shrink-0" />
-        <span>{item.label}</span>
+        <span data-nav-label style={{ opacity: active ? 1 : 0.5, transition: 'opacity 150ms' }}>{item.label}</span>
         {item.badge && item.path === '/jobs' && newAppCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
             {newAppCount > 99 ? '99+' : newAppCount}
@@ -193,39 +220,50 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                   onClick={() => setMoreOpen(!moreOpen)}
                   className={`flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap
                     ${moreOpen || overflowNavItems.some(i => isActive(i.path))
-                      ? 'text-[#378ADD]'
+                      ? ''
                       : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
                     }
                   `}
-                  style={{
-                    borderBottom: overflowNavItems.some(i => isActive(i.path)) ? '2px solid #378ADD' : '2px solid transparent',
-                  }}
+                  style={(() => {
+                    const activeOverflow = overflowNavItems.find(i => isActive(i.path));
+                    const ac = activeOverflow ? (NAV_COLOURS[activeOverflow.path] ?? '#94A3B8') : undefined;
+                    return {
+                      borderBottom: ac ? `2px solid ${ac}` : '2px solid transparent',
+                      color: ac ? ac : undefined,
+                    };
+                  })()}
                 >
                   More
                   <ChevronDown className="w-3 h-3" />
                 </button>
                 {moreOpen && (
                   <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-border bg-[#0F1117] shadow-lg p-1">
-                    {overflowNavItems.map((item) => (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={() => setMoreOpen(false)}
-                        className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded-md transition-colors ${
-                          isActive(item.path)
-                            ? 'text-[#378ADD] bg-[rgba(55,138,221,0.1)]'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
-                        }`}
-                      >
-                        <item.icon className="w-4 h-4" />
-                        {item.label}
-                        {item.badge && item.path === '/jobs' && newAppCount > 0 && (
-                          <span className="ml-auto min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
-                            {newAppCount > 99 ? '99+' : newAppCount}
-                          </span>
-                        )}
-                      </Link>
-                    ))}
+                    {overflowNavItems.map((item) => {
+                      const dc = NAV_COLOURS[item.path] ?? '#94A3B8';
+                      const act = isActive(item.path);
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setMoreOpen(false)}
+                          className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded-md transition-colors ${
+                            act
+                              ? ''
+                              : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
+                          }`}
+                          style={act ? { color: dc, background: `${dc}1F` } : undefined}
+                        >
+                          <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, backgroundColor: dc, opacity: act ? 1 : 0.7 }} />
+                          <item.icon className="w-4 h-4" />
+                          {item.label}
+                          {item.badge && item.path === '/jobs' && newAppCount > 0 && (
+                            <span className="ml-auto min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
+                              {newAppCount > 99 ? '99+' : newAppCount}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
                     {showAdminNav && (
                       <>
                         <div className="h-px bg-border my-1" />
@@ -234,10 +272,12 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                           onClick={() => setMoreOpen(false)}
                           className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded-md transition-colors ${
                             isActive('/admin')
-                              ? 'text-[#378ADD] bg-[rgba(55,138,221,0.1)]'
+                              ? ''
                               : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
                           }`}
+                          style={isActive('/admin') ? { color: '#e879f9', background: 'rgba(232,121,249,0.12)' } : undefined}
                         >
+                          <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, backgroundColor: '#e879f9', opacity: isActive('/admin') ? 1 : 0.7 }} />
                           <ShieldCheck className="w-4 h-4" />
                           Admin
                         </Link>
@@ -254,18 +294,29 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                   <Link
                     to="/admin"
                     data-jarvis-id="nav-admin"
-                    className={`flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap
-                      ${isActive('/admin')
-                        ? 'text-[#378ADD]'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
-                      }
-                    `}
+                    className="group/nav flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap"
                     style={{
-                      borderBottom: isActive('/admin') ? '2px solid #378ADD' : '2px solid transparent',
+                      background: isActive('/admin') ? 'rgba(232,121,249,0.12)' : undefined,
+                      color: isActive('/admin') ? '#e879f9' : undefined,
+                      borderBottom: isActive('/admin') ? '2px solid #e879f9' : '2px solid transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive('/admin')) {
+                        e.currentTarget.style.borderBottom = '2px solid #e879f9';
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive('/admin')) {
+                        e.currentTarget.style.borderBottom = '2px solid transparent';
+                        e.currentTarget.style.background = '';
+                      }
                     }}
                   >
+                    <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, backgroundColor: '#e879f9', opacity: isActive('/admin') ? 1 : 0.7 }} />
                     <ShieldCheck className="w-4 h-4" />
-                    Admin
+                    <span style={{ opacity: isActive('/admin') ? 1 : 0.5, transition: 'opacity 150ms' }}
+                      className="group-hover/nav:!opacity-100">Admin</span>
                   </Link>
                 </span>
               )}
@@ -358,8 +409,17 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
         <DemoBanner variant={bannerVariant} />
       )}
 
+      {/* Page accent line */}
+      {(() => {
+        const accent = getNavColour(location.pathname);
+        return accent ? <div style={{ height: 3, backgroundColor: accent }} /> : null;
+      })()}
+
       {/* Page Content */}
-      <div className="flex-1">
+      <div className="flex-1 page-accent-wrapper" style={(() => {
+        const accent = getNavColour(location.pathname);
+        return accent ? { '--page-accent': accent } as React.CSSProperties : {};
+      })()}>
         {children}
       </div>
     </div>

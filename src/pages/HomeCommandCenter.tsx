@@ -117,7 +117,7 @@ function KPICard({ title, value, subtitle, icon: Icon, accentColor, onClick, jar
       onClick={onClick}
       data-jarvis-id={jarvisId}
       className={`relative overflow-hidden rounded-xl text-left transition-all duration-150 group w-full ${onClick ? 'cursor-pointer hover:scale-[1.02]' : ''}`}
-      style={{ background: DARK.card, border: `1px solid ${DARK.border}` }}
+      style={{ background: `${accentColor}14`, border: `1px solid ${DARK.border}` }}
     >
       <div className="absolute inset-y-0 left-0 w-1 rounded-l-xl" style={{ background: accentColor }} />
       <div className="p-5 flex items-start gap-4">

@@ -17,6 +17,7 @@ interface RowInlineActionsProps {
   entityCompany?: string;
   contactId?: string;
   candidateId?: string;
+  companyId?: string;
   /** Extra className for the wrapper */
   className?: string;
 }
@@ -34,6 +35,7 @@ export function RowInlineActions({
   entityCompany,
   contactId,
   candidateId,
+  companyId,
   className,
 }: RowInlineActionsProps) {
   const [emailOpen, setEmailOpen] = useState(false);

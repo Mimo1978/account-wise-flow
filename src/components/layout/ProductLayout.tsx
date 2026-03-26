@@ -212,13 +212,18 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                   onClick={() => setMoreOpen(!moreOpen)}
                   className={`flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap
                     ${moreOpen || overflowNavItems.some(i => isActive(i.path))
-                      ? 'text-[#378ADD]'
+                      ? ''
                       : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
                     }
                   `}
-                  style={{
-                    borderBottom: overflowNavItems.some(i => isActive(i.path)) ? '2px solid #378ADD' : '2px solid transparent',
-                  }}
+                  style={(() => {
+                    const activeOverflow = overflowNavItems.find(i => isActive(i.path));
+                    const ac = activeOverflow ? (NAV_COLOURS[activeOverflow.path] ?? '#94A3B8') : undefined;
+                    return {
+                      borderBottom: ac ? `2px solid ${ac}` : '2px solid transparent',
+                      color: ac ? ac : undefined,
+                    };
+                  })()}
                 >
                   More
                   <ChevronDown className="w-3 h-3" />

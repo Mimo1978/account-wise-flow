@@ -71,13 +71,13 @@ export function DeleteRecordModal({
   };
 
   const handleDelete = async () => {
-    if (confirmText !== recordName) return;
+    if (confirmText.trim().toLowerCase() !== recordName.trim().toLowerCase()) return;
     try {
       await depDelete.mutateAsync({ recordType, recordId, recordName });
       handleClose();
       onDeleted?.();
-    } catch {
-      // error handled in hook
+    } catch (err: any) {
+      console.error('Delete failed:', err);
     }
   };
 
@@ -212,7 +212,7 @@ export function DeleteRecordModal({
             <Button
               variant="destructive"
               onClick={handleDelete}
-              disabled={confirmText !== recordName || isProcessing}
+              disabled={confirmText.trim().toLowerCase() !== recordName.trim().toLowerCase() || isProcessing}
             >
               {isProcessing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               <Trash2 className="h-4 w-4 mr-1" />
@@ -258,7 +258,7 @@ export function DeleteRecordModal({
             <Button
               variant="destructive"
               onClick={handleDelete}
-              disabled={confirmText !== recordName || isProcessing}
+              disabled={confirmText.trim().toLowerCase() !== recordName.trim().toLowerCase() || isProcessing}
             >
               {isProcessing && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               <Trash2 className="h-4 w-4 mr-1" />

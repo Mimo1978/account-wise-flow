@@ -225,26 +225,32 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                 </button>
                 {moreOpen && (
                   <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-border bg-[#0F1117] shadow-lg p-1">
-                    {overflowNavItems.map((item) => (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={() => setMoreOpen(false)}
-                        className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded-md transition-colors ${
-                          isActive(item.path)
-                            ? 'text-[#378ADD] bg-[rgba(55,138,221,0.1)]'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
-                        }`}
-                      >
-                        <item.icon className="w-4 h-4" />
-                        {item.label}
-                        {item.badge && item.path === '/jobs' && newAppCount > 0 && (
-                          <span className="ml-auto min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
-                            {newAppCount > 99 ? '99+' : newAppCount}
-                          </span>
-                        )}
-                      </Link>
-                    ))}
+                    {overflowNavItems.map((item) => {
+                      const dc = NAV_COLOURS[item.path] ?? '#94A3B8';
+                      const act = isActive(item.path);
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setMoreOpen(false)}
+                          className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded-md transition-colors ${
+                            act
+                              ? ''
+                              : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
+                          }`}
+                          style={act ? { color: dc, background: `${dc}1F` } : undefined}
+                        >
+                          <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, backgroundColor: dc, opacity: act ? 1 : 0.7 }} />
+                          <item.icon className="w-4 h-4" />
+                          {item.label}
+                          {item.badge && item.path === '/jobs' && newAppCount > 0 && (
+                            <span className="ml-auto min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
+                              {newAppCount > 99 ? '99+' : newAppCount}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
                     {showAdminNav && (
                       <>
                         <div className="h-px bg-border my-1" />
@@ -253,10 +259,12 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                           onClick={() => setMoreOpen(false)}
                           className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded-md transition-colors ${
                             isActive('/admin')
-                              ? 'text-[#378ADD] bg-[rgba(55,138,221,0.1)]'
+                              ? ''
                               : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
                           }`}
+                          style={isActive('/admin') ? { color: '#e879f9', background: 'rgba(232,121,249,0.12)' } : undefined}
                         >
+                          <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, backgroundColor: '#e879f9', opacity: isActive('/admin') ? 1 : 0.7 }} />
                           <ShieldCheck className="w-4 h-4" />
                           Admin
                         </Link>

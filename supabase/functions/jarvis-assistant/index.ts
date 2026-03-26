@@ -1654,6 +1654,7 @@ async function executeTool(
             city: city,
             country: country,
             created_by: userId,
+            team_id: teamId,
           })
           .select("id")
           .single();

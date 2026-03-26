@@ -123,23 +123,59 @@ export default function CompaniesDatabase() {
     queryFn: async () => {
       if (!currentWorkspace?.id) return [];
       
-      const { data, error } = await supabase
+      // Fetch from core companies table (workspace-scoped)
+      const { data: coreData, error: coreError } = await supabase
         .from('companies')
         .select('*')
         .eq('team_id', currentWorkspace.id)
         .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Error fetching companies:', error);
+        .order('name');
+
+      // Fetch from crm_companies table
+      const { data: crmData } = await supabase
+        .from('crm_companies' as any)
+        .select('*')
+        .eq('team_id', currentWorkspace.id)
+        .is('deleted_at', null)
+        .order('name');
+
+      if (coreError) {
+        console.error('Error fetching companies:', coreError);
         return [];
       }
-      
+
       if (import.meta.env.DEV) {
-        console.debug('[CompaniesDatabase] query:', { workspaceId: currentWorkspace?.id, resultCount: data?.length ?? 0 });
+        console.debug('[CompaniesDatabase] query:', { workspaceId: currentWorkspace?.id, coreCount: coreData?.length ?? 0, crmCount: (crmData as any[])?.length ?? 0 });
       }
-      // Transform database records to Account format
-      return (data || []).map((company: any) => ({
+
+      // Merge and deduplicate by name (case-insensitive), core takes priority
+      const seen = new Set<string>();
+      const merged: any[] = [];
+
+      for (const company of (coreData || [])) {
+        const key = company.name?.toLowerCase().trim();
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          merged.push(company);
+        }
+      }
+
+      for (const company of ((crmData as any[]) || [])) {
+        const key = company.name?.toLowerCase().trim();
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          merged.push({
+            ...company,
+            headquarters: [company.city, company.country].filter(Boolean).join(', ') || null,
+            _source: 'crm_companies',
+          });
+        }
+      }
+
+      merged.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+      // Transform to Account format
+      return merged.map((company: any) => ({
         id: company.id,
         name: company.name,
         industry: company.industry || 'Other',

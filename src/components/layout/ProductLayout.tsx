@@ -131,7 +131,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
       <Link
         to={item.path}
         data-jarvis-id={item.jarvisId}
-        className={`group/nav relative flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap shrink-0`}
+        className="relative flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap shrink-0"
         style={{
           background: active ? `${dotColour}1F` : undefined,
           color: active ? dotColour : undefined,
@@ -141,16 +141,25 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
           if (!active) {
             e.currentTarget.style.borderBottom = `2px solid ${dotColour}`;
             e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+            const dot = e.currentTarget.querySelector('[data-nav-dot]') as HTMLElement;
+            const lbl = e.currentTarget.querySelector('[data-nav-label]') as HTMLElement;
+            if (dot) dot.style.opacity = '1';
+            if (lbl) lbl.style.opacity = '1';
           }
         }}
         onMouseLeave={(e) => {
           if (!active) {
             e.currentTarget.style.borderBottom = '2px solid transparent';
             e.currentTarget.style.background = '';
+            const dot = e.currentTarget.querySelector('[data-nav-dot]') as HTMLElement;
+            const lbl = e.currentTarget.querySelector('[data-nav-label]') as HTMLElement;
+            if (dot) dot.style.opacity = '0.7';
+            if (lbl) lbl.style.opacity = '0.5';
           }
         }}
       >
         <span
+          data-nav-dot
           className="shrink-0 rounded-full"
           style={{
             width: 6, height: 6,
@@ -160,8 +169,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
           }}
         />
         <item.icon className="w-4 h-4 shrink-0" />
-        <span style={{ opacity: active ? 1 : 0.5, transition: 'opacity 150ms' }}
-          className="group-hover/nav:!opacity-100">{item.label}</span>
+        <span data-nav-label style={{ opacity: active ? 1 : 0.5, transition: 'opacity 150ms' }}>{item.label}</span>
         {item.badge && item.path === '/jobs' && newAppCount > 0 && (
           <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
             {newAppCount > 99 ? '99+' : newAppCount}

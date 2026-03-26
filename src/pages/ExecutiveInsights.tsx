@@ -260,42 +260,43 @@ const ExecutiveInsights = () => {
           ))}
         </div>
 
-        {/* ═══ ROW 2: PIPELINE CHART + REVENUE FORECAST ═══ */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-          <div className="lg:col-span-3">
+        {/* ═══ MAIN GRID ═══ */}
+        <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 10 }}>
+          {/* Pipeline (spans full) */}
+          <div className="lg:col-span-1">
             <PipelineByStageChart data={pipelineByStage} isLoading={chartsLoading} />
           </div>
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-1">
             <RevenueForecast deals={deals} workspaceId={currentWorkspace?.id} />
           </div>
-        </div>
 
-        {/* ═══ ROW 3: ACCOUNT INTELLIGENCE ═══ */}
-        <AnalyticsCard
-          id="sec-intelligence"
-          dataJarvisId="analytics-account-intelligence"
-          borderColor="#F59E0B"
-          icon={ShieldAlert}
-          title="Account Intelligence"
-          viewAllHref="/companies"
-          viewAllLabel="View All Companies"
-        >
-          {riLoading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <IntelCard label="At-Risk Accounts" description="No activity in 60+ days with open deals" count={atRiskCount} icon={AlertTriangle} severity="danger" onClick={() => navigate('/companies?filter=at-risk')} />
-              <IntelCard label="Single-Threaded" description="Only 1 contact engaged at this company" count={singleThreadedCount} icon={UserX} severity="warning" onClick={() => navigate('/companies?filter=single-threaded')} />
-              <IntelCard label="Dormant Accounts" description="No contact in 90+ days" count={dormantCount} icon={Clock} severity="warning" onClick={() => navigate('/companies?filter=dormant')} />
-              <IntelCard label="High-Momentum" description="Responded and booked in last 30 days" count={riData?.pipeline?.highResponseCampaigns?.length ?? 0} icon={Rocket} severity="positive" onClick={() => navigate('/outreach?filter=high-momentum')} />
-            </div>
-          )}
-        </AnalyticsCard>
+          {/* Account Intelligence — full width */}
+          <div className="lg:col-span-2">
+            <AnalyticsCard
+              id="sec-intelligence"
+              dataJarvisId="analytics-account-intelligence"
+              borderColor="#F59E0B"
+              icon={ShieldAlert}
+              title="Account Intelligence"
+              viewAllHref="/companies"
+              viewAllLabel="View All Companies"
+            >
+              {riLoading ? (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[1,2,3,4].map(i => <Skeleton key={i} className="h-28 rounded-xl" />)}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <IntelCard label="At-Risk Accounts" description="No activity in 60+ days with open deals" count={atRiskCount} icon={AlertTriangle} severity="danger" onClick={() => navigate('/companies?filter=at-risk')} />
+                  <IntelCard label="Single-Threaded" description="Only 1 contact engaged at this company" count={singleThreadedCount} icon={UserX} severity="warning" onClick={() => navigate('/companies?filter=single-threaded')} />
+                  <IntelCard label="Dormant Accounts" description="No contact in 90+ days" count={dormantCount} icon={Clock} severity="warning" onClick={() => navigate('/companies?filter=dormant')} />
+                  <IntelCard label="High-Momentum" description="Responded and booked in last 30 days" count={riData?.pipeline?.highResponseCampaigns?.length ?? 0} icon={Rocket} severity="positive" onClick={() => navigate('/outreach?filter=high-momentum')} />
+                </div>
+              )}
+            </AnalyticsCard>
+          </div>
 
-        {/* ═══ ROW 4: OUTREACH + SALES MOMENTUM ═══ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Outreach + Sales Momentum */}
           <LazySection height={350} id="sec-outreach">
             <AnalyticsCard borderColor="#8B5CF6" icon={Target} title="Outreach Outcomes (30 Days)" viewAllHref="/outreach" dataJarvisId="analytics-outreach">
               <OutreachOutcomesContent data={outreachOutcomes} isLoading={chartsLoading} />
@@ -306,17 +307,21 @@ const ExecutiveInsights = () => {
               <SalesMomentumContent momentum={salesMomentum} isLoading={riLoading} />
             </AnalyticsCard>
           </LazySection>
+
+          {/* Invoices — full width */}
+          <div className="lg:col-span-2">
+            <LazySection height={280} id="sec-invoices">
+              <InvoicesByWeekCard data={invoiceWeeks} isLoading={chartsLoading} />
+            </LazySection>
+          </div>
+
+          {/* RSI — full width */}
+          <div className="lg:col-span-2">
+            <LazySection height={200} id="sec-rsi">
+              <RelationshipStrengthCard avgRsi={avgRsi} distribution={rsiDistribution} companies={companies} isLoading={riLoading} />
+            </LazySection>
+          </div>
         </div>
-
-        {/* ═══ ROW 5: INVOICES TIMELINE ═══ */}
-        <LazySection height={280} id="sec-invoices">
-          <InvoicesByWeekCard data={invoiceWeeks} isLoading={chartsLoading} />
-        </LazySection>
-
-        {/* ═══ ROW 6: RELATIONSHIP STRENGTH INDEX ═══ */}
-        <LazySection height={200} id="sec-rsi">
-          <RelationshipStrengthCard avgRsi={avgRsi} distribution={rsiDistribution} companies={companies} isLoading={riLoading} />
-        </LazySection>
 
       </div>
     </div>

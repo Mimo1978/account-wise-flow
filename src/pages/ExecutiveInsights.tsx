@@ -188,7 +188,7 @@ const ExecutiveInsights = () => {
     queryFn: async () => {
       if (!currentWorkspace?.id) return 0;
       const cutoff = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-      const { count, error } = await supabase.from('commercial_documents' as any).select('id', { count: 'exact', head: true })
+      const { count, error } = await supabase.from('crm_documents' as any).select('id', { count: 'exact', head: true })
         .eq('workspace_id', currentWorkspace.id).not('status', 'in', '("cancelled","expired")').lte('end_date', cutoff).not('end_date', 'is', null);
       if (error) return 0;
       return count || 0;

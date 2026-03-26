@@ -103,7 +103,7 @@ export function ContactDetailTabs({ contact }: Props) {
     queryKey: ["contact-documents", contact.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("commercial_documents")
+        .from("crm_documents" as any)
         .select("*")
         .eq("contact_id", contact.id)
         .order("created_at", { ascending: false });

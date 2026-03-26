@@ -87,6 +87,8 @@ import {
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { RowInlineActions } from "@/components/outreach/RowInlineActions";
 
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",

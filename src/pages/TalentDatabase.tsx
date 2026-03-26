@@ -1076,12 +1076,12 @@ export default function TalentDatabase() {
                   return (
                     <TableRow
                       key={talent.id}
-                      className={cn(
-                        "cursor-pointer transition-colors group/row",
-                        index % 2 === 1
-                          ? "bg-white/[0.04] hover:bg-indigo-500/15"
-                          : "hover:bg-indigo-500/15"
-                      )}
+                      style={{
+                        background: index % 2 === 1
+                          ? "rgba(255,255,255,0.04)"
+                          : "transparent",
+                      }}
+                      className={cn("cursor-pointer transition-colors group/row hover:!bg-indigo-500/15")}
                       onClick={() => handleRowClick(talent)}
                     >
                       <TableCell 

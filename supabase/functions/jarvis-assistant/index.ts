@@ -743,6 +743,163 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  // ─── CRUD tools ───
+  {
+    type: "function",
+    function: {
+      name: "update_record",
+      description: "Update any CRM record — company, contact, deal, opportunity, engagement/project, or invoice. Use when user says 'change', 'update', 'edit', 'set', 'rename', 'mark as'.",
+      parameters: {
+        type: "object",
+        properties: {
+          entity_type: { type: "string", enum: ["company","contact","deal","opportunity","engagement","invoice","candidate"] },
+          entity_id: { type: "string" },
+          fields: { type: "object", description: "Key-value pairs of fields to update" },
+        },
+        required: ["entity_type", "entity_id", "fields"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_record",
+      description: "Delete a CRM record. ALWAYS confirm with user first. Use when user says 'delete', 'remove', 'get rid of'.",
+      parameters: {
+        type: "object",
+        properties: {
+          entity_type: { type: "string", enum: ["company","contact","deal","opportunity","engagement","candidate"] },
+          entity_id: { type: "string" },
+          entity_name: { type: "string", description: "Human readable name for confirmation" },
+        },
+        required: ["entity_type", "entity_id", "entity_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_candidate",
+      description: "Add a new candidate to the Talent Database.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          email: { type: "string" },
+          phone: { type: "string" },
+          current_title: { type: "string" },
+          current_company: { type: "string" },
+          location: { type: "string" },
+          skills: { type: "string", description: "Comma-separated list of skills" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_and_send_invoice",
+      description: "Generate an invoice PDF and email it to the client. Use when user says 'send the invoice', 'email the invoice to the client', 'generate and send invoice'.",
+      parameters: {
+        type: "object",
+        properties: {
+          invoice_id: { type: "string" },
+          contact_id: { type: "string", description: "Contact to send invoice to" },
+        },
+        required: ["invoice_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "initiate_ai_call",
+      description: "Make an AI-powered outbound phone call to a contact or candidate using Twilio + ElevenLabs. Use when user says 'call [name]', 'phone [name]', 'make a call to [name]', 'initiate a call'.",
+      parameters: {
+        type: "object",
+        properties: {
+          contact_id: { type: "string", description: "Contact or candidate ID to call" },
+          phone_number: { type: "string", description: "Phone number if not in CRM" },
+          purpose: { type: "string", description: "Purpose of the call e.g. follow-up, intro call" },
+          custom_instructions: { type: "string", description: "Any specific talking points or instructions" },
+        },
+        required: ["purpose"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_sow",
+      description: "Create a Statement of Work linked to a company and engagement. Use when user says 'create a SOW', 'new statement of work', 'add a SOW for [company]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          company_id: { type: "string" },
+          engagement_id: { type: "string" },
+          sow_ref: { type: "string", description: "SOW reference number e.g. SOW-001" },
+          value: { type: "number" },
+          currency: { type: "string" },
+          billing_model: { type: "string", description: "fixed, retainer, or time_and_materials" },
+          start_date: { type: "string" },
+          end_date: { type: "string" },
+          notes: { type: "string" },
+        },
+        required: ["company_id", "value"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_outreach_campaign",
+      description: "Create a new outreach campaign. Use when user says 'create a campaign', 'new outreach campaign', 'start a campaign for [job/purpose]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          channel: { type: "string", description: "email, sms, call, or linkedin" },
+          description: { type: "string" },
+        },
+        required: ["name", "channel"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_to_outreach",
+      description: "Add a contact or candidate to an outreach campaign target queue. Use when user says 'add [name] to outreach', 'put [name] in the campaign queue', 'add to outreach queue'.",
+      parameters: {
+        type: "object",
+        properties: {
+          campaign_id: { type: "string" },
+          contact_id: { type: "string", description: "Contact UUID" },
+          candidate_id: { type: "string", description: "Candidate UUID" },
+          entity_name: { type: "string" },
+          entity_email: { type: "string" },
+          entity_phone: { type: "string" },
+        },
+        required: ["campaign_id", "entity_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mark_invoice_paid",
+      description: "Mark an invoice as paid. Use when user says 'mark invoice paid', '[company] paid', 'invoice received'.",
+      parameters: {
+        type: "object",
+        properties: {
+          invoice_id: { type: "string" },
+          company_name: { type: "string", description: "Use to look up invoice if no ID" },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.

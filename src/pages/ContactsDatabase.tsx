@@ -861,17 +861,14 @@ export default function ContactsDatabase() {
                 return (
                   <TableRow
                     key={contact.id}
-                    className="cursor-pointer group"
-                    style={{
-                      background: isSelected
-                        ? 'rgba(99, 102, 241, 0.2)'
+                    className={cn(
+                      "cursor-pointer transition-colors group",
+                      isSelected
+                        ? "bg-primary/10 hover:bg-primary/15"
                         : index % 2 === 1
-                          ? 'rgba(255, 255, 255, 0.04)'
-                          : 'transparent',
-                      transition: 'background 0.1s ease',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.15)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = isSelected ? 'rgba(99, 102, 241, 0.2)' : index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
+                          ? "bg-white/[0.04] hover:bg-indigo-500/15"
+                          : "hover:bg-indigo-500/15"
+                    )}
                     onClick={(e) => handleRowClick(contact, e)}
                     onDoubleClick={(e) => handleRowDoubleClick(contact, e)}
                   >

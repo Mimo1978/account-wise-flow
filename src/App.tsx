@@ -142,6 +142,7 @@ const App = () => {
         <ConfirmationProvider>
         <Toaster />
         <Sonner />
+        <FlashConfirmOverlay />
         <BrowserRouter>
           <JarvisSpotlightProvider>
           <JarvisSpotlightOverlay />

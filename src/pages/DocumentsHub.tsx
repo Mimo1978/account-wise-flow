@@ -137,7 +137,7 @@ export default function DocumentsHub() {
         supabase.from("companies").select("id, name").eq("team_id", wsId).order("name"),
         supabase.from("crm_companies" as any).select("id, name").order("name"),
       ]);
-      const crmList = (crmData || []) as { id: string; name: string }[];
+      const crmList = ((crmData || []) as unknown) as { id: string; name: string }[];
       const coreList = (coreData || []) as { id: string; name: string }[];
       // Deduplicate by name, preferring CRM company IDs (for FK compatibility)
       const seen = new Map<string, { id: string; name: string }>();

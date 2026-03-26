@@ -136,39 +136,11 @@ function KPICard({ title, value, subtitle, icon: Icon, accentColor, onClick, jar
   );
 }
 
-/* ─── Pipeline Chevron Stage ─── */
+/* ─── Pipeline Chevron colors (used by deal cards) ─── */
 const CHEVRON_COLORS: Record<string, string> = {
-  lead: '#3B82F6', qualified: '#6366F1', proposal: '#F59E0B',
-  negotiation: '#F97316', won: '#22C55E', lost: '#EF4444',
+  lead: '#4F7FE8', qualified: '#7B5FD4', proposal: '#E8A020',
+  negotiation: '#E86820', won: '#2EAA6E', lost: '#E84040',
 };
-
-function PipelineChevron({ stage, label, count, total, isFirst, isLast, isActive, onClick, isLit }: {
-  stage: string; label: string; count: number; total: number; isFirst: boolean; isLast: boolean; isActive: boolean; onClick: () => void; isLit: boolean;
-}) {
-  const color = CHEVRON_COLORS[stage] ?? '#6B7280';
-
-  return (
-    <button onClick={onClick} className="relative flex-1 min-w-[130px] group"
-      style={{
-        filter: isLit ? (isActive ? 'brightness(1)' : 'brightness(0.85)') : 'brightness(0.6)',
-        opacity: isLit ? (isActive ? 1 : 0.75) : 0.35,
-        transform: isLit ? 'scale(1)' : 'scale(0.97)',
-        transition: 'filter 0.15s ease-out, opacity 0.15s ease-out, transform 0.15s ease-out',
-      }}>
-      <svg viewBox="0 0 200 56" preserveAspectRatio="none" className="w-full h-14" aria-hidden>
-        <polygon
-          points={isFirst ? '0,0 180,0 200,28 180,56 0,56' : isLast ? '0,0 180,0 200,0 200,56 180,56 0,56 20,28' : '0,0 180,0 200,28 180,56 0,56 20,28'}
-          fill={color} className="transition-all duration-200 group-hover:brightness-110"
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-2">
-        <span className="text-[10px] font-semibold text-white uppercase tracking-wider leading-none">{label}</span>
-        <span className="text-lg font-bold text-white leading-tight mt-0.5">{count}</span>
-        <span className="text-[9px] text-white/80 leading-none">£{total.toLocaleString()}</span>
-      </div>
-    </button>
-  );
-}
 
 /* ─── Deal Card ─── */
 function PipelineDealCard({ deal, onAdvance, onCreateProject, onViewProject, isRecruitment, onReversalConfirm, onClick }: {

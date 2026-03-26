@@ -1122,6 +1122,18 @@ export default function ContactsDatabase() {
                     <TableCell className="text-muted-foreground" style={{ zIndex: 1 }}>
                       {contact.lastContact || "—"}
                     </TableCell>
+                    <TableCell style={{ zIndex: 1 }}>
+                      <RowInlineActions
+                        className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                        workspaceId={workspaceId || ""}
+                        entityName={contact.name}
+                        entityEmail={contact.email}
+                        entityPhone={contact.phone}
+                        entityTitle={contact.title}
+                        entityCompany={(contact as any)._companyName}
+                        contactId={contact.id}
+                      />
+                    </TableCell>
                   </TableRow>
                 );
               })}

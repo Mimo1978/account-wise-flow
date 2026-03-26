@@ -401,8 +401,8 @@ export default function DocumentsHub() {
             </div>
           </Card>
         )}
-      </div>
         </SectionCard>
+      </div>
 
       {/* Upload/Edit Panel */}
       <SlideInPanel

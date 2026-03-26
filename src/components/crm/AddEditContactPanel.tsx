@@ -108,6 +108,32 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
         toast({ title: "Contact updated" });
       } else {
         await createMut.mutateAsync(payload);
+        
+        // Sync to core contacts table so ContactsDatabase can find this contact
+        try {
+          const fullName = `${form.first_name} ${form.last_name}`.trim();
+          // Find the matching core company if crm_companies company_id is set
+          let coreCompanyId: string | null = null;
+          if (form.company_id) {
+            const { data: crmCompany } = await supabase.from('crm_companies' as any).select('name').eq('id', form.company_id).single();
+            if ((crmCompany as any)?.name) {
+              const { data: coreCompany } = await supabase.from('companies').select('id').ilike('name', (crmCompany as any).name).limit(1).single();
+              coreCompanyId = coreCompany?.id || null;
+            }
+          }
+          await supabase.from('contacts').insert({
+            name: fullName,
+            email: form.email || null,
+            phone: form.phone || null,
+            title: form.job_title || null,
+            company_id: coreCompanyId,
+            team_id: currentWorkspace?.id || null,
+            owner_id: user?.id || null,
+          } as any);
+        } catch (syncErr) {
+          console.warn('[AddEditContactPanel] Core contacts sync failed (non-critical):', syncErr);
+        }
+        
         toast({ title: "Contact created" });
       }
       onOpenChange(false);

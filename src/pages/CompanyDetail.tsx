@@ -205,6 +205,17 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
   const [saving, setSaving] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
+  // Resolve CRM company ID for crm_documents FK
+  const { data: resolvedCrmCompanyId } = useQuery({
+    queryKey: ["crm-company-id-for-docs", companyId, companyName],
+    queryFn: async () => {
+      const { data } = await supabase.from("crm_companies" as any).select("id").eq("name", companyName).limit(1);
+      if (data && (data as any[]).length > 0) return (data as any[])[0].id as string;
+      return null;
+    },
+    enabled: !!companyId && !!companyName,
+  });
+
   // Contacts for this company
   const { data: contactsList = [] } = useQuery({
     queryKey: ["contacts-for-company-docs", companyId],

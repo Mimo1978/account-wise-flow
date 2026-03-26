@@ -743,6 +743,163 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  // ─── CRUD tools ───
+  {
+    type: "function",
+    function: {
+      name: "update_record",
+      description: "Update any CRM record — company, contact, deal, opportunity, engagement/project, or invoice. Use when user says 'change', 'update', 'edit', 'set', 'rename', 'mark as'.",
+      parameters: {
+        type: "object",
+        properties: {
+          entity_type: { type: "string", enum: ["company","contact","deal","opportunity","engagement","invoice","candidate"] },
+          entity_id: { type: "string" },
+          fields: { type: "object", description: "Key-value pairs of fields to update" },
+        },
+        required: ["entity_type", "entity_id", "fields"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_record",
+      description: "Delete a CRM record. ALWAYS confirm with user first. Use when user says 'delete', 'remove', 'get rid of'.",
+      parameters: {
+        type: "object",
+        properties: {
+          entity_type: { type: "string", enum: ["company","contact","deal","opportunity","engagement","candidate"] },
+          entity_id: { type: "string" },
+          entity_name: { type: "string", description: "Human readable name for confirmation" },
+        },
+        required: ["entity_type", "entity_id", "entity_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_candidate",
+      description: "Add a new candidate to the Talent Database.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          email: { type: "string" },
+          phone: { type: "string" },
+          current_title: { type: "string" },
+          current_company: { type: "string" },
+          location: { type: "string" },
+          skills: { type: "string", description: "Comma-separated list of skills" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_and_send_invoice",
+      description: "Generate an invoice PDF and email it to the client. Use when user says 'send the invoice', 'email the invoice to the client', 'generate and send invoice'.",
+      parameters: {
+        type: "object",
+        properties: {
+          invoice_id: { type: "string" },
+          contact_id: { type: "string", description: "Contact to send invoice to" },
+        },
+        required: ["invoice_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "initiate_ai_call",
+      description: "Make an AI-powered outbound phone call to a contact or candidate using Twilio + ElevenLabs. Use when user says 'call [name]', 'phone [name]', 'make a call to [name]', 'initiate a call'.",
+      parameters: {
+        type: "object",
+        properties: {
+          contact_id: { type: "string", description: "Contact or candidate ID to call" },
+          phone_number: { type: "string", description: "Phone number if not in CRM" },
+          purpose: { type: "string", description: "Purpose of the call e.g. follow-up, intro call" },
+          custom_instructions: { type: "string", description: "Any specific talking points or instructions" },
+        },
+        required: ["purpose"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_sow",
+      description: "Create a Statement of Work linked to a company and engagement. Use when user says 'create a SOW', 'new statement of work', 'add a SOW for [company]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          company_id: { type: "string" },
+          engagement_id: { type: "string" },
+          sow_ref: { type: "string", description: "SOW reference number e.g. SOW-001" },
+          value: { type: "number" },
+          currency: { type: "string" },
+          billing_model: { type: "string", description: "fixed, retainer, or time_and_materials" },
+          start_date: { type: "string" },
+          end_date: { type: "string" },
+          notes: { type: "string" },
+        },
+        required: ["company_id", "value"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_outreach_campaign",
+      description: "Create a new outreach campaign. Use when user says 'create a campaign', 'new outreach campaign', 'start a campaign for [job/purpose]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          channel: { type: "string", description: "email, sms, call, or linkedin" },
+          description: { type: "string" },
+        },
+        required: ["name", "channel"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "add_to_outreach",
+      description: "Add a contact or candidate to an outreach campaign target queue. Use when user says 'add [name] to outreach', 'put [name] in the campaign queue', 'add to outreach queue'.",
+      parameters: {
+        type: "object",
+        properties: {
+          campaign_id: { type: "string" },
+          contact_id: { type: "string", description: "Contact UUID" },
+          candidate_id: { type: "string", description: "Candidate UUID" },
+          entity_name: { type: "string" },
+          entity_email: { type: "string" },
+          entity_phone: { type: "string" },
+        },
+        required: ["campaign_id", "entity_name"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mark_invoice_paid",
+      description: "Mark an invoice as paid. Use when user says 'mark invoice paid', '[company] paid', 'invoice received'.",
+      parameters: {
+        type: "object",
+        properties: {
+          invoice_id: { type: "string" },
+          company_name: { type: "string", description: "Use to look up invoice if no ID" },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.
@@ -756,6 +913,58 @@ CRITICAL RULES — YOU MUST FOLLOW THESE:
 6. When asked to navigate, use the navigate tool immediately.
 7. For search queries, call the search tool and present results in a readable format.
 8. If a user asks you to do something outside your tools, politely decline.
+9. RULE: After ANY tool call, check the result object. If it contains an 'error' field, you MUST report the failure clearly — never say 'Done', 'Created', or 'Saved' if the tool returned an error. Say exactly what failed and why.
+
+CONFIRMATION LANGUAGE:
+- After a successful create_company: say "[Name] has been added. You can see it on the Companies page now."
+- After create_contact: "[Name] has been added to your Contacts and linked to [Company]."
+- After create_invoice: "Invoice [number] has been created for £[total]. Want me to generate the PDF and send it?"
+
+ADDITIONAL INTENT PATTERNS:
+- "call [name]" / "phone [name]" → initiate_ai_call
+- "send the invoice" / "email invoice to [name]" → generate_and_send_invoice
+- "mark [company] invoice paid" / "[company] paid" → mark_invoice_paid
+- "create a SOW for [company]" → create_sow
+- "new campaign" / "create outreach campaign" → create_outreach_campaign
+- "add [name] to outreach" / "add to campaign queue" → add_to_outreach
+- "add a candidate" / "new candidate [name]" → create_candidate
+- "update [entity] [field] to [value]" / "change [field]" → update_record
+- "delete [entity]" / "remove [name]" → delete_record (ALWAYS confirm first)
+
+UPDATE intents — "change the deal value to £50k", "mark invoice as paid", "update Ken's job title to CTO", "rename the project to X":
+- Ask the user to confirm the change before calling update_record.
+- After success: "Done — [field] updated to [new value]."
+
+DELETE intents — ALWAYS say: "Are you sure you want to delete [name]? This cannot be undone." and wait for explicit 'yes' before calling delete_record. Never delete without confirmation.
+
+CREATE CANDIDATE flow — "add a candidate", "new candidate", "add [name] to talent":
+1. "What's their full name?"
+2. "What's their current role and company?"
+3. "What's their email and phone?"
+4. "What are their key skills? List them."
+5. "Where are they based?"
+6. Confirm and create.
+
+CREATE SOW flow — "create a SOW", "new SOW for [company]":
+1. "Which company is this SOW for?" (use existing session company if available)
+2. "What's the SOW reference number? e.g. SOW-001"
+3. "What's the value? And currency — GBP, USD, EUR?"
+4. "Billing model — fixed fee, retainer, or time and materials?"
+5. "Start and end dates?"
+6. Confirm and create.
+
+INVOICE SEND intents — "send the invoice", "email the invoice", "send invoice to [contact]":
+- If no invoice_id in context: "Which invoice? I can look it up — what's the company or deal name?"
+- If no contact_id: "Who should I send it to? I'll look up the contact."
+- Confirm: "I'll generate the PDF for invoice [number] (£[total]) and email it to [name] at [email]. Shall I go ahead?"
+- After success: "Done — invoice [number] has been generated and sent to [name]. I've also logged it in the CRM."
+
+CALL intents — "call [name]", "phone [name]", "make a call":
+1. Look up the contact/candidate using lookup_contact or lookup_candidate.
+2. If they have a phone number: "I'll call [name] at [number]. What's the purpose of the call?"
+3. If no number: "I can't find a phone number for [name]. Do you have their number?"
+4. Confirm: "I'll initiate an AI call to [name] at [number] for [purpose]. Shall I go ahead?"
+5. After success: "Call connected to [name]. I've logged it on their record."
 
 NAVIGATION INTENT DETECTION — detect these patterns and respond accordingly:
 
@@ -1911,12 +2120,23 @@ async function executeTool(
       return { result: inv, entityType: "crm_invoices", entityId: inv?.id };
     }
     case "send_email": {
-      const { data: contact } = await supabaseAdmin
-        .from("crm_contacts")
-        .select("email, first_name, company_id")
+      // Dual-table lookup: try contacts first, fall back to crm_contacts
+      const { data: coreContact } = await supabaseAdmin
+        .from("contacts")
+        .select("email, name, phone, company_id")
         .eq("id", input.contact_id as string)
-        .single();
-      if (!contact?.email) return { result: { error: "Contact has no email address" }, entityType: "crm_contacts" };
+        .maybeSingle();
+      const finalContact = coreContact ?? (await supabaseAdmin
+        .from("crm_contacts")
+        .select("email, first_name, last_name, company_id")
+        .eq("id", input.contact_id as string)
+        .maybeSingle()).data;
+      const contactEmail = finalContact?.email;
+      const contactName = coreContact?.name ??
+        `${(finalContact as any)?.first_name ?? ""} ${(finalContact as any)?.last_name ?? ""}`.trim();
+      const contactCompanyId = finalContact?.company_id;
+
+      if (!contactEmail) return { result: { error: "Contact has no email address" }, entityType: "contacts" };
 
       const { data: keys } = await supabaseAdmin
         .from("integration_settings")
@@ -1933,7 +2153,7 @@ async function executeTool(
         headers: { Authorization: `Bearer ${keyMap.RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: keyMap.FROM_EMAIL_ADDRESS,
-          to: contact.email,
+          to: contactEmail,
           subject: input.subject as string,
           html: input.body as string,
         }),
@@ -1946,42 +2166,51 @@ async function executeTool(
         subject: input.subject as string,
         body: (input.body as string).replace(/<[^>]*>/g, "").slice(0, 500),
         contact_id: input.contact_id as string,
-        company_id: contact.company_id,
+        company_id: contactCompanyId,
         status: "completed",
         completed_at: new Date().toISOString(),
         created_by: userId,
       });
-      return { result: { success: true, sent_to: contact.email }, entityType: "email" };
+      return { result: { success: true, sent_to: contactEmail }, entityType: "email" };
     }
     case "send_sms": {
-      const { data: contact } = await supabaseAdmin
-        .from("crm_contacts")
-        .select("mobile, first_name, company_id")
+      // Dual-table lookup: try contacts first, fall back to crm_contacts
+      const { data: coreSmsContact } = await supabaseAdmin
+        .from("contacts")
+        .select("phone, name, company_id")
         .eq("id", input.contact_id as string)
-        .single();
-      if (!contact?.mobile) return { result: { error: "Contact has no mobile number" }, entityType: "crm_contacts" };
+        .maybeSingle();
+      const finalSmsContact = coreSmsContact ?? (await supabaseAdmin
+        .from("crm_contacts")
+        .select("mobile, first_name, last_name, company_id")
+        .eq("id", input.contact_id as string)
+        .maybeSingle()).data;
+      const smsPhone = coreSmsContact?.phone ?? (finalSmsContact as any)?.mobile;
+      const smsCompanyId = finalSmsContact?.company_id;
 
-      const { data: keys } = await supabaseAdmin
+      if (!smsPhone) return { result: { error: "Contact has no phone/mobile number" }, entityType: "contacts" };
+
+      const { data: smsKeys } = await supabaseAdmin
         .from("integration_settings")
         .select("key_name, key_value")
         .eq("user_id", userId)
         .eq("service", "twilio");
-      const keyMap = Object.fromEntries((keys ?? []).map((k: any) => [k.key_name, k.key_value]));
-      if (!keyMap.TWILIO_ACCOUNT_SID || !keyMap.TWILIO_AUTH_TOKEN || !keyMap.TWILIO_PHONE_NUMBER) {
+      const smsKeyMap = Object.fromEntries((smsKeys ?? []).map((k: any) => [k.key_name, k.key_value]));
+      if (!smsKeyMap.TWILIO_ACCOUNT_SID || !smsKeyMap.TWILIO_AUTH_TOKEN || !smsKeyMap.TWILIO_PHONE_NUMBER) {
         return { result: { error: "Twilio integration not configured" }, entityType: "sms" };
       }
 
       const params = new URLSearchParams({
-        From: keyMap.TWILIO_PHONE_NUMBER,
-        To: contact.mobile,
+        From: smsKeyMap.TWILIO_PHONE_NUMBER,
+        To: smsPhone,
         Body: input.message as string,
       });
       const twilioRes = await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${keyMap.TWILIO_ACCOUNT_SID}/Messages.json`,
+        `https://api.twilio.com/2010-04-01/Accounts/${smsKeyMap.TWILIO_ACCOUNT_SID}/Messages.json`,
         {
           method: "POST",
           headers: {
-            Authorization: "Basic " + btoa(`${keyMap.TWILIO_ACCOUNT_SID}:${keyMap.TWILIO_AUTH_TOKEN}`),
+            Authorization: "Basic " + btoa(`${smsKeyMap.TWILIO_ACCOUNT_SID}:${smsKeyMap.TWILIO_AUTH_TOKEN}`),
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: params.toString(),
@@ -1994,7 +2223,7 @@ async function executeTool(
         direction: "outbound",
         body: (input.message as string).slice(0, 500),
         contact_id: input.contact_id as string,
-        company_id: contact.company_id,
+        company_id: smsCompanyId,
         status: "completed",
         completed_at: new Date().toISOString(),
         created_by: userId,
@@ -3178,6 +3407,284 @@ Return ONLY valid JSON, no markdown fences.`,
         invalidate_queries: ["jobs_projects", "jobs_projects_list"],
       };
     }
+    // ─── New CRUD tools ───
+    case "update_record": {
+      const tableMap: Record<string, string> = {
+        company: "companies",
+        contact: "contacts",
+        deal: "crm_deals",
+        opportunity: "crm_opportunities",
+        engagement: "engagements",
+        invoice: "crm_invoices",
+        candidate: "candidates",
+      };
+      const table = tableMap[input.entity_type as string];
+      if (!table) return { result: { error: "Unknown entity type" }, entityType: "unknown" };
+
+      const { data, error } = await supabaseAdmin
+        .from(table)
+        .update({ ...(input.fields as object), updated_at: new Date().toISOString() })
+        .eq("id", input.entity_id as string)
+        .select()
+        .single();
+      if (error) return { result: { error: error.message }, entityType: table };
+      return { result: { success: true, updated: data }, entityType: table, entityId: input.entity_id as string };
+    }
+    case "delete_record": {
+      const delTableMap: Record<string, string> = {
+        company: "companies",
+        contact: "contacts",
+        deal: "crm_deals",
+        opportunity: "crm_opportunities",
+        engagement: "engagements",
+        candidate: "candidates",
+      };
+      const delTable = delTableMap[input.entity_type as string];
+      if (!delTable) return { result: { error: "Unknown entity type" }, entityType: "unknown" };
+
+      // Soft delete where possible (tables with deleted_at column)
+      const softDeleteTables = new Set(["companies", "contacts", "crm_deals", "crm_opportunities"]);
+      if (softDeleteTables.has(delTable)) {
+        const { error } = await supabaseAdmin
+          .from(delTable)
+          .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq("id", input.entity_id as string);
+        if (error) return { result: { error: error.message }, entityType: delTable };
+      } else {
+        const { error } = await supabaseAdmin
+          .from(delTable)
+          .delete()
+          .eq("id", input.entity_id as string);
+        if (error) return { result: { error: error.message }, entityType: delTable };
+      }
+      return { result: { success: true, deleted: input.entity_name }, entityType: delTable, entityId: input.entity_id as string };
+    }
+    case "create_candidate": {
+      const candTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const { data, error } = await supabaseAdmin
+        .from("candidates")
+        .insert({
+          name: input.name as string,
+          email: (input.email as string) || null,
+          phone: (input.phone as string) || null,
+          current_title: (input.current_title as string) || null,
+          current_company: (input.current_company as string) || null,
+          location: (input.location as string) || null,
+          skills: input.skills
+            ? { primary_skills: (input.skills as string).split(",").map((s: string) => s.trim()) }
+            : [],
+          tenant_id: candTeamId,
+          owner_id: userId,
+          source: "jarvis",
+          status: "active",
+        })
+        .select("id, name")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "candidates" };
+      return { result: { ...data, navigate_to: `/talent` }, entityType: "candidates", entityId: data?.id };
+    }
+    case "generate_and_send_invoice": {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+      // Step 1: Generate PDF via existing edge function
+      const pdfRes = await fetch(`${supabaseUrl}/functions/v1/invoice-generate-pdf`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ invoice_id: input.invoice_id }),
+      });
+      const pdfData = await pdfRes.json();
+      if (!pdfRes.ok) return { result: { error: pdfData.error || "PDF generation failed" }, entityType: "crm_invoices" };
+
+      // Step 2: Get invoice details
+      const { data: invoice } = await supabaseAdmin
+        .from("crm_invoices")
+        .select("*, crm_companies(name), crm_deals(title)")
+        .eq("id", input.invoice_id as string)
+        .single();
+
+      // Step 3: Send email via Resend if contact_id provided
+      if (input.contact_id) {
+        const { data: invContact } = await supabaseAdmin
+          .from("contacts")
+          .select("email, name")
+          .eq("id", input.contact_id as string)
+          .maybeSingle();
+        if (invContact?.email) {
+          const { data: invKeys } = await supabaseAdmin
+            .from("integration_settings")
+            .select("key_name, key_value")
+            .eq("user_id", userId)
+            .eq("service", "resend");
+          const invKeyMap = Object.fromEntries((invKeys ?? []).map((k: any) => [k.key_name, k.key_value]));
+          if (invKeyMap.RESEND_API_KEY && invKeyMap.FROM_EMAIL_ADDRESS) {
+            const emailBody = `<p>Dear ${invContact.name},</p><p>Please find attached invoice ${invoice?.invoice_number} for £${invoice?.total?.toLocaleString()}.</p><p>Due date: ${invoice?.due_date ? new Date(invoice.due_date).toLocaleDateString('en-GB') : 'As agreed'}.</p><p>Kind regards</p>`;
+            await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${invKeyMap.RESEND_API_KEY}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                from: invKeyMap.FROM_EMAIL_ADDRESS,
+                to: invContact.email,
+                subject: `Invoice ${invoice?.invoice_number} — ${(invoice?.crm_companies as any)?.name || ""}`,
+                html: emailBody,
+              }),
+            });
+          }
+        }
+      }
+
+      return {
+        result: {
+          success: true,
+          invoice_number: invoice?.invoice_number || pdfData.invoice_number,
+          message: `Invoice ${invoice?.invoice_number || ""} generated and sent.`,
+          navigate_to: `/crm/invoices/${input.invoice_id}`,
+        },
+        entityType: "crm_invoices",
+        entityId: input.invoice_id as string,
+      };
+    }
+    case "initiate_ai_call": {
+      let toNumber = input.phone_number as string;
+      if (!toNumber && input.contact_id) {
+        const { data: callContact } = await supabaseAdmin
+          .from("contacts")
+          .select("phone, name")
+          .eq("id", input.contact_id as string)
+          .maybeSingle();
+        toNumber = callContact?.phone || "";
+        if (!toNumber) {
+          const { data: callCand } = await supabaseAdmin
+            .from("candidates")
+            .select("phone, name")
+            .eq("id", input.contact_id as string)
+            .maybeSingle();
+          toNumber = callCand?.phone || "";
+        }
+      }
+      if (!toNumber) return { result: { error: "No phone number found. Please provide a number." }, entityType: "calls" };
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+      const callRes = await fetch(`${supabaseUrl}/functions/v1/initiate-ai-call`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contact_id: input.contact_id || null,
+          to_number: toNumber,
+          purpose: input.purpose,
+          custom_instructions: input.custom_instructions || null,
+        }),
+      });
+      const callData = await callRes.json();
+      if (!callRes.ok) return { result: { error: callData.message || "Call failed to connect" }, entityType: "calls" };
+      return {
+        result: { success: true, call_sid: callData.call_sid, message: `Call initiated to ${toNumber}. Call SID: ${callData.call_sid}` },
+        entityType: "calls",
+      };
+    }
+    case "create_sow": {
+      const sowTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const sowResolved = await resolveCompanyIds(supabaseAdmin, input.company_id as string, userId, sowTeamId);
+      const { data, error } = await supabaseAdmin
+        .from("sows")
+        .insert({
+          workspace_id: sowTeamId,
+          company_id: sowResolved.companyId || input.company_id,
+          engagement_id: (input.engagement_id as string) || null,
+          sow_ref: (input.sow_ref as string) || null,
+          value: (input.value as number) || 0,
+          currency: (input.currency as string) || "GBP",
+          billing_model: (input.billing_model as string) || "fixed",
+          start_date: (input.start_date as string) || null,
+          end_date: (input.end_date as string) || null,
+          notes: (input.notes as string) || null,
+          status: "draft",
+        })
+        .select("id, sow_ref, value")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "sows" };
+      return { result: { ...data, navigate_to: "/home" }, entityType: "sows", entityId: data?.id };
+    }
+    case "create_outreach_campaign": {
+      const campTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const { data, error } = await supabaseAdmin
+        .from("outreach_campaigns")
+        .insert({
+          workspace_id: campTeamId,
+          name: input.name as string,
+          channel: input.channel as string,
+          description: (input.description as string) || null,
+          status: "draft",
+          owner_id: userId,
+        })
+        .select("id, name")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "outreach_campaigns" };
+      return { result: { ...data, navigate_to: "/outreach" }, entityType: "outreach_campaigns", entityId: data?.id };
+    }
+    case "add_to_outreach": {
+      const outTeamId = await getUserTeamId(supabaseAdmin, userId);
+      let entityEmail = input.entity_email as string;
+      let entityPhone = input.entity_phone as string;
+
+      if (input.contact_id && !entityEmail) {
+        const { data: outContact } = await supabaseAdmin
+          .from("contacts").select("email, phone, name")
+          .eq("id", input.contact_id as string).maybeSingle();
+        entityEmail = entityEmail || outContact?.email || "";
+        entityPhone = entityPhone || outContact?.phone || "";
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("outreach_targets")
+        .insert({
+          workspace_id: outTeamId,
+          campaign_id: input.campaign_id as string,
+          contact_id: (input.contact_id as string) || null,
+          candidate_id: (input.candidate_id as string) || null,
+          entity_name: input.entity_name as string,
+          entity_email: entityEmail || null,
+          entity_phone: entityPhone || null,
+          state: "queued",
+          priority: 5,
+        })
+        .select("id")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "outreach_targets" };
+      return { result: { success: true, navigate_to: "/outreach" }, entityType: "outreach_targets", entityId: data?.id };
+    }
+    case "mark_invoice_paid": {
+      let invoiceId = input.invoice_id as string;
+      if (!invoiceId && input.company_name) {
+        const { data: inv } = await supabaseAdmin
+          .from("crm_invoices")
+          .select("id, invoice_number, total, crm_companies(name)")
+          .neq("status", "paid")
+          .order("created_at", { ascending: false })
+          .limit(10);
+        // Filter in code for company name match
+        const match = (inv ?? []).find((i: any) => 
+          (i.crm_companies as any)?.name?.toLowerCase().includes((input.company_name as string).toLowerCase())
+        );
+        invoiceId = match?.id;
+      }
+      if (!invoiceId) return { result: { error: "No unpaid invoice found. Which invoice?" }, entityType: "crm_invoices" };
+
+      const { data, error } = await supabaseAdmin
+        .from("crm_invoices")
+        .update({ status: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("id", invoiceId)
+        .select("id, invoice_number, total")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "crm_invoices" };
+      return {
+        result: { success: true, ...data, message: `Invoice ${data?.invoice_number} marked as paid.` },
+        entityType: "crm_invoices",
+        entityId: invoiceId,
+      };
+    }
     default:
       return { result: { error: `Unknown tool: ${toolName}` }, entityType: "unknown" };
   }
@@ -3606,7 +4113,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 
     // Build invalidation list for frontend cache
     const invalidateQueries: string[] = [];
-    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate", "book_diary_event", "cancel_diary_event", "reschedule_diary_event"]);
+    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate", "book_diary_event", "cancel_diary_event", "reschedule_diary_event", "update_record", "delete_record", "create_candidate", "generate_and_send_invoice", "initiate_ai_call", "create_sow", "create_outreach_campaign", "add_to_outreach", "mark_invoice_paid"]);
     const entityQueryMap: Record<string, string[]> = {
       companies: ["companies", "canvas-companies", "crm_companies"],
       contacts: ["contacts", "company-contacts", "crm_contacts", "all-contacts"],
@@ -3615,7 +4122,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       crm_projects: ["crm_projects", "engagements"],
       crm_opportunities: ["crm_opportunities"],
       crm_deals: ["crm_deals"],
-      crm_invoices: ["crm_invoices"],
+      crm_invoices: ["crm_invoices", "invoices"],
       crm_activities: ["crm_activities"],
       email: ["crm_activities"],
       sms: ["crm_activities"],
@@ -3623,6 +4130,12 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       job_adverts: ["job_adverts"],
       job_shortlist: ["job_shortlist"],
       diary_events: ["diary_events"],
+      candidates: ["candidates", "talent"],
+      engagements: ["engagements", "crm_projects"],
+      sows: ["sows", "engagements"],
+      outreach_campaigns: ["outreach_campaigns"],
+      outreach_targets: ["outreach_targets", "outreach_campaigns"],
+      calls: ["crm_activities"],
     };
 
     for (const action of actionsExecuted) {
@@ -3636,7 +4149,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 
     // Collect created entities for frontend session memory
     const createdEntities: Array<{ type: string; id: string; name: string; crm_id?: string }> = [];
-    const creationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "create_deal"]);
+    const creationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "create_deal", "create_candidate", "create_sow", "create_outreach_campaign"]);
     for (const msg of currentMessages) {
       if ((msg as any).role === "tool" && typeof (msg as any).content === "string") {
         try {

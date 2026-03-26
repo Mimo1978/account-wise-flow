@@ -387,3 +387,21 @@ All colors MUST be HSL.
   border-left: 3px solid var(--page-accent, transparent);
   padding-left: 0.5rem;
 }
+
+/* ── Data-table zebra striping, hover & selected rows ── */
+tbody > tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+tbody > tr {
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+tbody > tr:hover {
+  background-color: rgba(99, 102, 241, 0.15) !important;
+}
+tbody > tr[data-state="selected"] {
+  background-color: rgba(99, 102, 241, 0.2) !important;
+}
+thead > tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}

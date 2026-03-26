@@ -913,6 +913,58 @@ CRITICAL RULES — YOU MUST FOLLOW THESE:
 6. When asked to navigate, use the navigate tool immediately.
 7. For search queries, call the search tool and present results in a readable format.
 8. If a user asks you to do something outside your tools, politely decline.
+9. RULE: After ANY tool call, check the result object. If it contains an 'error' field, you MUST report the failure clearly — never say 'Done', 'Created', or 'Saved' if the tool returned an error. Say exactly what failed and why.
+
+CONFIRMATION LANGUAGE:
+- After a successful create_company: say "[Name] has been added. You can see it on the Companies page now."
+- After create_contact: "[Name] has been added to your Contacts and linked to [Company]."
+- After create_invoice: "Invoice [number] has been created for £[total]. Want me to generate the PDF and send it?"
+
+ADDITIONAL INTENT PATTERNS:
+- "call [name]" / "phone [name]" → initiate_ai_call
+- "send the invoice" / "email invoice to [name]" → generate_and_send_invoice
+- "mark [company] invoice paid" / "[company] paid" → mark_invoice_paid
+- "create a SOW for [company]" → create_sow
+- "new campaign" / "create outreach campaign" → create_outreach_campaign
+- "add [name] to outreach" / "add to campaign queue" → add_to_outreach
+- "add a candidate" / "new candidate [name]" → create_candidate
+- "update [entity] [field] to [value]" / "change [field]" → update_record
+- "delete [entity]" / "remove [name]" → delete_record (ALWAYS confirm first)
+
+UPDATE intents — "change the deal value to £50k", "mark invoice as paid", "update Ken's job title to CTO", "rename the project to X":
+- Ask the user to confirm the change before calling update_record.
+- After success: "Done — [field] updated to [new value]."
+
+DELETE intents — ALWAYS say: "Are you sure you want to delete [name]? This cannot be undone." and wait for explicit 'yes' before calling delete_record. Never delete without confirmation.
+
+CREATE CANDIDATE flow — "add a candidate", "new candidate", "add [name] to talent":
+1. "What's their full name?"
+2. "What's their current role and company?"
+3. "What's their email and phone?"
+4. "What are their key skills? List them."
+5. "Where are they based?"
+6. Confirm and create.
+
+CREATE SOW flow — "create a SOW", "new SOW for [company]":
+1. "Which company is this SOW for?" (use existing session company if available)
+2. "What's the SOW reference number? e.g. SOW-001"
+3. "What's the value? And currency — GBP, USD, EUR?"
+4. "Billing model — fixed fee, retainer, or time and materials?"
+5. "Start and end dates?"
+6. Confirm and create.
+
+INVOICE SEND intents — "send the invoice", "email the invoice", "send invoice to [contact]":
+- If no invoice_id in context: "Which invoice? I can look it up — what's the company or deal name?"
+- If no contact_id: "Who should I send it to? I'll look up the contact."
+- Confirm: "I'll generate the PDF for invoice [number] (£[total]) and email it to [name] at [email]. Shall I go ahead?"
+- After success: "Done — invoice [number] has been generated and sent to [name]. I've also logged it in the CRM."
+
+CALL intents — "call [name]", "phone [name]", "make a call":
+1. Look up the contact/candidate using lookup_contact or lookup_candidate.
+2. If they have a phone number: "I'll call [name] at [number]. What's the purpose of the call?"
+3. If no number: "I can't find a phone number for [name]. Do you have their number?"
+4. Confirm: "I'll initiate an AI call to [name] at [number] for [purpose]. Shall I go ahead?"
+5. After success: "Call connected to [name]. I've logged it on their record."
 
 NAVIGATION INTENT DETECTION — detect these patterns and respond accordingly:
 
@@ -2068,12 +2120,23 @@ async function executeTool(
       return { result: inv, entityType: "crm_invoices", entityId: inv?.id };
     }
     case "send_email": {
-      const { data: contact } = await supabaseAdmin
-        .from("crm_contacts")
-        .select("email, first_name, company_id")
+      // Dual-table lookup: try contacts first, fall back to crm_contacts
+      const { data: coreContact } = await supabaseAdmin
+        .from("contacts")
+        .select("email, name, phone, company_id")
         .eq("id", input.contact_id as string)
-        .single();
-      if (!contact?.email) return { result: { error: "Contact has no email address" }, entityType: "crm_contacts" };
+        .maybeSingle();
+      const finalContact = coreContact ?? (await supabaseAdmin
+        .from("crm_contacts")
+        .select("email, first_name, last_name, company_id")
+        .eq("id", input.contact_id as string)
+        .maybeSingle()).data;
+      const contactEmail = finalContact?.email;
+      const contactName = coreContact?.name ??
+        `${(finalContact as any)?.first_name ?? ""} ${(finalContact as any)?.last_name ?? ""}`.trim();
+      const contactCompanyId = finalContact?.company_id;
+
+      if (!contactEmail) return { result: { error: "Contact has no email address" }, entityType: "contacts" };
 
       const { data: keys } = await supabaseAdmin
         .from("integration_settings")
@@ -2090,7 +2153,7 @@ async function executeTool(
         headers: { Authorization: `Bearer ${keyMap.RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           from: keyMap.FROM_EMAIL_ADDRESS,
-          to: contact.email,
+          to: contactEmail,
           subject: input.subject as string,
           html: input.body as string,
         }),
@@ -2103,42 +2166,51 @@ async function executeTool(
         subject: input.subject as string,
         body: (input.body as string).replace(/<[^>]*>/g, "").slice(0, 500),
         contact_id: input.contact_id as string,
-        company_id: contact.company_id,
+        company_id: contactCompanyId,
         status: "completed",
         completed_at: new Date().toISOString(),
         created_by: userId,
       });
-      return { result: { success: true, sent_to: contact.email }, entityType: "email" };
+      return { result: { success: true, sent_to: contactEmail }, entityType: "email" };
     }
     case "send_sms": {
-      const { data: contact } = await supabaseAdmin
-        .from("crm_contacts")
-        .select("mobile, first_name, company_id")
+      // Dual-table lookup: try contacts first, fall back to crm_contacts
+      const { data: coreSmsContact } = await supabaseAdmin
+        .from("contacts")
+        .select("phone, name, company_id")
         .eq("id", input.contact_id as string)
-        .single();
-      if (!contact?.mobile) return { result: { error: "Contact has no mobile number" }, entityType: "crm_contacts" };
+        .maybeSingle();
+      const finalSmsContact = coreSmsContact ?? (await supabaseAdmin
+        .from("crm_contacts")
+        .select("mobile, first_name, last_name, company_id")
+        .eq("id", input.contact_id as string)
+        .maybeSingle()).data;
+      const smsPhone = coreSmsContact?.phone ?? (finalSmsContact as any)?.mobile;
+      const smsCompanyId = finalSmsContact?.company_id;
 
-      const { data: keys } = await supabaseAdmin
+      if (!smsPhone) return { result: { error: "Contact has no phone/mobile number" }, entityType: "contacts" };
+
+      const { data: smsKeys } = await supabaseAdmin
         .from("integration_settings")
         .select("key_name, key_value")
         .eq("user_id", userId)
         .eq("service", "twilio");
-      const keyMap = Object.fromEntries((keys ?? []).map((k: any) => [k.key_name, k.key_value]));
-      if (!keyMap.TWILIO_ACCOUNT_SID || !keyMap.TWILIO_AUTH_TOKEN || !keyMap.TWILIO_PHONE_NUMBER) {
+      const smsKeyMap = Object.fromEntries((smsKeys ?? []).map((k: any) => [k.key_name, k.key_value]));
+      if (!smsKeyMap.TWILIO_ACCOUNT_SID || !smsKeyMap.TWILIO_AUTH_TOKEN || !smsKeyMap.TWILIO_PHONE_NUMBER) {
         return { result: { error: "Twilio integration not configured" }, entityType: "sms" };
       }
 
       const params = new URLSearchParams({
-        From: keyMap.TWILIO_PHONE_NUMBER,
-        To: contact.mobile,
+        From: smsKeyMap.TWILIO_PHONE_NUMBER,
+        To: smsPhone,
         Body: input.message as string,
       });
       const twilioRes = await fetch(
-        `https://api.twilio.com/2010-04-01/Accounts/${keyMap.TWILIO_ACCOUNT_SID}/Messages.json`,
+        `https://api.twilio.com/2010-04-01/Accounts/${smsKeyMap.TWILIO_ACCOUNT_SID}/Messages.json`,
         {
           method: "POST",
           headers: {
-            Authorization: "Basic " + btoa(`${keyMap.TWILIO_ACCOUNT_SID}:${keyMap.TWILIO_AUTH_TOKEN}`),
+            Authorization: "Basic " + btoa(`${smsKeyMap.TWILIO_ACCOUNT_SID}:${smsKeyMap.TWILIO_AUTH_TOKEN}`),
             "Content-Type": "application/x-www-form-urlencoded",
           },
           body: params.toString(),
@@ -2151,7 +2223,7 @@ async function executeTool(
         direction: "outbound",
         body: (input.message as string).slice(0, 500),
         contact_id: input.contact_id as string,
-        company_id: contact.company_id,
+        company_id: smsCompanyId,
         status: "completed",
         completed_at: new Date().toISOString(),
         created_by: userId,

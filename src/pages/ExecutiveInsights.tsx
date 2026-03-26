@@ -99,7 +99,7 @@ function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLab
       </div>
       <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }} className={isEmpty ? 'items-center justify-center' : ''}>
         {isEmpty ? (
-          <div className="flex flex-col items-center justify-center w-full" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}>
+          <div className="flex flex-col items-center justify-center w-full" style={{ flex: 1, border: `1px dashed ${D.border}`, borderRadius: 8 }}>
             <span className="text-xs" style={{ color: D.muted }}>No data yet</span>
           </div>
         ) : children}

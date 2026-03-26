@@ -241,7 +241,7 @@ export function PipelineChevron({
     return m;
   }, [deals]);
 
-  const currentIdx = currentStage ? STAGE_KEYS.indexOf(currentStage) : -1;
+  const currentIdx = currentStage ? STAGE_KEYS.indexOf(currentStage as any) : -1;
 
   if (mode === 'progress') {
     return (

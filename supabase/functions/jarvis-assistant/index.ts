@@ -888,6 +888,23 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "add_note",
+      description: "Add a note to a contact or company record. Use when user says 'add a note', 'make a note', 'note that', 'write this down about [name]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          entity_type: { type: "string", enum: ["contact", "company"], description: "Whether this note is for a contact or company" },
+          entity_id: { type: "string", description: "The UUID of the contact or company" },
+          content: { type: "string", description: "The note text to save" },
+          pinned: { type: "boolean", description: "Whether to pin this note. Default false." },
+        },
+        required: ["entity_type", "entity_id", "content"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "mark_invoice_paid",
       description: "Mark an invoice as paid. Use when user says 'mark invoice paid', '[company] paid', 'invoice received'.",
       parameters: {
@@ -914,6 +931,22 @@ CRITICAL RULES — YOU MUST FOLLOW THESE:
 7. For search queries, call the search tool and present results in a readable format.
 8. If a user asks you to do something outside your tools, politely decline.
 9. RULE: After ANY tool call, check the result object. If it contains an 'error' field, you MUST report the failure clearly — never say 'Done', 'Created', or 'Saved' if the tool returned an error. Say exactly what failed and why.
+
+RULE — NAVIGATE BEFORE ACTING (critical):
+When asked to do something TO or FOR a specific person or company (add a note, log a call, send an email, update a field), you MUST:
+STEP 1: Navigate to their record FIRST using navigate_to_contact_record or navigate_to_company_record. Do this immediately — do not ask questions first.
+STEP 2: Confirm you have found them: "I've opened [Name]'s record. Now I'll add the note."
+STEP 3: THEN collect any missing information needed.
+STEP 4: THEN execute the write tool (add_note, log_call etc).
+This is the correct order: NAVIGATE → CONFIRM → COLLECT → EXECUTE
+NOT the wrong order: COLLECT → EXECUTE → NAVIGATE (this causes the glitch)
+Example — "Add a note on Ken Beinert saying he called back":
+RIGHT: navigate_to_contact_record("Ken Beinert") → say "I've opened Ken's record" → say "What would you like the note to say?" → add_note(entity_type="contact", entity_id=ken_id, content=...)
+Example — "Log a call with Ken":
+RIGHT: navigate_to_contact_record("Ken Beinert") → say "I've opened Ken's record. How did the call go?" → log_call(contact_id=ken_id, ...)
+Example — "Add a note to Iseg saying they are expanding":
+RIGHT: navigate_to_company_record("Iseg") → say "I've opened Iseg's record. Adding your note now." → add_note(entity_type="company", entity_id=iseg_id, ...)
+AFTER CREATION RULE: When you have JUST created a contact or company in the same conversation and the user asks to do something with them, you ALREADY have their ID from the creation tool result. Use that ID directly — call navigate_to_contact_record with their name, then proceed. Do NOT say you cannot find them.
 
 NAVIGATION RULE FOR ACTIONS: When executing any tool that creates, updates, or sends something, you MUST include navigate_to in the result so the UI can take the user to the relevant page after the action completes. Examples:
 - After create_company → navigate_to: "/companies"
@@ -942,6 +975,13 @@ ADDITIONAL INTENT PATTERNS:
 - "add a candidate" / "new candidate [name]" → create_candidate
 - "update [entity] [field] to [value]" / "change [field]" → update_record
 - "delete [entity]" / "remove [name]" → delete_record (ALWAYS confirm first)
+- "add a note on [name]" / "make a note about [name]" / "note that [name] said X" / "write down that [company] is expanding" → add_note
+
+NOTE intents — "add a note on [name]", "make a note about [name]", "note that [name] said X", "write down that [company] is expanding":
+1. Navigate to their record first (navigate_to_contact_record or navigate_to_company_record)
+2. If note content not yet provided: "What would you like the note to say?"
+3. Once confirmed: call add_note with the entity_id from the navigation result
+4. After success: "Note saved on [name]'s record."
 
 UPDATE intents — "change the deal value to £50k", "mark invoice as paid", "update Ken's job title to CTO", "rename the project to X":
 - Ask the user to confirm the change before calling update_record.
@@ -2288,6 +2328,22 @@ async function executeTool(
       };
     }
     case "log_call": {
+      // Resolve contact - check contacts table first for company_id
+      const contactId = input.contact_id as string;
+      let resolvedContactId = contactId;
+      let callCompanyId: string | null = null;
+
+      const { data: coreContact } = await supabaseAdmin
+        .from("contacts")
+        .select("id, company_id")
+        .eq("id", contactId)
+        .maybeSingle();
+
+      if (coreContact) {
+        resolvedContactId = coreContact.id;
+        callCompanyId = coreContact.company_id;
+      }
+
       const { data, error } = await supabaseAdmin
         .from("crm_activities")
         .insert({
@@ -2295,7 +2351,8 @@ async function executeTool(
           direction: "outbound",
           subject: (input.subject as string) || "Call logged",
           body: (input.body as string) || null,
-          contact_id: input.contact_id as string,
+          contact_id: resolvedContactId,
+          company_id: callCompanyId,
           status: "completed",
           completed_at: new Date().toISOString(),
           created_by: userId,
@@ -3666,6 +3723,29 @@ Return ONLY valid JSON, no markdown fences.`,
         .single();
       if (error) return { result: { error: error.message }, entityType: "outreach_targets" };
       return { result: { success: true, navigate_to: "/outreach" }, entityType: "outreach_targets", entityId: data?.id };
+    }
+    case "add_note": {
+      const noteTeamId = await getUserTeamId(supabaseAdmin, userId);
+      const { data, error } = await supabaseAdmin
+        .from("notes")
+        .insert({
+          entity_type: input.entity_type as string,
+          entity_id: input.entity_id as string,
+          content: input.content as string,
+          pinned: (input.pinned as boolean) || false,
+          owner_id: userId,
+          team_id: noteTeamId,
+          source: "voice",
+          visibility: "team",
+        })
+        .select("id")
+        .single();
+      if (error) return { result: { error: error.message }, entityType: "notes" };
+      return {
+        result: { success: true, note_id: data?.id },
+        entityType: "notes",
+        entityId: input.entity_id as string,
+      };
     }
     case "mark_invoice_paid": {
       let invoiceId = input.invoice_id as string;

@@ -214,6 +214,7 @@ const ENTITY_QUERY_KEY_MAP: Record<string, string[]> = {
   sows: ['sows'],
   outreach_campaigns: ['outreach_campaigns'],
   outreach_targets: ['outreach_targets'],
+  notes: ['contact-notes', 'company-notes'],
   jobs: ['jobs'],
   job_adverts: ['job_adverts'],
   job_shortlist: ['job_shortlist'],

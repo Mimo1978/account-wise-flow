@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { JarvisSpotlightProvider, JarvisSpotlightOverlay } from "@/contexts/JarvisSpotlightContext";
+import { ConfirmationProvider } from "@/contexts/ConfirmationContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
@@ -137,6 +138,7 @@ const App = () => {
       <WorkspaceProvider>
       <SearchContextProvider>
       <TooltipProvider>
+        <ConfirmationProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -225,6 +227,7 @@ const App = () => {
           <JarvisFloatingButton />
           </JarvisSpotlightProvider>
         </BrowserRouter>
+      </ConfirmationProvider>
       </TooltipProvider>
       </SearchContextProvider>
       </WorkspaceProvider>

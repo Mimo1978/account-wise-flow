@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { JarvisConfirmationCard, ConfirmCardData } from "@/components/jarvis/JarvisConfirmationCard";
+import { JarvisSuccessBanner, BannerData, buildBannerData } from "@/components/jarvis/JarvisSuccessBanner";
 import {
   Sparkles,
   X,
@@ -563,6 +564,8 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const { settings: jarvisSettings } = useJarvisSettings();
   const [input, setInput] = useState("");
   const [keepListening, setKeepListening] = useState(false);
+  const [bannerData, setBannerData] = useState<BannerData | null>(null);
+  const lastBannerMsgIdx = useRef(-1);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
@@ -882,10 +885,26 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     if (speech.interimTranscript) setInput(speech.interimTranscript);
   }, [speech.interimTranscript]);
 
-  // Speak assistant responses + handle navigation + guided tours
+  // Speak assistant responses + handle navigation + guided tours + success banner
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
+      // Show success banner for completed actions
+      const msgIdx = messages.length - 1;
+      if (
+        msgIdx > lastBannerMsgIdx.current &&
+        last.actionsExecuted?.some((a) => a.success)
+      ) {
+        const banner = buildBannerData(
+          last.actionsExecuted!,
+          last.content,
+          last.navigateTo
+        );
+        if (banner) {
+          lastBannerMsgIdx.current = msgIdx;
+          setBannerData(banner);
+        }
+      }
       // Check for guided tour first
       if (last.guidedTour && last.guidedTour.length > 0) {
         const speakAsync = (text: string) =>
@@ -1149,6 +1168,13 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   }
 
   return (
+    <>
+      {bannerData && (
+        <JarvisSuccessBanner
+          data={bannerData}
+          onDismiss={() => setBannerData(null)}
+        />
+      )}
     <div
       ref={panelRef}
       className={cn(
@@ -1455,6 +1481,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
         </div>
       </div>
     </div>
+    </>
   );
 }
 

@@ -544,20 +544,20 @@ const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "book_diary_event",
-      description: "Book a diary event (call/meeting/task) for the recruiter. Use after the user confirms a time slot.",
+      description: "Book a diary event (call/meeting/task/reminder) for the recruiter. Use after the user confirms a time slot. For reminders (remind me to..., follow up with..., call back...), set event_type='reminder' and end_time=start_time — no availability check needed.",
       parameters: {
         type: "object",
         properties: {
           title: { type: "string" },
           description: { type: "string" },
           start_time: { type: "string", description: "ISO datetime" },
-          end_time: { type: "string", description: "ISO datetime" },
-          event_type: { type: "string", description: "call, meeting, or task" },
+          end_time: { type: "string", description: "ISO datetime. For reminders, set equal to start_time." },
+          event_type: { type: "string", description: "call, meeting, task, or reminder. Use 'reminder' for follow-ups, callbacks, nudges." },
           candidate_name: { type: "string", description: "Candidate name to look up" },
           job_id: { type: "string" },
           contact_name: { type: "string" },
         },
-        required: ["title", "start_time", "end_time"],
+        required: ["title", "start_time"],
       },
     },
   },
@@ -1388,6 +1388,9 @@ OUTREACH EMAIL intents:
    - Call get_outreach_status. Report naturally: "You've sent outreach to [n] candidates for [job title], with [n] still in draft."
 
 DIARY / CALENDAR intents:
+  "take me to my diary" / "show my diary" / "open my schedule":
+   - Navigate to /home, highlight home-diary element.
+   - Say: "Here's your diary on the Command Centre. Your scheduled calls and meetings for this week are here."
   "book a call with [candidate]" / "schedule a call with [name]" / "find a time to speak to [name]":
    - First call find_diary_slots to get available slots.
    - Present 3 options: "I have these slots available: [1], [2], [3]. Which works best?"
@@ -1404,6 +1407,14 @@ DIARY / CALENDAR intents:
    - Present new options, then update when confirmed.
    "what recruitment calls do I have this week":
    - Call get_diary_events with period=this_week, then filter to event_type=call in your response.
+
+REMINDER vs MEETING distinction:
+  MEETINGS (call, meeting): book a time slot, check availability. Use for: client calls, team meetings, interviews.
+  REMINDERS (reminder, task): alert only, no slot needed. Use for: "remind me to call Ken back", "follow up with Acme Thursday", "check in on that invoice Friday".
+  When user says "remind me to...", "follow up with...", "call back...", "check in on..." → book as reminder type, NOT as a meeting. Ask for day/time only, not duration.
+  Example: "Remind me to call Ken Beinert back Thursday morning"
+   → book_diary_event(title: "Call back Ken Beinert", event_type: "reminder", start_time: Thursday 09:00, end_time: Thursday 09:00, contact_id: ken_id)
+   → say "Done — reminder set for Thursday at 9am to call Ken back. You'll see it in your diary on the Command Centre."
 
 RECRUITMENT WORKFLOW — full end-to-end intents:
 
@@ -2426,6 +2437,12 @@ async function executeTool(
         "draw reporting line": { path: "/canvas", action: "click", targetId: "canvas-connect-tool" },
         "delete node": { path: "/canvas", action: "click", targetId: "canvas-delete-node" },
         "remove from chart": { path: "/canvas", action: "click", targetId: "canvas-delete-node" },
+        // Diary / Calendar
+        diary: { path: "/home#diary" },
+        "my diary": { path: "/home#diary" },
+        "this week": { path: "/home#diary" },
+        "my schedule": { path: "/home#diary" },
+        "my calendar": { path: "/home#diary" },
         // Jobs
         jobs: { path: "/jobs" },
         "jobs list": { path: "/jobs" },
@@ -3065,6 +3082,17 @@ Return ONLY valid JSON, no markdown fences.`,
         if (contacts.length > 0) contactId = contacts[0].id;
       }
 
+      const eventType = (input.event_type as string) || "call";
+      const isReminder = eventType === "reminder";
+
+      // For reminders: end_time = start_time, skip availability check, insert directly
+      const startTime = input.start_time as string;
+      const endTime = isReminder ? startTime : (input.end_time as string || startTime);
+
+      if (!isReminder && !input.end_time) {
+        return { result: { error: "end_time required for non-reminder events" }, entityType: "diary_events" };
+      }
+
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const res = await fetch(`${supabaseUrl}/functions/v1/diary-booking`, {
@@ -3076,9 +3104,9 @@ Return ONLY valid JSON, no markdown fences.`,
           workspace_id: teamId,
           title: input.title,
           description: input.description || null,
-          start_time: input.start_time,
-          end_time: input.end_time,
-          event_type: input.event_type || "call",
+          start_time: startTime,
+          end_time: endTime,
+          event_type: eventType,
           candidate_id: candidateId,
           contact_id: contactId,
           job_id: input.job_id || null,
@@ -3086,7 +3114,7 @@ Return ONLY valid JSON, no markdown fences.`,
       });
       const data = await res.json();
       if (!res.ok) return { result: { error: data.error || "Failed to book" }, entityType: "diary_events" };
-      return { result: { ...data, navigate_to: "/home" }, entityType: "diary_events", entityId: data.event?.id };
+      return { result: { ...data, navigate_to: "/home#diary" }, entityType: "diary_events", entityId: data.event?.id };
     }
     case "get_diary_events": {
       const teamId = await getUserTeamId(supabaseAdmin, userId);

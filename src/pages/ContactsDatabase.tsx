@@ -1133,6 +1133,7 @@ export default function ContactsDatabase() {
                         entityTitle={contact.title}
                         entityCompany={(contact as any)._companyName}
                         contactId={contact.id}
+                        companyId={contact.companyId}
                       />
                     </TableCell>
                   </TableRow>

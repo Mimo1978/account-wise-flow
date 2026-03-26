@@ -123,22 +123,15 @@ export default function CrmDealsPage() {
       </div>
 
       {/* Pipeline chevrons */}
-      <div className="flex gap-0 overflow-x-auto" data-jarvis-section="pipeline-snapshot">
-        {PIPELINE_STAGES.map((s, i) => {
-          const data = stageTotals[s.value];
-          const isActive = stageFilter === s.value;
-          return (
-            <button key={s.value} onClick={() => handleStageFilter(s.value)}
-              className={cn(
-                "relative flex-1 min-w-[120px] py-3 px-4 text-center transition-all text-sm cursor-pointer",
-                i === 0 ? "rounded-l-lg" : "", i === PIPELINE_STAGES.length - 1 ? "rounded-r-lg" : "",
-                isActive ? `${s.color} text-white ring-2 ring-white ring-offset-2` : "bg-muted hover:brightness-110 text-foreground",
-              )}>
-              <p className="font-semibold">{s.label}</p>
-              <p className={cn("text-xs", isActive ? "text-white/80" : "text-muted-foreground")}>{data.count} · £{(data.value / 1000).toFixed(0)}k</p>
-            </button>
-          );
-        })}
+      <div data-jarvis-section="pipeline-snapshot">
+        <SharedPipelineChevron
+          mode="filter"
+          deals={deals}
+          selectedStage={stageFilter}
+          onStageClick={(stage) => handleStageFilter(stage)}
+          showCounts={true}
+          showValues={true}
+        />
       </div>
 
       {/* Filters + view toggle */}
@@ -162,7 +155,7 @@ export default function CrmDealsPage() {
           </SelectContent>
         </Select>
         {stageFilter && (
-          <Button variant="ghost" size="sm" onClick={() => handleStageFilter(stageFilter)}>Clear stage filter</Button>
+          <Button variant="ghost" size="sm" onClick={() => handleStageFilter(null)}>Clear stage filter</Button>
         )}
         <div className="ml-auto flex items-center border rounded-md overflow-hidden">
           <button

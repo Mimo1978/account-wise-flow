@@ -169,7 +169,7 @@ export default function CrmDealDetail() {
   const handleStageChange = async (newStage: string) => {
     const { error } = await supabase.from("crm_deals").update({ stage: newStage } as any).eq("id", deal.id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: `Stage updated to ${STAGE_LABELS[newStage]}` });
+    showConfirmation({ type: 'success', title: 'Stage updated', message: `Deal moved to ${STAGE_LABELS[newStage]}.` });
     invalidateDealQueries();
     setStageConfirm(null);
   };
@@ -177,7 +177,8 @@ export default function CrmDealDetail() {
   const handleAssignCompany = async (companyId: string) => {
     const { error } = await supabase.from("crm_deals").update({ company_id: companyId } as any).eq("id", deal.id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Company assigned. You can now assign a contact." });
+    const company = availableCompanies.find(c => c.id === companyId);
+    showConfirmation({ type: 'success', title: 'Company assigned', message: `${company?.name || 'Company'} has been linked to this deal.` });
     setCompanyPopoverOpen(false);
     invalidateDealQueries();
     queryClient.invalidateQueries({ queryKey: ["crm-contacts-company"] });
@@ -186,7 +187,7 @@ export default function CrmDealDetail() {
   const handleAssignContact = async (contactId: string) => {
     const { error } = await supabase.from("crm_deals").update({ contact_id: contactId } as any).eq("id", deal.id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Contact assigned" });
+    showConfirmation({ type: 'success', title: 'Contact assigned', message: 'Contact is now the key contact for this deal.' });
     setContactPopoverOpen(false);
     invalidateDealQueries();
     queryClient.invalidateQueries({ queryKey: ["crm-contact-detail"] });
@@ -195,7 +196,7 @@ export default function CrmDealDetail() {
   const handleLinkProject = async (projectId: string) => {
     const { error } = await supabase.from("crm_deals").update({ project_id: projectId } as any).eq("id", deal.id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Project linked" });
+    showConfirmation({ type: 'success', title: 'Project linked', message: 'Project has been connected to this deal.' });
     setProjectPopoverOpen(false);
     invalidateDealQueries();
     queryClient.invalidateQueries({ queryKey: ["crm-project-detail"] });
@@ -214,7 +215,7 @@ export default function CrmDealDetail() {
     } as any).select().single();
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     await handleAssignContact((newContact as any).id);
-    toast({ title: `${quickContactForm.first_name} ${quickContactForm.last_name} added and assigned.` });
+    showConfirmation({ type: 'success', title: 'Contact added', message: `${quickContactForm.first_name} ${quickContactForm.last_name} added and assigned.` });
     setQuickContactOpen(false);
     setQuickContactForm({ first_name: "", last_name: "", job_title: "", email: "" });
   };
@@ -231,7 +232,7 @@ export default function CrmDealDetail() {
     }).select().single();
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     await handleLinkProject((newProject as any).id);
-    toast({ title: `Project "${quickProjectForm.name}" created and linked.` });
+    showConfirmation({ type: 'success', title: 'Project created', message: `"${quickProjectForm.name}" is ready in your Projects.` });
     setQuickProjectOpen(false);
     setQuickProjectForm({ name: deal.title, project_type: "consulting" });
   };

@@ -128,13 +128,24 @@ export default function DocumentsHub() {
     enabled: !!wsId,
   });
 
-  // Fetch companies for dropdown
+  // Fetch companies for dropdown (merge core + CRM companies, prefer CRM IDs for FK)
   const { data: companies = [] } = useQuery({
-    queryKey: ["companies-list", wsId],
+    queryKey: ["companies-merged-for-docs", wsId],
     queryFn: async () => {
       if (!wsId) return [];
-      const { data } = await supabase.from("companies").select("id, name").eq("team_id", wsId).order("name");
-      return data || [];
+      const [{ data: coreData }, { data: crmData }] = await Promise.all([
+        supabase.from("companies").select("id, name").eq("team_id", wsId).order("name"),
+        supabase.from("crm_companies" as any).select("id, name").order("name"),
+      ]);
+      const crmList = (crmData || []) as { id: string; name: string }[];
+      const coreList = (coreData || []) as { id: string; name: string }[];
+      // Deduplicate by name, preferring CRM company IDs (for FK compatibility)
+      const seen = new Map<string, { id: string; name: string }>();
+      for (const c of crmList) seen.set(c.name.toLowerCase(), c);
+      for (const c of coreList) {
+        if (!seen.has(c.name.toLowerCase())) seen.set(c.name.toLowerCase(), c);
+      }
+      return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
     },
     enabled: !!wsId,
   });

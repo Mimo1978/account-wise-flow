@@ -323,7 +323,7 @@ function QuickAddForm({
             )}
             style={hour !== h ? { background: DARK.border, color: DARK.textSecondary } : undefined}
           >
-            {h <= 12 ? `${h}am` : `${h - 12}pm`}
+            {h < 12 ? `${h}am` : h === 12 ? '12pm' : `${h - 12}pm`}
           </button>
         ))}
       </div>

@@ -115,7 +115,7 @@ export default function CrmDealsPage() {
       </div>
 
       {/* Pipeline chevrons */}
-      <div data-jarvis-section="pipeline-snapshot">
+      <div data-jarvis-section="pipeline-snapshot" style={{ margin: 0, padding: 0, width: '100%', overflow: 'hidden' }}>
         <SharedPipelineChevron
           mode="filter"
           deals={deals}

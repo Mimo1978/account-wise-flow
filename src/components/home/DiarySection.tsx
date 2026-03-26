@@ -1,18 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { format, addDays, startOfDay, isMonday, isSameDay } from 'date-fns';
+import {
+  format, addDays, addWeeks, startOfDay, startOfWeek, endOfWeek,
+  isSameDay, isMonday, isToday, isBefore, getDaysInMonth, startOfMonth,
+  addMonths, subMonths, getDay,
+} from 'date-fns';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import {
   Phone, Video, CheckSquare, CalendarClock, Plus, Bell,
-  MoreHorizontal, X, Check, Clock, PhoneCall, Search,
+  MoreHorizontal, X, Check, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 
 const DARK = {
@@ -23,11 +25,19 @@ const DARK = {
   hover: '#252B3B',
 };
 
+const EVENT_COLORS: Record<string, { border: string; bg: string }> = {
+  call: { border: '#6366f1', bg: 'rgba(99,102,241,0.08)' },
+  meeting: { border: '#34d399', bg: 'rgba(52,211,153,0.08)' },
+  reminder: { border: '#fbbf24', bg: 'rgba(251,191,36,0.08)' },
+  task: { border: '#60a5fa', bg: 'rgba(96,165,250,0.08)' },
+};
+
 const EVENT_ICONS: Record<string, React.ElementType> = {
-  call: Phone,
-  meeting: Video,
-  task: CheckSquare,
-  reminder: Bell,
+  call: Phone, meeting: Video, task: CheckSquare, reminder: Bell,
+};
+
+const TYPE_EMOJI: Record<string, string> = {
+  call: '📞', meeting: '🎥', reminder: '🔔', task: '✅',
 };
 
 type DiaryEvent = {
@@ -44,208 +54,67 @@ type DiaryEvent = {
   job_id: string | null;
 };
 
-// ─── Quick Date/Time helpers ───
-const getQuickDate = (label: string): Date => {
-  const today = startOfDay(new Date());
-  switch (label) {
-    case 'Today': return today;
-    case 'Tomorrow': return addDays(today, 1);
-    case 'This Friday': {
-      const d = new Date(today);
-      const day = d.getDay();
-      d.setDate(d.getDate() + ((5 - day + 7) % 7 || 7));
-      return d;
-    }
-    case 'Next Monday': {
-      const d = new Date(today);
-      const day = d.getDay();
-      d.setDate(d.getDate() + ((1 - day + 7) % 7 || 7));
-      return d;
-    }
-    default: return today;
-  }
-};
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const TIME_PILLS = [9, 10, 11, 12, 13, 14, 15, 16, 17];
+const EVENT_TYPES = ['call', 'meeting', 'reminder', 'task'] as const;
 
-const TIME_OPTIONS = [
-  { label: 'Morning (9am)', hours: 9, minutes: 0 },
-  { label: 'Midday (12pm)', hours: 12, minutes: 0 },
-  { label: 'Afternoon (3pm)', hours: 15, minutes: 0 },
-  { label: 'End of day (5pm)', hours: 17, minutes: 0 },
-];
-
-// ─── Quick Add Reminder Form ───
-function QuickAddReminder({ workspaceId, userId, onClose }: {
-  workspaceId: string;
-  userId: string;
-  onClose: () => void;
+// ─── 7-Day Strip ───
+function WeekStrip({
+  weekStart,
+  selectedDay,
+  onSelectDay,
+  onPrevWeek,
+  onNextWeek,
+  eventDates,
+}: {
+  weekStart: Date;
+  selectedDay: Date;
+  onSelectDay: (d: Date) => void;
+  onPrevWeek: () => void;
+  onNextWeek: () => void;
+  eventDates: Set<string>;
 }) {
-  const qc = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
-  const [dateLabel, setDateLabel] = useState('Today');
-  const [showCustomDate, setShowCustomDate] = useState(false);
-  const [selectedTime, setSelectedTime] = useState(TIME_OPTIONS[0]);
-  const [contactSearch, setContactSearch] = useState('');
-  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
-  const [selectedContactName, setSelectedContactName] = useState('');
-  const [showContactSearch, setShowContactSearch] = useState(false);
-
-  const { data: contactResults = [] } = useQuery({
-    queryKey: ['contact-search-reminder', contactSearch],
-    queryFn: async () => {
-      if (contactSearch.length < 2) return [];
-      const { data } = await supabase
-        .from('contacts')
-        .select('id, name')
-        .ilike('name', `%${contactSearch}%`)
-        .limit(5);
-      return data || [];
-    },
-    enabled: contactSearch.length >= 2,
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const dt = new Date(selectedDate);
-      dt.setHours(selectedTime.hours, selectedTime.minutes, 0, 0);
-      const iso = dt.toISOString();
-      const { error } = await supabase.from('diary_events').insert({
-        workspace_id: workspaceId,
-        user_id: userId,
-        title,
-        event_type: 'reminder',
-        start_time: iso,
-        end_time: iso,
-        status: 'scheduled',
-        contact_id: selectedContactId,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['diary_events'] });
-      toast.success('Reminder saved');
-      onClose();
-    },
-    onError: () => toast.error('Failed to save reminder'),
-  });
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   return (
-    <div className="p-3 space-y-3 rounded-lg border" style={{ background: DARK.card, borderColor: DARK.border }}>
-      <Input
-        placeholder="What's the reminder?"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        className="bg-transparent border-slate-600 text-sm"
-        style={{ color: DARK.text }}
-        autoFocus
-      />
-      <div className="flex gap-2 flex-wrap">
-        {['Today', 'Tomorrow', 'This Friday', 'Next Monday'].map((d) => (
-          <button
-            key={d}
-            onClick={() => { setSelectedDate(getQuickDate(d)); setDateLabel(d); setShowCustomDate(false); }}
-            className={cn(
-              'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-              dateLabel === d ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-            )}
-            style={dateLabel !== d ? { background: DARK.border } : undefined}
-          >
-            {d}
-          </button>
-        ))}
-        <Popover open={showCustomDate} onOpenChange={setShowCustomDate}>
-          <PopoverTrigger asChild>
+    <div className="flex items-center gap-1 mb-4">
+      <button onClick={onPrevWeek} className="p-1 rounded hover:bg-slate-700/50 shrink-0">
+        <ChevronLeft className="w-4 h-4" style={{ color: DARK.textSecondary }} />
+      </button>
+      <div className="flex flex-1 gap-1 justify-between">
+        {days.map((day, i) => {
+          const selected = isSameDay(day, selectedDay);
+          const today = isToday(day);
+          const hasEvents = eventDates.has(format(day, 'yyyy-MM-dd'));
+          return (
             <button
-              onClick={() => { setShowCustomDate(true); setDateLabel('custom'); }}
+              key={i}
+              onClick={() => onSelectDay(day)}
               className={cn(
-                'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-                dateLabel === 'custom' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+                'flex flex-col items-center py-1.5 px-2 rounded-lg transition-all min-w-[40px]',
+                selected ? 'bg-indigo-600' : 'hover:bg-slate-700/40',
               )}
-              style={dateLabel !== 'custom' ? { background: DARK.border } : undefined}
             >
-              {dateLabel === 'custom' ? format(selectedDate, 'dd MMM') : 'Custom'}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(d) => { if (d) { setSelectedDate(d); setDateLabel('custom'); setShowCustomDate(false); } }}
-              className="p-3 pointer-events-auto"
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-      <div className="flex gap-2 flex-wrap">
-        {TIME_OPTIONS.map((t) => (
-          <button
-            key={t.label}
-            onClick={() => setSelectedTime(t)}
-            className={cn(
-              'px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
-              selectedTime.label === t.label ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-            )}
-            style={selectedTime.label !== t.label ? { background: DARK.border } : undefined}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      {/* Contact linker */}
-      <div className="relative">
-        {selectedContactId ? (
-          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs" style={{ background: DARK.border, color: DARK.text }}>
-            <span>{selectedContactName}</span>
-            <button onClick={() => { setSelectedContactId(null); setSelectedContactName(''); }}>
-              <X className="w-3 h-3 text-slate-400" />
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs border" style={{ borderColor: DARK.border }}>
-              <Search className="w-3 h-3 text-slate-500" />
-              <input
-                placeholder="Link to a contact (optional)"
-                value={contactSearch}
-                onChange={(e) => { setContactSearch(e.target.value); setShowContactSearch(true); }}
-                onFocus={() => setShowContactSearch(true)}
-                className="bg-transparent outline-none flex-1 text-xs"
-                style={{ color: DARK.text }}
+              <span className="text-[10px] font-medium" style={{ color: selected ? '#fff' : DARK.textSecondary }}>
+                {DAY_NAMES[i]}
+              </span>
+              <span
+                className="text-sm font-semibold mt-0.5"
+                style={{ color: selected ? '#fff' : today ? '#818CF8' : DARK.text }}
+              >
+                {format(day, 'd')}
+              </span>
+              <span
+                className={cn('w-1 h-1 rounded-full mt-0.5', hasEvents ? '' : 'invisible')}
+                style={{ background: selected ? '#fff' : '#818CF8' }}
               />
-            </div>
-            {showContactSearch && contactResults.length > 0 && (
-              <div className="absolute z-10 mt-1 w-full rounded-md border shadow-lg" style={{ background: DARK.card, borderColor: DARK.border }}>
-                {contactResults.map((c: any) => (
-                  <button
-                    key={c.id}
-                    className="w-full text-left px-3 py-2 text-xs hover:brightness-125"
-                    style={{ color: DARK.text }}
-                    onClick={() => {
-                      setSelectedContactId(c.id);
-                      setSelectedContactName(c.name);
-                      setContactSearch('');
-                      setShowContactSearch(false);
-                    }}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+            </button>
+          );
+        })}
       </div>
-      <div className="flex justify-end gap-2">
-        <Button size="sm" variant="ghost" onClick={onClose} className="text-slate-400 text-xs h-7">Cancel</Button>
-        <Button
-          size="sm"
-          disabled={!title.trim() || saveMutation.isPending}
-          onClick={() => saveMutation.mutate()}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-7"
-        >
-          Save
-        </Button>
-      </div>
+      <button onClick={onNextWeek} className="p-1 rounded hover:bg-slate-700/50 shrink-0">
+        <ChevronRight className="w-4 h-4" style={{ color: DARK.textSecondary }} />
+      </button>
     </div>
   );
 }
@@ -253,68 +122,52 @@ function QuickAddReminder({ workspaceId, userId, onClose }: {
 // ─── Event Row ───
 function EventRow({ evt, onClick }: { evt: DiaryEvent; onClick?: () => void }) {
   const qc = useQueryClient();
+  const colors = EVENT_COLORS[evt.event_type] || EVENT_COLORS.task;
   const Icon = EVENT_ICONS[evt.event_type] || CalendarClock;
   const startDate = new Date(evt.start_time);
-  const endDate = new Date(evt.end_time);
-  const isReminder = evt.event_type === 'reminder';
-  const isZeroDuration = evt.start_time === evt.end_time;
 
   const updateStatus = useMutation({
     mutationFn: async (status: string) => {
-      const { error } = await supabase
-        .from('diary_events')
-        .update({ status })
-        .eq('id', evt.id);
+      const { error } = await supabase.from('diary_events').update({ status }).eq('id', evt.id);
       if (error) throw error;
     },
     onSuccess: (_, status) => {
-      qc.invalidateQueries({ queryKey: ['diary_events'] });
-      toast.success(status === 'completed' ? 'Marked complete' : status === 'cancelled' ? 'Cancelled' : 'Updated');
+      qc.invalidateQueries({ queryKey: ['diary_events'], exact: false });
+      toast.success(status === 'completed' ? 'Marked complete' : status === 'cancelled' ? 'Cancelled' : 'Dismissed');
     },
   });
 
   return (
     <div
-      className="group flex items-center gap-3 py-2.5 px-2 transition-colors rounded-lg cursor-pointer hover:brightness-110"
+      className="group flex items-center gap-3 py-2 px-2 transition-colors rounded-lg cursor-pointer hover:brightness-110"
       onClick={onClick}
-      style={{ background: 'transparent' }}
     >
-      <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: isReminder ? '#F59E0B20' : '#6366F120' }}>
-        <Icon className="w-4 h-4" style={{ color: isReminder ? '#FBBF24' : '#818CF8' }} />
+      <span className="text-[11px] font-mono shrink-0 w-10 text-right" style={{ color: DARK.textSecondary }}>
+        {format(startDate, 'HH:mm')}
+      </span>
+      <div
+        className="flex items-center gap-2.5 flex-1 min-w-0 rounded-md px-3 py-2"
+        style={{ background: colors.bg, borderLeft: `3px solid ${colors.border}` }}
+      >
+        <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: colors.border }} />
+        <span className="text-sm font-medium truncate" style={{ color: DARK.text }}>{evt.title}</span>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate" style={{ color: DARK.text }}>{evt.title}</p>
-        <p className="text-xs" style={{ color: DARK.textSecondary }}>
-          {format(startDate, 'EEEE')} · {isZeroDuration
-            ? format(startDate, 'HH:mm')
-            : `${format(startDate, 'HH:mm')}–${format(endDate, 'HH:mm')}`}
-        </p>
-      </div>
-      <span className="text-xs shrink-0" style={{ color: DARK.textSecondary }}>{format(startDate, 'dd MMM')}</span>
-
-      {/* Inline actions on hover */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        {isReminder && (
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+        {evt.event_type === 'reminder' && (
           <>
-            <button
-              onClick={(e) => { e.stopPropagation(); updateStatus.mutate('completed'); }}
-              className="p-1 rounded hover:bg-green-900/30"
-              title="Done"
-            >
+            <button onClick={e => { e.stopPropagation(); updateStatus.mutate('completed'); }}
+              className="p-1 rounded hover:bg-green-900/30" title="Done">
               <Check className="w-3.5 h-3.5 text-green-400" />
             </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); updateStatus.mutate('dismissed'); }}
-              className="p-1 rounded hover:bg-red-900/30"
-              title="Dismiss"
-            >
+            <button onClick={e => { e.stopPropagation(); updateStatus.mutate('dismissed'); }}
+              className="p-1 rounded hover:bg-red-900/30" title="Dismiss">
               <X className="w-3.5 h-3.5 text-red-400" />
             </button>
           </>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button onClick={(e) => e.stopPropagation()} className="p-1 rounded hover:bg-slate-700/50">
+            <button onClick={e => e.stopPropagation()} className="p-1 rounded hover:bg-slate-700/50">
               <MoreHorizontal className="w-3.5 h-3.5 text-slate-400" />
             </button>
           </DropdownMenuTrigger>
@@ -332,26 +185,206 @@ function EventRow({ evt, onClick }: { evt: DiaryEvent; onClick?: () => void }) {
   );
 }
 
-// ─── Main Diary Section ───
+// ─── Mini Calendar for Quick-Add ───
+function MiniCalendar({
+  selectedDay,
+  onSelect,
+  eventDates,
+}: {
+  selectedDay: Date;
+  onSelect: (d: Date) => void;
+  eventDates: Set<string>;
+}) {
+  const [viewMonth, setViewMonth] = useState(startOfMonth(selectedDay));
+
+  const daysInMonth = getDaysInMonth(viewMonth);
+  const firstDayIdx = (getDay(viewMonth) + 6) % 7; // Mon=0
+  const cells: (Date | null)[] = [];
+  for (let i = 0; i < firstDayIdx; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push(new Date(viewMonth.getFullYear(), viewMonth.getMonth(), d));
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <button onClick={() => setViewMonth(subMonths(viewMonth, 1))} className="p-0.5 rounded hover:bg-slate-700/50">
+          <ChevronLeft className="w-3.5 h-3.5" style={{ color: DARK.textSecondary }} />
+        </button>
+        <span className="text-xs font-medium" style={{ color: DARK.text }}>{format(viewMonth, 'MMMM yyyy')}</span>
+        <button onClick={() => setViewMonth(addMonths(viewMonth, 1))} className="p-0.5 rounded hover:bg-slate-700/50">
+          <ChevronRight className="w-3.5 h-3.5" style={{ color: DARK.textSecondary }} />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-0.5 text-center">
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((h, i) => (
+          <span key={i} className="text-[10px] font-medium py-0.5" style={{ color: DARK.textSecondary }}>{h}</span>
+        ))}
+        {cells.map((day, i) => {
+          if (!day) return <span key={`e-${i}`} />;
+          const sel = isSameDay(day, selectedDay);
+          const today = isToday(day);
+          const hasEvt = eventDates.has(format(day, 'yyyy-MM-dd'));
+          return (
+            <button
+              key={i}
+              onClick={() => onSelect(day)}
+              className={cn(
+                'relative flex flex-col items-center justify-center w-[26px] h-[26px] mx-auto rounded-full text-[11px] font-medium transition-colors',
+                sel ? 'bg-indigo-600 text-white' : 'hover:bg-slate-700/40',
+              )}
+              style={!sel ? { color: today ? '#818CF8' : DARK.text } : undefined}
+            >
+              {format(day, 'd')}
+              {hasEvt && (
+                <span className="absolute bottom-0 w-1 h-1 rounded-full" style={{ background: sel ? '#fff' : '#818CF8' }} />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Inline Quick-Add Form ───
+function QuickAddForm({
+  workspaceId,
+  userId,
+  selectedDay,
+  eventDates,
+  onClose,
+}: {
+  workspaceId: string;
+  userId: string;
+  selectedDay: Date;
+  eventDates: Set<string>;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState(selectedDay);
+  const [hour, setHour] = useState<number | null>(null);
+  const [eventType, setEventType] = useState<typeof EVENT_TYPES[number]>('reminder');
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const dt = new Date(date);
+      const h = hour ?? 9;
+      dt.setHours(h, 0, 0, 0);
+      const iso = dt.toISOString();
+      let endIso = iso;
+      if (eventType === 'call') {
+        const end = new Date(dt); end.setMinutes(30);
+        endIso = end.toISOString();
+      } else if (eventType === 'meeting') {
+        const end = new Date(dt); end.setHours(h + 1);
+        endIso = end.toISOString();
+      }
+      const { error } = await supabase.from('diary_events').insert({
+        workspace_id: workspaceId,
+        user_id: userId,
+        title,
+        event_type: eventType,
+        start_time: iso,
+        end_time: endIso,
+        status: 'scheduled',
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['diary_events'], exact: false });
+      toast.success('Event added');
+      onClose();
+    },
+    onError: () => toast.error('Failed to save'),
+  });
+
+  return (
+    <div className="space-y-3 p-3 rounded-lg border mt-2" style={{ background: DARK.hover, borderColor: DARK.border }}>
+      <Input
+        placeholder="Call back Ken / Meeting with Acme / Remind me to..."
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        className="bg-transparent border-slate-600 text-sm"
+        style={{ color: DARK.text }}
+        autoFocus
+      />
+      <MiniCalendar selectedDay={date} onSelect={setDate} eventDates={eventDates} />
+      {/* Time pills */}
+      <div className="flex gap-1 flex-wrap">
+        {TIME_PILLS.map(h => (
+          <button
+            key={h}
+            onClick={() => setHour(hour === h ? null : h)}
+            className={cn(
+              'px-2 py-1 rounded text-[11px] font-medium transition-colors',
+              hour === h ? 'bg-indigo-600 text-white' : 'hover:text-white',
+            )}
+            style={hour !== h ? { background: DARK.border, color: DARK.textSecondary } : undefined}
+          >
+            {h <= 12 ? `${h}am` : `${h - 12}pm`}
+          </button>
+        ))}
+      </div>
+      {/* Type pills */}
+      <div className="flex gap-1.5">
+        {EVENT_TYPES.map(t => (
+          <button
+            key={t}
+            onClick={() => setEventType(t)}
+            className={cn(
+              'flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors',
+              eventType === t ? 'text-white' : 'hover:text-white',
+            )}
+            style={{
+              background: eventType === t ? EVENT_COLORS[t].border : DARK.border,
+              color: eventType !== t ? DARK.textSecondary : undefined,
+            }}
+          >
+            {TYPE_EMOJI[t]} {t.charAt(0).toUpperCase() + t.slice(1)}
+          </button>
+        ))}
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={onClose} className="text-slate-400 text-xs h-7">Cancel</Button>
+        <Button
+          size="sm"
+          disabled={!title.trim() || saveMutation.isPending}
+          onClick={() => saveMutation.mutate()}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs h-7"
+        >
+          Save
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Export ───
 export function DiarySection({ workspaceId, userId }: { workspaceId: string | undefined; userId: string | undefined }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'schedule' | 'reminders'>('schedule');
-  const [showAddReminder, setShowAddReminder] = useState(false);
+  const today = startOfDay(new Date());
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 1 }));
+  const [selectedDay, setSelectedDay] = useState(today);
+  const [showAdd, setShowAdd] = useState(false);
+
+  // Fetch 4 weeks of events for dot indicators
+  const fetchStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), []);
+  const fetchEnd = useMemo(() => addWeeks(fetchStart, 4), [fetchStart]);
 
   const { data: allEvents = [] } = useQuery({
-    queryKey: ['diary_events', workspaceId],
+    queryKey: ['diary_events', workspaceId, 'diary-widget'],
     queryFn: async () => {
       if (!workspaceId) return [];
-      const now = new Date();
-      const end = addDays(now, 7);
       const { data, error } = await supabase
         .from('diary_events')
         .select('id, title, description, start_time, end_time, event_type, status, candidate_id, contact_id, company_id, job_id')
         .eq('workspace_id', workspaceId)
         .in('status', ['scheduled'])
-        .gte('start_time', now.toISOString())
-        .lte('start_time', end.toISOString())
+        .gte('start_time', fetchStart.toISOString())
+        .lte('start_time', fetchEnd.toISOString())
         .order('start_time');
       if (error) return [];
       return (data || []) as DiaryEvent[];
@@ -360,95 +393,19 @@ export function DiarySection({ workspaceId, userId }: { workspaceId: string | un
     refetchInterval: 30000,
   });
 
-  const scheduleEvents = allEvents.filter((e) => e.event_type !== 'reminder');
-  const reminderEvents = allEvents.filter((e) => e.event_type === 'reminder');
+  // Set of dates with events (for dot indicators)
+  const eventDates = useMemo(() => {
+    const s = new Set<string>();
+    for (const e of allEvents) s.add(format(new Date(e.start_time), 'yyyy-MM-dd'));
+    return s;
+  }, [allEvents]);
 
-  // ─── Auto-reminders (Monday mornings only) ───
-  useEffect(() => {
-    if (!workspaceId || !userId) return;
-    const today = new Date();
-    if (!isMonday(today)) return;
-    if (today.getHours() > 10) return; // Only run before 10am
-
-    const createAutoReminders = async () => {
-      const todayStart = startOfDay(today);
-      const todayIso = todayStart.toISOString();
-      const morningIso = new Date(todayStart.setHours(9, 0, 0, 0)).toISOString();
-
-      // Check existing auto-reminders for today
-      const { data: existingToday } = await supabase
-        .from('diary_events')
-        .select('title')
-        .eq('workspace_id', workspaceId)
-        .eq('user_id', userId)
-        .eq('event_type', 'reminder')
-        .gte('start_time', todayIso)
-        .lte('start_time', addDays(todayStart, 1).toISOString());
-
-      const existingTitles = new Set((existingToday || []).map((e: any) => e.title));
-      const newReminders: any[] = [];
-
-      // Condition 1: Overdue invoices
-      const { data: overdueInvoices } = await supabase
-        .from('crm_invoices')
-        .select('id, invoice_number, company_id, crm_companies:company_id(name)')
-        .eq('status', 'unpaid')
-        .lt('due_date', format(today, 'yyyy-MM-dd'));
-
-      for (const inv of (overdueInvoices || []).slice(0, 3)) {
-        const companyName = (inv as any).crm_companies?.name || 'Unknown';
-        const title = `Overdue invoice — ${companyName}`;
-        if (!existingTitles.has(title)) {
-          newReminders.push({
-            workspace_id: workspaceId,
-            user_id: userId,
-            title,
-            event_type: 'reminder',
-            start_time: morningIso,
-            end_time: morningIso,
-            status: 'scheduled',
-            company_id: inv.company_id,
-          });
-        }
-        if (newReminders.length >= 5) break;
-      }
-
-      // Condition 2: Stale deals (no update in 14 days)
-      if (newReminders.length < 5) {
-        const staleDate = addDays(today, -14).toISOString();
-        const { data: staleDeals } = await supabase
-          .from('crm_deals')
-          .select('id, title, company_id')
-          .lt('updated_at', staleDate)
-          .not('stage', 'in', '("closed_won","closed_lost")')
-          .limit(5 - newReminders.length);
-
-        for (const deal of staleDeals || []) {
-          const title = `Chase deal — ${deal.title}`;
-          if (!existingTitles.has(title)) {
-            newReminders.push({
-              workspace_id: workspaceId,
-              user_id: userId,
-              title,
-              event_type: 'reminder',
-              start_time: morningIso,
-              end_time: morningIso,
-              status: 'scheduled',
-              company_id: deal.company_id,
-            });
-          }
-          if (newReminders.length >= 5) break;
-        }
-      }
-
-      if (newReminders.length > 0) {
-        await supabase.from('diary_events').insert(newReminders);
-        qc.invalidateQueries({ queryKey: ['diary_events'] });
-      }
-    };
-
-    createAutoReminders();
-  }, [workspaceId, userId, qc]);
+  // Events for selected day
+  const dayEvents = useMemo(() => {
+    const dayStr = format(selectedDay, 'yyyy-MM-dd');
+    return allEvents.filter(e => format(new Date(e.start_time), 'yyyy-MM-dd') === dayStr)
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+  }, [allEvents, selectedDay]);
 
   const handleEventClick = useCallback((evt: DiaryEvent) => {
     if (evt.contact_id) navigate(`/contacts/${evt.contact_id}`);
@@ -456,85 +413,113 @@ export function DiarySection({ workspaceId, userId }: { workspaceId: string | un
     else if (evt.company_id) navigate(`/companies/${evt.company_id}`);
   }, [navigate]);
 
-  const displayEvents = activeTab === 'schedule' ? scheduleEvents : reminderEvents;
+  // ─── Auto-reminders (Monday mornings) ───
+  useEffect(() => {
+    if (!workspaceId || !userId) return;
+    const now = new Date();
+    if (!isMonday(now) || now.getHours() > 10) return;
+
+    const run = async () => {
+      const todayStart = startOfDay(now);
+      const morningIso = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate(), 9).toISOString();
+
+      const { data: existingToday } = await supabase
+        .from('diary_events').select('title')
+        .eq('workspace_id', workspaceId).eq('user_id', userId).eq('event_type', 'reminder')
+        .gte('start_time', todayStart.toISOString())
+        .lte('start_time', addDays(todayStart, 1).toISOString());
+
+      const existingTitles = new Set((existingToday || []).map((e: any) => e.title));
+      const newReminders: any[] = [];
+
+      const { data: overdueInvoices } = await supabase
+        .from('crm_invoices')
+        .select('id, invoice_number, company_id, crm_companies:company_id(name)')
+        .eq('status', 'unpaid')
+        .lt('due_date', format(now, 'yyyy-MM-dd'));
+
+      for (const inv of (overdueInvoices || []).slice(0, 3)) {
+        const companyName = (inv as any).crm_companies?.name || 'Unknown';
+        const t = `Overdue invoice — ${companyName}`;
+        if (!existingTitles.has(t)) {
+          newReminders.push({ workspace_id: workspaceId, user_id: userId, title: t, event_type: 'reminder', start_time: morningIso, end_time: morningIso, status: 'scheduled', company_id: inv.company_id });
+        }
+        if (newReminders.length >= 5) break;
+      }
+
+      if (newReminders.length < 5) {
+        const staleDate = addDays(now, -14).toISOString();
+        const { data: staleDeals } = await supabase
+          .from('crm_deals').select('id, title, company_id')
+          .lt('updated_at', staleDate)
+          .not('stage', 'in', '("closed_won","closed_lost")')
+          .limit(5 - newReminders.length);
+        for (const deal of staleDeals || []) {
+          const t = `Chase deal — ${deal.title}`;
+          if (!existingTitles.has(t)) {
+            newReminders.push({ workspace_id: workspaceId, user_id: userId, title: t, event_type: 'reminder', start_time: morningIso, end_time: morningIso, status: 'scheduled', company_id: deal.company_id });
+          }
+          if (newReminders.length >= 5) break;
+        }
+      }
+
+      if (newReminders.length > 0) {
+        await supabase.from('diary_events').insert(newReminders);
+        qc.invalidateQueries({ queryKey: ['diary_events'], exact: false });
+      }
+    };
+    run();
+  }, [workspaceId, userId, qc]);
 
   return (
     <div>
-      {/* Tabs + Quick add */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex gap-1 p-0.5 rounded-lg" style={{ background: DARK.border }}>
-          <button
-            onClick={() => setActiveTab('schedule')}
-            className={cn(
-              'px-3 py-1 rounded-md text-xs font-medium transition-colors',
-              activeTab === 'schedule' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-            )}
-          >
-            Schedule
-          </button>
-          <button
-            onClick={() => setActiveTab('reminders')}
-            className={cn(
-              'px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5',
-              activeTab === 'reminders' ? 'bg-amber-600 text-white' : 'text-slate-400 hover:text-white'
-            )}
-          >
-            Reminders
-            {reminderEvents.length > 0 && (
-              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold bg-amber-500 text-white">
-                {reminderEvents.length}
-              </span>
-            )}
-          </button>
-        </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-xs h-7 gap-1 text-indigo-400 hover:text-indigo-300 hover:bg-indigo-900/20"
-          onClick={() => setShowAddReminder(!showAddReminder)}
-        >
-          <Plus className="w-3 h-3" /> Reminder
-        </Button>
-      </div>
+      {/* Week strip */}
+      <WeekStrip
+        weekStart={weekStart}
+        selectedDay={selectedDay}
+        onSelectDay={setSelectedDay}
+        onPrevWeek={() => setWeekStart(addWeeks(weekStart, -1))}
+        onNextWeek={() => setWeekStart(addWeeks(weekStart, 1))}
+        eventDates={eventDates}
+      />
 
-      {/* Quick add form */}
-      {showAddReminder && workspaceId && userId && (
-        <div className="mb-3">
-          <QuickAddReminder
-            workspaceId={workspaceId}
-            userId={userId}
-            onClose={() => setShowAddReminder(false)}
-          />
+      {/* Day label */}
+      <p className="text-xs font-medium mb-2" style={{ color: DARK.textSecondary }}>
+        {isSameDay(selectedDay, today) ? 'Today' : format(selectedDay, 'EEEE, d MMMM')}
+        {dayEvents.length > 0 && ` · ${dayEvents.length} event${dayEvents.length !== 1 ? 's' : ''}`}
+      </p>
+
+      {/* Event list */}
+      {dayEvents.length === 0 && !showAdd ? (
+        <div className="text-center py-6">
+          <p className="text-sm" style={{ color: DARK.textSecondary }}>Nothing scheduled — add one below</p>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {dayEvents.map(evt => (
+            <EventRow key={evt.id} evt={evt} onClick={() => handleEventClick(evt)} />
+          ))}
         </div>
       )}
 
-      {/* Event list */}
-      {displayEvents.length === 0 ? (
-        <div className="flex flex-col items-center justify-center text-center py-8">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: DARK.border }}>
-            {activeTab === 'schedule'
-              ? <CalendarClock className="w-6 h-6" style={{ color: DARK.textSecondary }} />
-              : <Bell className="w-6 h-6" style={{ color: DARK.textSecondary }} />}
-          </div>
-          <p className="text-sm font-medium" style={{ color: DARK.text }}>
-            {activeTab === 'schedule' ? 'No events this week' : 'No reminders'}
-          </p>
-          <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>
-            {activeTab === 'schedule'
-              ? 'Booked calls, meetings and tasks will appear here.'
-              : 'Reminders and follow-ups will appear here.'}
-          </p>
-        </div>
+      {/* Quick-add trigger / form */}
+      {showAdd && workspaceId && userId ? (
+        <QuickAddForm
+          workspaceId={workspaceId}
+          userId={userId}
+          selectedDay={selectedDay}
+          eventDates={eventDates}
+          onClose={() => setShowAdd(false)}
+        />
       ) : (
-        <div className="space-y-0 divide-y" style={{ borderColor: DARK.border }}>
-          {displayEvents.map((evt) => (
-            <EventRow
-              key={evt.id}
-              evt={evt}
-              onClick={() => handleEventClick(evt)}
-            />
-          ))}
-        </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="w-full flex items-center gap-2 py-2.5 mt-2 rounded-lg border border-dashed transition-colors hover:border-indigo-500/50 hover:bg-indigo-500/5"
+          style={{ borderColor: DARK.border, color: DARK.textSecondary }}
+        >
+          <Plus className="w-4 h-4 ml-3" />
+          <span className="text-xs">Add event or reminder...</span>
+        </button>
       )}
     </div>
   );

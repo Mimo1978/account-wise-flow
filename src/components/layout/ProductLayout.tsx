@@ -416,7 +416,10 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
       })()}
 
       {/* Page Content */}
-      <div className="flex-1">
+      <div className="flex-1 page-accent-wrapper" style={(() => {
+        const accent = getNavColour(location.pathname);
+        return accent ? { '--page-accent': accent } as React.CSSProperties : {};
+      })()}>
         {children}
       </div>
     </div>

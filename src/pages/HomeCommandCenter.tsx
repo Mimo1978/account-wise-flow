@@ -1,7 +1,9 @@
 import { PipelineChevron as SharedPipelineChevron } from '@/components/pipeline/PipelineChevron';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { DiarySection } from '@/components/home/DiarySection';
 import { useEngagements } from '@/hooks/use-engagements';
 import { useSows, type Sow } from '@/hooks/use-sows';
 import { useInvoices, type Invoice } from '@/hooks/use-invoices';
@@ -281,6 +283,7 @@ const HomeCommandCenter = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentWorkspace, refreshWorkspaces } = useWorkspace();
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [sowOpen, setSowOpen] = useState(false);

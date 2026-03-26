@@ -281,18 +281,29 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                   <Link
                     to="/admin"
                     data-jarvis-id="nav-admin"
-                    className={`flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap
-                      ${isActive('/admin')
-                        ? 'text-[#378ADD]'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
-                      }
-                    `}
+                    className="group/nav flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap"
                     style={{
-                      borderBottom: isActive('/admin') ? '2px solid #378ADD' : '2px solid transparent',
+                      background: isActive('/admin') ? 'rgba(232,121,249,0.12)' : undefined,
+                      color: isActive('/admin') ? '#e879f9' : undefined,
+                      borderBottom: isActive('/admin') ? '2px solid #e879f9' : '2px solid transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive('/admin')) {
+                        e.currentTarget.style.borderBottom = '2px solid #e879f9';
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive('/admin')) {
+                        e.currentTarget.style.borderBottom = '2px solid transparent';
+                        e.currentTarget.style.background = '';
+                      }
                     }}
                   >
+                    <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, backgroundColor: '#e879f9', opacity: isActive('/admin') ? 1 : 0.7 }} />
                     <ShieldCheck className="w-4 h-4" />
-                    Admin
+                    <span style={{ opacity: isActive('/admin') ? 1 : 0.5, transition: 'opacity 150ms' }}
+                      className="group-hover/nav:!opacity-100">Admin</span>
                   </Link>
                 </span>
               )}

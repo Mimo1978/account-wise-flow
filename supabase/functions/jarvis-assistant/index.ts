@@ -3612,7 +3612,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       contacts: ["contacts", "company-contacts", "crm_contacts", "all-contacts"],
       crm_companies: ["crm_companies"],
       crm_contacts: ["crm_contacts"],
-      crm_projects: ["crm_projects"],
+      crm_projects: ["crm_projects", "engagements"],
       crm_opportunities: ["crm_opportunities"],
       crm_deals: ["crm_deals"],
       crm_invoices: ["crm_invoices"],

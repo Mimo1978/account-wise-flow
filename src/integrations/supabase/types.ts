@@ -1782,60 +1782,87 @@ export type Database = {
       crm_documents: {
         Row: {
           company_id: string | null
+          contact_id: string | null
           created_at: string
           created_by: string
+          currency: string | null
           deal_id: string | null
           deleted_at: string | null
           deleted_by: string | null
           deletion_reason: string | null
           deletion_scheduled_purge_at: string | null
+          end_date: string | null
+          file_name: string | null
           file_url: string | null
           id: string
+          name: string | null
+          notes: string | null
           sent_at: string | null
           signed_at: string | null
+          start_date: string | null
           status: string
           title: string
           type: string
           updated_at: string
+          value: number | null
           version: number
+          workspace_id: string | null
         }
         Insert: {
           company_id?: string | null
+          contact_id?: string | null
           created_at?: string
           created_by?: string
+          currency?: string | null
           deal_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_reason?: string | null
           deletion_scheduled_purge_at?: string | null
+          end_date?: string | null
+          file_name?: string | null
           file_url?: string | null
           id?: string
+          name?: string | null
+          notes?: string | null
           sent_at?: string | null
           signed_at?: string | null
+          start_date?: string | null
           status?: string
           title: string
           type?: string
           updated_at?: string
+          value?: number | null
           version?: number
+          workspace_id?: string | null
         }
         Update: {
           company_id?: string | null
+          contact_id?: string | null
           created_at?: string
           created_by?: string
+          currency?: string | null
           deal_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_reason?: string | null
           deletion_scheduled_purge_at?: string | null
+          end_date?: string | null
+          file_name?: string | null
           file_url?: string | null
           id?: string
+          name?: string | null
+          notes?: string | null
           sent_at?: string | null
           signed_at?: string | null
+          start_date?: string | null
           status?: string
           title?: string
           type?: string
           updated_at?: string
+          value?: number | null
           version?: number
+          workspace_id?: string | null
         }
         Relationships: [
           {
@@ -1846,10 +1873,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "crm_documents_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "crm_documents_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_documents_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]

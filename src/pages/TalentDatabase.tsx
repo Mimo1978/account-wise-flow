@@ -643,7 +643,7 @@ export default function TalentDatabase() {
 
   // Get cell styles based on view preferences and pinning
   // isHeader determines z-index stacking (headers above body cells)
-  const getCellStyles = (columnId: string, isHeader: boolean = false): React.CSSProperties => {
+  const getCellStyles = (columnId: string, isHeader: boolean = false, rowBackground?: string): React.CSSProperties => {
     const baseWidth = getColumnWidth(columnId);
     const pinPosition = isPinned(columnId);
     
@@ -669,6 +669,8 @@ export default function TalentDatabase() {
         position: "sticky",
         left: leftOffsets[columnId] ?? 0,
         zIndex: isHeader ? 30 : 20,
+        background: isHeader ? "hsl(var(--muted))" : (rowBackground ?? "hsl(var(--card))"),
+        backgroundClip: "padding-box",
         // Shadow divider on last left-pinned column
         boxShadow: isLastLeftPinned(columnId) 
           ? "4px 0 8px -4px hsl(var(--foreground) / 0.12)" 
@@ -680,6 +682,8 @@ export default function TalentDatabase() {
         position: "sticky",
         right: rightOffsets[columnId] ?? 0,
         zIndex: isHeader ? 30 : 20,
+        background: isHeader ? "hsl(var(--muted))" : (rowBackground ?? "hsl(var(--card))"),
+        backgroundClip: "padding-box",
         // Shadow divider on first right-pinned column
         boxShadow: isFirstRightPinned(columnId) 
           ? "-4px 0 8px -4px hsl(var(--foreground) / 0.12)" 
@@ -695,13 +699,15 @@ export default function TalentDatabase() {
   };
 
   // Get checkbox column styles (always sticky left)
-  const getCheckboxCellStyles = (isHeader: boolean = false): React.CSSProperties => ({
+  const getCheckboxCellStyles = (isHeader: boolean = false, rowBackground?: string): React.CSSProperties => ({
     position: "sticky",
     left: 0,
     width: CHECKBOX_COL_WIDTH,
     minWidth: CHECKBOX_COL_WIDTH,
     maxWidth: CHECKBOX_COL_WIDTH,
     zIndex: isHeader ? 31 : 21, // Slightly higher than other pinned cols
+    background: isHeader ? "hsl(var(--muted))" : (rowBackground ?? "hsl(var(--card))"),
+    backgroundClip: "padding-box",
   });
 
   return (
@@ -1075,7 +1081,7 @@ export default function TalentDatabase() {
                     
                   const rowBg = index % 2 === 1
                     ? "rgba(255,255,255,0.03)"
-                    : "transparent";
+                    : "hsl(var(--card))";
                   return (
                     <TableRow
                       key={talent.id}
@@ -1086,7 +1092,7 @@ export default function TalentDatabase() {
                       <TableCell 
                         onClick={(e) => e.stopPropagation()} 
                         className="relative"
-                        style={{ ...getCheckboxCellStyles(false), background: rowBg }}
+                        style={getCheckboxCellStyles(false, rowBg)}
                       >
                         <div className="flex items-center gap-1">
                           <Checkbox
@@ -1134,7 +1140,7 @@ export default function TalentDatabase() {
                               // Pinned cells override with slightly different styling on hover
                               pinPosition && "group-hover/row:bg-muted/50"
                             )}
-                            style={{ ...getCellStyles(column.id, false), ...(pinPosition ? { background: rowBg } : {}) }}
+                            style={getCellStyles(column.id, false, rowBg)}
                           >
                             <div className="min-w-0 overflow-hidden text-ellipsis">
                               {renderCellContent(column.id, talent, viewPreferences.wrapText)}

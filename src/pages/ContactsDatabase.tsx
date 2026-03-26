@@ -862,7 +862,7 @@ export default function ContactsDatabase() {
                   ? "rgba(99,102,241,0.12)"
                   : index % 2 === 1
                     ? "rgba(255,255,255,0.03)"
-                    : "transparent";
+                    : "hsl(var(--card))";
                 return (
                   <TableRow
                     key={contact.id}

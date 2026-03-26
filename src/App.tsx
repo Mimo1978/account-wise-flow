@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { FlashConfirmOverlay } from "@/components/ui/flash-confirm";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { JarvisSpotlightProvider, JarvisSpotlightOverlay } from "@/contexts/JarvisSpotlightContext";
 import { ConfirmationProvider } from "@/contexts/ConfirmationContext";
@@ -141,6 +142,7 @@ const App = () => {
         <ConfirmationProvider>
         <Toaster />
         <Sonner />
+        <FlashConfirmOverlay />
         <BrowserRouter>
           <JarvisSpotlightProvider>
           <JarvisSpotlightOverlay />

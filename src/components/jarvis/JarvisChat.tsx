@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { JarvisConfirmationCard, ConfirmCardData } from "@/components/jarvis/JarvisConfirmationCard";
+import { JarvisSuccessBanner, BannerData, buildBannerData } from "@/components/jarvis/JarvisSuccessBanner";
 import {
   Sparkles,
   X,

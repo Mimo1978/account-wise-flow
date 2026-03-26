@@ -115,8 +115,14 @@ export default function EmailTemplatesSettings() {
               ) : templates.length === 0 ? (
                 <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No templates yet</TableCell></TableRow>
               ) : (
-                templates.map(t => (
-                  <TableRow key={t.id}>
+                templates.map((t, index) => (
+                  <TableRow key={t.id} className="cursor-pointer"
+                    style={{
+                      background: index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                      transition: 'background 0.1s ease',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}>
                     <TableCell className="font-medium">{t.name}</TableCell>
                     <TableCell className="text-muted-foreground truncate max-w-[200px]">{t.subject}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{formatDistanceToNow(new Date(t.updated_at), { addSuffix: true })}</TableCell>

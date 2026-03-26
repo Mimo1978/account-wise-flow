@@ -231,11 +231,18 @@ export default function CrmDealsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sorted.map(d => {
+                  {sorted.map((d, index) => {
                     const stage = (d as any).stage || "lead";
                     const daysOpen = d.created_at ? differenceInDays(new Date(), parseISO(d.created_at)) : 0;
                     return (
-                      <TableRow key={d.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/crm/deals/${d.id}`)}>
+                      <TableRow key={d.id} className="cursor-pointer"
+                        style={{
+                          background: index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                          transition: 'background 0.1s ease',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
+                        onClick={() => navigate(`/crm/deals/${d.id}`)}>
                         <TableCell className="font-medium text-primary">{d.title}</TableCell>
                         <TableCell>
                           {d.crm_companies ? (

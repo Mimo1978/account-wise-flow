@@ -374,7 +374,13 @@ export default function DocumentsHub() {
                     const statusConf = getDocStatusConfig(doc.status);
                     const endDays = doc.end_date ? differenceInDays(parseISO(doc.end_date), new Date()) : null;
                     return (
-                      <tr key={doc.id} className={`border-b border-border/50 hover:bg-muted/30 transition-colors ${i % 2 === 1 ? "bg-muted/10" : ""}`}>
+                      <tr key={doc.id} className="border-b border-border/50 cursor-pointer"
+                        style={{
+                          background: i % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                          transition: 'background 0.1s ease',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}>
                         <td className="px-4 py-3">
                           <span className="font-medium text-foreground">{doc.name}</span>
                           {doc.deleted_at && <Badge className="ml-2 text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 border-0">⚠ Deletion Requested</Badge>}

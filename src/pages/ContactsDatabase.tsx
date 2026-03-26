@@ -855,17 +855,23 @@ export default function ContactsDatabase() {
                 </TableRow>
               </TableHeader>
             <TableBody>
-              {filteredContacts.map((contact) => {
+              {filteredContacts.map((contact, index) => {
                 const isReady = isContactReady(contact);
+                const isSelected = selectedIds.has(contact.id) || selectedRowId === contact.id;
                 return (
                   <TableRow
                     key={contact.id}
-                    className={cn(
-                      "cursor-pointer transition-colors group",
-                      selectedIds.has(contact.id) || selectedRowId === contact.id
-                        ? "bg-primary/10 hover:bg-primary/15"
-                        : "hover:bg-muted/50"
-                    )}
+                    className="cursor-pointer group"
+                    style={{
+                      background: isSelected
+                        ? 'rgba(99, 102, 241, 0.2)'
+                        : index % 2 === 1
+                          ? 'rgba(255, 255, 255, 0.04)'
+                          : 'transparent',
+                      transition: 'background 0.1s ease',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(99, 102, 241, 0.15)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = isSelected ? 'rgba(99, 102, 241, 0.2)' : index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
                     onClick={(e) => handleRowClick(contact, e)}
                     onDoubleClick={(e) => handleRowDoubleClick(contact, e)}
                   >

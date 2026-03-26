@@ -52,26 +52,30 @@ export function useCreateInvoice() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
-      workspace_id: string;
       company_id: string;
-      engagement_id?: string | null;
+      deal_id?: string | null;
+      project_id?: string | null;
       invoice_number?: string | null;
       status?: string;
-      amount?: number;
+      subtotal?: number;
+      vat_rate?: number;
+      vat_amount?: number;
+      total?: number;
       currency?: string;
-      issued_date?: string | null;
+      issue_date?: string | null;
       due_date?: string | null;
       notes?: string | null;
     }) => {
       const { data, error } = await supabase
-        .from('invoices')
-        .insert(input)
+        .from('crm_invoices' as any)
+        .insert(input as any)
         .select()
         .single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm_invoices'] });
       qc.invalidateQueries({ queryKey: ['invoices'] });
     },
   });

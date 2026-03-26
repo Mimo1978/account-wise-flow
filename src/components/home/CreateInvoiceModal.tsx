@@ -40,16 +40,28 @@ export function CreateInvoiceModal({ open, onOpenChange, prefillCompanyId, prefi
     }
   }, [open, prefillCompanyId, prefillEngagementId]);
 
+  // Fetch from both companies and crm_companies for the dropdown
   const { data: companies = [] } = useQuery({
-    queryKey: ['companies-list', currentWorkspace?.id],
+    queryKey: ['companies-list-merged', currentWorkspace?.id],
     queryFn: async () => {
       if (!currentWorkspace?.id) return [];
-      const { data } = await supabase
-        .from('companies')
-        .select('id, name')
-        .eq('team_id', currentWorkspace.id)
-        .order('name');
-      return data ?? [];
+      // crm_invoices FK references crm_companies, so we need crm_companies IDs
+      const [{ data: crmData }, { data: coreData }] = await Promise.all([
+        supabase.from('crm_companies' as any).select('id, name').is('deleted_at', null).order('name'),
+        supabase.from('companies').select('id, name').eq('team_id', currentWorkspace.id).is('deleted_at', null).order('name'),
+      ]);
+      // Merge, preferring crm_companies (since that's where the FK points)
+      const seen = new Set<string>();
+      const merged: { id: string; name: string }[] = [];
+      for (const c of ((crmData as any[]) || [])) {
+        const key = c.name?.toLowerCase().trim();
+        if (key && !seen.has(key)) { seen.add(key); merged.push(c); }
+      }
+      for (const c of (coreData || [])) {
+        const key = c.name?.toLowerCase().trim();
+        if (key && !seen.has(key)) { seen.add(key); merged.push(c); }
+      }
+      return merged.sort((a, b) => a.name.localeCompare(b.name));
     },
     enabled: !!currentWorkspace?.id && open,
   });
@@ -82,12 +94,12 @@ export function CreateInvoiceModal({ open, onOpenChange, prefillCompanyId, prefi
     }
 
     try {
+      const subtotal = parseInt(amount) || 0;
       await createInvoice.mutateAsync({
-        workspace_id: currentWorkspace.id,
         company_id: companyId,
-        engagement_id: engagementId || null,
         invoice_number: invoiceNumber || null,
-        amount: parseInt(amount) || 0,
+        subtotal,
+        total: subtotal,
         due_date: dueDate || null,
         status,
         notes: notes || null,

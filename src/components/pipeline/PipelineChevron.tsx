@@ -67,10 +67,10 @@ function FilterChevron({
       className="relative flex-1 group"
       style={{
         minWidth: 120,
-        filter: isLit ? (isActive ? 'brightness(1)' : 'brightness(0.85)') : 'brightness(0.6)',
-        opacity: isLit ? (isActive ? 1 : 0.75) : 0.35,
-        transform: isLit ? 'scale(1)' : 'scale(0.97)',
-        transition: 'filter 150ms ease-out, opacity 150ms ease-out, transform 150ms ease-out',
+        filter: isLit ? (isActive ? 'brightness(1)' : 'brightness(0.85)') : 'brightness(0.5)',
+        opacity: isLit ? (isActive ? 1 : 0.75) : 0.3,
+        transform: isLit ? 'scale(1)' : 'scale(0.95)',
+        transition: 'filter 300ms ease-out, opacity 300ms ease-out, transform 300ms ease-out',
         animation: pulse ? 'chevron-pulse 0.6s ease-in-out' : undefined,
       }}
     >

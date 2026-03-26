@@ -180,7 +180,7 @@ export default function CrmOpportunityDetail() {
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDealModal(false)}>Cancel</Button>
-            <Button onClick={handleConvertDeal}>Create Deal</Button>
+            <Button onClick={handleConvertDeal}>+ New Deal</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

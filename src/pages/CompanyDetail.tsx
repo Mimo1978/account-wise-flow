@@ -2078,8 +2078,8 @@ function AddDealPanel({ open, onClose, companyId, companyName, onSaved }: {
 
   return (
     <>
-      <SlideInPanel open={open} onClose={onClose} title="Add Deal" subtitle={companyName}
-        footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? "Creating…" : "Create Deal"}</Button></>}>
+      <SlideInPanel open={open} onClose={onClose} title="New Deal" subtitle={companyName}
+        footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave} disabled={saving}>{saving ? "Creating…" : "+ New Deal"}</Button></>}>
         <div className="bg-muted/50 rounded-lg p-3 text-sm"><span className="text-muted-foreground">Company:</span> <span className="font-medium">{companyName}</span> <span className="text-xs text-muted-foreground">(locked)</span></div>
         <div><Label>Deal Name <span className="text-red-500">*</span></Label><Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Recruitment Q1 2026" /></div>
         <div className="grid grid-cols-2 gap-4">

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Plus, Search, ArrowUpDown, Pencil, LayoutGrid, List, DollarSign } from "lucide-react";
+import { Plus, Search, ArrowUpDown, Pencil, LayoutGrid, List, DollarSign, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { DealIntegrityBadges } from "@/components/deals/DealIntegrityBadges";
 import { PipelineChevron as SharedPipelineChevron } from "@/components/pipeline/PipelineChevron";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
+import { SectionCard } from "@/components/ui/SectionCard";
 import type { CrmDeal } from "@/types/crm";
 
 type SortKey = "title" | "value" | "status" | "signed_date" | "start_date";
@@ -100,153 +101,170 @@ export default function CrmDealsPage() {
   );
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Deals</h1>
-          <p className="text-sm text-muted-foreground">
-            Pipeline overview · {deals.length} deal{deals.length !== 1 ? "s" : ""} · £{totalValue.toLocaleString()} across all stages
-          </p>
+    <div className="min-h-screen" style={{ background: '#0F1117' }}>
+      <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
+        {/* Page header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Deals</h1>
+            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>
+              Pipeline overview · {deals.length} deal{deals.length !== 1 ? "s" : ""} · £{totalValue.toLocaleString()} across all stages
+            </p>
+          </div>
         </div>
-        <Button onClick={() => { setEditDeal(null); setPanelOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> + New Deal
-        </Button>
-      </div>
 
-      {/* Pipeline chevrons */}
-      <div data-jarvis-section="pipeline-snapshot" style={{ margin: 0, padding: 0, width: '100%', overflow: 'hidden' }}>
-        <SharedPipelineChevron
-          mode="filter"
-          deals={deals}
-          selectedStage={stageFilter}
-          onStageClick={(stage) => handleStageFilter(stage)}
-          showCounts={true}
-          showValues={true}
-        />
-      </div>
+        {/* Pipeline section card */}
+        <SectionCard
+          accentColor="#378ADD"
+          title="Deal Pipeline"
+          icon={<TrendingUp className="w-4 h-4" />}
+          headerRight={
+            <div className="flex items-center gap-3">
+              <span className="text-xs" style={{ color: '#94A3B8' }}>
+                {deals.length} deals · £{totalValue.toLocaleString()}
+              </span>
+              <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => { setEditDeal(null); setPanelOpen(true); }}>
+                <Plus className="w-3.5 h-3.5" /> + New Deal
+              </Button>
+            </div>
+          }
+        >
+          {/* Pipeline chevrons */}
+          <div data-jarvis-section="pipeline-snapshot" style={{ margin: 0, padding: 0, width: '100%', overflow: 'hidden' }}>
+            <SharedPipelineChevron
+              mode="filter"
+              deals={deals}
+              selectedStage={stageFilter}
+              onStageClick={(stage) => handleStageFilter(stage)}
+              showCounts={true}
+              showValues={true}
+            />
+          </div>
 
-      {/* Filters + view toggle */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search deals…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <Select value={statusFilter} onValueChange={v => setStatusFilter(v === "_all" ? "" : v)}>
-          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent className="bg-popover z-[9999]">
-            <SelectItem value="_all">All Statuses</SelectItem>
-            {Object.entries(DEAL_STATUS_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={companyFilter} onValueChange={v => setCompanyFilter(v === "_all" ? "" : v)}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Company" /></SelectTrigger>
-          <SelectContent className="bg-popover z-[9999]">
-            <SelectItem value="_all">All Companies</SelectItem>
-            {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        {stageFilter && (
-          <Button variant="ghost" size="sm" onClick={() => handleStageFilter(null)}>Clear stage filter</Button>
-        )}
-        <div className="ml-auto flex items-center border rounded-md overflow-hidden">
-          <button
-            onClick={() => setViewMode("cards")}
-            className={cn("px-3 py-1.5 text-xs flex items-center gap-1 transition-colors", viewMode === "cards" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}
-          >
-            <LayoutGrid className="h-3.5 w-3.5" /> Cards
-          </button>
-          <button
-            onClick={() => setViewMode("table")}
-            className={cn("px-3 py-1.5 text-xs flex items-center gap-1 transition-colors", viewMode === "table" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground")}
-          >
-            <List className="h-3.5 w-3.5" /> Table
-          </button>
-        </div>
-      </div>
+          {/* Filters + view toggle */}
+          <div className="flex flex-wrap items-center gap-3 mt-4">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#94A3B8' }} />
+              <Input placeholder="Search deals…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <Select value={statusFilter} onValueChange={v => setStatusFilter(v === "_all" ? "" : v)}>
+              <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent className="bg-popover z-[9999]">
+                <SelectItem value="_all">All Statuses</SelectItem>
+                {Object.entries(DEAL_STATUS_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={companyFilter} onValueChange={v => setCompanyFilter(v === "_all" ? "" : v)}>
+              <SelectTrigger className="w-[180px]"><SelectValue placeholder="Company" /></SelectTrigger>
+              <SelectContent className="bg-popover z-[9999]">
+                <SelectItem value="_all">All Companies</SelectItem>
+                {companies.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {stageFilter && (
+              <Button variant="ghost" size="sm" onClick={() => handleStageFilter(null)} style={{ color: '#94A3B8' }}>Clear stage filter</Button>
+            )}
+            <div className="ml-auto flex items-center border rounded-md overflow-hidden" style={{ borderColor: '#2D3748' }}>
+              <button
+                onClick={() => setViewMode("cards")}
+                className={cn("px-3 py-1.5 text-xs flex items-center gap-1 transition-colors", viewMode === "cards" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+                style={viewMode !== "cards" ? { background: '#1A1F2E' } : {}}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" /> Cards
+              </button>
+              <button
+                onClick={() => setViewMode("table")}
+                className={cn("px-3 py-1.5 text-xs flex items-center gap-1 transition-colors", viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+                style={viewMode !== "table" ? { background: '#1A1F2E' } : {}}
+              >
+                <List className="h-3.5 w-3.5" /> Table
+              </button>
+            </div>
+          </div>
 
-      {/* Content */}
-      {isLoading ? (
-        <p className="text-muted-foreground text-center py-12">Loading deals…</p>
-      ) : sorted.length === 0 ? (
-        <Card className="border border-border rounded-xl"><CardContent className="py-12 text-center">
-          <DollarSign className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
-          <p className="text-muted-foreground">{search || stageFilter || statusFilter || companyFilter ? "No deals match your filters." : "No deals yet. Create your first deal."}</p>
-        </CardContent></Card>
-      ) : viewMode === "cards" ? (
-        /* ═══ CARD VIEW ═══ */
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {sorted.map(d => {
-            const stage = (d as any).stage || "lead";
-            const daysOpen = d.created_at ? differenceInDays(new Date(), parseISO(d.created_at)) : 0;
-            return (
-              <Card key={d.id} className="hover:bg-muted/50 transition-colors cursor-pointer border border-border rounded-xl" style={{ borderLeft: '4px solid hsl(var(--primary))' }}
-                onClick={() => navigate(`/crm/deals/${d.id}`)}>
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="font-semibold text-sm truncate">{d.title}</p>
-                    <Badge className={cn("text-xs capitalize shrink-0", STAGE_BADGE[stage] || "bg-muted")}>{stage}</Badge>
-                  </div>
-                  <p className="text-lg font-bold">{currencySymbol(d.currency)}{(d.value || 0).toLocaleString()}</p>
-                  <DealIntegrityBadges contactId={(d as any).contact_id} projectId={(d as any).project_id} />
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{d.crm_companies?.name || "No company"}</span>
-                    <span>{daysOpen}d open</span>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      ) : (
-        /* ═══ TABLE VIEW ═══ */
-        <div className="border rounded-lg overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <SortHeader label="Deal" k="title" />
-                <TableHead>Company</TableHead>
-                <TableHead>Stage</TableHead>
-                <SortHeader label="Value" k="value" />
-                <TableHead>Contact</TableHead>
-                <TableHead>Days Open</TableHead>
-                <SortHeader label="Status" k="status" />
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          {/* Content */}
+          {isLoading ? (
+            <p className="text-center py-12" style={{ color: '#94A3B8' }}>Loading deals…</p>
+          ) : sorted.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center py-12">
+              <DollarSign className="h-8 w-8 mx-auto mb-3" style={{ color: '#94A3B8' }} />
+              <p style={{ color: '#94A3B8' }}>{search || stageFilter || statusFilter || companyFilter ? "No deals match your filters." : "No deals yet. Create your first deal."}</p>
+            </div>
+          ) : viewMode === "cards" ? (
+            /* ═══ CARD VIEW ═══ */
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">
               {sorted.map(d => {
                 const stage = (d as any).stage || "lead";
                 const daysOpen = d.created_at ? differenceInDays(new Date(), parseISO(d.created_at)) : 0;
                 return (
-                  <TableRow key={d.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/crm/deals/${d.id}`)}>
-                    <TableCell className="font-medium text-primary">{d.title}</TableCell>
-                    <TableCell>
-                      {d.crm_companies ? (
-                        <span className="text-primary cursor-pointer hover:underline" onClick={e => { e.stopPropagation(); navigate(`/companies/${d.crm_companies!.id}`); }}>
-                          {d.crm_companies.name}
-                        </span>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell><Badge className={cn("text-xs capitalize", STAGE_BADGE[stage] || "bg-muted")}>{stage}</Badge></TableCell>
-                    <TableCell className="font-semibold">{currencySymbol(d.currency)}{d.value.toLocaleString()}</TableCell>
-                    <TableCell>{(d as any).crm_contacts ? `${(d as any).crm_contacts.first_name} ${(d as any).crm_contacts.last_name}` : "—"}</TableCell>
-                    <TableCell>{daysOpen}d</TableCell>
-                    <TableCell><Badge variant="secondary" className={DEAL_STATUS_COLORS[d.status]}>{DEAL_STATUS_LABELS[d.status] || d.status}</Badge></TableCell>
-                    <TableCell onClick={e => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon" onClick={() => { setEditDeal(d); setPanelOpen(true); }}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
+                  <div key={d.id} className="rounded-lg p-4 transition-all hover:brightness-110 cursor-pointer"
+                    style={{ background: '#252B3B', border: '1px solid #2D3748' }}
+                    onClick={() => navigate(`/crm/deals/${d.id}`)}>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-sm truncate" style={{ color: '#F8FAFC' }}>{d.title}</p>
+                      <Badge className={cn("text-xs capitalize shrink-0", STAGE_BADGE[stage] || "bg-muted")}>{stage}</Badge>
+                    </div>
+                    <p className="text-lg font-bold mt-1" style={{ color: '#F8FAFC' }}>{currencySymbol(d.currency)}{(d.value || 0).toLocaleString()}</p>
+                    <DealIntegrityBadges contactId={(d as any).contact_id} projectId={(d as any).project_id} />
+                    <div className="flex items-center justify-between text-xs mt-2" style={{ color: '#94A3B8' }}>
+                      <span>{d.crm_companies?.name || "No company"}</span>
+                      <span>{daysOpen}d open</span>
+                    </div>
+                  </div>
                 );
               })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+            </div>
+          ) : (
+            /* ═══ TABLE VIEW ═══ */
+            <div className="rounded-lg overflow-auto mt-4" style={{ border: '1px solid #2D3748' }}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortHeader label="Deal" k="title" />
+                    <TableHead>Company</TableHead>
+                    <TableHead>Stage</TableHead>
+                    <SortHeader label="Value" k="value" />
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Days Open</TableHead>
+                    <SortHeader label="Status" k="status" />
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sorted.map(d => {
+                    const stage = (d as any).stage || "lead";
+                    const daysOpen = d.created_at ? differenceInDays(new Date(), parseISO(d.created_at)) : 0;
+                    return (
+                      <TableRow key={d.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/crm/deals/${d.id}`)}>
+                        <TableCell className="font-medium text-primary">{d.title}</TableCell>
+                        <TableCell>
+                          {d.crm_companies ? (
+                            <span className="text-primary cursor-pointer hover:underline" onClick={e => { e.stopPropagation(); navigate(`/companies/${d.crm_companies!.id}`); }}>
+                              {d.crm_companies.name}
+                            </span>
+                          ) : "—"}
+                        </TableCell>
+                        <TableCell><Badge className={cn("text-xs capitalize", STAGE_BADGE[stage] || "bg-muted")}>{stage}</Badge></TableCell>
+                        <TableCell className="font-semibold">{currencySymbol(d.currency)}{d.value.toLocaleString()}</TableCell>
+                        <TableCell>{(d as any).crm_contacts ? `${(d as any).crm_contacts.first_name} ${(d as any).crm_contacts.last_name}` : "—"}</TableCell>
+                        <TableCell>{daysOpen}d</TableCell>
+                        <TableCell><Badge variant="secondary" className={DEAL_STATUS_COLORS[d.status]}>{DEAL_STATUS_LABELS[d.status] || d.status}</Badge></TableCell>
+                        <TableCell onClick={e => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" onClick={() => { setEditDeal(d); setPanelOpen(true); }}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </SectionCard>
 
-      <AddEditDealPanel open={panelOpen} onOpenChange={setPanelOpen} deal={editDeal} />
+        <AddEditDealPanel open={panelOpen} onOpenChange={setPanelOpen} deal={editDeal} />
+      </div>
     </div>
   );
 }

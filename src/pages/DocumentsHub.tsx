@@ -20,6 +20,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PageBackButton } from "@/components/ui/page-back-button";
+import { SectionCard } from "@/components/ui/SectionCard";
 import {
   FileText, Plus, Search, Upload, Download, Eye, Pencil, Trash2,
   Building2, Calendar, Loader2, MoreHorizontal, Filter, Shield, AlertTriangle,
@@ -286,20 +287,27 @@ export default function DocumentsHub() {
   })() : null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen" style={{ background: '#0F1117' }}>
       <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
-        <PageBackButton />
 
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Documents</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Commercial & legal document repository</p>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Documents</h1>
+            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>Commercial & legal document repository</p>
           </div>
-          <Button className="gap-1.5" onClick={() => openUpload()}>
-            <Plus className="w-4 h-4" /> Upload Document
-          </Button>
         </div>
+
+        <SectionCard
+          accentColor="#6B8EAA"
+          title="Documents"
+          icon={<FileText className="w-4 h-4" />}
+          headerRight={
+            <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => openUpload()}>
+              <Plus className="w-3.5 h-3.5" /> + Upload Document
+            </Button>
+          }
+        >
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">

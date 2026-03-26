@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { PageBackButton } from '@/components/ui/page-back-button';
 import { Button } from '@/components/ui/button';
+import { SectionCard } from '@/components/ui/SectionCard';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -32,136 +32,130 @@ const ProjectsList = () => {
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
-    <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
-      <PageBackButton fallback="/home" />
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Projects</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {currentWorkspace?.name ?? 'Workspace'} &middot; All engagements
-          </p>
-        </div>
-        <Button size="sm" className="gap-1.5" onClick={() => setCreateOpen(true)}>
-          <Plus className="w-3.5 h-3.5" />
-          Create Project
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <Card className="border border-border rounded-xl">
-          <CardContent className="flex items-center justify-center py-16">
-            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-          </CardContent>
-        </Card>
-      ) : engagements.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center text-center p-12 border border-border rounded-xl">
-          <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
-            <Briefcase className="w-6 h-6 text-muted-foreground" />
+    <div className="min-h-screen" style={{ background: '#0F1117' }}>
+      <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Projects</h1>
+            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>
+              {currentWorkspace?.name ?? 'Workspace'} · All engagements
+            </p>
           </div>
-          <h3 className="text-sm font-semibold text-foreground">No projects yet</h3>
-          <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-            Create a project to track placements, engagements and deliverables.
-          </p>
-          <Button size="sm" className="gap-1.5 mt-4" onClick={() => setCreateOpen(true)}>
-            <Plus className="w-3.5 h-3.5" />
-            Create Project
-          </Button>
-        </Card>
-      ) : (
-        <TooltipProvider>
-          <Card className="border border-border rounded-xl overflow-hidden" style={{ borderLeft: '4px solid hsl(142 71% 45%)' }}>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Company</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Contact</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Stage</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Health</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {engagements.map((eng) => {
-                    const hasNoCompany = !eng.company_id || !eng.companies?.name;
-                    const contactName = eng.primary_contact
-                      ? `${eng.primary_contact.first_name} ${eng.primary_contact.last_name}`
-                      : null;
+        </div>
 
-                    return (
-                      <tr
-                        key={eng.id}
-                        className="border-b border-border/50 hover:bg-muted/30 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/projects/${eng.id}`)}
-                      >
-                        <td className="px-4 py-3 font-medium text-foreground">
-                          <div className="flex items-center gap-1.5">
-                            {hasNoCompany && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
-                                </TooltipTrigger>
-                                <TooltipContent>No company assigned</TooltipContent>
-                              </Tooltip>
-                            )}
-                            {eng.name}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {eng.companies?.name ? (
-                            <span
-                              className="text-primary hover:underline cursor-pointer text-sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/companies/${eng.company_id}`);
-                              }}
-                            >
-                              {eng.companies.name}
-                            </span>
-                          ) : (
-                            <span className="text-warning text-sm">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {contactName ? (
-                            <span
-                              className="text-primary hover:underline cursor-pointer text-sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/contacts/${eng.contact_id}`);
-                              }}
-                            >
-                              {contactName}
-                            </span>
-                          ) : (
-                            <span className="text-warning text-sm">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge variant="secondary" className="text-xs capitalize">{eng.engagement_type.replace('_', ' ')}</Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          <Badge variant="outline" className="text-xs">{STAGE_LABELS[eng.stage] ?? eng.stage}</Badge>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-block w-2.5 h-2.5 rounded-full ${HEALTH_COLORS[eng.health] ?? 'bg-muted'}`} />
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground text-xs">
-                          {format(new Date(eng.updated_at), 'dd MMM yyyy')}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+        <SectionCard
+          accentColor="#7B5FD4"
+          title="All Projects"
+          icon={<Briefcase className="w-4 h-4" />}
+          headerRight={
+            <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => setCreateOpen(true)}>
+              <Plus className="w-3.5 h-3.5" /> + Create Project
+            </Button>
+          }
+        >
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#94A3B8' }} />
             </div>
-          </Card>
-        </TooltipProvider>
-      )}
+          ) : engagements.length === 0 ? (
+            <div className="flex flex-col items-center justify-center text-center py-12">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: '#2D3748' }}>
+                <Briefcase className="w-6 h-6" style={{ color: '#94A3B8' }} />
+              </div>
+              <h3 className="text-sm font-semibold" style={{ color: '#F8FAFC' }}>No projects yet</h3>
+              <p className="text-xs mt-1 max-w-sm" style={{ color: '#94A3B8' }}>
+                Create a project to track placements, engagements and deliverables.
+              </p>
+              <Button size="sm" className="gap-1.5 mt-4 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => setCreateOpen(true)}>
+                <Plus className="w-3.5 h-3.5" /> + Create Project
+              </Button>
+            </div>
+          ) : (
+            <TooltipProvider>
+              <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #2D3748' }}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #2D3748' }}>
+                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Name</th>
+                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Company</th>
+                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Contact</th>
+                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Type</th>
+                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Stage</th>
+                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Health</th>
+                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {engagements.map((eng) => {
+                        const hasNoCompany = !eng.company_id || !eng.companies?.name;
+                        const contactName = eng.primary_contact
+                          ? `${eng.primary_contact.first_name} ${eng.primary_contact.last_name}`
+                          : null;
 
-      <CreateEngagementModal open={createOpen} onOpenChange={setCreateOpen} />
+                        return (
+                          <tr
+                            key={eng.id}
+                            className="hover:bg-muted/30 transition-colors cursor-pointer"
+                            style={{ borderBottom: '1px solid rgba(45,55,72,0.5)' }}
+                            onClick={() => navigate(`/projects/${eng.id}`)}
+                          >
+                            <td className="px-4 py-3 font-medium" style={{ color: '#F8FAFC' }}>
+                              <div className="flex items-center gap-1.5">
+                                {hasNoCompany && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>No company assigned</TooltipContent>
+                                  </Tooltip>
+                                )}
+                                {eng.name}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              {eng.companies?.name ? (
+                                <span className="text-primary hover:underline cursor-pointer text-sm" onClick={(e) => { e.stopPropagation(); navigate(`/companies/${eng.company_id}`); }}>
+                                  {eng.companies.name}
+                                </span>
+                              ) : (
+                                <span className="text-warning text-sm">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {contactName ? (
+                                <span className="text-primary hover:underline cursor-pointer text-sm" onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${eng.contact_id}`); }}>
+                                  {contactName}
+                                </span>
+                              ) : (
+                                <span className="text-warning text-sm">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge variant="secondary" className="text-xs capitalize">{eng.engagement_type.replace('_', ' ')}</Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge variant="outline" className="text-xs">{STAGE_LABELS[eng.stage] ?? eng.stage}</Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-block w-2.5 h-2.5 rounded-full ${HEALTH_COLORS[eng.health] ?? 'bg-muted'}`} />
+                            </td>
+                            <td className="px-4 py-3 text-xs" style={{ color: '#94A3B8' }}>
+                              {format(new Date(eng.updated_at), 'dd MMM yyyy')}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </TooltipProvider>
+          )}
+        </SectionCard>
+
+        <CreateEngagementModal open={createOpen} onOpenChange={setCreateOpen} />
+      </div>
     </div>
   );
 };

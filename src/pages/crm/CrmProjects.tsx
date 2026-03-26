@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Search, ArrowUpDown, FolderKanban } from "lucide-react";
+import { SectionCard } from "@/components/ui/SectionCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -58,94 +59,96 @@ export default function CrmProjectsPage() {
   const currencySymbol = (c: string) => c === "GBP" ? "£" : c === "USD" ? "$" : "€";
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FolderKanban className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">CRM Projects</h1>
+    <div className="min-h-screen" style={{ background: '#0F1117' }}>
+      <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Projects</h1>
+            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>All CRM projects · {projects.length} total</p>
+          </div>
         </div>
-        <Button onClick={() => setPanelOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" /> Add Project
-        </Button>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search projects…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
-        </div>
-        <Select value={status} onValueChange={v => setStatus(v === "_all" ? "" : v)}>
-          <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent className="bg-popover z-[9999]">
-            <SelectItem value="_all">All Statuses</SelectItem>
-            {["active", "completed", "paused", "cancelled"].map(s => (
-              <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+        <SectionCard
+          accentColor="#7B5FD4"
+          title="All Projects"
+          icon={<FolderKanban className="w-4 h-4" />}
+          headerRight={
+            <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => setPanelOpen(true)}>
+              <Plus className="w-3.5 h-3.5" /> + Create Project
+            </Button>
+          }
+        >
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#94A3B8' }} />
+              <Input placeholder="Search projects…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+            <Select value={status} onValueChange={v => setStatus(v === "_all" ? "" : v)}>
+              <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent className="bg-popover z-[9999]">
+                <SelectItem value="_all">All Statuses</SelectItem>
+                {["active", "completed", "paused", "cancelled"].map(s => (
+                  <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
-      <div className="border rounded-lg overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <SortHeader label="Project Name" k="name" />
-              <TableHead>Company</TableHead>
-              <SortHeader label="Type" k="project_type" />
-              <TableHead>Workflow Stage</TableHead>
-              <SortHeader label="Status" k="status" />
-              <SortHeader label="Budget" k="budget" />
-              <TableHead>Assigned To</TableHead>
-              <SortHeader label="Start Date" k="start_date" />
-              <TableHead>End Date</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
-            ) : sorted.length === 0 ? (
-              <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No projects found</TableCell></TableRow>
-            ) : sorted.map(p => {
-              const wfStage = (p as any).workflow_stage;
-              const stages = getWorkflowStages(p.project_type);
-              const stageDef = wfStage ? stages.find(s => s.id === wfStage) : null;
-              return (
-              <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/crm/projects/${p.id}`)}>
-                <TableCell className="font-medium text-primary">{p.name}</TableCell>
-                <TableCell>
-                  {p.crm_companies ? (
-                    <span className="text-primary cursor-pointer hover:underline" onClick={e => { e.stopPropagation(); navigate(`/companies/${p.crm_companies!.id}`); }}>
-                      {p.crm_companies.name}
-                    </span>
-                  ) : "—"}
-                </TableCell>
-                <TableCell className="capitalize">{p.project_type || "—"}</TableCell>
-                <TableCell>
-                  {stageDef ? (
-                    <Badge
-                      variant="secondary"
-                      className="text-xs text-white border-0"
-                      style={{ backgroundColor: stageDef.colour }}
-                    >
-                      {stageDef.label}
-                    </Badge>
-                  ) : <span className="text-xs text-muted-foreground">—</span>}
-                </TableCell>
-                <TableCell>
-                  <Badge className={STATUS_COLORS[p.status] || ""} variant="secondary">{p.status}</Badge>
-                </TableCell>
-                <TableCell>{p.budget != null ? `${currencySymbol(p.currency)}${p.budget.toLocaleString()}` : "—"}</TableCell>
-                <TableCell>{p.assigned_to || "—"}</TableCell>
-                <TableCell>{p.start_date ? format(new Date(p.start_date), "dd MMM yyyy") : "—"}</TableCell>
-                <TableCell>{p.end_date ? format(new Date(p.end_date), "dd MMM yyyy") : "—"}</TableCell>
-              </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+          <div className="rounded-lg overflow-auto" style={{ border: '1px solid #2D3748' }}>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortHeader label="Project Name" k="name" />
+                  <TableHead>Company</TableHead>
+                  <SortHeader label="Type" k="project_type" />
+                  <TableHead>Workflow Stage</TableHead>
+                  <SortHeader label="Status" k="status" />
+                  <SortHeader label="Budget" k="budget" />
+                  <TableHead>Assigned To</TableHead>
+                  <SortHeader label="Start Date" k="start_date" />
+                  <TableHead>End Date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow><TableCell colSpan={9} className="text-center py-8" style={{ color: '#94A3B8' }}>Loading…</TableCell></TableRow>
+                ) : sorted.length === 0 ? (
+                  <TableRow><TableCell colSpan={9} className="text-center py-8" style={{ color: '#94A3B8' }}>No projects found</TableCell></TableRow>
+                ) : sorted.map(p => {
+                  const wfStage = (p as any).workflow_stage;
+                  const stages = getWorkflowStages(p.project_type);
+                  const stageDef = wfStage ? stages.find(s => s.id === wfStage) : null;
+                  return (
+                  <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/crm/projects/${p.id}`)}>
+                    <TableCell className="font-medium text-primary">{p.name}</TableCell>
+                    <TableCell>
+                      {p.crm_companies ? (
+                        <span className="text-primary cursor-pointer hover:underline" onClick={e => { e.stopPropagation(); navigate(`/companies/${p.crm_companies!.id}`); }}>
+                          {p.crm_companies.name}
+                        </span>
+                      ) : "—"}
+                    </TableCell>
+                    <TableCell className="capitalize">{p.project_type || "—"}</TableCell>
+                    <TableCell>
+                      {stageDef ? (
+                        <Badge variant="secondary" className="text-xs text-white border-0" style={{ backgroundColor: stageDef.colour }}>{stageDef.label}</Badge>
+                      ) : <span className="text-xs" style={{ color: '#94A3B8' }}>—</span>}
+                    </TableCell>
+                    <TableCell><Badge className={STATUS_COLORS[p.status] || ""} variant="secondary">{p.status}</Badge></TableCell>
+                    <TableCell>{p.budget != null ? `${currencySymbol(p.currency)}${p.budget.toLocaleString()}` : "—"}</TableCell>
+                    <TableCell>{p.assigned_to || "—"}</TableCell>
+                    <TableCell>{p.start_date ? format(new Date(p.start_date), "dd MMM yyyy") : "—"}</TableCell>
+                    <TableCell>{p.end_date ? format(new Date(p.end_date), "dd MMM yyyy") : "—"}</TableCell>
+                  </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </SectionCard>
 
-      <AddEditProjectPanel open={panelOpen} onOpenChange={setPanelOpen} />
+        <AddEditProjectPanel open={panelOpen} onOpenChange={setPanelOpen} />
+      </div>
     </div>
   );
 }

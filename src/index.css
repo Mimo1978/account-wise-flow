@@ -381,3 +381,9 @@ All colors MUST be HSL.
 @keyframes jarvis-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Page accent: left-border on first h1 inside content area */
+.page-accent-wrapper h1:first-of-type {
+  border-left: 3px solid var(--page-accent, transparent);
+  padding-left: 0.5rem;
+}

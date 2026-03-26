@@ -81,8 +81,8 @@ function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLab
     <div
       id={id}
       data-jarvis-id={dataJarvisId}
-      className="overflow-hidden"
-      style={{ background: D.card, border: `1px solid ${D.border}`, borderLeft: `4px solid ${borderColor}`, borderRadius: 10, minHeight: isEmpty ? 140 : undefined }}
+      className="overflow-hidden flex flex-col"
+      style={{ background: D.card, border: `1px solid ${D.border}`, borderLeft: `4px solid ${borderColor}`, borderRadius: 10, height: '100%' }}
     >
       <div className="flex items-center justify-between" style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${D.border}` }}>
         <div className="flex items-center gap-2.5">
@@ -97,7 +97,7 @@ function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLab
           </Link>
         )}
       </div>
-      <div style={{ padding: 16 }} className={isEmpty ? 'flex flex-col items-center justify-center' : ''}>
+      <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }} className={isEmpty ? 'items-center justify-center' : ''}>
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center w-full" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}>
             <span className="text-xs" style={{ color: D.muted }}>No data yet</span>
@@ -261,7 +261,7 @@ const ExecutiveInsights = () => {
         </div>
 
         {/* ═══ MAIN GRID ═══ */}
-        <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 12, alignItems: 'start' }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 12, alignItems: 'stretch' }}>
           {/* Pipeline (spans full) */}
           <div className="lg:col-span-1">
             <PipelineByStageChart data={pipelineByStage} isLoading={chartsLoading} />

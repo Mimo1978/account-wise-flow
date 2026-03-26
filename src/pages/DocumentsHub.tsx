@@ -401,6 +401,7 @@ export default function DocumentsHub() {
             </div>
           </Card>
         )}
+        </SectionCard>
       </div>
 
       {/* Upload/Edit Panel */}

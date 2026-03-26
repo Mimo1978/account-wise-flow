@@ -148,13 +148,13 @@ function StickyNav() {
           <button
             key={s.id}
             onClick={() => scrollTo(s.id)}
-            className="px-3 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors"
+            className="whitespace-nowrap text-xs transition-all duration-150 ease-in-out"
             style={active === s.id
-              ? { background: '#3B82F6', color: '#FFFFFF' }
-              : { color: D.muted, background: 'transparent' }
+              ? { background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 6, fontWeight: 500, padding: '4px 12px' }
+              : { color: 'rgba(255,255,255,0.45)', background: 'transparent', border: '1px solid transparent', borderRadius: 6, fontWeight: 400, padding: '4px 12px' }
             }
-            onMouseEnter={e => { if (active !== s.id) { e.currentTarget.style.background = D.hover; e.currentTarget.style.color = D.text; } }}
-            onMouseLeave={e => { if (active !== s.id) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = D.muted; } }}
+            onMouseEnter={e => { if (active !== s.id) { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.8)'; } }}
+            onMouseLeave={e => { if (active !== s.id) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.45)'; } }}
           >
             {s.label}
           </button>

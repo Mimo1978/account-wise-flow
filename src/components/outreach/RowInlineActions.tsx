@@ -5,6 +5,7 @@ import { EmailComposeModal } from "@/components/outreach/EmailComposeModal";
 import { SMSComposeModal } from "@/components/outreach/SMSComposeModal";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { AddToOutreachPopover } from "@/components/outreach/AddToOutreachPopover";
+import { ScheduleCallbackPopover } from "@/components/outreach/ScheduleCallbackPopover";
 import type { OutreachTarget } from "@/hooks/use-outreach";
 
 interface RowInlineActionsProps {

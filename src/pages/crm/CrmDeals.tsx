@@ -110,7 +110,7 @@ export default function CrmDealsPage() {
           </p>
         </div>
         <Button onClick={() => { setEditDeal(null); setPanelOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> Add Deal
+          <Plus className="h-4 w-4 mr-1" /> + New Deal
         </Button>
       </div>
 

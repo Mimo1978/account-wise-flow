@@ -67,10 +67,10 @@ function FilterChevron({
       className="relative flex-1 group"
       style={{
         minWidth: 120,
-        filter: isLit ? (isActive ? 'brightness(1)' : 'brightness(0.85)') : 'brightness(0.6)',
-        opacity: isLit ? (isActive ? 1 : 0.75) : 0.35,
-        transform: isLit ? 'scale(1)' : 'scale(0.97)',
-        transition: 'filter 150ms ease-out, opacity 150ms ease-out, transform 150ms ease-out',
+        filter: isLit ? (isActive ? 'brightness(1)' : 'brightness(0.85)') : 'brightness(0.5)',
+        opacity: isLit ? (isActive ? 1 : 0.75) : 0.3,
+        transform: isLit ? 'scale(1)' : 'scale(0.95)',
+        transition: 'filter 300ms ease-out, opacity 300ms ease-out, transform 300ms ease-out',
         animation: pulse ? 'chevron-pulse 0.6s ease-in-out' : undefined,
       }}
     >
@@ -205,7 +205,8 @@ export function PipelineChevron({
   compact = false,
 }: PipelineChevronProps) {
   /* ─── Cascade animation for filter/summary ─── */
-  const [litStages, setLitStages] = useState<string[]>([]);
+  const [litStages, setLitStages] = useState<string[]>(STAGE_KEYS);
+  const [animating, setAnimating] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
@@ -213,19 +214,19 @@ export function PipelineChevron({
     timers.current.forEach(clearTimeout);
     timers.current = [];
     setLitStages([]);
+    setAnimating(true);
 
-    // first cascade
+    // cascade in
     STAGE_KEYS.forEach((key, i) => {
-      const t = setTimeout(() => setLitStages(prev => [...prev, key]), 400 + i * 200);
+      const t = setTimeout(() => setLitStages(prev => [...prev, key]), 100 + i * 100);
       timers.current.push(t);
     });
-    // second cascade
-    const reset = 400 + STAGE_KEYS.length * 200 + 300;
-    timers.current.push(setTimeout(() => setLitStages([]), reset));
-    STAGE_KEYS.forEach((key, i) => {
-      const t = setTimeout(() => setLitStages(prev => [...prev, key]), reset + 200 + i * 200);
-      timers.current.push(t);
-    });
+    // after cascade, settle all lit
+    const settleTime = 100 + STAGE_KEYS.length * 100 + 200;
+    timers.current.push(setTimeout(() => {
+      setLitStages([...STAGE_KEYS]);
+      setAnimating(false);
+    }, settleTime));
 
     return () => timers.current.forEach(clearTimeout);
   }, [mode]);

@@ -550,8 +550,8 @@ const HomeCommandCenter = () => {
             subtitle={activeCount > 0 ? `${activeCount} active${activeJobCount > 0 ? ` · ${activeJobCount} open roles` : ''}` : 'No projects yet'}
             icon={Briefcase} accentColor="#3B82F6"
             onClick={() => { const s = document.querySelector('[data-jarvis-section="active-projects"]'); if (s) s.scrollIntoView({ behavior: 'smooth' }); }} />
-          <KPICard title="Deal Pipeline" value={activeDeals.length > 0 ? `£${totalPipelineValue.toLocaleString()}` : '—'}
-            subtitle={activeDeals.length > 0 ? `${activeDeals.length} deals · £${weightedPipelineValue.toLocaleString()} weighted` : 'No deals yet'}
+          <KPICard title="Deal Pipeline" value={`£${totalPipelineValue.toLocaleString()}`}
+            subtitle={`${activeDeals.length} deal${activeDeals.length !== 1 ? 's' : ''} · £${weightedPipelineValue.toLocaleString()} weighted`}
             icon={TrendingUp} accentColor="#8B5CF6"
             onClick={() => navigate('/crm/deals')} />
           <KPICard title="Outstanding Invoices" value={billing.outstandingCount > 0 ? `£${billing.outstandingAmount.toLocaleString()}` : '—'}
@@ -578,23 +578,12 @@ const HomeCommandCenter = () => {
             <div className="flex items-center gap-2">
               <Link to="/crm/deals" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">View All Deals →</Link>
               <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => setDealOpen(true)}>
-                <Plus className="w-3.5 h-3.5" /> Create Deal
+                <Plus className="w-3.5 h-3.5" /> + New Deal
               </Button>
             </div>
           }>
           {dealsLoading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin" style={{ color: DARK.textSecondary }} /></div>
-          ) : deals.length === 0 ? (
-            <div className="flex flex-col items-center justify-center text-center py-10">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: DARK.border }}>
-                <Target className="w-6 h-6" style={{ color: DARK.textSecondary }} />
-              </div>
-              <p className="text-sm font-medium" style={{ color: DARK.text }}>No deals in pipeline</p>
-              <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>Track consulting and recruitment deals through your sales pipeline.</p>
-              <Button size="sm" className="mt-4 gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => setDealOpen(true)}>
-                <Plus className="w-3.5 h-3.5" /> Create Deal
-              </Button>
-            </div>
           ) : (
             <div className="space-y-4">
               <SharedPipelineChevron
@@ -605,33 +594,48 @@ const HomeCommandCenter = () => {
                 showCounts={true}
                 showValues={true}
               />
-              {(() => {
-                const filteredDeals = pipelineFilter ? enrichedDeals.filter(d => (d.stage || 'lead') === pipelineFilter) : enrichedDeals;
-                if (filteredDeals.length === 0) return (
-                  <div className="rounded-lg p-6 text-center" style={{ border: `1px dashed ${DARK.border}` }}>
-                    <p className="text-sm" style={{ color: DARK.textSecondary }}>No deals in {DEAL_STAGE_LABELS[pipelineFilter!]}</p>
+              {deals.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center py-8">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: DARK.border }}>
+                    <Target className="w-6 h-6" style={{ color: DARK.textSecondary }} />
                   </div>
-                );
-                return (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-1">
-                    {filteredDeals.map(deal => (
-                      <PipelineDealCard key={deal.id} deal={deal} isRecruitment={isRecruitmentDeal(deal)}
-                        onClick={() => navigate(`/crm/deals/${deal.id}`)}
-                        onAdvance={(ns) => {
-                          updateDeal.mutateAsync({ id: deal.id, stage: ns })
-                            .then(() => toast.success(`${deal.name} advanced to ${DEAL_STAGE_LABELS[ns]}`))
-                            .catch((err) => toast.error(`Failed to update: ${err.message}`));
-                        }}
-                        onCreateProject={deal.stage === 'won' && !deal.engagement_id ? () => { setConvertDeal(deal); setCreateOpen(true); } : undefined}
-                        onViewProject={deal.stage === 'won' && deal.engagement_id ? () => navigate(`/projects/${deal.engagement_id}`) : undefined} />
-                    ))}
-                  </div>
-                );
-              })()}
-              {pipelineFilter && (
-                <p className="text-xs text-center" style={{ color: DARK.textSecondary }}>
-                  Showing <strong style={{ color: DARK.text }}>{DEAL_STAGE_LABELS[pipelineFilter]}</strong> deals · <button className="underline hover:text-white" onClick={() => setPipelineFilter(null)}>Show all</button>
-                </p>
+                  <p className="text-sm font-medium" style={{ color: DARK.text }}>No deals in pipeline yet</p>
+                  <p className="text-xs mt-1" style={{ color: DARK.textSecondary }}>Track consulting and recruitment deals through your sales pipeline.</p>
+                  <Button size="sm" className="mt-4 gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => setDealOpen(true)}>
+                    <Plus className="w-3.5 h-3.5" /> + New Deal
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {(() => {
+                    const filteredDeals = pipelineFilter ? enrichedDeals.filter(d => (d.stage || 'lead') === pipelineFilter) : enrichedDeals;
+                    if (filteredDeals.length === 0) return (
+                      <div className="rounded-lg p-6 text-center" style={{ border: `1px dashed ${DARK.border}` }}>
+                        <p className="text-sm" style={{ color: DARK.textSecondary }}>No deals in {DEAL_STAGE_LABELS[pipelineFilter!]}</p>
+                      </div>
+                    );
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto pr-1">
+                        {filteredDeals.map(deal => (
+                          <PipelineDealCard key={deal.id} deal={deal} isRecruitment={isRecruitmentDeal(deal)}
+                            onClick={() => navigate(`/crm/deals/${deal.id}`)}
+                            onAdvance={(ns) => {
+                              updateDeal.mutateAsync({ id: deal.id, stage: ns })
+                                .then(() => toast.success(`${deal.name} advanced to ${DEAL_STAGE_LABELS[ns]}`))
+                                .catch((err) => toast.error(`Failed to update: ${err.message}`));
+                            }}
+                            onCreateProject={deal.stage === 'won' && !deal.engagement_id ? () => { setConvertDeal(deal); setCreateOpen(true); } : undefined}
+                            onViewProject={deal.stage === 'won' && deal.engagement_id ? () => navigate(`/projects/${deal.engagement_id}`) : undefined} />
+                        ))}
+                      </div>
+                    );
+                  })()}
+                  {pipelineFilter && (
+                    <p className="text-xs text-center" style={{ color: DARK.textSecondary }}>
+                      Showing <strong style={{ color: DARK.text }}>{DEAL_STAGE_LABELS[pipelineFilter]}</strong> deals · <button className="underline hover:text-white" onClick={() => setPipelineFilter(null)}>Show all</button>
+                    </p>
+                  )}
+                </>
               )}
             </div>
           )}

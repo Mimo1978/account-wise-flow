@@ -73,18 +73,18 @@ const STAGE_COLORS: Record<string, string> = {
 };
 
 // ── Analytics Section Card wrapper ──
-function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLabel = 'View All', children, id, dataJarvisId }: {
+function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLabel = 'View All', children, id, dataJarvisId, isEmpty }: {
   borderColor: string; icon: React.ElementType; title: string; viewAllHref?: string; viewAllLabel?: string;
-  children: React.ReactNode; id?: string; dataJarvisId?: string;
+  children: React.ReactNode; id?: string; dataJarvisId?: string; isEmpty?: boolean;
 }) {
   return (
     <div
       id={id}
       data-jarvis-id={dataJarvisId}
-      className="rounded-xl overflow-hidden"
-      style={{ background: D.card, border: `1px solid ${D.border}`, borderLeft: `4px solid ${borderColor}` }}
+      className="overflow-hidden"
+      style={{ background: D.card, border: `1px solid ${D.border}`, borderLeft: `4px solid ${borderColor}`, borderRadius: 10, minHeight: 130 }}
     >
-      <div className="flex items-center justify-between px-5 pt-5 pb-3" style={{ borderBottom: `1px solid ${D.border}` }}>
+      <div className="flex items-center justify-between" style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${D.border}` }}>
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${borderColor}15` }}>
             <Icon className="w-3.5 h-3.5" style={{ color: borderColor }} />
@@ -97,7 +97,13 @@ function AnalyticsCard({ borderColor, icon: Icon, title, viewAllHref, viewAllLab
           </Link>
         )}
       </div>
-      <div className="px-5 py-4">{children}</div>
+      <div style={{ padding: 16 }}>
+        {isEmpty ? (
+          <div className="flex items-center justify-center" style={{ minHeight: 80, border: `1px dashed ${D.border}`, borderRadius: 8 }}>
+            <span className="text-xs" style={{ color: D.muted }}>No data yet</span>
+          </div>
+        ) : children}
+      </div>
     </div>
   );
 }
@@ -232,25 +238,24 @@ const ExecutiveInsights = () => {
         <StickyNav />
 
         {/* ═══ ROW 1: 4 KPI HEADLINE CARDS ═══ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
           {kpiCards.map((kpi) => (
             <div
               key={kpi.label}
               onClick={kpi.onClick}
-              className="rounded-xl cursor-pointer transition-all duration-150 overflow-hidden hover:scale-[1.02]"
-              style={{ background: D.card, border: `1px solid ${D.border}` }}
+              className="cursor-pointer transition-all duration-150 overflow-hidden hover:scale-[1.02]"
+              style={{ background: D.card, border: `1px solid ${D.border}`, borderLeft: `3px solid ${kpi.accent}`, borderRadius: 10 }}
             >
-              <div className="p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 rounded-lg" style={{ backgroundColor: `${kpi.accent}15` }}>
-                    <kpi.icon className="w-4 h-4" style={{ color: kpi.accent }} />
+              <div style={{ padding: 14 }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${kpi.accent}1A` }}>
+                    <kpi.icon className="w-3.5 h-3.5" style={{ color: kpi.accent }} />
                   </div>
-                  <span className="text-xs font-medium uppercase tracking-wider" style={{ color: D.muted }}>{kpi.label}</span>
+                  <span className="font-medium uppercase tracking-wider" style={{ color: D.muted, fontSize: 10 }}>{kpi.label}</span>
                 </div>
-                <div className="text-2xl font-bold tracking-tight" style={{ color: D.text }}>{kpi.value}</div>
-                <div className="text-xs mt-1" style={{ color: D.muted }}>{kpi.subtitle}</div>
+                <div className="font-bold tracking-tight" style={{ color: D.text, fontSize: 21 }}>{kpi.value}</div>
+                <div className="mt-0.5" style={{ color: D.muted, fontSize: 10 }}>{kpi.subtitle}</div>
               </div>
-              <div className="h-1" style={{ backgroundColor: kpi.accent }} />
             </div>
           ))}
         </div>

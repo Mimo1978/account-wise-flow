@@ -69,6 +69,7 @@ export default function ImportReview() {
   const { batchId } = useParams<{ batchId: string }>();
   const navigate = useNavigate();
   const [isApprovingAll, setIsApprovingAll] = useState(false);
+  const [approveProgress, setApproveProgress] = useState<{ current: number; total: number } | null>(null);
 
   const {
     isLoading,
@@ -88,9 +89,23 @@ export default function ImportReview() {
   const isStillProcessing = batch?.status === 'queued' || batch?.status === 'processing';
 
   const handleApproveAll = async () => {
+    const pending = entities.filter(e => e.status === "pending_review");
+    if (pending.length === 0) return;
     setIsApprovingAll(true);
-    await approveAll();
+    setApproveProgress({ current: 0, total: pending.length });
+    
+    let approved = 0;
+    for (let i = 0; i < pending.length; i++) {
+      setApproveProgress({ current: i + 1, total: pending.length });
+      const data = pending[i].edited_json || pending[i].extracted_json;
+      const name = (data as any).personal?.full_name || (data as any).name;
+      if (!name && pending[i].entity_type !== "note") continue;
+      const result = await approveEntity(pending[i].id, { destination: "candidate" });
+      if (result.success) approved++;
+    }
+    
     setIsApprovingAll(false);
+    setApproveProgress(null);
   };
 
   const getEntityName = (entity: ImportEntity): string => {

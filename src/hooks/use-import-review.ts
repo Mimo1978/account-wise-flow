@@ -463,6 +463,32 @@ export function useImportReview(batchId: string | undefined) {
     }
   }, [entities, queryClient]);
 
+  // Auto-approve high-confidence entities once processing is done
+  useEffect(() => {
+    if (isPolling || autoApproveRanRef.current || entities.length === 0) return;
+    const autoApprovable = entities.filter(e => {
+      if (e.status !== "pending_review" || e.confidence < 0.85) return false;
+      const d = e.edited_json || e.extracted_json;
+      const name = (d as any).personal?.full_name || (d as any).name;
+      const email = (d as any).personal?.email || (d as any).email;
+      return !!name && !!email;
+    });
+    if (autoApprovable.length === 0) return;
+    autoApproveRanRef.current = true;
+    (async () => {
+      let count = 0;
+      for (const entity of autoApprovable) {
+        const result = await approveEntity(entity.id, { destination: "candidate" });
+        if (result.success) count++;
+        await new Promise(r => setTimeout(r, 300));
+      }
+      if (count > 0) {
+        toast.success(`Auto-approved ${count} high-confidence CV${count > 1 ? 's' : ''}`);
+        fetchBatchData();
+      }
+    })();
+  }, [isPolling, entities, approveEntity, fetchBatchData]);
+
   // Reject an entity
   const rejectEntity = useCallback(async (entityId: string, reason?: string): Promise<boolean> => {
     try {

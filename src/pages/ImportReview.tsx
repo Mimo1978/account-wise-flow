@@ -52,6 +52,23 @@ function truncateFileName(name: string, max = 30): string {
   return name.slice(0, max - 1) + "…";
 }
 
+function extractNameFromFileName(fileName: string): string | null {
+  // Remove extension
+  let name = fileName.replace(/\.[^.]+$/, "");
+  // Remove common suffixes
+  name = name.replace(/[\s_-]*(cv|resume|curriculum[\s_-]*vitae)[\s_-]*/gi, " ");
+  // Replace underscores/hyphens with spaces
+  name = name.replace(/[_-]+/g, " ").trim();
+  // Remove trailing/leading numbers or dates
+  name = name.replace(/^\d+\s*/, "").replace(/\s*\d+$/, "").trim();
+  if (!name || name.length < 2) return null;
+  // Title case
+  return name
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 const entityTypeConfig: Record<ImportEntityType, { label: string; icon: React.ReactNode; color: string }> = {
   candidate: { label: "Candidate", icon: <FileUser className="h-4 w-4" />, color: "text-blue-500" },
   contact: { label: "Contact", icon: <Users className="h-4 w-4" />, color: "text-green-500" },

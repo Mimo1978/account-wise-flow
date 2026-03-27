@@ -193,7 +193,7 @@ export default function AdminIntegrations() {
             </div>
             <p className="text-xs text-muted-foreground">
               <a
-                href="https://cloudconvert.com"
+                href="https://cloudconvert.com/dashboard/api/v2/keys"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-primary hover:underline"

@@ -131,26 +131,27 @@ export default function ImportReview() {
 
   // Fetch per-file status
   const [fileItems, setFileItems] = useState<FileItem[]>([]);
+  const [filesPolling, setFilesPolling] = useState(true);
   useEffect(() => {
     if (!batchId) return;
+    if (!filesPolling) return;
     const fetchFiles = async () => {
       const { data } = await supabase
         .from("cv_import_items")
         .select("id, file_name, file_size_bytes, status, error_message, completed_at")
         .eq("batch_id", batchId)
         .order("created_at");
-      if (data) setFileItems(data as FileItem[]);
+      if (data) {
+        setFileItems(data as FileItem[]);
+        // Stop polling when all files are done
+        const allDone = data.length > 0 && data.every((f: any) => f.status !== "queued" && f.status !== "processing");
+        if (allDone) setFilesPolling(false);
+      }
     };
     fetchFiles();
-    // Poll while processing
     const interval = setInterval(fetchFiles, 3000);
     return () => clearInterval(interval);
-  }, [batchId]);
-
-  const allFilesComplete = fileItems.length > 0 && fileItems.every(f => f.status !== "queued" && f.status !== "processing");
-  if (allFilesComplete && fileItems.length > 0) {
-    // Stop polling by not clearing — interval will just keep checking
-  }
+  }, [batchId, filesPolling]);
 
   if (isLoading) {
     return (

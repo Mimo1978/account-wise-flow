@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -79,9 +79,7 @@ export function useImportReview(batchId: string | undefined) {
   const [entities, setEntities] = useState<ImportEntity[]>([]);
   const [selectedEntity, setSelectedEntity] = useState<ImportEntity | null>(null);
   const [isPolling, setIsPolling] = useState(false);
-  const autoApproveRanRef = { current: false };
-  // Use a ref-like pattern to track if auto-approve has already run
-  const [autoApproveRan, setAutoApproveRan] = useState(false);
+  const autoApproveRanRef = useRef(false);
 
   // Fetch batch and entities
   const fetchBatchData = useCallback(async () => {

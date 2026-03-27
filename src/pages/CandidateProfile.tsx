@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useTalentDocuments } from "@/hooks/use-talent-documents";
+
 import { useSearchContext } from "@/contexts/SearchContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Talent, TalentAvailability, TalentStatus, TalentExperience } from "@/lib/types";
@@ -49,7 +49,7 @@ import { CandidateNotesSection } from "@/components/talent/CandidateNotesSection
 import { CandidateInterviewsSection } from "@/components/talent/CandidateInterviewsSection";
 import { CandidateOpportunitiesSection } from "@/components/talent/CandidateOpportunitiesSection";
 import { CandidateOverviewEditor } from "@/components/talent/CandidateOverviewEditor";
-import { TalentDocumentList } from "@/components/talent/TalentDocumentList";
+
 import { SearchMatchSection } from "@/components/talent/SearchMatchSection";
 import { CVExportModal } from "@/components/cvexport";
 import { CVViewerPanel } from "@/components/talent/CVViewerPanel";

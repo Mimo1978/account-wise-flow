@@ -36,9 +36,33 @@ serve(async (req) => {
 
     console.log("Generating PDF for candidate:", candidateId);
 
-    // Generate PDF content using simple HTML (for now - can be enhanced with puppeteer/pdfkit later)
-    // This is a placeholder that creates a downloadable HTML file that can be printed to PDF
-    const pdfHtml = generatePDFHtml(previewData, templateStyle, executiveSummary);
+    // Fetch branding
+    const { data: brandingData } = await supabase
+      .from('workspace_branding')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .maybeSingle();
+
+    // Convert logo_path to a signed URL so it works in HTML exports
+    let logoUrl: string | null = null;
+    if (brandingData?.logo_path) {
+      const { data: signed } = await supabase.storage
+        .from('workspace-branding')
+        .createSignedUrl(brandingData.logo_path, 86400);
+      logoUrl = signed?.signedUrl || null;
+    }
+
+    // Build branding object with resolved URL
+    const branding = brandingData ? {
+      ...brandingData,
+      logo_url: logoUrl,
+    } : null;
+
+    // Merge branding into previewData
+    const enrichedPreviewData = { ...previewData, branding };
+
+    // Generate PDF content
+    const pdfHtml = generatePDFHtml(enrichedPreviewData, templateStyle, executiveSummary);
 
     // Create a unique filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");

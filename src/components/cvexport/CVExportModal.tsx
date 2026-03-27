@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
@@ -77,6 +78,7 @@ export function CVExportModal({
   const [executiveSummary, setExecutiveSummary] = useState('');
   const [summaryGenerated, setSummaryGenerated] = useState(false);
   const [step, setStep] = useState<'configure' | 'review'>('configure');
+  const [exportResult, setExportResult] = useState<{ storage_path: string } | null>(null);
 
   const selectedJobSpec = jobSpecs.find(js => js.id === selectedJobSpecId);
 
@@ -89,6 +91,7 @@ export function CVExportModal({
       setSections(DEFAULT_SECTIONS);
       setExecutiveSummary('');
       setSummaryGenerated(false);
+      setExportResult(null);
     }
   }, [open, preselectedJobSpec]);
 
@@ -136,6 +139,27 @@ export function CVExportModal({
     };
   };
 
+  const triggerDownload = useCallback(async (storagePath: string) => {
+    try {
+      const { data: urlData } = await supabase.storage
+        .from('generated-exports')
+        .createSignedUrl(storagePath, 3600);
+
+      if (urlData?.signedUrl) {
+        const link = document.createElement('a');
+        link.href = urlData.signedUrl;
+        link.download = candidate.name.replace(/\s+/g, '_') + '_CV.html';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('CV downloaded successfully');
+      }
+    } catch (e) {
+      console.error('Download error:', e);
+      toast.error('Export saved but download failed — check browser downloads');
+    }
+  }, [candidate.name]);
+
   const handleExport = async () => {
     const includedSections = Object.entries(sections)
       .filter(([_, included]) => included)
@@ -152,6 +176,8 @@ export function CVExportModal({
     }, previewData);
 
     if (result) {
+      setExportResult(result);
+      await triggerDownload(result.storage_path);
       onOpenChange(false);
     }
   };
@@ -411,6 +437,15 @@ export function CVExportModal({
               <Button variant="outline" onClick={() => setStep('configure')}>
                 Back
               </Button>
+              {exportResult && (
+                <Button
+                  variant="outline"
+                  onClick={() => triggerDownload(exportResult.storage_path)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Now
+                </Button>
+              )}
               <Button onClick={handleExport} disabled={loading || !executiveSummary}>
                 {loading ? (
                   <>

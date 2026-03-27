@@ -21,7 +21,7 @@ export function CVInlineViewer({ document, talentId }: CVInlineViewerProps) {
     const path = (document as any).pdf_storage_path || document.filePath;
     if (!path) { setLoading(false); return; }
     supabase.storage
-      .from('talent-documents')
+      .from('candidate_cvs')
       .createSignedUrl(path, 3600)
       .then(({ data }) => { setPdfUrl(data?.signedUrl || null); setLoading(false); })
       .catch(() => setLoading(false));

@@ -254,7 +254,7 @@ export const ScrollableTableContainer = forwardRef<HTMLDivElement, ScrollableTab
         onScroll={handleScrollInternal}
       >
         <div className={cn(
-          stickyHeader && "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead_tr]:bg-muted/95 [&_thead_tr]:backdrop-blur-sm [&_thead_tr]:shadow-[0_1px_3px_-1px_hsl(var(--border)/0.3)]"
+          stickyHeader && "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-20 [&_thead_tr]:bg-muted [&_thead_tr]:shadow-[0_1px_3px_-1px_hsl(var(--border)/0.3)]"
         )}>
           {children}
         </div>

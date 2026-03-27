@@ -83,6 +83,7 @@ import {
   LayoutList,
   Download,
   Megaphone,
+  Clock,
 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
@@ -859,6 +860,11 @@ export default function TalentDatabase() {
                         <DropdownMenuItem onClick={() => console.log("Import from LinkedIn")}>
                           <Linkedin className="h-4 w-4 mr-2" />
                           Import from LinkedIn
+                        </DropdownMenuItem>
+                        <Separator className="my-1" />
+                        <DropdownMenuItem onClick={() => navigate("/imports")}>
+                          <Clock className="h-4 w-4 mr-2" />
+                          View Import History
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

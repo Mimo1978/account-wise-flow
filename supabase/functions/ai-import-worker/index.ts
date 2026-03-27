@@ -115,6 +115,7 @@ function extractTextFromPdf(bytes: Uint8Array): { text: string; isScanned: boole
 interface ExtractionResult {
   text: string;
   needsOcr: boolean;
+  useVision: boolean;
   method: string;
   errorCode?: string;
   errorMessage?: string;
@@ -129,40 +130,34 @@ async function extractTextFromFile(
   const lowerFileName = fileName.toLowerCase();
   
   try {
-    // DOCX
+    // DOCX — JSZip extraction works well, keep it
     if (lowerFileName.endsWith('.docx') || mimeType.includes('wordprocessingml')) {
       log(requestId, 'info', `Using DOCX text extractor for ${fileName}`);
       const result = await extractTextFromDocx(bytes);
       
       if (result.success && result.text.length > 0) {
-        return { text: result.text, needsOcr: false, method: 'docx_text' };
+        return { text: result.text, needsOcr: false, useVision: false, method: 'docx_text' };
       }
       
       return {
         text: '',
         needsOcr: false,
+        useVision: false,
         method: 'docx_text',
         errorCode: ErrorCodes.DOCX_TEXT_EMPTY,
         errorMessage: result.error || 'Could not read text from DOCX'
       };
     }
     
-    // PDF
+    // PDF — always use vision API (regex extraction is unreliable)
     if (lowerFileName.endsWith('.pdf') || mimeType === 'application/pdf') {
-      log(requestId, 'info', `Trying PDF text extraction for ${fileName}`);
-      const pdfResult = extractTextFromPdf(bytes);
-      
-      if (!pdfResult.isScanned && pdfResult.text.length >= 200) {
-        return { text: pdfResult.text, needsOcr: false, method: 'pdf_text' };
-      }
-      
-      // Scanned PDF - need OCR via AI vision
-      return { text: pdfResult.text, needsOcr: true, method: 'pdf_ocr' };
+      log(requestId, 'info', `Using vision API for PDF: ${fileName}`);
+      return { text: '', needsOcr: false, useVision: true, method: 'pdf_vision' };
     }
     
-    // Images - OCR via AI vision
+    // Images — use vision API
     if (mimeType.startsWith('image/')) {
-      return { text: '', needsOcr: true, method: 'ai_vision' };
+      return { text: '', needsOcr: false, useVision: true, method: 'image_vision' };
     }
     
     // Old DOC format
@@ -170,6 +165,7 @@ async function extractTextFromFile(
       return {
         text: '',
         needsOcr: false,
+        useVision: false,
         method: 'unsupported',
         errorCode: ErrorCodes.UNSUPPORTED_FORMAT,
         errorMessage: 'Old .doc format not supported. Please convert to .docx or PDF.'
@@ -179,23 +175,23 @@ async function extractTextFromFile(
     // Plain text
     if (mimeType.startsWith('text/') || lowerFileName.endsWith('.txt')) {
       const textDecoder = new TextDecoder('utf-8', { fatal: false });
-      return { text: textDecoder.decode(bytes), needsOcr: false, method: 'text' };
+      return { text: textDecoder.decode(bytes), needsOcr: false, useVision: false, method: 'text' };
     }
     
-    // Unknown - try as text
+    // Unknown — try as text
     const textDecoder = new TextDecoder('utf-8', { fatal: false });
     const rawText = textDecoder.decode(bytes);
     const printableRatio = (rawText.match(/[\x20-\x7E\n\r\t]/g) || []).length / rawText.length;
     
     if (printableRatio > 0.8 && rawText.length > 50) {
-      return { text: rawText, needsOcr: false, method: 'text' };
+      return { text: rawText, needsOcr: false, useVision: false, method: 'text' };
     }
     
-    return { text: '', needsOcr: true, method: 'ai_vision' };
+    return { text: '', needsOcr: false, useVision: true, method: 'vision_fallback' };
     
   } catch (error) {
     log(requestId, 'error', `Text extraction error for ${fileName}`, { error: String(error) });
-    return { text: '', needsOcr: true, method: 'ocr_fallback' };
+    return { text: '', needsOcr: false, useVision: true, method: 'vision_fallback' };
   }
 }
 
@@ -411,24 +407,113 @@ async function processItem(
     
     let textContent = extraction.text;
     
-    // If needs OCR, use AI vision
-    if (extraction.needsOcr) {
-      log(requestId, 'info', `Using AI vision for OCR on ${item.file_name}`);
-      const base64 = btoa(String.fromCharCode(...bytes));
+    // For PDFs and images, send raw bytes directly to Gemini vision
+    if (extraction.useVision) {
+      log(requestId, 'info', `Using AI vision for ${item.file_name} (${extraction.method})`);
+      const base64Data = btoa(String.fromCharCode(...bytes));
+      const dataMime = item.file_type || 'application/octet-stream';
       
-      const ocrResult = await callAI(apiKey, [
-        { role: 'system', content: 'Extract all visible text from this document image. Return only the extracted text.' },
+      const CV_PARSE_PROMPT = `You are an expert CV/resume parser. Extract candidate information from this document and return ONLY valid JSON:
+{
+  "personal": { "full_name": "string", "email": "string or null", "phone": "string or null", "location": "string or null" },
+  "headline": { "current_title": "string", "seniority_level": "executive|director|manager|senior|mid|junior" },
+  "skills": { "primary_skills": ["skill1", "skill2"], "secondary_skills": ["skill3"] },
+  "experience": [{ "company": "string", "title": "string", "start_date": "YYYY-MM", "end_date": "YYYY-MM or Present" }],
+  "education": [{ "institution": "string", "degree": "string", "field": "string" }],
+  "certifications": ["cert1"],
+  "current_employer": "string or null",
+  "recent_employers": ["company1", "company2"],
+  "overall_confidence": 0.0-1.0
+}
+If this is not a CV/resume, extract whatever structured data you can and set overall_confidence below 0.3.`;
+
+      const visionResult = await callAI(apiKey, [
         {
           role: 'user',
           content: [
-            { type: 'text', text: 'Extract text from this document:' },
-            { type: 'image_url', image_url: { url: `data:${item.file_type};base64,${base64}` } }
+            {
+              type: 'image_url',
+              image_url: { url: `data:${dataMime};base64,${base64Data}` }
+            },
+            {
+              type: 'text',
+              text: CV_PARSE_PROMPT
+            }
           ]
         }
       ], requestId);
       
-      if (ocrResult.ok && ocrResult.content) {
-        textContent = ocrResult.content;
+      if (visionResult.ok && visionResult.content) {
+        // Parse the vision result directly — skip text extraction + separate AI parse
+        try {
+          const parsed = JSON.parse(visionResult.content.replace(/```json\n?|\n?```/g, '').trim());
+          const missing: string[] = [];
+          if (!parsed.personal?.full_name) missing.push('name');
+          if (!parsed.personal?.email) missing.push('email');
+          
+          // We got structured data directly from vision
+          const processingTime = Date.now() - startTime;
+          const parseConfidence = parsed.overall_confidence || 0.7;
+          const name = parsed.personal?.full_name;
+          const entityStatus = name ? 'pending_review' : 'needs_input';
+          
+          await adminClient
+            .from('cv_import_items')
+            .update({
+              status: 'parsed',
+              parse_confidence: parseConfidence,
+              completed_at: new Date().toISOString(),
+              extracted_data: {
+                classification: { type: 'CV_RESUME', confidence: parseConfidence },
+                extraction_method: extraction.method,
+                parsed_data: parsed,
+                missing_fields: missing,
+                processing_time_ms: processingTime,
+              },
+              search_tags: parsed.skills?.primary_skills || [],
+            })
+            .eq('id', item.id);
+          
+          // Create import entity
+          const { error: entityError } = await adminClient
+            .from('import_entities')
+            .insert({
+              batch_id: item.batch_id,
+              item_id: item.id,
+              tenant_id: item.tenant_id,
+              entity_type: 'candidate',
+              status: entityStatus,
+              extracted_json: parsed,
+              confidence: parseConfidence,
+              missing_fields: missing.length > 0 ? missing : null,
+            });
+          
+          if (entityError) {
+            log(requestId, 'error', `Failed to create import_entity for ${item.file_name}`, { error: entityError.message });
+          } else {
+            log(requestId, 'info', `Vision parsed ${item.file_name} in ${processingTime}ms: ${entityStatus}`);
+          }
+          
+          // Update batch counters
+          await adminClient.rpc('increment_batch_counter', { 
+            p_batch_id: item.batch_id, 
+            p_field: 'success_count' 
+          }).catch(() => {
+            // Fallback: direct update
+            adminClient.from('cv_import_batches')
+              .update({ processed_files: item.batch_id })
+              .eq('id', item.batch_id);
+          });
+          
+          return; // Done — skip the text-based path below
+          
+        } catch (parseErr) {
+          log(requestId, 'warn', `Vision returned unparseable JSON for ${item.file_name}, extracting text fallback`);
+          textContent = visionResult.content; // Use AI output as text for the text path
+        }
+      } else {
+        log(requestId, 'warn', `Vision API failed for ${item.file_name}: ${visionResult.errorMessage}`);
+        // Fall through to text-based path with whatever text we have
       }
     }
     

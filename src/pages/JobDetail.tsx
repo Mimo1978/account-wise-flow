@@ -1181,7 +1181,7 @@ function ShortlistTab({ jobId, jobTitle, onProjectLinked, onOpenShortlistBuilder
                         <div className="flex items-center gap-1 pt-1">
                           {e.candidate_id && (
                             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate(`/talent/${e.candidate_id}`)}>
-                              <FileUser className="w-3 h-3 mr-1" /> View Profile →
+                              <FileText className="w-3 h-3 mr-1" /> View Profile →
                             </Button>
                           )}
                           <Button variant="ghost" size="sm" className="h-7 text-xs"><Mail className="w-3 h-3 mr-1" /> Email</Button>

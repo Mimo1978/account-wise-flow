@@ -804,8 +804,8 @@ export default function ContactsDatabase() {
                 <TableRow className="bg-muted">
                   {/* Checkbox col */}
                   <TableHead
-                    className="w-10 bg-muted"
-                    style={{ position: "sticky", left: 0, zIndex: 40 }}
+                    className="w-10"
+                    style={{ position: "sticky", left: 0, zIndex: 40, background: "hsl(var(--muted))", backgroundClip: "padding-box" }}
                   >
                     <Checkbox
                       checked={filteredContacts.length > 0 && selectedIds.size === filteredContacts.length}
@@ -820,23 +820,27 @@ export default function ContactsDatabase() {
                     />
                   </TableHead>
                   <TableHead 
-                    className="font-semibold whitespace-nowrap bg-muted"
+                    className="font-semibold whitespace-nowrap"
                     style={{ 
                       position: "sticky", 
                       left: 40, 
                       zIndex: 40,
                       minWidth: 100,
+                      background: "hsl(var(--muted))",
+                      backgroundClip: "padding-box",
                     }}
                   >
                     Data Quality
                   </TableHead>
                   <TableHead 
-                    className="font-semibold whitespace-nowrap bg-muted"
+                    className="font-semibold whitespace-nowrap"
                     style={{ 
                       position: "sticky", 
                       left: 140, 
                       zIndex: 40,
                       minWidth: 180,
+                      background: "hsl(var(--muted))",
+                      backgroundClip: "padding-box",
                       boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
                     }}
                   >

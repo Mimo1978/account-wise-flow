@@ -479,56 +479,56 @@ export default function CompaniesDatabase() {
                       Company Name
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted text-center" style={{ zIndex: 10, width: 90 }}>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted text-center" style={{ position: "relative", zIndex: 1, width: 90 }}>
                     <div className="flex items-center justify-center gap-1">
                       <Users className="h-4 w-4" />
                       Contacts
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted text-center" style={{ zIndex: 10, width: 100 }}>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted text-center" style={{ position: "relative", zIndex: 1, width: 100 }}>
                     <div className="flex items-center justify-center gap-1">
                       <TrendingUp className="h-4 w-4" />
                       Score
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4" />
                       Headquarters
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>
                     <div className="flex items-center gap-2">
                       <Phone className="h-4 w-4" />
                       Switchboard
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Industry</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>Industry</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>
                     <div className="flex items-center gap-2">
                       <Globe className="h-4 w-4" />
                       Regions
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>
                     Status
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>
                     <div className="flex items-center gap-2">
                       <Shield className="h-4 w-4" />
                       Account Owner
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
                       Last Activity
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>
                     Data Quality
                   </TableHead>
-                  <TableHead className="w-12 bg-muted" style={{ zIndex: 10 }} />
+                  <TableHead className="w-12 bg-muted" style={{ position: "relative", zIndex: 1 }} />
                 </TableRow>
               </TableHeader>
               <TableBody>

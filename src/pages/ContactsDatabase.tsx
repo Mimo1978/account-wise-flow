@@ -846,17 +846,17 @@ export default function ContactsDatabase() {
                   >
                     Name
                   </TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Company</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Department</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Job Title</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Seniority</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Email</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Private Email</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Phone</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Status</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Owner</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ zIndex: 10 }}>Last Contacted</TableHead>
-                  <TableHead className="font-semibold whitespace-nowrap bg-muted w-[120px]" style={{ zIndex: 10 }}>Actions</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>Company</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>Department</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>Job Title</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>Seniority</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>Email</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>Private Email</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>Phone</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>Status</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>Owner</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted" style={{ position: "relative", zIndex: 1 }}>Last Contacted</TableHead>
+                  <TableHead className="font-semibold whitespace-nowrap bg-muted w-[120px]" style={{ position: "relative", zIndex: 1 }}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
             <TableBody>

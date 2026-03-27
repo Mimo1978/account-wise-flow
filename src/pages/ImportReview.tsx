@@ -255,11 +255,16 @@ export default function ImportReview() {
             {statusCounts.pending > 0 && (
               <Button onClick={handleApproveAll} disabled={isApprovingAll}>
                 {isApprovingAll ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {approveProgress ? `Approving ${approveProgress.current} of ${approveProgress.total}...` : "Approving..."}
+                  </>
                 ) : (
-                  <CheckCheck className="h-4 w-4 mr-2" />
+                  <>
+                    <CheckCheck className="h-4 w-4 mr-2" />
+                    Approve all {statusCounts.pending} as candidates →
+                  </>
                 )}
-                Accept All
               </Button>
             )}
           </div>

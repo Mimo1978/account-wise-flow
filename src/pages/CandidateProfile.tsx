@@ -18,6 +18,14 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowLeft,
   ChevronLeft,
   Mail,
@@ -37,14 +45,18 @@ import {
   Plus,
   MessageSquare,
   Calendar,
+  CalendarPlus,
   Target,
   ChevronDown,
   ChevronRight,
   Activity,
   Download,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { CandidateNotesSection } from "@/components/talent/CandidateNotesSection";
 import { CandidateInterviewsSection } from "@/components/talent/CandidateInterviewsSection";
 import { CandidateOpportunitiesSection } from "@/components/talent/CandidateOpportunitiesSection";
@@ -130,6 +142,11 @@ export default function CandidateProfile() {
   );
   const [showExportModal, setShowExportModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
+  const [callbackOpen, setCallbackOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [addNoteOpen, setAddNoteOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   // Auto-expand CV section when navigating from table Docs indicator
   useEffect(() => {

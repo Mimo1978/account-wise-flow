@@ -52,7 +52,7 @@ import { CandidateOverviewEditor } from "@/components/talent/CandidateOverviewEd
 import { TalentDocumentList } from "@/components/talent/TalentDocumentList";
 import { SearchMatchSection } from "@/components/talent/SearchMatchSection";
 import { CVExportModal } from "@/components/cvexport";
-import { InlineCVViewer } from "@/components/talent/InlineCVViewer";
+import { CVViewerPanel } from "@/components/talent/CVViewerPanel";
 import { RowInlineActions } from "@/components/outreach/RowInlineActions";
 
 const availabilityColors: Record<TalentAvailability, string> = {
@@ -285,12 +285,13 @@ export default function CandidateProfile() {
         </div>
       </div>
 
-      {/* Main Content - 2-column layout */}
+      {/* Main Content — two-column: sidebar + CV viewer */}
       <div className="flex-1 overflow-hidden">
-        <div className="h-full grid grid-cols-1 lg:grid-cols-3 gap-0 lg:gap-6 p-4 lg:p-6 overflow-auto">
-          {/* Left Column - Sticky Summary */}
-          <div className="lg:sticky lg:top-0 lg:self-start">
-            <Card className="mb-6 lg:mb-0">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] gap-0">
+          {/* LEFT COLUMN — scrollable sidebar sections */}
+          <div className="h-full overflow-auto border-r border-border p-4 lg:p-6 space-y-4">
+            {/* Contact Card */}
+            <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">Contact Information</CardTitle>
               </CardHeader>
@@ -369,33 +370,16 @@ export default function CandidateProfile() {
                     <Target className="h-4 w-4 mr-2" />
                     Add to Opportunity
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start"
-                    disabled={documents.length === 0}
-                    onClick={() => {
-                      setExpandedSections(new Set([...expandedSections, "cv"]));
-                      // Scroll to CV section
-                      document.getElementById("cv-section")?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                  >
-                    <FileText className="h-4 w-4 mr-2" />
-                    {documents.length > 0 ? `${documents.length} Document${documents.length > 1 ? 's' : ''}` : "No Documents"}
-                  </Button>
                 </div>
               </CardContent>
             </Card>
-          </div>
 
-          {/* Right Column - Scrollable Sections */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Search Match Explanation - Only shows when arriving from Boolean search */}
+            {/* Search Match */}
             {searchResult && (
               <SearchMatchSection result={searchResult} />
             )}
 
-            {/* AI Candidate Overview */}
+            {/* AI Overview */}
             <CollapsibleSection
               id="overview"
               title="AI Candidate Overview"
@@ -409,33 +393,6 @@ export default function CandidateProfile() {
                 canEdit={canEdit}
               />
             </CollapsibleSection>
-
-            <div id="cv-section">
-              <CollapsibleSection
-                id="cv"
-                title="CV & Documents"
-                icon={<FileText className="h-4 w-4" />}
-                badge={documents.length > 0 ? documents.length.toString() : undefined}
-                expanded={expandedSections.has("cv")}
-                onToggle={() => toggleSection("cv")}
-              >
-                <div className="space-y-6">
-                  <InlineCVViewer
-                    candidateId={candidate.id}
-                    candidateName={candidate.name}
-                    cvStoragePath={candidate.cvStoragePath}
-                    canEdit={canEdit}
-                    onExportClick={() => setShowExportModal(true)}
-                    onUploadComplete={() => refetch()}
-                  />
-                  <TalentDocumentList
-                    talentId={candidate.id}
-                    talentName={candidate.name}
-                    canEdit={canEdit}
-                  />
-                </div>
-              </CollapsibleSection>
-            </div>
 
             {/* Skills */}
             <CollapsibleSection
@@ -459,7 +416,7 @@ export default function CandidateProfile() {
               </div>
             </CollapsibleSection>
 
-            {/* Experience Timeline */}
+            {/* Experience */}
             <CollapsibleSection
               id="experience"
               title="Experience"
@@ -512,7 +469,7 @@ export default function CandidateProfile() {
               </div>
             </CollapsibleSection>
 
-            {/* Interviews / Pipeline */}
+            {/* Interviews */}
             <CollapsibleSection
               id="interviews"
               title="Interviews"
@@ -570,6 +527,19 @@ export default function CandidateProfile() {
                 <p>No activity recorded yet.</p>
               </div>
             </CollapsibleSection>
+          </div>
+
+          {/* RIGHT COLUMN — CV viewer panel */}
+          <div className="h-full overflow-hidden">
+            <CVViewerPanel
+              candidateId={candidate.id}
+              candidateName={candidate.name}
+              cvStoragePath={candidate.cvStoragePath}
+              rawCvText={candidate.rawCvText}
+              canEdit={canEdit}
+              onExportClick={() => setShowExportModal(true)}
+              onUploadComplete={() => refetch()}
+            />
           </div>
         </div>
       </div>

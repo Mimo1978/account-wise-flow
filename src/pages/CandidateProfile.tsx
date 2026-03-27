@@ -112,10 +112,6 @@ export default function CandidateProfile() {
   // Get search result if user arrived from Boolean search
   const searchResult = candidateId ? searchContext.getSearchResult(candidateId) : null;
 
-  // Use the new talent documents hook for CV Vault
-  const { documents } = useTalentDocuments({
-    talentId: candidateId || "",
-  });
 
   // Check if we should auto-expand CV section (from Docs column click)
   const autoExpandSection = searchParams.get("section");

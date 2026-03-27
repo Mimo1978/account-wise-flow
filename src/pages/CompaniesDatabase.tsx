@@ -444,13 +444,15 @@ export default function CompaniesDatabase() {
               <TableHeader>
                 <TableRow className="bg-muted">
                   <TableHead 
-                    className="w-12 bg-muted"
+                    className="w-12"
                     style={{ 
                       position: "sticky", 
                       left: 0, 
                       zIndex: 40,
                       width: 48,
                       minWidth: 48,
+                      background: "hsl(var(--muted))",
+                      backgroundClip: "padding-box",
                     }}
                   >
                     <Checkbox
@@ -461,12 +463,14 @@ export default function CompaniesDatabase() {
                     />
                   </TableHead>
                   <TableHead 
-                    className="font-semibold whitespace-nowrap bg-muted"
+                    className="font-semibold whitespace-nowrap"
                     style={{ 
                       position: "sticky", 
                       left: 48, 
                       zIndex: 40,
                       minWidth: 200,
+                      background: "hsl(var(--muted))",
+                      backgroundClip: "padding-box",
                       boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
                     }}
                   >

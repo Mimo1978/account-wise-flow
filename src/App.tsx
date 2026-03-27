@@ -62,6 +62,7 @@ import AdminJarvisSettings from "./pages/admin/AdminJarvisSettings";
 import AdminEmailGuide from "./pages/admin/AdminEmailGuide";
 import AdminSmsGuide from "./pages/admin/AdminSmsGuide";
 import AdminAiCallingGuide from "./pages/admin/AdminAiCallingGuide";
+import AdminIntegrations from "./pages/admin/AdminIntegrations";
 import AccountsBillingHub from "./pages/AccountsBillingHub";
 import CrmContacts from "./pages/crm/CrmContacts";
 import CrmContactDetail from "./pages/crm/CrmContactDetail";
@@ -224,6 +225,7 @@ const App = () => {
             <Route path="/admin/email-guide" element={<AdminPage section="integrations"><AdminEmailGuide /></AdminPage>} />
             <Route path="/admin/sms-guide" element={<AdminPage section="integrations"><AdminSmsGuide /></AdminPage>} />
             <Route path="/admin/ai-calling-guide" element={<AdminPage section="integrations"><AdminAiCallingGuide /></AdminPage>} />
+            <Route path="/admin/integrations" element={<AdminPage section="integrations"><AdminIntegrations /></AdminPage>} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

@@ -585,6 +585,7 @@ export function EntityEditForm({
               data={formData}
               onChange={updateField}
               disabled={isDisabled}
+              autoFocusName={autoFocusName}
             />
           )}
 
@@ -622,10 +623,12 @@ function CandidateForm({
   data,
   onChange,
   disabled,
+  autoFocusName = false,
 }: {
   data: Record<string, any>;
   onChange: (path: string, value: any) => void;
   disabled: boolean;
+  autoFocusName?: boolean;
 }) {
   const personal = data.personal || {};
   const headline = data.headline || {};

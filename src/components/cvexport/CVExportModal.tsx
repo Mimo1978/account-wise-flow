@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
@@ -29,6 +30,7 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Palette,
   Layout,
 } from 'lucide-react';
@@ -60,6 +62,7 @@ export function CVExportModal({
   candidate,
   preselectedJobSpec,
 }: CVExportModalProps) {
+  const navigate = useNavigate();
   const { 
     loading, 
     generatingSummary, 
@@ -202,6 +205,32 @@ export function CVExportModal({
         <ScrollArea className="flex-1 -mx-6 px-6">
           {step === 'configure' ? (
             <div className="space-y-6 py-4">
+              {/* Logo missing banner */}
+              {!branding?.logo_path && (
+                <div className="flex items-center gap-3 p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                  <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-amber-500">
+                      No company logo set
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Add your logo to appear on all exported CVs — makes them look professional and branded.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-500/50 text-amber-500 hover:bg-amber-500/10 flex-shrink-0"
+                    onClick={() => {
+                      onOpenChange(false);
+                      navigate('/admin/branding');
+                    }}
+                  >
+                    Add Logo →
+                  </Button>
+                </div>
+              )}
+
               {/* Template Selection */}
               <div className="space-y-3">
                 <Label className="flex items-center gap-2">
@@ -402,6 +431,19 @@ export function CVExportModal({
                 <div className="space-y-3">
                   <Label>Preview</Label>
                   <div className="border rounded-lg overflow-hidden bg-white">
+                    {/* Logo / placeholder in preview header */}
+                    <div className="flex items-center justify-between px-4 pt-4">
+                      <div className="text-sm font-semibold text-gray-800">
+                        {candidate.name}
+                      </div>
+                      {getLogoUrl() ? (
+                        <img src={getLogoUrl()!} alt="Logo" className="h-8 w-auto" />
+                      ) : (
+                        <div className="h-8 px-3 flex items-center justify-center rounded border border-dashed border-gray-300 bg-gray-50">
+                          <span className="text-[10px] text-gray-400">Add logo in Settings</span>
+                        </div>
+                      )}
+                    </div>
                     <CVTemplatePreview 
                       data={buildPreviewData()}
                       style={templateStyle}

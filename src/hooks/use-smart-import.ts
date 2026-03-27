@@ -377,6 +377,7 @@ export function useSmartImport(context: SmartImportContext) {
   return {
     // State
     files,
+    rejectedFiles,
     isProcessing,
     batchId,
     progress,
@@ -388,6 +389,7 @@ export function useSmartImport(context: SmartImportContext) {
     addFiles,
     removeFile,
     clearFiles,
+    dismissRejected,
     setFileTypeOverride,
     processFiles,
     reset,

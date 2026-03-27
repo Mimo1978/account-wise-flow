@@ -52,7 +52,8 @@ import { CandidateOverviewEditor } from "@/components/talent/CandidateOverviewEd
 
 import { SearchMatchSection } from "@/components/talent/SearchMatchSection";
 import { CVExportModal } from "@/components/cvexport";
-import { CVViewerPanel } from "@/components/talent/CVViewerPanel";
+import { CVInlineViewer } from "@/components/talent/CVInlineViewer";
+import { useTalentDocuments } from "@/hooks/use-talent-documents";
 import { RowInlineActions } from "@/components/outreach/RowInlineActions";
 import { CandidateEditForm } from "@/components/talent/CandidateEditForm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";

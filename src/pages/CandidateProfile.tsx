@@ -106,6 +106,7 @@ export default function CandidateProfile() {
   const returnCampaignId = searchParams.get("campaignId");
   const { candidates, isLoading, refetch } = useCandidates();
   const { canEdit, isAdmin, isManager, userId } = usePermissions();
+  const { currentWorkspace } = useWorkspace();
   const searchContext = useSearchContext();
 
   // Get search result if user arrived from Boolean search

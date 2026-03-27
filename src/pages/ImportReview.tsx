@@ -276,7 +276,7 @@ export default function ImportReview() {
       {fileItems.length > 0 && (
         <div className="border-b bg-muted/20 px-6 py-3">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            File Processing Status
+            Files
           </p>
           <div className="grid gap-1.5 max-h-[160px] overflow-y-auto">
             {fileItems.map((file) => {
@@ -306,20 +306,18 @@ export default function ImportReview() {
                   )}
                   {isDone && (
                     <Badge variant="outline" className="text-xs gap-1 bg-green-500/20 text-green-400 flex-shrink-0">
-                      <CheckCircle2 className="h-3 w-3" /> Done
+                      <CheckCircle2 className="h-3 w-3" /> Extracted
                     </Badge>
                   )}
                   {isFailed && (
-                    <>
-                      <Badge variant="outline" className="text-xs gap-1 bg-red-500/20 text-red-400 flex-shrink-0">
-                        <XCircle className="h-3 w-3" /> Failed
-                      </Badge>
-                      {file.error_message && (
-                        <span className="text-xs text-red-400 truncate max-w-[200px]" title={file.error_message}>
-                          {file.error_message}
-                        </span>
-                      )}
-                    </>
+                    <Badge variant="outline" className="text-xs gap-1 bg-red-500/20 text-red-400 flex-shrink-0">
+                      <XCircle className="h-3 w-3" /> Failed
+                    </Badge>
+                    {file.error_message && (
+                      <span className="text-xs text-red-400 truncate max-w-[200px]" title={file.error_message}>
+                        — {file.error_message}
+                      </span>
+                    )}
                   )}
                 </div>
               );

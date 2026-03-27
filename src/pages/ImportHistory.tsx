@@ -74,9 +74,9 @@ export default function ImportHistory() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-6 py-8 max-w-5xl space-y-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Import History</h1>
+         <h1 className="text-2xl font-bold tracking-tight text-foreground">Import History</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            All past CV and document imports · {batches.length} batch{batches.length !== 1 ? "es" : ""}
+            All CV and contact imports
           </p>
         </div>
 
@@ -104,7 +104,7 @@ export default function ImportHistory() {
                   <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
                     <FileStack className="h-8 w-8 mx-auto mb-2 opacity-50" />
                     <p className="font-medium">No imports yet</p>
-                    <p className="text-xs mt-1">Upload CVs from the Talent Database to get started</p>
+                    <p className="text-xs mt-1">Go to Talent → Import to add CVs.</p>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -149,14 +149,13 @@ export default function ImportHistory() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Button
+                       <Button
                           variant="ghost"
                           size="sm"
                           className="gap-1"
                           onClick={() => navigate(`/imports/${batch.id}/review`)}
                         >
-                          Continue Review
-                          <ArrowRight className="h-3.5 w-3.5" />
+                          Review →
                         </Button>
                       </TableCell>
                     </TableRow>

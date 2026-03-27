@@ -131,26 +131,27 @@ export default function ImportReview() {
 
   // Fetch per-file status
   const [fileItems, setFileItems] = useState<FileItem[]>([]);
+  const [filesPolling, setFilesPolling] = useState(true);
   useEffect(() => {
     if (!batchId) return;
+    if (!filesPolling) return;
     const fetchFiles = async () => {
       const { data } = await supabase
         .from("cv_import_items")
         .select("id, file_name, file_size_bytes, status, error_message, completed_at")
         .eq("batch_id", batchId)
         .order("created_at");
-      if (data) setFileItems(data as FileItem[]);
+      if (data) {
+        setFileItems(data as FileItem[]);
+        // Stop polling when all files are done
+        const allDone = data.length > 0 && data.every((f: any) => f.status !== "queued" && f.status !== "processing");
+        if (allDone) setFilesPolling(false);
+      }
     };
     fetchFiles();
-    // Poll while processing
     const interval = setInterval(fetchFiles, 3000);
     return () => clearInterval(interval);
-  }, [batchId]);
-
-  const allFilesComplete = fileItems.length > 0 && fileItems.every(f => f.status !== "queued" && f.status !== "processing");
-  if (allFilesComplete && fileItems.length > 0) {
-    // Stop polling by not clearing — interval will just keep checking
-  }
+  }, [batchId, filesPolling]);
 
   if (isLoading) {
     return (
@@ -275,7 +276,7 @@ export default function ImportReview() {
       {fileItems.length > 0 && (
         <div className="border-b bg-muted/20 px-6 py-3">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            File Processing Status
+            Files
           </p>
           <div className="grid gap-1.5 max-h-[160px] overflow-y-auto">
             {fileItems.map((file) => {
@@ -305,7 +306,7 @@ export default function ImportReview() {
                   )}
                   {isDone && (
                     <Badge variant="outline" className="text-xs gap-1 bg-green-500/20 text-green-400 flex-shrink-0">
-                      <CheckCircle2 className="h-3 w-3" /> Done
+                      <CheckCircle2 className="h-3 w-3" /> Extracted
                     </Badge>
                   )}
                   {isFailed && (
@@ -315,7 +316,7 @@ export default function ImportReview() {
                       </Badge>
                       {file.error_message && (
                         <span className="text-xs text-red-400 truncate max-w-[200px]" title={file.error_message}>
-                          {file.error_message}
+                          — {file.error_message}
                         </span>
                       )}
                     </>

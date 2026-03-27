@@ -402,6 +402,22 @@ async function processItem(
           },
         })
         .eq('id', item.id);
+      
+      // Still create an entity so the user can manually enter data
+      await adminClient.from('import_entities').insert({
+        batch_id: item.batch_id,
+        item_id: item.id,
+        tenant_id: item.tenant_id,
+        entity_type: 'candidate',
+        status: 'needs_input',
+        extracted_json: {
+          personal: { full_name: null, email: null, phone: null, location: null },
+          _source_file: item.file_name,
+          _extraction_error: extraction.errorMessage || 'File could not be read',
+        },
+        confidence: 0,
+        missing_fields: ['name', 'email', 'phone', 'title'],
+      });
       return;
     }
     
@@ -518,19 +534,74 @@ If this is not a CV/resume, extract whatever structured data you can and set ove
     }
     
     if (!textContent || textContent.length < 50) {
-      await adminClient
-        .from('cv_import_items')
-        .update({
+      // Try Gemini Vision directly on the raw file bytes
+      const isPdfOrImage = item.file_type === 'application/pdf' || 
+                           item.file_type?.startsWith('image/');
+      
+      if (isPdfOrImage) {
+        const base64 = btoa(String.fromCharCode(...bytes));
+        const visionResult = await callAI(apiKey, [
+          { role: 'system', content: 'Extract all text from this CV document.' },
+          {
+            role: 'user',
+            content: [
+              { type: 'image_url', 
+                image_url: { url: `data:${item.file_type};base64,${base64}` } },
+              { type: 'text', text: 'Extract all text from this CV/resume:' }
+            ]
+          }
+        ], requestId);
+        
+        if (visionResult.ok && visionResult.content && visionResult.content.length > 50) {
+          textContent = visionResult.content;
+          // continue processing below with this text
+        } else {
+          // Vision failed — mark item failed BUT still create entity
+          await adminClient.from('cv_import_items').update({
+            status: 'failed',
+            error_message: 'Could not read file — enter details manually',
+            completed_at: new Date().toISOString(),
+          }).eq('id', item.id);
+          
+          await adminClient.from('import_entities').insert({
+            batch_id: item.batch_id,
+            item_id: item.id,
+            tenant_id: item.tenant_id,
+            entity_type: 'candidate',
+            status: 'needs_input',
+            extracted_json: {
+              personal: { full_name: null, email: null, phone: null, location: null },
+              _source_file: item.file_name,
+              _extraction_error: 'File could not be read automatically',
+            },
+            confidence: 0,
+            missing_fields: ['name', 'email', 'phone', 'title'],
+          });
+          return;
+        }
+      } else {
+        // Non-image/PDF — mark failed but still create entity
+        await adminClient.from('cv_import_items').update({
           status: 'failed',
-          error_message: 'Could not extract readable text from file',
+          error_message: 'Could not extract text from file',
           completed_at: new Date().toISOString(),
-          extracted_data: { 
-            extraction_method: extraction.method,
-            text_length: textContent?.length || 0,
+        }).eq('id', item.id);
+        
+        await adminClient.from('import_entities').insert({
+          batch_id: item.batch_id,
+          item_id: item.id,
+          tenant_id: item.tenant_id,
+          entity_type: 'candidate',
+          status: 'needs_input',
+          extracted_json: {
+            personal: { full_name: null, email: null, phone: null, location: null },
+            _source_file: item.file_name,
           },
-        })
-        .eq('id', item.id);
-      return;
+          confidence: 0,
+          missing_fields: ['name', 'email', 'phone', 'title'],
+        });
+        return;
+      }
     }
     
     // Classify document

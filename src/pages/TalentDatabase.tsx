@@ -39,6 +39,7 @@ import {
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { DocsColumnCell, DocsInlineIndicator } from "@/components/talent/DocsColumnCell";
 import { SmartImportModal } from "@/components/import/SmartImportModal";
+import { FastCVUpload } from "@/components/import/FastCVUpload";
 import { ImportCenterModal } from "@/components/import/ImportCenterModal";
 import { ImportMethod } from "@/components/import/ImportCenterTypes";
 import { AddToOutreachModal } from "@/components/outreach/AddToOutreachModal";
@@ -164,6 +165,7 @@ export default function TalentDatabase() {
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showFastUpload, setShowFastUpload] = useState(false);
   const [showBulkImportModal, setShowBulkImportModal] = useState(false);
   const [bulkImportMethod, setBulkImportMethod] = useState<ImportMethod>("file");
   const [showCVViewer, setShowCVViewer] = useState(false);
@@ -830,6 +832,12 @@ export default function TalentDatabase() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={() => setShowFastUpload(true)}>
+                          <Upload className="h-4 w-4 mr-2" />
+                          Import CVs
+                          <Badge variant="outline" className="ml-auto text-xs">Fast</Badge>
+                        </DropdownMenuItem>
+                        <Separator className="my-1" />
                         <DropdownMenuItem onClick={() => {
                           setBulkImportMethod("file");
                           setShowBulkImportModal(true);
@@ -846,16 +854,8 @@ export default function TalentDatabase() {
                           <Badge variant="outline" className="ml-auto text-xs">Beta</Badge>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setShowImportModal(true)}>
-                          <FileText className="h-4 w-4 mr-2" />
-                          Upload CV
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setShowImportModal(true)}>
                           <Layers className="h-4 w-4 mr-2" />
-                          Batch Upload
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setShowImportModal(true)}>
-                          <MousePointer2 className="h-4 w-4 mr-2" />
-                          Drag & Drop
+                          Advanced Import
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => console.log("Import from LinkedIn")}>
                           <Linkedin className="h-4 w-4 mr-2" />
@@ -1246,6 +1246,16 @@ export default function TalentDatabase() {
         open={showCVViewer}
         onClose={() => setShowCVViewer(false)}
         onBack={() => setShowCVViewer(false)}
+      />
+
+      {/* Fast CV Upload */}
+      <FastCVUpload
+        open={showFastUpload}
+        onOpenChange={setShowFastUpload}
+        onComplete={() => {
+          invalidateCandidates();
+          refetchCandidates();
+        }}
       />
 
       {/* Smart Import Modal (AI-based import for CVs, images, etc.) */}

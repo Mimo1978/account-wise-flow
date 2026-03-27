@@ -1014,7 +1014,7 @@ export default function TalentDatabase() {
         )}
 
         {/* Table with Resizable Columns */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden relative" style={{ borderLeft: '4px solid hsl(142 71% 45%)' }}>
+        <div className="rounded-xl border border-border bg-card overflow-visible relative" style={{ borderLeft: '4px solid hsl(142 71% 45%)' }}>
           {/* Premium Edge Fade - Left Pinned Boundary */}
           <PinnedEdgeFade
             leftOffset={leftPinnedTotalWidth}

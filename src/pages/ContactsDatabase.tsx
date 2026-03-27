@@ -792,7 +792,7 @@ export default function ContactsDatabase() {
         </div>
 
         {/* Table */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden relative" style={{ borderLeft: '4px solid hsl(199 89% 48%)' }}>
+        <div className="rounded-xl border border-border bg-card overflow-visible relative" style={{ borderLeft: '4px solid hsl(199 89% 48%)' }}>
           <ScrollableTableContainer 
             showScrollHint={isFirstVisit}
             stickyHeader

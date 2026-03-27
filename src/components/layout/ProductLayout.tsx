@@ -180,7 +180,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Product Navigation Header */}
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="px-4 py-2">
@@ -416,7 +416,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
       })()}
 
       {/* Page Content */}
-      <div className="flex-1 page-accent-wrapper" style={(() => {
+      <div className="flex-1 page-accent-wrapper overflow-hidden" style={(() => {
         const accent = getNavColour(location.pathname);
         return accent ? { '--page-accent': accent } as React.CSSProperties : {};
       })()}>

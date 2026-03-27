@@ -877,6 +877,11 @@ export default function TalentDatabase() {
                 )}
               </Tooltip>
 
+              <Button variant="ghost" size="sm" onClick={() => navigate("/imports")} className="text-muted-foreground">
+                <Clock className="h-4 w-4 mr-1.5" />
+                History
+              </Button>
+
               {/* Export button - only visible when Boolean search is active with results */}
               {booleanSearch.isBooleanMode && booleanSearch.hasResults && filteredTalents.length > 0 && (
                 <Tooltip>

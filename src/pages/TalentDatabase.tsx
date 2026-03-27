@@ -860,6 +860,11 @@ export default function TalentDatabase() {
                           <Linkedin className="h-4 w-4 mr-2" />
                           Import from LinkedIn
                         </DropdownMenuItem>
+                        <Separator className="my-1" />
+                        <DropdownMenuItem onClick={() => navigate("/imports")}>
+                          <Clock className="h-4 w-4 mr-2" />
+                          View Import History
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </span>

@@ -114,6 +114,29 @@ export default function ImportReview() {
     }
   };
 
+  // Fetch per-file status
+  const [fileItems, setFileItems] = useState<FileItem[]>([]);
+  useEffect(() => {
+    if (!batchId) return;
+    const fetchFiles = async () => {
+      const { data } = await supabase
+        .from("cv_import_items")
+        .select("id, file_name, file_size_bytes, status, error_message, completed_at")
+        .eq("batch_id", batchId)
+        .order("created_at");
+      if (data) setFileItems(data as FileItem[]);
+    };
+    fetchFiles();
+    // Poll while processing
+    const interval = setInterval(fetchFiles, 3000);
+    return () => clearInterval(interval);
+  }, [batchId]);
+
+  const allFilesComplete = fileItems.length > 0 && fileItems.every(f => f.status !== "queued" && f.status !== "processing");
+  if (allFilesComplete && fileItems.length > 0) {
+    // Stop polling by not clearing — interval will just keep checking
+  }
+
   if (isLoading) {
     return (
       <div className="h-full flex flex-col">
@@ -227,6 +250,62 @@ export default function ImportReview() {
           </div>
         </div>
       </div>
+
+      {/* Per-file status section */}
+      {fileItems.length > 0 && (
+        <div className="border-b bg-muted/20 px-6 py-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            File Processing Status
+          </p>
+          <div className="grid gap-1.5 max-h-[160px] overflow-y-auto">
+            {fileItems.map((file) => {
+              const isProcessing = file.status === "processing";
+              const isDone = file.status === "parsed" || file.status === "done";
+              const isFailed = file.status === "failed";
+              const isQueued = file.status === "queued";
+              
+              return (
+                <div key={file.id} className="flex items-center gap-3 text-sm py-1">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="font-mono text-xs truncate min-w-0 flex-1" title={file.file_name}>
+                    {truncateFileName(file.file_name)}
+                  </span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">
+                    {formatFileSize(file.file_size_bytes)}
+                  </span>
+                  {isQueued && (
+                    <Badge variant="outline" className="text-xs gap-1 bg-muted text-muted-foreground flex-shrink-0">
+                      <Clock className="h-3 w-3" /> Queued
+                    </Badge>
+                  )}
+                  {isProcessing && (
+                    <Badge variant="outline" className="text-xs gap-1 bg-blue-500/20 text-blue-400 flex-shrink-0">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Processing
+                    </Badge>
+                  )}
+                  {isDone && (
+                    <Badge variant="outline" className="text-xs gap-1 bg-green-500/20 text-green-400 flex-shrink-0">
+                      <CheckCircle2 className="h-3 w-3" /> Done
+                    </Badge>
+                  )}
+                  {isFailed && (
+                    <>
+                      <Badge variant="outline" className="text-xs gap-1 bg-red-500/20 text-red-400 flex-shrink-0">
+                        <XCircle className="h-3 w-3" /> Failed
+                      </Badge>
+                      {file.error_message && (
+                        <span className="text-xs text-red-400 truncate max-w-[200px]" title={file.error_message}>
+                          {file.error_message}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">

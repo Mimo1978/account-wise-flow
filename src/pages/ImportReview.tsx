@@ -106,6 +106,34 @@ export default function ImportReview() {
 
   const isStillProcessing = batch?.status === 'queued' || batch?.status === 'processing';
 
+  // Check if this is a single failed-extraction entity
+  const singleNeedsInput = entities.length === 1 
+    && entities[0].status === "needs_input"
+    && !((entities[0].edited_json || entities[0].extracted_json) as any)?.personal?.full_name;
+
+  // Auto-select single entity and pre-fill name from filename
+  useEffect(() => {
+    if (entities.length === 1 && !selectedEntity) {
+      const entity = entities[0];
+      setSelectedEntity(entity);
+      
+      // Pre-fill name from filename if extraction failed
+      if (entity.status === "needs_input") {
+        const data = entity.edited_json || entity.extracted_json;
+        const hasName = !!(data as any)?.personal?.full_name;
+        if (!hasName && entity.file_name) {
+          const guessedName = extractNameFromFileName(entity.file_name);
+          if (guessedName) {
+            const updatedJson = JSON.parse(JSON.stringify(data));
+            if (!updatedJson.personal) updatedJson.personal = {};
+            updatedJson.personal.full_name = guessedName;
+            updateEntity(entity.id, { edited_json: updatedJson });
+          }
+        }
+      }
+    }
+  }, [entities, selectedEntity, setSelectedEntity, updateEntity]);
+
   const handleApproveAll = async () => {
     const pending = entities.filter(e => e.status === "pending_review");
     if (pending.length === 0) return;

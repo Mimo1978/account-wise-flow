@@ -69,6 +69,12 @@ import { useTalentDocuments } from "@/hooks/use-talent-documents";
 import { RowInlineActions } from "@/components/outreach/RowInlineActions";
 import { CandidateEditForm } from "@/components/talent/CandidateEditForm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
+import { EmailComposeModal } from "@/components/communications/EmailComposeModal";
+import { SMSComposeModal } from "@/components/communications/SMSComposeModal";
+import { ScheduleCallbackPopover } from "@/components/outreach/ScheduleCallbackPopover";
+import type { OutreachTarget } from "@/hooks/use-outreach";
+import { Bot } from "lucide-react";
 
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -143,8 +149,9 @@ export default function CandidateProfile() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
-  const [callbackOpen, setCallbackOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [smsOpen, setSmsOpen] = useState(false);
+  const [callbackOpen, setCallbackOpen] = useState(false);
   const [addNoteOpen, setAddNoteOpen] = useState(false);
   const queryClient = useQueryClient();
 
@@ -320,20 +327,27 @@ export default function CandidateProfile() {
           <div className="flex flex-wrap items-center gap-1.5">
             {candidate.phone && (
               <Button variant="outline" size="sm" onClick={() => setCallOpen(true)}>
-                <Phone className="h-4 w-4 mr-1.5" />
+                <Bot className="h-4 w-4 mr-1.5" />
                 AI Call
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={() => setCallbackOpen(true)}>
-              <CalendarPlus className="h-4 w-4 mr-1.5" />
-              Callback
-            </Button>
             {candidate.email && (
               <Button variant="outline" size="sm" onClick={() => setEmailOpen(true)}>
                 <Mail className="h-4 w-4 mr-1.5" />
                 Email
               </Button>
             )}
+            {candidate.phone && (
+              <Button variant="outline" size="sm" onClick={() => setSmsOpen(true)}>
+                <MessageSquare className="h-4 w-4 mr-1.5" />
+                SMS
+              </Button>
+            )}
+            <ScheduleCallbackPopover
+              workspaceId={currentWorkspace?.id || ""}
+              entityName={candidate.name}
+              candidateId={candidate.id}
+            />
             <Button variant="outline" size="sm" onClick={() => setShowExportModal(true)}>
               <Download className="h-4 w-4 mr-1.5" />
               Export CV
@@ -344,7 +358,10 @@ export default function CandidateProfile() {
                 Edit Profile
               </Button>
             )}
-            <Button variant="default" size="sm" onClick={() => setAddNoteOpen(true)}>
+            <Button variant="default" size="sm" onClick={() => {
+              document.getElementById("notes-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              setExpandedSections(prev => new Set([...prev, "notes"]));
+            }}>
               <Plus className="h-4 w-4 mr-1.5" />
               Add Note
             </Button>
@@ -714,6 +731,46 @@ export default function CandidateProfile() {
           />
         </SheetContent>
       </Sheet>
+
+      {/* AI Call Modal */}
+      <AICallAgentModal
+        target={{
+          id: candidate.id,
+          workspace_id: currentWorkspace?.id || "",
+          campaign_id: "",
+          candidate_id: candidate.id,
+          entity_type: "candidate",
+          entity_name: candidate.name,
+          entity_email: candidate.email,
+          entity_phone: candidate.phone,
+          entity_title: candidate.roleType,
+          state: "queued",
+          priority: 5,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as OutreachTarget}
+        open={callOpen}
+        onOpenChange={setCallOpen}
+      />
+
+      {/* Email Compose Modal */}
+      <EmailComposeModal
+        open={emailOpen}
+        onOpenChange={setEmailOpen}
+        contactId={candidate.id}
+        contactEmail={candidate.email}
+        contactFirstName={candidate.name?.split(" ")[0]}
+      />
+
+      {/* SMS Compose Modal */}
+      <SMSComposeModal
+        open={smsOpen}
+        onOpenChange={setSmsOpen}
+        contactId={candidate.id}
+        contactMobile={candidate.phone}
+        contactFirstName={candidate.name?.split(" ")[0]}
+        gdprConsent={true}
+      />
     </div>
   );
 }

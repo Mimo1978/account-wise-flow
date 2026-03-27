@@ -313,14 +313,81 @@ export function EnhancedCVViewer({
                         />
                       </div>
                     </div>
-                  ) : isDOCX && pdfUrl ? (
-                    <div className="h-full overflow-hidden">
-                      <iframe
-                        src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pdfUrl)}`}
-                        className="w-full h-full"
-                        style={{ border: 'none', minHeight: '800px' }}
-                        title="CV Preview"
-                      />
+                  ) : isDOCX && hasExtractedText ? (
+                    <div className="h-full overflow-auto bg-white p-8">
+                      <div
+                        className="max-w-2xl mx-auto bg-white shadow-lg rounded-lg p-12"
+                        style={{
+                          fontFamily: "'Times New Roman', Georgia, serif",
+                          fontSize: '11pt',
+                          lineHeight: '1.6',
+                          color: '#1a1a1a',
+                          minHeight: '900px',
+                        }}
+                      >
+                        {document.parsedText?.split('\n').map((line, i) => {
+                          const trimmed = line.trim();
+                          if (!trimmed) return <div key={i} style={{ height: '8px' }} />;
+
+                          const isHeader =
+                            trimmed === trimmed.toUpperCase() &&
+                            trimmed.length > 3 &&
+                            trimmed.length < 60 &&
+                            !/^[0-9]/.test(trimmed);
+                          const isSubheader = trimmed.endsWith(':') && trimmed.length < 80;
+                          const isBullet =
+                            trimmed.startsWith('•') ||
+                            trimmed.startsWith('-') ||
+                            trimmed.startsWith('*');
+
+                          if (isHeader) {
+                            return (
+                              <h2
+                                key={i}
+                                style={{
+                                  fontSize: '13pt',
+                                  fontWeight: 'bold',
+                                  marginTop: '20px',
+                                  marginBottom: '6px',
+                                  borderBottom: '1px solid #333',
+                                  paddingBottom: '3px',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em',
+                                }}
+                              >
+                                {trimmed}
+                              </h2>
+                            );
+                          }
+                          if (isSubheader) {
+                            return (
+                              <h3
+                                key={i}
+                                style={{
+                                  fontSize: '11pt',
+                                  fontWeight: 'bold',
+                                  marginTop: '10px',
+                                  marginBottom: '4px',
+                                }}
+                              >
+                                {trimmed}
+                              </h3>
+                            );
+                          }
+                          if (isBullet) {
+                            return (
+                              <p key={i} style={{ paddingLeft: '20px', marginBottom: '3px' }}>
+                                {trimmed}
+                              </p>
+                            );
+                          }
+                          return (
+                            <p key={i} style={{ marginBottom: '4px' }}>
+                              {trimmed}
+                            </p>
+                          );
+                        })}
+                      </div>
                     </div>
                   ) : pdfUrl ? (
                     <div className="h-full overflow-hidden">

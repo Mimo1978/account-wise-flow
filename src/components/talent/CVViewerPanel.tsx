@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCandidateCV } from "@/hooks/use-candidate-cv";
+import { useTalentDocuments } from "@/hooks/use-talent-documents";
 
 interface CVViewerPanelProps {
   candidateId: string;
@@ -29,10 +30,6 @@ function getFileNameFromPath(path: string): string {
   return raw.replace(/^\d+_/, "");
 }
 
-function isPdf(path: string): boolean {
-  return path.toLowerCase().endsWith(".pdf");
-}
-
 export function CVViewerPanel({
   candidateId,
   candidateName,
@@ -43,11 +40,19 @@ export function CVViewerPanel({
   onUploadComplete,
 }: CVViewerPanelProps) {
   const { getSignedUrl, downloadCV, uploadCV, isUploading, isDownloading, validateFile } = useCandidateCV();
+  const { documents, refetch: refetchDocs } = useTalentDocuments({ talentId: candidateId });
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [pdfSignedUrl, setPdfSignedUrl] = useState<string | null>(null);
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Find primary CV document
+  const primaryDoc = documents.find(d => d.docKind === 'cv') || documents[0] || null;
+  const isPdfReady = primaryDoc?.pdfConversionStatus === 'done' || primaryDoc?.pdfConversionStatus === 'not_needed';
+  const isConverting = primaryDoc?.pdfConversionStatus === 'converting' || primaryDoc?.pdfConversionStatus === 'pending';
+
+  // Get signed URL for the original file (for download)
   useEffect(() => {
     if (!cvStoragePath) return;
     setIsLoadingUrl(true);
@@ -56,6 +61,28 @@ export function CVViewerPanel({
       setIsLoadingUrl(false);
     });
   }, [cvStoragePath, getSignedUrl]);
+
+  // Get signed URL for the PDF preview
+  useEffect(() => {
+    const pdfPath = primaryDoc?.pdfStoragePath;
+    if (!pdfPath || !isPdfReady) {
+      setPdfSignedUrl(null);
+      return;
+    }
+    supabase.storage
+      .from("candidate_cvs")
+      .createSignedUrl(pdfPath, 3600)
+      .then(({ data }) => setPdfSignedUrl(data?.signedUrl || null));
+  }, [primaryDoc?.pdfStoragePath, isPdfReady]);
+
+  // Poll while converting
+  useEffect(() => {
+    if (!isConverting) return;
+    const interval = setInterval(() => {
+      refetchDocs();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isConverting, refetchDocs]);
 
   const handleDownload = () => {
     if (!cvStoragePath) return;
@@ -147,19 +174,26 @@ export function CVViewerPanel({
   }
 
   const fileName = getFileNameFromPath(cvStoragePath);
-  const isPdfFile = isPdf(cvStoragePath);
 
   return (
     <div className="h-full flex flex-col">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-wrap">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-muted/30 flex-shrink-0 flex-wrap">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="gap-1.5 font-mono text-xs">
             <FileText className="h-3 w-3" />
             {fileName}
           </Badge>
-          {isPdfFile && (
-            <Badge variant="outline" className="text-xs text-muted-foreground">PDF</Badge>
+          {isConverting && (
+            <Badge variant="outline" className="text-xs text-amber-500 border-amber-500/30 gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Converting…
+            </Badge>
+          )}
+          {isPdfReady && (
+            <Badge variant="outline" className="text-xs text-emerald-500 border-emerald-500/30">
+              PDF
+            </Badge>
           )}
         </div>
         <div className="flex items-center gap-1.5">
@@ -177,9 +211,9 @@ export function CVViewerPanel({
             )}
             Download
           </Button>
-          {signedUrl && isPdfFile && (
+          {pdfSignedUrl && (
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" asChild>
-              <a href={signedUrl} target="_blank" rel="noopener noreferrer">
+              <a href={pdfSignedUrl} target="_blank" rel="noopener noreferrer">
                 <ExternalLink className="h-3 w-3" />
                 Open
               </a>
@@ -228,15 +262,27 @@ export function CVViewerPanel({
           <div className="flex items-center justify-center h-full">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : isPdfFile && signedUrl ? (
+        ) : isPdfReady && pdfSignedUrl ? (
           <iframe
-            src={signedUrl}
+            src={pdfSignedUrl}
             className="w-full h-full border-0"
             style={{ minHeight: "900px" }}
             title={`CV — ${candidateName}`}
           />
+        ) : isConverting ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-sm font-medium text-foreground">
+                Converting to PDF preview…
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                This usually takes about 10 seconds
+              </p>
+            </div>
+          </div>
         ) : rawCvText ? (
-          /* DOCX with extracted text */
+          /* Fallback: DOCX with extracted text */
           <div className="p-6 max-w-3xl mx-auto">
             <div className="bg-card border border-border rounded-lg p-8 shadow-sm">
               <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-sm leading-relaxed">
@@ -245,7 +291,7 @@ export function CVViewerPanel({
             </div>
           </div>
         ) : (
-          /* DOCX without text — download prompt */
+          /* No preview available — download prompt */
           <div className="flex items-center justify-center h-full">
             <div className="text-center p-8">
               <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />

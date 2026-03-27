@@ -85,6 +85,7 @@ export function SmartImportModal({
 
   const {
     files,
+    rejectedFiles,
     isProcessing,
     batchId,
     progress,
@@ -93,6 +94,7 @@ export function SmartImportModal({
     addFiles,
     removeFile,
     clearFiles,
+    dismissRejected,
     setFileTypeOverride,
     processFiles,
     reset,

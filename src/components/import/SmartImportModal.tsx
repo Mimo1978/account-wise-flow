@@ -100,8 +100,7 @@ export function SmartImportModal({
   } = useSmartImport(context);
 
   const handleClose = useCallback(() => {
-    if (isProcessing) return;
-    reset();
+    if (!isProcessing) reset();
     onOpenChange(false);
   }, [isProcessing, reset, onOpenChange]);
 
@@ -241,6 +240,16 @@ export function SmartImportModal({
                     : 'Files will be processed as contacts with optional company linking.'}
                 </p>
               </div>
+
+              {/* Batch size warning */}
+              {files.length > 10 && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                  <AlertTriangle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    Processing large batches can take several minutes. For best results, import up to 10 CVs at a time. You have {files.length} selected.
+                  </p>
+                </div>
+              )}
 
               {/* Files List */}
               {files.length > 0 && (
@@ -421,6 +430,11 @@ export function SmartImportModal({
                   <>
                     <Sparkles className="h-4 w-4 mr-2" />
                     Process with AI
+                    {files.length > 0 && (
+                      <span className="ml-1 text-xs opacity-70">
+                        — {files.length <= 3 ? '~30 seconds' : files.length <= 10 ? '~2 minutes' : 'may take 5+ minutes'}
+                      </span>
+                    )}
                   </>
                 )}
               </Button>

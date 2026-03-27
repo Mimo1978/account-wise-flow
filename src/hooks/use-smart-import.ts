@@ -227,6 +227,18 @@ export function useSmartImport(context: SmartImportContext) {
     
     pollProgress();
     pollIntervalRef.current = setInterval(pollProgress, 2000);
+
+    // Safety timeout: 3 minutes
+    setTimeout(() => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+        setIsProcessing(false);
+        toast.warning(
+          'Import is taking longer than expected. Close this and check Import History for results.'
+        );
+      }
+    }, 3 * 60 * 1000);
   }, [addDebugLog, context.source, context.companyId, navigate]);
 
   const processFiles = useCallback(async (onComplete: () => void) => {

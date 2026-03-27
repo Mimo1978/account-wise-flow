@@ -149,7 +149,12 @@ export function useSmartImport(context: SmartImportContext) {
       if (f.preview) URL.revokeObjectURL(f.preview);
     });
     setFiles([]);
+    setRejectedFiles([]);
   }, [files]);
+
+  const dismissRejected = useCallback((index: number) => {
+    setRejectedFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
 
   const setFileTypeOverride = useCallback((index: number, type: FileType) => {
     setFiles(prev => prev.map((f, i) => 

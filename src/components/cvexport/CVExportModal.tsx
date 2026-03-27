@@ -437,6 +437,15 @@ export function CVExportModal({
               <Button variant="outline" onClick={() => setStep('configure')}>
                 Back
               </Button>
+              {exportResult && (
+                <Button
+                  variant="outline"
+                  onClick={() => triggerDownload(exportResult.storage_path)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Now
+                </Button>
+              )}
               <Button onClick={handleExport} disabled={loading || !executiveSummary}>
                 {loading ? (
                   <>

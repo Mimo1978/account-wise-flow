@@ -213,7 +213,7 @@ export default function CandidateProfile() {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex-shrink-0 border-b border-border bg-background p-4 lg:p-6">
         <div className="flex items-center gap-4 mb-4">

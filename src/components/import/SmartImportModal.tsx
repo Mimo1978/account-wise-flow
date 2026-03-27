@@ -26,6 +26,7 @@ import {
   Upload,
   FileText, 
   X, 
+  XCircle,
   Sparkles,
   FileImage,
   Building2,

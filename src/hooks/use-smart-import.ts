@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { validateBatch } from "@/lib/cv-file-validator";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -86,6 +87,7 @@ export function getSuggestedCompanyId(context: SmartImportContext): string | nul
 export function useSmartImport(context: SmartImportContext) {
   const navigate = useNavigate();
   const [files, setFiles] = useState<FilePreview[]>([]);
+  const [rejectedFiles, setRejectedFiles] = useState<Array<{ fileName: string; error: string }>>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [batchId, setBatchId] = useState<string | null>(null);
   const [progress, setProgress] = useState<ImportProgress | null>(null);
@@ -106,22 +108,30 @@ export function useSmartImport(context: SmartImportContext) {
     return 'document';
   }, []);
 
-  const addFiles = useCallback((fileList: FileList | File[]) => {
-    const newFiles: FilePreview[] = [];
+  const addFiles = useCallback(async (fileList: FileList | File[]) => {
+    const allFiles = Array.from(fileList);
+    const { valid, rejected } = await validateBatch(allFiles);
     
-    Array.from(fileList).forEach((file) => {
+    // Track rejected files for UI display
+    if (rejected.length > 0) {
+      setRejectedFiles(prev => [
+        ...prev,
+        ...rejected.map(r => ({ fileName: r.file.name, error: r.error })),
+      ]);
+      addDebugLog(`Rejected ${rejected.length} file(s): ${rejected.map(r => r.file.name).join(', ')}`);
+    }
+    
+    // Only add valid files
+    const newFiles: FilePreview[] = valid.map((file) => {
       const type = getFileType(file);
-      let preview = '';
-      
-      if (type === 'image') {
-        preview = URL.createObjectURL(file);
-      }
-      
-      newFiles.push({ file, preview, type });
+      const preview = type === 'image' ? URL.createObjectURL(file) : '';
+      return { file, preview, type };
     });
     
-    setFiles(prev => [...prev, ...newFiles]);
-  }, [getFileType]);
+    if (newFiles.length > 0) {
+      setFiles(prev => [...prev, ...newFiles]);
+    }
+  }, [getFileType, addDebugLog]);
 
   const removeFile = useCallback((index: number) => {
     setFiles(prev => {

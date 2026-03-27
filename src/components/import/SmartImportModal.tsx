@@ -315,6 +315,34 @@ export function SmartImportModal({
                   </ScrollArea>
                 </div>
               )}
+
+              {/* Rejected files */}
+              {rejectedFiles.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-xs font-medium text-red-500 uppercase tracking-wide">
+                    Rejected ({rejectedFiles.length})
+                  </span>
+                  {rejectedFiles.map((r, idx) => (
+                    <div
+                      key={`rejected-${idx}`}
+                      className="flex items-center gap-2 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/20 text-sm"
+                    >
+                      <XCircle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                      <span className="flex-1 min-w-0 truncate text-red-400">
+                        {r.error}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 flex-shrink-0"
+                        onClick={() => dismissRejected(idx)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

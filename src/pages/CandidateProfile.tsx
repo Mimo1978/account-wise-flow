@@ -528,8 +528,8 @@ export default function CandidateProfile() {
             </CollapsibleSection>
           </div>
 
-          {/* RIGHT COLUMN — CV viewer panel */}
-          <div className="h-full overflow-hidden">
+          {/* RIGHT COLUMN — CV viewer panel, fills remaining space */}
+          <div className="flex-1 h-full overflow-hidden flex flex-col">
             <CVViewerPanel
               candidateId={candidate.id}
               candidateName={candidate.name}

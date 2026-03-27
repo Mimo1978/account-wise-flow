@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  AlertTriangle,
   Clock,
   FileUser,
   Users,
@@ -51,6 +52,23 @@ function truncateFileName(name: string, max = 30): string {
   return name.slice(0, max - 1) + "…";
 }
 
+function extractNameFromFileName(fileName: string): string | null {
+  // Remove extension
+  let name = fileName.replace(/\.[^.]+$/, "");
+  // Remove common suffixes
+  name = name.replace(/[\s_-]*(cv|resume|curriculum[\s_-]*vitae)[\s_-]*/gi, " ");
+  // Replace underscores/hyphens with spaces
+  name = name.replace(/[_-]+/g, " ").trim();
+  // Remove trailing/leading numbers or dates
+  name = name.replace(/^\d+\s*/, "").replace(/\s*\d+$/, "").trim();
+  if (!name || name.length < 2) return null;
+  // Title case
+  return name
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 const entityTypeConfig: Record<ImportEntityType, { label: string; icon: React.ReactNode; color: string }> = {
   candidate: { label: "Candidate", icon: <FileUser className="h-4 w-4" />, color: "text-blue-500" },
   contact: { label: "Contact", icon: <Users className="h-4 w-4" />, color: "text-green-500" },
@@ -87,6 +105,34 @@ export default function ImportReview() {
   } = useImportReview(batchId);
 
   const isStillProcessing = batch?.status === 'queued' || batch?.status === 'processing';
+
+  // Check if this is a single failed-extraction entity
+  const singleNeedsInput = entities.length === 1 
+    && entities[0].status === "needs_input"
+    && !((entities[0].edited_json || entities[0].extracted_json) as any)?.personal?.full_name;
+
+  // Auto-select single entity and pre-fill name from filename
+  useEffect(() => {
+    if (entities.length === 1 && !selectedEntity) {
+      const entity = entities[0];
+      setSelectedEntity(entity);
+      
+      // Pre-fill name from filename if extraction failed
+      if (entity.status === "needs_input") {
+        const data = entity.edited_json || entity.extracted_json;
+        const hasName = !!(data as any)?.personal?.full_name;
+        if (!hasName && entity.file_name) {
+          const guessedName = extractNameFromFileName(entity.file_name);
+          if (guessedName) {
+            const updatedJson = JSON.parse(JSON.stringify(data));
+            if (!updatedJson.personal) updatedJson.personal = {};
+            updatedJson.personal.full_name = guessedName;
+            updateEntity(entity.id, { edited_json: updatedJson });
+          }
+        }
+      }
+    }
+  }, [entities, selectedEntity, setSelectedEntity, updateEntity]);
 
   const handleApproveAll = async () => {
     const pending = entities.filter(e => e.status === "pending_review");
@@ -441,6 +487,19 @@ export default function ImportReview() {
 
         {/* Entity detail/edit panel */}
         <div className="flex-1 overflow-auto">
+          {singleNeedsInput && (
+            <div className="flex items-center gap-3 p-4 mx-6 mt-4 mb-0 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium">
+                  We couldn't automatically extract data from this CV — this happens with some PDF formats.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Please fill in the key details below and click Approve to add this candidate to your database. Full Name is required.
+                </p>
+              </div>
+            </div>
+          )}
           {selectedEntity ? (
             <EntityEditForm
               entity={selectedEntity}
@@ -449,6 +508,7 @@ export default function ImportReview() {
               onReject={rejectEntity}
               onCheckDuplicates={checkDuplicates}
               onFetchCompanies={fetchCompanies}
+              autoFocusName={singleNeedsInput}
             />
           ) : (
             <div className="h-full flex items-center justify-center text-muted-foreground">

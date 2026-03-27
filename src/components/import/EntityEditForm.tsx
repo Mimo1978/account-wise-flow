@@ -52,6 +52,7 @@ interface EntityEditFormProps {
   onReject: (entityId: string, reason?: string) => Promise<boolean>;
   onCheckDuplicates: (entity: ImportEntity) => Promise<DuplicateMatch[]>;
   onFetchCompanies: () => Promise<Company[]>;
+  autoFocusName?: boolean;
 }
 
 export function EntityEditForm({ 
@@ -60,7 +61,8 @@ export function EntityEditForm({
   onApprove, 
   onReject, 
   onCheckDuplicates,
-  onFetchCompanies 
+  onFetchCompanies,
+  autoFocusName = false,
 }: EntityEditFormProps) {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -583,6 +585,7 @@ export function EntityEditForm({
               data={formData}
               onChange={updateField}
               disabled={isDisabled}
+              autoFocusName={autoFocusName}
             />
           )}
 
@@ -620,10 +623,12 @@ function CandidateForm({
   data,
   onChange,
   disabled,
+  autoFocusName = false,
 }: {
   data: Record<string, any>;
   onChange: (path: string, value: any) => void;
   disabled: boolean;
+  autoFocusName?: boolean;
 }) {
   const personal = data.personal || {};
   const headline = data.headline || {};
@@ -645,6 +650,7 @@ function CandidateForm({
               onChange={(e) => onChange("personal.full_name", e.target.value)}
               disabled={disabled}
               placeholder="Enter full name"
+              autoFocus={autoFocusName}
             />
           </div>
 

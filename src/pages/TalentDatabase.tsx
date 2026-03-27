@@ -1248,6 +1248,16 @@ export default function TalentDatabase() {
         onBack={() => setShowCVViewer(false)}
       />
 
+      {/* Fast CV Upload */}
+      <FastCVUpload
+        open={showFastUpload}
+        onOpenChange={setShowFastUpload}
+        onComplete={() => {
+          invalidateCandidates();
+          refetchCandidates();
+        }}
+      />
+
       {/* Smart Import Modal (AI-based import for CVs, images, etc.) */}
       <SmartImportModal
         open={showImportModal}

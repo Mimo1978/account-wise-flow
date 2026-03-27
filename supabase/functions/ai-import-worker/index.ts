@@ -426,7 +426,14 @@ async function processItem(
     // For PDFs and images, send raw bytes directly to Gemini vision
     if (extraction.useVision) {
       log(requestId, 'info', `Using AI vision for ${item.file_name} (${extraction.method})`);
-      const base64Data = btoa(String.fromCharCode(...bytes));
+      // Chunk-safe base64 encoding for large files (avoids stack overflow with spread)
+      let base64Data = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+        base64Data += String.fromCharCode(...chunk);
+      }
+      base64Data = btoa(base64Data);
       const dataMime = item.file_type || 'application/octet-stream';
       
       const CV_PARSE_PROMPT = `You are an expert CV/resume parser. Extract candidate information from this document and return ONLY valid JSON:
@@ -539,7 +546,14 @@ If this is not a CV/resume, extract whatever structured data you can and set ove
                            item.file_type?.startsWith('image/');
       
       if (isPdfOrImage) {
-        const base64 = btoa(String.fromCharCode(...bytes));
+        // Chunk-safe base64 encoding for large files
+        let base64 = '';
+        const chunkSize2 = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize2) {
+          const chunk = bytes.subarray(i, Math.min(i + chunkSize2, bytes.length));
+          base64 += String.fromCharCode(...chunk);
+        }
+        base64 = btoa(base64);
         const visionResult = await callAI(apiKey, [
           { role: 'system', content: 'Extract all text from this CV document.' },
           {

@@ -79,6 +79,9 @@ export function useImportReview(batchId: string | undefined) {
   const [entities, setEntities] = useState<ImportEntity[]>([]);
   const [selectedEntity, setSelectedEntity] = useState<ImportEntity | null>(null);
   const [isPolling, setIsPolling] = useState(false);
+  const autoApproveRanRef = { current: false };
+  // Use a ref-like pattern to track if auto-approve has already run
+  const [autoApproveRan, setAutoApproveRan] = useState(false);
 
   // Fetch batch and entities
   const fetchBatchData = useCallback(async () => {
@@ -128,6 +131,35 @@ export function useImportReview(batchId: string | undefined) {
       // Check if batch is still processing - if so, keep polling
       const stillProcessing = batchData.status === 'queued' || batchData.status === 'processing';
       setIsPolling(stillProcessing);
+
+      // Auto-approve high-confidence entities
+      if (!stillProcessing && !autoApproveRanRef.current) {
+        const autoApprovable = transformedEntities.filter(e => {
+          if (e.status !== "pending_review" || e.confidence < 0.85) return false;
+          const d = e.edited_json || e.extracted_json;
+          const name = (d as any).personal?.full_name || (d as any).name;
+          const email = (d as any).personal?.email || (d as any).email;
+          return !!name && !!email;
+        });
+        if (autoApprovable.length > 0) {
+          autoApproveRanRef.current = true;
+          // Run auto-approve async without blocking
+          (async () => {
+            let count = 0;
+            for (const entity of autoApprovable) {
+              const result = await approveEntity(entity.id, { destination: "candidate" });
+              if (result.success) count++;
+              if (autoApprovable.indexOf(entity) < autoApprovable.length - 1) {
+                await new Promise(r => setTimeout(r, 300));
+              }
+            }
+            if (count > 0) {
+              toast.success(`Auto-approved ${count} high-confidence CV${count > 1 ? 's' : ''}`);
+              fetchBatchData();
+            }
+          })();
+        }
+      }
 
     } catch (error) {
       console.error("Failed to fetch batch data:", error);

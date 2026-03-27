@@ -231,7 +231,7 @@ export default function OutreachPage() {
   const booked = targets.filter((t) => t.state === "booked").length;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-full overflow-y-auto bg-background">
       {/* Header */}
       <div className="border-b border-border/50 bg-background">
         <div className="container mx-auto px-6 py-5">

@@ -35,7 +35,7 @@ export function CandidateEditForm({ candidate, onSave, onCancel }: CandidateEdit
     seniority: candidate.seniority || "mid",
     linkedin: candidate.linkedIn || "",
     skills: candidate.skills?.join(", ") || "",
-    notes: candidate.headline || "",
+    notes: candidate.aiOverview || "",
   });
 
   const update = (field: string, value: string) =>

@@ -115,6 +115,7 @@ function extractTextFromPdf(bytes: Uint8Array): { text: string; isScanned: boole
 interface ExtractionResult {
   text: string;
   needsOcr: boolean;
+  useVision: boolean;
   method: string;
   errorCode?: string;
   errorMessage?: string;
@@ -129,40 +130,34 @@ async function extractTextFromFile(
   const lowerFileName = fileName.toLowerCase();
   
   try {
-    // DOCX
+    // DOCX — JSZip extraction works well, keep it
     if (lowerFileName.endsWith('.docx') || mimeType.includes('wordprocessingml')) {
       log(requestId, 'info', `Using DOCX text extractor for ${fileName}`);
       const result = await extractTextFromDocx(bytes);
       
       if (result.success && result.text.length > 0) {
-        return { text: result.text, needsOcr: false, method: 'docx_text' };
+        return { text: result.text, needsOcr: false, useVision: false, method: 'docx_text' };
       }
       
       return {
         text: '',
         needsOcr: false,
+        useVision: false,
         method: 'docx_text',
         errorCode: ErrorCodes.DOCX_TEXT_EMPTY,
         errorMessage: result.error || 'Could not read text from DOCX'
       };
     }
     
-    // PDF
+    // PDF — always use vision API (regex extraction is unreliable)
     if (lowerFileName.endsWith('.pdf') || mimeType === 'application/pdf') {
-      log(requestId, 'info', `Trying PDF text extraction for ${fileName}`);
-      const pdfResult = extractTextFromPdf(bytes);
-      
-      if (!pdfResult.isScanned && pdfResult.text.length >= 200) {
-        return { text: pdfResult.text, needsOcr: false, method: 'pdf_text' };
-      }
-      
-      // Scanned PDF - need OCR via AI vision
-      return { text: pdfResult.text, needsOcr: true, method: 'pdf_ocr' };
+      log(requestId, 'info', `Using vision API for PDF: ${fileName}`);
+      return { text: '', needsOcr: false, useVision: true, method: 'pdf_vision' };
     }
     
-    // Images - OCR via AI vision
+    // Images — use vision API
     if (mimeType.startsWith('image/')) {
-      return { text: '', needsOcr: true, method: 'ai_vision' };
+      return { text: '', needsOcr: false, useVision: true, method: 'image_vision' };
     }
     
     // Old DOC format
@@ -170,6 +165,7 @@ async function extractTextFromFile(
       return {
         text: '',
         needsOcr: false,
+        useVision: false,
         method: 'unsupported',
         errorCode: ErrorCodes.UNSUPPORTED_FORMAT,
         errorMessage: 'Old .doc format not supported. Please convert to .docx or PDF.'
@@ -179,23 +175,23 @@ async function extractTextFromFile(
     // Plain text
     if (mimeType.startsWith('text/') || lowerFileName.endsWith('.txt')) {
       const textDecoder = new TextDecoder('utf-8', { fatal: false });
-      return { text: textDecoder.decode(bytes), needsOcr: false, method: 'text' };
+      return { text: textDecoder.decode(bytes), needsOcr: false, useVision: false, method: 'text' };
     }
     
-    // Unknown - try as text
+    // Unknown — try as text
     const textDecoder = new TextDecoder('utf-8', { fatal: false });
     const rawText = textDecoder.decode(bytes);
     const printableRatio = (rawText.match(/[\x20-\x7E\n\r\t]/g) || []).length / rawText.length;
     
     if (printableRatio > 0.8 && rawText.length > 50) {
-      return { text: rawText, needsOcr: false, method: 'text' };
+      return { text: rawText, needsOcr: false, useVision: false, method: 'text' };
     }
     
-    return { text: '', needsOcr: true, method: 'ai_vision' };
+    return { text: '', needsOcr: false, useVision: true, method: 'vision_fallback' };
     
   } catch (error) {
     log(requestId, 'error', `Text extraction error for ${fileName}`, { error: String(error) });
-    return { text: '', needsOcr: true, method: 'ocr_fallback' };
+    return { text: '', needsOcr: false, useVision: true, method: 'vision_fallback' };
   }
 }
 

@@ -54,6 +54,8 @@ import { SearchMatchSection } from "@/components/talent/SearchMatchSection";
 import { CVExportModal } from "@/components/cvexport";
 import { CVViewerPanel } from "@/components/talent/CVViewerPanel";
 import { RowInlineActions } from "@/components/outreach/RowInlineActions";
+import { CandidateEditForm } from "@/components/talent/CandidateEditForm";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -120,6 +122,7 @@ export default function CandidateProfile() {
     new Set(["overview", "skills", "experience", "notes", "interviews", "opportunities", ...(searchResult ? ["search-match"] : [])])
   );
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Auto-expand CV section when navigating from table Docs indicator
   useEffect(() => {
@@ -268,7 +271,7 @@ export default function CandidateProfile() {
               Export Client CV
             </Button>
             {canEdit && (
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)}>
                 <Edit2 className="h-4 w-4 mr-2" />
                 Edit Profile
               </Button>
@@ -548,6 +551,20 @@ export default function CandidateProfile() {
           candidate={candidate}
         />
       )}
+
+      {/* Edit Profile Sheet */}
+      <Sheet open={showEditModal} onOpenChange={setShowEditModal}>
+        <SheetContent className="w-[500px] sm:w-[600px] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Edit Profile — {candidate.name}</SheetTitle>
+          </SheetHeader>
+          <CandidateEditForm
+            candidate={candidate}
+            onSave={() => setShowEditModal(false)}
+            onCancel={() => setShowEditModal(false)}
+          />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

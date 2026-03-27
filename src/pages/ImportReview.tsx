@@ -69,6 +69,7 @@ export default function ImportReview() {
   const { batchId } = useParams<{ batchId: string }>();
   const navigate = useNavigate();
   const [isApprovingAll, setIsApprovingAll] = useState(false);
+  const [approveProgress, setApproveProgress] = useState<{ current: number; total: number } | null>(null);
 
   const {
     isLoading,
@@ -88,9 +89,23 @@ export default function ImportReview() {
   const isStillProcessing = batch?.status === 'queued' || batch?.status === 'processing';
 
   const handleApproveAll = async () => {
+    const pending = entities.filter(e => e.status === "pending_review");
+    if (pending.length === 0) return;
     setIsApprovingAll(true);
-    await approveAll();
+    setApproveProgress({ current: 0, total: pending.length });
+    
+    let approved = 0;
+    for (let i = 0; i < pending.length; i++) {
+      setApproveProgress({ current: i + 1, total: pending.length });
+      const data = pending[i].edited_json || pending[i].extracted_json;
+      const name = (data as any).personal?.full_name || (data as any).name;
+      if (!name && pending[i].entity_type !== "note") continue;
+      const result = await approveEntity(pending[i].id, { destination: "candidate" });
+      if (result.success) approved++;
+    }
+    
     setIsApprovingAll(false);
+    setApproveProgress(null);
   };
 
   const getEntityName = (entity: ImportEntity): string => {
@@ -240,11 +255,16 @@ export default function ImportReview() {
             {statusCounts.pending > 0 && (
               <Button onClick={handleApproveAll} disabled={isApprovingAll}>
                 {isApprovingAll ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {approveProgress ? `Approving ${approveProgress.current} of ${approveProgress.total}...` : "Approving..."}
+                  </>
                 ) : (
-                  <CheckCheck className="h-4 w-4 mr-2" />
+                  <>
+                    <CheckCheck className="h-4 w-4 mr-2" />
+                    Approve all {statusCounts.pending} as candidates →
+                  </>
                 )}
-                Accept All
               </Button>
             )}
           </div>
@@ -361,6 +381,26 @@ export default function ImportReview() {
                             {entity.file_name}
                           </p>
                         )}
+                        {/* Extracted field indicators */}
+                        {(() => {
+                          const d = entity.edited_json || entity.extracted_json;
+                          const fields = [
+                            { key: "Name", has: !!(d as any).personal?.full_name || !!(d as any).name },
+                            { key: "Email", has: !!(d as any).personal?.email || !!(d as any).email },
+                            { key: "Phone", has: !!(d as any).personal?.phone || !!(d as any).phone },
+                            { key: "Skills", has: Array.isArray((d as any).skills) && (d as any).skills.length > 0 || (typeof (d as any).skills === 'object' && Object.keys((d as any).skills || {}).length > 0) },
+                            { key: "LinkedIn", has: !!(d as any).personal?.linkedin || !!(d as any).linkedin },
+                          ];
+                          return (
+                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
+                              {fields.map(f => (
+                                <span key={f.key} className={cn("text-[10px]", f.has ? "text-green-500" : "text-muted-foreground/50")}>
+                                  {f.has ? "✓" : "✗"} {f.key}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })()}
                         {recordLink && entity.status === "approved" && (
                           <Link
                             to={recordLink}

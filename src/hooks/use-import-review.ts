@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -79,6 +79,7 @@ export function useImportReview(batchId: string | undefined) {
   const [entities, setEntities] = useState<ImportEntity[]>([]);
   const [selectedEntity, setSelectedEntity] = useState<ImportEntity | null>(null);
   const [isPolling, setIsPolling] = useState(false);
+  const autoApproveRanRef = useRef(false);
 
   // Fetch batch and entities
   const fetchBatchData = useCallback(async () => {
@@ -128,6 +129,7 @@ export function useImportReview(batchId: string | undefined) {
       // Check if batch is still processing - if so, keep polling
       const stillProcessing = batchData.status === 'queued' || batchData.status === 'processing';
       setIsPolling(stillProcessing);
+
 
     } catch (error) {
       console.error("Failed to fetch batch data:", error);
@@ -460,6 +462,32 @@ export function useImportReview(batchId: string | undefined) {
       return { success: false, error: String(error) };
     }
   }, [entities, queryClient]);
+
+  // Auto-approve high-confidence entities once processing is done
+  useEffect(() => {
+    if (isPolling || autoApproveRanRef.current || entities.length === 0) return;
+    const autoApprovable = entities.filter(e => {
+      if (e.status !== "pending_review" || e.confidence < 0.85) return false;
+      const d = e.edited_json || e.extracted_json;
+      const name = (d as any).personal?.full_name || (d as any).name;
+      const email = (d as any).personal?.email || (d as any).email;
+      return !!name && !!email;
+    });
+    if (autoApprovable.length === 0) return;
+    autoApproveRanRef.current = true;
+    (async () => {
+      let count = 0;
+      for (const entity of autoApprovable) {
+        const result = await approveEntity(entity.id, { destination: "candidate" });
+        if (result.success) count++;
+        await new Promise(r => setTimeout(r, 300));
+      }
+      if (count > 0) {
+        toast.success(`Auto-approved ${count} high-confidence CV${count > 1 ? 's' : ''}`);
+        fetchBatchData();
+      }
+    })();
+  }, [isPolling, entities, approveEntity, fetchBatchData]);
 
   // Reject an entity
   const rejectEntity = useCallback(async (entityId: string, reason?: string): Promise<boolean> => {

@@ -129,9 +129,15 @@ serve(async (req) => {
         pdf_conversion_status: 'failed'
       }).eq("id", document_id);
 
+      const scopeError = job?.code === "FORBIDDEN" && String(job?.message || "").includes("Invalid scope");
+
       return new Response(
-        JSON.stringify({ error: job.message || "CloudConvert job creation failed" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: scopeError
+            ? "CloudConvert API key is missing required scopes. Recreate it with at least task.read and task.write, then save it again in Admin > Integrations."
+            : job.message || "CloudConvert job creation failed"
+        }),
+        { status: scopeError ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

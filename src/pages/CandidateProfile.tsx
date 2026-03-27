@@ -348,7 +348,6 @@ export default function CandidateProfile() {
               <Plus className="h-4 w-4 mr-1.5" />
               Add Note
             </Button>
-            </Button>
           </div>
         </div>
       </div>

@@ -61,7 +61,10 @@ export function EnhancedCVViewer({
   const [matches, setMatches] = useState<SearchMatch[]>([]);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
 
-  const isPDF = document?.fileType.toLowerCase() === 'pdf';
+  const isPDF = document?.fileType.toLowerCase() === 'pdf' ||
+                document?.fileName?.toLowerCase().endsWith('.pdf');
+  const isDOCX = document?.fileName?.toLowerCase().endsWith('.docx') ||
+                 document?.fileName?.toLowerCase().endsWith('.doc');
   const hasExtractedText = document?.parseStatus === 'parsed' && document?.parsedText;
 
   const loadDocument = useCallback(async () => {
@@ -89,7 +92,7 @@ export function EnhancedCVViewer({
     if (open && document) {
       loadDocument();
       // Default to text view if we have extracted text, otherwise preview
-      setViewMode(hasExtractedText ? 'text' : 'preview');
+      setViewMode('preview');
     } else {
       setPdfUrl(null);
       setError(null);
@@ -97,7 +100,7 @@ export function EnhancedCVViewer({
       setMatches([]);
       setCurrentMatchIndex(-1);
     }
-  }, [open, document, loadDocument, hasExtractedText]);
+  }, [open, document, loadDocument]);
 
   const handleDownload = () => {
     if (document) {
@@ -185,14 +188,14 @@ export function EnhancedCVViewer({
                 <FileSearch className="h-3.5 w-3.5 mr-1.5" />
                 Text + Search
               </TabsTrigger>
-              <TabsTrigger value="preview" className="text-xs px-3" disabled={!isPDF}>
+              <TabsTrigger value="preview" className="text-xs px-3">
                 <Eye className="h-3.5 w-3.5 mr-1.5" />
                 Preview
               </TabsTrigger>
             </TabsList>
 
             {/* Zoom controls for preview mode */}
-            {viewMode === 'preview' && isPDF && pdfUrl && (
+            {viewMode === 'preview' && pdfUrl && (
               <div className="flex items-center gap-1">
                 <TooltipProvider>
                   <Tooltip>
@@ -294,7 +297,7 @@ export function EnhancedCVViewer({
                   )}
                 </TabsContent>
 
-                {/* PDF Preview */}
+                {/* Preview */}
                 <TabsContent value="preview" className="flex-1 m-0 overflow-hidden data-[state=inactive]:hidden">
                   {isPDF && pdfUrl ? (
                     <div className="h-full overflow-auto bg-muted/20">
@@ -303,25 +306,41 @@ export function EnhancedCVViewer({
                         style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
                       >
                         <iframe
-                          src={`${pdfUrl}#toolbar=0&navpanes=0`}
+                          src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1`}
                           className="w-full max-w-4xl bg-white shadow-lg rounded-lg"
-                          style={{ height: '1200px' }}
-                          title="Document Preview"
+                          style={{ height: '1400px', border: 'none' }}
+                          title="CV Preview"
                         />
                       </div>
+                    </div>
+                  ) : isDOCX && pdfUrl ? (
+                    <div className="h-full overflow-hidden">
+                      <iframe
+                        src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(pdfUrl)}`}
+                        className="w-full h-full"
+                        style={{ border: 'none', minHeight: '800px' }}
+                        title="CV Preview"
+                      />
+                    </div>
+                  ) : pdfUrl ? (
+                    <div className="h-full overflow-hidden">
+                      <iframe
+                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`}
+                        className="w-full h-full"
+                        style={{ border: 'none', minHeight: '800px' }}
+                        title="CV Preview"
+                      />
                     </div>
                   ) : (
                     <div className="h-full flex items-center justify-center p-6">
                       <div className="text-center max-w-md">
                         <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-sm font-medium mb-2">Preview not available</p>
+                        <p className="text-sm font-medium mb-2">Preview unavailable</p>
                         <p className="text-xs text-muted-foreground mb-4">
-                          {document.fileType} files cannot be previewed in the browser.
-                          Please download the file to view it.
+                          Download the file to view it in its original format.
                         </p>
                         <Button variant="outline" onClick={handleDownload}>
-                          <Download className="h-4 w-4 mr-2" />
-                          Download File
+                          <Download className="h-4 w-4 mr-2" /> Download File
                         </Button>
                       </div>
                     </div>

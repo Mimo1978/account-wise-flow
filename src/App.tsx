@@ -225,6 +225,7 @@ const App = () => {
             <Route path="/admin/email-guide" element={<AdminPage section="integrations"><AdminEmailGuide /></AdminPage>} />
             <Route path="/admin/sms-guide" element={<AdminPage section="integrations"><AdminSmsGuide /></AdminPage>} />
             <Route path="/admin/ai-calling-guide" element={<AdminPage section="integrations"><AdminAiCallingGuide /></AdminPage>} />
+            <Route path="/admin/integrations" element={<AdminPage section="integrations"><AdminIntegrations /></AdminPage>} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

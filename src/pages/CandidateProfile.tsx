@@ -5,6 +5,7 @@ import { useCandidates } from "@/hooks/use-candidates";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useTalentDocuments } from "@/hooks/use-talent-documents";
 import { useSearchContext } from "@/contexts/SearchContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Talent, TalentAvailability, TalentStatus, TalentExperience } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,7 @@ import { TalentDocumentList } from "@/components/talent/TalentDocumentList";
 import { SearchMatchSection } from "@/components/talent/SearchMatchSection";
 import { CVExportModal } from "@/components/cvexport";
 import { InlineCVViewer } from "@/components/talent/InlineCVViewer";
+import { RowInlineActions } from "@/components/outreach/RowInlineActions";
 
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",

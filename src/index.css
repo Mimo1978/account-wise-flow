@@ -461,3 +461,19 @@ thead > tr {
   font-size: 17px !important;
   font-weight: 700 !important;
 }
+
+/* Table scrollbar — always visible */
+.overflow-x-auto::-webkit-scrollbar { height: 10px; }
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 10px;
+  margin: 0 4px;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 10px;
+  border: 2px solid hsl(var(--muted));
+}
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}

@@ -433,7 +433,7 @@ export default function CompaniesDatabase() {
         </div>
 
         {/* Company-Level Table (NO contacts column) */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden relative" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
+        <div className="rounded-xl border border-border bg-card overflow-visible relative" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
           <ScrollableTableContainer 
             showScrollHint={isFirstVisit}
             stickyHeader
@@ -554,7 +554,7 @@ export default function CompaniesDatabase() {
                         style={{ 
                           position: "sticky", 
                           left: 0, 
-                          zIndex: 30,
+                          zIndex: 20,
                           width: 48,
                           minWidth: 48,
                           background: rowBg,
@@ -575,7 +575,7 @@ export default function CompaniesDatabase() {
                         style={{ 
                           position: "sticky", 
                           left: 48, 
-                          zIndex: 30,
+                          zIndex: 20,
                           minWidth: 200,
                           boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
                           background: rowBg,

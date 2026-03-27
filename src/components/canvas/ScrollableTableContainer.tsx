@@ -245,16 +245,15 @@ export const ScrollableTableContainer = forwardRef<HTMLDivElement, ScrollableTab
         ref={scrollRef}
         className={cn(
           "overflow-x-auto overflow-y-auto scroll-smooth",
-          // Always show scrollbar when content overflows for discoverability
-          "[&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar]:w-2",
-          "[&::-webkit-scrollbar-track]:bg-transparent",
-          "[&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/60 hover:[&::-webkit-scrollbar-thumb]:bg-border",
+          "[&::-webkit-scrollbar]:h-2.5",
+          "[&::-webkit-scrollbar-track]:bg-muted/40 [&::-webkit-scrollbar-track]:rounded-full",
+          "[&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border hover:[&::-webkit-scrollbar-thumb]:bg-muted-foreground/40",
         )}
         style={{ maxHeight }}
         onScroll={handleScrollInternal}
       >
         <div className={cn(
-          stickyHeader && "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-20 [&_thead_tr]:bg-muted [&_thead_tr]:shadow-[0_1px_3px_-1px_hsl(var(--border)/0.3)]"
+          stickyHeader && "[&_thead]:sticky [&_thead]:top-0 [&_thead]:z-30 [&_thead_tr]:bg-muted [&_thead_tr]:shadow-[0_1px_3px_-1px_hsl(var(--border)/0.4)]"
         )}>
           {children}
         </div>

@@ -792,7 +792,7 @@ export default function ContactsDatabase() {
         </div>
 
         {/* Table */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden relative" style={{ borderLeft: '4px solid hsl(199 89% 48%)' }}>
+        <div className="rounded-xl border border-border bg-card overflow-visible relative" style={{ borderLeft: '4px solid hsl(199 89% 48%)' }}>
           <ScrollableTableContainer 
             showScrollHint={isFirstVisit}
             stickyHeader
@@ -880,7 +880,7 @@ export default function ContactsDatabase() {
                     <TableCell
                       data-quality-action
                       className="w-10"
-                      style={{ position: "sticky", left: 0, zIndex: 30, background: rowBg, backgroundClip: "padding-box" }}
+                      style={{ position: "sticky", left: 0, zIndex: 20, background: rowBg, backgroundClip: "padding-box" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Checkbox
@@ -899,7 +899,7 @@ export default function ContactsDatabase() {
                       style={{ 
                         position: "sticky", 
                         left: 40, 
-                        zIndex: 30,
+                        zIndex: 20,
                         minWidth: 100,
                         background: rowBg,
                         backgroundClip: "padding-box",
@@ -1049,7 +1049,7 @@ export default function ContactsDatabase() {
                       style={{ 
                         position: "sticky", 
                         left: 140, 
-                        zIndex: 30,
+                        zIndex: 20,
                         minWidth: 180,
                         boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
                         background: rowBg,

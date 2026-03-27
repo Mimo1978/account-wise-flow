@@ -36,7 +36,7 @@ export function CVInlineViewer({ document, talentId }: CVInlineViewerProps) {
 
   if (pdfUrl) return (
     <iframe
-      src={pdfUrl}
+      src={`https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`}
       style={{ width: '100%', maxWidth: '860px', height: '3000px', border: 'none', background: 'white', display: 'block', boxShadow: '0 4px 32px rgba(0,0,0,0.5)' }}
       title="CV Preview"
     />

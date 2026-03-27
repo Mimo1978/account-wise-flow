@@ -2,6 +2,7 @@
 
 export type DocKind = 'cv' | 'cover_letter' | 'certification' | 'other';
 export type ParseStatus = 'pending' | 'parsed' | 'failed';
+export type PdfConversionStatus = 'pending' | 'converting' | 'done' | 'failed' | 'not_needed';
 
 export interface TalentDocument {
   id: string;
@@ -17,6 +18,8 @@ export interface TalentDocument {
   parsedText: string | null;
   parseStatus: ParseStatus;
   textHash: string | null;
+  pdfStoragePath: string | null;
+  pdfConversionStatus: PdfConversionStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -35,6 +38,8 @@ export interface TalentDocumentRow {
   parsed_text: string | null;
   parse_status: string;
   text_hash: string | null;
+  pdf_storage_path: string | null;
+  pdf_conversion_status: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -71,6 +76,8 @@ export function mapTalentDocumentRow(row: TalentDocumentRow): TalentDocument {
     parsedText: row.parsed_text,
     parseStatus: row.parse_status as ParseStatus,
     textHash: row.text_hash,
+    pdfStoragePath: row.pdf_storage_path,
+    pdfConversionStatus: (row.pdf_conversion_status || 'pending') as PdfConversionStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

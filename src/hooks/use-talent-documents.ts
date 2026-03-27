@@ -259,6 +259,11 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
         // Trigger text extraction asynchronously (don't await - let it run in background)
         triggerTextExtraction(insertedDoc.id);
 
+        // Trigger PDF conversion in background (fire and forget)
+        supabase.functions.invoke('convert-cv-to-pdf', {
+          body: { document_id: insertedDoc.id }
+        }).catch((err) => console.error('[useTalentDocuments] PDF conversion trigger error:', err));
+
         return true;
       } catch (error) {
         console.error('[useTalentDocuments] Unexpected error:', error);

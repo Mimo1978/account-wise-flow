@@ -5809,6 +5809,8 @@ export type Database = {
           id: string
           parse_status: Database["public"]["Enums"]["parse_status"]
           parsed_text: string | null
+          pdf_conversion_status: string | null
+          pdf_storage_path: string | null
           talent_id: string
           text_hash: string | null
           updated_at: string
@@ -5826,6 +5828,8 @@ export type Database = {
           id?: string
           parse_status?: Database["public"]["Enums"]["parse_status"]
           parsed_text?: string | null
+          pdf_conversion_status?: string | null
+          pdf_storage_path?: string | null
           talent_id: string
           text_hash?: string | null
           updated_at?: string
@@ -5843,6 +5847,8 @@ export type Database = {
           id?: string
           parse_status?: Database["public"]["Enums"]["parse_status"]
           parsed_text?: string | null
+          pdf_conversion_status?: string | null
+          pdf_storage_path?: string | null
           talent_id?: string
           text_hash?: string | null
           updated_at?: string

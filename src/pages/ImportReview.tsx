@@ -310,14 +310,16 @@ export default function ImportReview() {
                     </Badge>
                   )}
                   {isFailed && (
-                    <Badge variant="outline" className="text-xs gap-1 bg-red-500/20 text-red-400 flex-shrink-0">
-                      <XCircle className="h-3 w-3" /> Failed
-                    </Badge>
-                    {file.error_message && (
-                      <span className="text-xs text-red-400 truncate max-w-[200px]" title={file.error_message}>
-                        — {file.error_message}
-                      </span>
-                    )}
+                    <>
+                      <Badge variant="outline" className="text-xs gap-1 bg-red-500/20 text-red-400 flex-shrink-0">
+                        <XCircle className="h-3 w-3" /> Failed
+                      </Badge>
+                      {file.error_message && (
+                        <span className="text-xs text-red-400 truncate max-w-[200px]" title={file.error_message}>
+                          — {file.error_message}
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
               );

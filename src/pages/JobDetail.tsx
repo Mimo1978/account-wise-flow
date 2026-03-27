@@ -897,7 +897,6 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
 
 // ---------- Shortlist Tab ----------
 function ShortlistTab({ jobId, jobTitle, onProjectLinked, onOpenShortlistBuilder }: { jobId: string; jobTitle: string; onProjectLinked?: (projectId: string) => void; onOpenShortlistBuilder?: () => void }) {
-  const navigate = useNavigate();
   const { data: entries = [], isLoading } = useJobShortlist(jobId);
   const removeFromShortlist = useRemoveFromShortlist();
   const runShortlist = useRunShortlist();
@@ -1087,16 +1086,7 @@ function ShortlistTab({ jobId, jobTitle, onProjectLinked, onOpenShortlistBuilder
                       <span className="text-xs font-mono text-muted-foreground w-5">#{idx + 1}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          {e.candidate_id ? (
-                            <button
-                              onClick={() => navigate(`/talent/${e.candidate_id}`)}
-                              className="font-medium text-sm text-foreground hover:text-primary hover:underline underline-offset-2 transition-colors text-left"
-                            >
-                              {e.candidates?.name || '—'}
-                            </button>
-                          ) : (
-                            <span className="font-medium text-sm">{e.candidates?.name || '—'}</span>
-                          )}
+                          <span className="font-medium text-sm">{e.candidates?.name || '—'}</span>
                           {e.match_score != null && (
                             <Badge variant="outline" className={scoreBadgeClass(e.match_score)}>{e.match_score}%</Badge>
                           )}
@@ -1179,11 +1169,6 @@ function ShortlistTab({ jobId, jobTitle, onProjectLinked, onOpenShortlistBuilder
                           </div>
                         )}
                         <div className="flex items-center gap-1 pt-1">
-                          {e.candidate_id && (
-                            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => navigate(`/talent/${e.candidate_id}`)}>
-                              <Users className="w-3 h-3 mr-1" /> View Profile →
-                            </Button>
-                          )}
                           <Button variant="ghost" size="sm" className="h-7 text-xs"><Mail className="w-3 h-3 mr-1" /> Email</Button>
                           <Button variant="ghost" size="sm" className="h-7 text-xs"><MessageSquare className="w-3 h-3 mr-1" /> SMS</Button>
                           <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => handleLogReply(e.id)}>
@@ -1216,29 +1201,7 @@ function ShortlistTab({ jobId, jobTitle, onProjectLinked, onOpenShortlistBuilder
                     <TableCell className="text-xs text-muted-foreground font-mono">{idx + 1}</TableCell>
                     <TableCell>
                       <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          {e.candidate_id ? (
-                            <button
-                              onClick={() => navigate(`/talent/${e.candidate_id}`)}
-                              className="font-medium text-sm text-foreground hover:text-primary hover:underline underline-offset-2 transition-colors text-left"
-                            >
-                              {e.candidates?.name || '—'}
-                            </button>
-                          ) : (
-                            <span className="font-medium text-sm">{e.candidates?.name || '—'}</span>
-                          )}
-                          {e.candidate_id && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              title="View CV"
-                              onClick={() => navigate(`/talent/${e.candidate_id}?section=cv`)}
-                            >
-                              <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                            </Button>
-                          )}
-                        </div>
+                        <span className="font-medium text-sm">{e.candidates?.name || '—'}</span>
                         {e.candidates?.current_title && (
                           <p className="text-xs text-muted-foreground">{e.candidates.current_title}</p>
                         )}

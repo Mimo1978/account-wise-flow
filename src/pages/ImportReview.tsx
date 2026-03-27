@@ -381,6 +381,26 @@ export default function ImportReview() {
                             {entity.file_name}
                           </p>
                         )}
+                        {/* Extracted field indicators */}
+                        {(() => {
+                          const d = entity.edited_json || entity.extracted_json;
+                          const fields = [
+                            { key: "Name", has: !!(d as any).personal?.full_name || !!(d as any).name },
+                            { key: "Email", has: !!(d as any).personal?.email || !!(d as any).email },
+                            { key: "Phone", has: !!(d as any).personal?.phone || !!(d as any).phone },
+                            { key: "Skills", has: Array.isArray((d as any).skills) && (d as any).skills.length > 0 || (typeof (d as any).skills === 'object' && Object.keys((d as any).skills || {}).length > 0) },
+                            { key: "LinkedIn", has: !!(d as any).personal?.linkedin || !!(d as any).linkedin },
+                          ];
+                          return (
+                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
+                              {fields.map(f => (
+                                <span key={f.key} className={cn("text-[10px]", f.has ? "text-green-500" : "text-muted-foreground/50")}>
+                                  {f.has ? "✓" : "✗"} {f.key}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })()}
                         {recordLink && entity.status === "approved" && (
                           <Link
                             to={recordLink}

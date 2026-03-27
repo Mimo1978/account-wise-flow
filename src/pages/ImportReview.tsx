@@ -487,6 +487,19 @@ export default function ImportReview() {
 
         {/* Entity detail/edit panel */}
         <div className="flex-1 overflow-auto">
+          {singleNeedsInput && (
+            <div className="flex items-center gap-3 p-4 mx-6 mt-4 mb-0 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium">
+                  We couldn't automatically extract data from this CV — this happens with some PDF formats.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Please fill in the key details below and click Approve to add this candidate to your database. Full Name is required.
+                </p>
+              </div>
+            </div>
+          )}
           {selectedEntity ? (
             <EntityEditForm
               entity={selectedEntity}
@@ -495,6 +508,7 @@ export default function ImportReview() {
               onReject={rejectEntity}
               onCheckDuplicates={checkDuplicates}
               onFetchCompanies={fetchCompanies}
+              autoFocusName={singleNeedsInput}
             />
           ) : (
             <div className="h-full flex items-center justify-center text-muted-foreground">

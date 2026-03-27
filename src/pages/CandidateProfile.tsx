@@ -111,6 +111,7 @@ export default function CandidateProfile() {
   const { canEdit, isAdmin, isManager, userId } = usePermissions();
   const { currentWorkspace } = useWorkspace();
   const searchContext = useSearchContext();
+  const { documents } = useTalentDocuments({ talentId: candidateId || '' });
 
   // Get search result if user arrived from Boolean search
   const searchResult = candidateId ? searchContext.getSearchResult(candidateId) : null;
@@ -530,16 +531,32 @@ export default function CandidateProfile() {
           </div>
 
           {/* RIGHT COLUMN — CV viewer panel, fills remaining space */}
-          <div className="flex-1 h-full overflow-hidden flex flex-col">
-            <CVViewerPanel
-              candidateId={candidate.id}
-              candidateName={candidate.name}
-              cvStoragePath={candidate.cvStoragePath}
-              rawCvText={candidate.rawCvText}
-              canEdit={canEdit}
-              onExportClick={() => setShowExportModal(true)}
-              onUploadComplete={() => refetch()}
-            />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'hsl(var(--card))' }}>
+            {/* Toolbar — fixed, never scrolls */}
+            <div style={{ flexShrink: 0, padding: '10px 20px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--muted))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '13px', color: 'hsl(var(--muted-foreground))' }}>
+                📄 {documents[0]?.fileName || 'No CV'}
+              </span>
+              <Button size="sm" variant="ghost" onClick={() => setShowExportModal(true)}>
+                Export Client CV
+              </Button>
+            </div>
+
+            {/* CV content — ONLY THIS SCROLLS */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', justifyContent: 'center' }}>
+              {documents[0] ? (
+                <CVInlineViewer
+                  document={documents[0]}
+                  talentId={candidate.id}
+                />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px', flexDirection: 'column', gap: '12px' }}>
+                  <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '14px' }}>
+                    No CV uploaded
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

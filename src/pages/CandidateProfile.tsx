@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
@@ -111,7 +111,12 @@ export default function CandidateProfile() {
   const { canEdit, isAdmin, isManager, userId } = usePermissions();
   const { currentWorkspace } = useWorkspace();
   const searchContext = useSearchContext();
-  const { documents } = useTalentDocuments({ talentId: candidateId || '' });
+  const { documents, uploadDocument, isUploading } = useTalentDocuments({ talentId: candidateId || '' });
+  const cvFileInputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const handleCVUpload = async (file: File) => {
+    await uploadDocument(file, 'cv');
+  };
 
   // Get search result if user arrived from Boolean search
   const searchResult = candidateId ? searchContext.getSearchResult(candidateId) : null;
@@ -537,9 +542,34 @@ export default function CandidateProfile() {
               <span style={{ fontSize: '13px', color: 'hsl(var(--muted-foreground))' }}>
                 📄 {documents[0]?.fileName || 'No CV'}
               </span>
-              <Button size="sm" variant="ghost" onClick={() => setShowExportModal(true)}>
-                Export Client CV
-              </Button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                {documents[0] && (
+                  <label style={{ cursor: 'pointer' }}>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleCVUpload(file);
+                        e.target.value = '';
+                      }}
+                    />
+                    <Button size="sm" variant="ghost" asChild>
+                      <span>Replace CV</span>
+                    </Button>
+                  </label>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => {
+                  if (documents.length === 0) {
+                    toast.error('Please upload a CV first before exporting');
+                    return;
+                  }
+                  setShowExportModal(true);
+                }}>
+                  Export Client CV
+                </Button>
+              </div>
             </div>
 
             {/* CV content — ONLY THIS SCROLLS */}
@@ -550,10 +580,50 @@ export default function CandidateProfile() {
                   talentId={candidate.id}
                 />
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px', flexDirection: 'column', gap: '12px' }}>
-                  <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '14px' }}>
-                    No CV uploaded
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    const file = e.dataTransfer.files[0];
+                    if (file) handleCVUpload(file);
+                  }}
+                  style={{
+                    width: '100%', maxWidth: '600px',
+                    border: `2px dashed ${dragOver ? 'hsl(var(--primary))' : 'hsl(var(--border))'}`,
+                    borderRadius: '16px',
+                    padding: '80px 40px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    background: dragOver ? 'hsl(var(--primary) / 0.08)' : 'transparent',
+                    transition: 'all 0.2s',
+                  }}
+                  onClick={() => cvFileInputRef.current?.click()}
+                >
+                  <input
+                    ref={cvFileInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleCVUpload(file);
+                      e.target.value = '';
+                    }}
+                  />
+                  <div style={{ fontSize: '48px', marginBottom: '16px' }}>📄</div>
+                  <p style={{ color: 'hsl(var(--foreground))', fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>
+                    Drop CV here or click to upload
                   </p>
+                  <p style={{ color: 'hsl(var(--muted-foreground))', fontSize: '13px' }}>
+                    PDF, DOCX or DOC · Max 10MB
+                  </p>
+                  {isUploading && (
+                    <p style={{ color: 'hsl(var(--primary))', fontSize: '13px', marginTop: '16px' }}>
+                      Uploading...
+                    </p>
+                  )}
                 </div>
               )}
             </div>

@@ -137,7 +137,12 @@ async function extractTextFromDOCX(docxBytes: Uint8Array): Promise<string> {
 async function extractTextFromDOC(docBytes: Uint8Array, apiKey: string): Promise<string> {
   // DOC files are binary and complex to parse directly
   // We'll use AI vision as fallback - convert to base64 and let AI extract
-  const base64 = btoa(String.fromCharCode(...docBytes));
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < docBytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...docBytes.subarray(i, Math.min(i + chunkSize, docBytes.length)));
+  }
+  const base64 = btoa(binary);
   
   console.log('[cv-text-extract] DOC format detected, using AI vision fallback');
   
@@ -356,9 +361,14 @@ serve(async (req) => {
     console.log(`[cv-text-extract][${requestId}] File type: ${ext}, size: ${fileBytes.byteLength} bytes`);
 
     if (ext === '.pdf') {
-      // Convert to base64 for AI vision
+      // Convert to base64 for AI vision (chunk-safe for large files)
       const uint8Array = new Uint8Array(fileBytes);
-      const base64 = btoa(String.fromCharCode(...uint8Array));
+      let binary = '';
+      const chunkSize = 8192;
+      for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        binary += String.fromCharCode(...uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length)));
+      }
+      const base64 = btoa(binary);
       extractedText = await extractTextFromPDF(base64, lovableApiKey);
     } else if (ext === '.docx') {
       extractedText = await extractTextFromDOCX(new Uint8Array(fileBytes));

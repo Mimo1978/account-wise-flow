@@ -407,24 +407,113 @@ async function processItem(
     
     let textContent = extraction.text;
     
-    // If needs OCR, use AI vision
-    if (extraction.needsOcr) {
-      log(requestId, 'info', `Using AI vision for OCR on ${item.file_name}`);
-      const base64 = btoa(String.fromCharCode(...bytes));
+    // For PDFs and images, send raw bytes directly to Gemini vision
+    if (extraction.useVision) {
+      log(requestId, 'info', `Using AI vision for ${item.file_name} (${extraction.method})`);
+      const base64Data = btoa(String.fromCharCode(...bytes));
+      const dataMime = item.file_type || 'application/octet-stream';
       
-      const ocrResult = await callAI(apiKey, [
-        { role: 'system', content: 'Extract all visible text from this document image. Return only the extracted text.' },
+      const CV_PARSE_PROMPT = `You are an expert CV/resume parser. Extract candidate information from this document and return ONLY valid JSON:
+{
+  "personal": { "full_name": "string", "email": "string or null", "phone": "string or null", "location": "string or null" },
+  "headline": { "current_title": "string", "seniority_level": "executive|director|manager|senior|mid|junior" },
+  "skills": { "primary_skills": ["skill1", "skill2"], "secondary_skills": ["skill3"] },
+  "experience": [{ "company": "string", "title": "string", "start_date": "YYYY-MM", "end_date": "YYYY-MM or Present" }],
+  "education": [{ "institution": "string", "degree": "string", "field": "string" }],
+  "certifications": ["cert1"],
+  "current_employer": "string or null",
+  "recent_employers": ["company1", "company2"],
+  "overall_confidence": 0.0-1.0
+}
+If this is not a CV/resume, extract whatever structured data you can and set overall_confidence below 0.3.`;
+
+      const visionResult = await callAI(apiKey, [
         {
           role: 'user',
           content: [
-            { type: 'text', text: 'Extract text from this document:' },
-            { type: 'image_url', image_url: { url: `data:${item.file_type};base64,${base64}` } }
+            {
+              type: 'image_url',
+              image_url: { url: `data:${dataMime};base64,${base64Data}` }
+            },
+            {
+              type: 'text',
+              text: CV_PARSE_PROMPT
+            }
           ]
         }
       ], requestId);
       
-      if (ocrResult.ok && ocrResult.content) {
-        textContent = ocrResult.content;
+      if (visionResult.ok && visionResult.content) {
+        // Parse the vision result directly — skip text extraction + separate AI parse
+        try {
+          const parsed = JSON.parse(visionResult.content.replace(/```json\n?|\n?```/g, '').trim());
+          const missing: string[] = [];
+          if (!parsed.personal?.full_name) missing.push('name');
+          if (!parsed.personal?.email) missing.push('email');
+          
+          // We got structured data directly from vision
+          const processingTime = Date.now() - startTime;
+          const parseConfidence = parsed.overall_confidence || 0.7;
+          const name = parsed.personal?.full_name;
+          const entityStatus = name ? 'pending_review' : 'needs_input';
+          
+          await adminClient
+            .from('cv_import_items')
+            .update({
+              status: 'parsed',
+              parse_confidence: parseConfidence,
+              completed_at: new Date().toISOString(),
+              extracted_data: {
+                classification: { type: 'CV_RESUME', confidence: parseConfidence },
+                extraction_method: extraction.method,
+                parsed_data: parsed,
+                missing_fields: missing,
+                processing_time_ms: processingTime,
+              },
+              search_tags: parsed.skills?.primary_skills || [],
+            })
+            .eq('id', item.id);
+          
+          // Create import entity
+          const { error: entityError } = await adminClient
+            .from('import_entities')
+            .insert({
+              batch_id: item.batch_id,
+              item_id: item.id,
+              tenant_id: item.tenant_id,
+              entity_type: 'candidate',
+              status: entityStatus,
+              extracted_json: parsed,
+              confidence: parseConfidence,
+              missing_fields: missing.length > 0 ? missing : null,
+            });
+          
+          if (entityError) {
+            log(requestId, 'error', `Failed to create import_entity for ${item.file_name}`, { error: entityError.message });
+          } else {
+            log(requestId, 'info', `Vision parsed ${item.file_name} in ${processingTime}ms: ${entityStatus}`);
+          }
+          
+          // Update batch counters
+          await adminClient.rpc('increment_batch_counter', { 
+            p_batch_id: item.batch_id, 
+            p_field: 'success_count' 
+          }).catch(() => {
+            // Fallback: direct update
+            adminClient.from('cv_import_batches')
+              .update({ processed_files: item.batch_id })
+              .eq('id', item.batch_id);
+          });
+          
+          return; // Done — skip the text-based path below
+          
+        } catch (parseErr) {
+          log(requestId, 'warn', `Vision returned unparseable JSON for ${item.file_name}, extracting text fallback`);
+          textContent = visionResult.content; // Use AI output as text for the text path
+        }
+      } else {
+        log(requestId, 'warn', `Vision API failed for ${item.file_name}: ${visionResult.errorMessage}`);
+        // Fall through to text-based path with whatever text we have
       }
     }
     

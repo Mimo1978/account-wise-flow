@@ -250,7 +250,19 @@ export default function CandidateProfile() {
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Quick action buttons */}
+            {currentWorkspace?.id && candidate && (
+              <RowInlineActions
+                workspaceId={currentWorkspace.id}
+                entityName={candidate.name}
+                entityEmail={candidate.email}
+                entityPhone={candidate.phone}
+                entityTitle={candidate.roleType}
+                candidateId={candidate.id}
+                className="flex items-center gap-1 border-r border-border pr-2 mr-1"
+              />
+            )}
             <Button 
               variant="outline" 
               size="sm"

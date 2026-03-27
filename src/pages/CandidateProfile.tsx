@@ -18,6 +18,14 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import {
   ArrowLeft,
   ChevronLeft,
   Mail,
@@ -37,14 +45,18 @@ import {
   Plus,
   MessageSquare,
   Calendar,
+  CalendarPlus,
   Target,
   ChevronDown,
   ChevronRight,
   Activity,
   Download,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { CandidateNotesSection } from "@/components/talent/CandidateNotesSection";
 import { CandidateInterviewsSection } from "@/components/talent/CandidateInterviewsSection";
 import { CandidateOpportunitiesSection } from "@/components/talent/CandidateOpportunitiesSection";
@@ -130,6 +142,11 @@ export default function CandidateProfile() {
   );
   const [showExportModal, setShowExportModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
+  const [callbackOpen, setCallbackOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [addNoteOpen, setAddNoteOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   // Auto-expand CV section when navigating from table Docs indicator
   useEffect(() => {
@@ -241,12 +258,56 @@ export default function CandidateProfile() {
               <h1 className="text-2xl font-bold">{candidate.name}</h1>
               <p className="text-muted-foreground">{candidate.roleType}</p>
               <div className="flex flex-wrap items-center gap-2 mt-2">
-                <Badge className={cn("font-medium", availabilityColors[candidate.availability])}>
-                  {availabilityLabels[candidate.availability]}
-                </Badge>
-                <Badge className={statusColors[candidate.status]}>
-                  {statusLabels[candidate.status]}
-                </Badge>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium cursor-pointer transition-colors hover:opacity-80", availabilityColors[candidate.availability])}>
+                      {availabilityLabels[candidate.availability]}
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuLabel>Availability</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {Object.entries(availabilityLabels).map(([key, label]) => (
+                      <DropdownMenuItem key={key} onClick={async () => {
+                        await supabase.from('candidates')
+                          .update({ availability_status: key, updated_at: new Date().toISOString() })
+                          .eq('id', candidate.id);
+                        queryClient.invalidateQueries({ queryKey: ['candidates'] });
+                        toast.success(`Availability updated to ${label}`);
+                      }}>
+                        {label}
+                        {candidate.availability === key && <Check className="h-3 w-3 ml-auto" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium cursor-pointer transition-colors hover:opacity-80", statusColors[candidate.status])}>
+                      {statusLabels[candidate.status]}
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    <DropdownMenuLabel>Status</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {Object.entries(statusLabels).map(([key, label]) => (
+                      <DropdownMenuItem key={key} onClick={async () => {
+                        await supabase.from('candidates')
+                          .update({ status: key, updated_at: new Date().toISOString() })
+                          .eq('id', candidate.id);
+                        queryClient.invalidateQueries({ queryKey: ['candidates'] });
+                        toast.success(`Status updated to ${label}`);
+                      }}>
+                        {label}
+                        {candidate.status === key && <Check className="h-3 w-3 ml-auto" />}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
                 {getDataQualityBadge()}
                 {candidate.rate && (
                   <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
@@ -256,35 +317,35 @@ export default function CandidateProfile() {
               </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Quick action buttons */}
-            {currentWorkspace?.id && candidate && (
-              <RowInlineActions
-                workspaceId={currentWorkspace.id}
-                entityName={candidate.name}
-                entityEmail={candidate.email}
-                entityPhone={candidate.phone}
-                entityTitle={candidate.roleType}
-                candidateId={candidate.id}
-                className="flex items-center gap-1 border-r border-border pr-2 mr-1"
-              />
+          <div className="flex flex-wrap items-center gap-1.5">
+            {candidate.phone && (
+              <Button variant="outline" size="sm" onClick={() => setCallOpen(true)}>
+                <Phone className="h-4 w-4 mr-1.5" />
+                AI Call
+              </Button>
             )}
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setShowExportModal(true)}
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Client CV
+            <Button variant="outline" size="sm" onClick={() => setCallbackOpen(true)}>
+              <CalendarPlus className="h-4 w-4 mr-1.5" />
+              Callback
+            </Button>
+            {candidate.email && (
+              <Button variant="outline" size="sm" onClick={() => setEmailOpen(true)}>
+                <Mail className="h-4 w-4 mr-1.5" />
+                Email
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setShowExportModal(true)}>
+              <Download className="h-4 w-4 mr-1.5" />
+              Export CV
             </Button>
             {canEdit && (
               <Button variant="outline" size="sm" onClick={() => setShowEditModal(true)}>
-                <Edit2 className="h-4 w-4 mr-2" />
+                <Edit2 className="h-4 w-4 mr-1.5" />
                 Edit Profile
               </Button>
             )}
-            <Button variant="default" size="sm">
-              <Plus className="h-4 w-4 mr-2" />
+            <Button variant="default" size="sm" onClick={() => setAddNoteOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" />
               Add Note
             </Button>
           </div>

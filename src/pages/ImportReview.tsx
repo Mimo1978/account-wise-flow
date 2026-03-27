@@ -19,10 +19,37 @@ import {
   CheckCheck,
   ExternalLink,
   Loader2,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EntityEditForm } from "@/components/import/EntityEditForm";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface FileItem {
+  id: string;
+  file_name: string;
+  file_size_bytes: number;
+  status: string;
+  error_message: string | null;
+  completed_at: string | null;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+function truncateFileName(name: string, max = 30): string {
+  if (name.length <= max) return name;
+  const ext = name.lastIndexOf(".");
+  if (ext > 0 && name.length - ext < 8) {
+    const extStr = name.slice(ext);
+    return name.slice(0, max - extStr.length - 1) + "…" + extStr;
+  }
+  return name.slice(0, max - 1) + "…";
+}
 
 const entityTypeConfig: Record<ImportEntityType, { label: string; icon: React.ReactNode; color: string }> = {
   candidate: { label: "Candidate", icon: <FileUser className="h-4 w-4" />, color: "text-blue-500" },

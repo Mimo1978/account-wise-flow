@@ -35,6 +35,7 @@ import DemoWorkspace from "./pages/DemoWorkspace";
 import WorkspaceSelector from "./pages/WorkspaceSelector";
 import Pricing from "./pages/Pricing";
 import ImportReview from "./pages/ImportReview";
+import ImportHistory from "./pages/ImportHistory";
 import CandidateProfile from "./pages/CandidateProfile";
 import WorkspaceSettings from "./pages/WorkspaceSettings";
 import UserProfile from "./pages/UserProfile";
@@ -185,6 +186,7 @@ const App = () => {
             <Route path="/projects/:id" element={<ProtectedRoute><ProductLayout><ProjectDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/jobs" element={<ProtectedRoute><ProductLayout><JobsList /></ProductLayout></ProtectedRoute>} />
             <Route path="/jobs/:id" element={<ProtectedRoute><ProductLayout><JobDetail /></ProductLayout></ProtectedRoute>} />
+            <Route path="/imports" element={<ProtectedRoute><ProductLayout><ImportHistory /></ProductLayout></ProtectedRoute>} />
             <Route path="/imports/:batchId/review" element={<ProtectedRoute><ProductLayout><ImportReview /></ProductLayout></ProtectedRoute>} />
             <Route path="/workspace-settings" element={<ProtectedRoute><ProductLayout><WorkspaceSettings /></ProductLayout></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProductLayout><UserProfile /></ProductLayout></ProtectedRoute>} />

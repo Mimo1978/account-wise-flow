@@ -51,6 +51,7 @@ import { CandidateOverviewEditor } from "@/components/talent/CandidateOverviewEd
 import { TalentDocumentList } from "@/components/talent/TalentDocumentList";
 import { SearchMatchSection } from "@/components/talent/SearchMatchSection";
 import { CVExportModal } from "@/components/cvexport";
+import { InlineCVViewer } from "@/components/talent/InlineCVViewer";
 
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",
@@ -403,11 +404,21 @@ export default function CandidateProfile() {
                 expanded={expandedSections.has("cv")}
                 onToggle={() => toggleSection("cv")}
               >
-                <TalentDocumentList
-                  talentId={candidate.id}
-                  talentName={candidate.name}
-                  canEdit={canEdit}
-                />
+                <div className="space-y-6">
+                  <InlineCVViewer
+                    candidateId={candidate.id}
+                    candidateName={candidate.name}
+                    cvStoragePath={candidate.cvStoragePath}
+                    canEdit={canEdit}
+                    onExportClick={() => setShowExportModal(true)}
+                    onUploadComplete={() => refetch()}
+                  />
+                  <TalentDocumentList
+                    talentId={candidate.id}
+                    talentName={candidate.name}
+                    canEdit={canEdit}
+                  />
+                </div>
               </CollapsibleSection>
             </div>
 

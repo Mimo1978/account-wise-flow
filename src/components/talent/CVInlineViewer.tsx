@@ -42,7 +42,7 @@ export function CVInlineViewer({ document }: Props) {
   if (isPDF && url) return (
     <iframe
       src={url}
-      style={{ width: '100%', height: '100%', minHeight: '1100px', border: 'none', borderRadius: '4px', background: 'white' }}
+      style={{ width: '100%', maxWidth: '860px', height: '3000px', border: 'none', background: 'white', display: 'block', boxShadow: '0 4px 32px rgba(0,0,0,0.5)' }}
       title="CV Preview"
     />
   );

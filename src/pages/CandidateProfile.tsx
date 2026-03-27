@@ -284,11 +284,11 @@ export default function CandidateProfile() {
         </div>
       </div>
 
-      {/* Main Content — two-column: sidebar + CV viewer */}
+      {/* Main Content — two-column: fixed sidebar + CV viewer */}
       <div className="flex-1 overflow-hidden">
-        <div className="h-full grid grid-cols-1 lg:grid-cols-[minmax(0,3fr)_minmax(0,7fr)] gap-0">
-          {/* LEFT COLUMN — scrollable sidebar sections */}
-          <div className="h-full overflow-auto border-r border-border p-4 lg:p-6 space-y-4">
+        <div className="h-full flex">
+          {/* LEFT COLUMN — 320px sidebar with its own scroll */}
+          <div className="w-80 flex-shrink-0 h-full overflow-y-auto border-r border-border p-4 lg:p-6 space-y-4">
             {/* Contact Card */}
             <Card>
               <CardHeader className="pb-3">

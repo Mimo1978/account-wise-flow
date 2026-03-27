@@ -554,7 +554,7 @@ export default function CompaniesDatabase() {
                         style={{ 
                           position: "sticky", 
                           left: 0, 
-                          zIndex: 30,
+                          zIndex: 20,
                           width: 48,
                           minWidth: 48,
                           background: rowBg,
@@ -575,7 +575,7 @@ export default function CompaniesDatabase() {
                         style={{ 
                           position: "sticky", 
                           left: 48, 
-                          zIndex: 30,
+                          zIndex: 20,
                           minWidth: 200,
                           boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
                           background: rowBg,

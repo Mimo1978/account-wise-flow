@@ -99,7 +99,12 @@ serve(async (req) => {
 
     // Convert to base64
     const bytes = new Uint8Array(await fileBlob.arrayBuffer());
-    const b64 = btoa(String.fromCharCode(...bytes));
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + chunkSize, bytes.length)));
+    }
+    const b64 = btoa(binary);
 
     // Submit CloudConvert job
     const jobRes = await fetch("https://api.cloudconvert.com/v2/jobs", {

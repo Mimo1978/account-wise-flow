@@ -213,7 +213,16 @@ export function JobBriefSection({ job, onProjectLinked }: JobBriefSectionProps) 
         <Card>
           <CardHeader><CardTitle className="text-sm">Job Specification</CardTitle></CardHeader>
           <CardContent>
-            <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{spec}</div>
+            <div className="text-sm text-foreground leading-relaxed">
+              {spec.split('\n').map((line, i) => {
+                const t = line.trim();
+                if (!t) return <div key={i} style={{ height: '8px' }} />;
+                if (t.startsWith('## ')) return <h3 key={i} className="font-semibold text-base mt-4 mb-2">{t.replace('## ', '')}</h3>;
+                if (t.startsWith('# ')) return <h2 key={i} className="font-bold text-lg mt-4 mb-2">{t.replace('# ', '')}</h2>;
+                if (/^\*\s|^-\s/.test(t)) return <p key={i} className="pl-4 mb-1">• {t.replace(/^\*\s|^-\s/, '')}</p>;
+                return <p key={i} className="mb-1">{t}</p>;
+              })}
+            </div>
           </CardContent>
         </Card>
       </div>

@@ -613,29 +613,26 @@ function OverviewTab({ job, onProjectLinked }: { job: any; onProjectLinked?: (pr
     : '—';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
-      {/* LEFT — Job spec in white document panel */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="px-6 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-          <span className="text-sm font-medium text-gray-600">Job Specification</span>
-        </div>
-        <div className="p-8">
+    <div className="space-y-6">
+      {/* Pipeline — full width, always on top */}
+      {currentWorkspace?.id && (
+        <AutomationPipelineTracker
+          jobId={job.id}
+          workspaceId={currentWorkspace.id}
+          automationEnabled={job.automation_enabled ?? false}
+          specApproved={job.spec_approved}
+          shortlistLocked={job.shortlist_locked}
+        />
+      )}
+
+      {/* Two column below pipeline */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 items-start">
+        {/* LEFT — spec (no extra wrapper card) */}
+        <div>
           <JobBriefSection job={job} onProjectLinked={onProjectLinked} />
         </div>
-      </div>
 
-      {/* RIGHT — Details sidebar */}
-      <div className="space-y-4">
-        {currentWorkspace?.id && (
-          <AutomationPipelineTracker
-            jobId={job.id}
-            workspaceId={currentWorkspace.id}
-            automationEnabled={job.automation_enabled ?? false}
-            specApproved={job.spec_approved}
-            shortlistLocked={job.shortlist_locked}
-          />
-        )}
-
+        {/* RIGHT — details sidebar */}
         <Card>
           <CardHeader><CardTitle className="text-sm">Details</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">

@@ -598,6 +598,7 @@ const JobDetail = () => {
         specWorkLocation={job.spec_work_location || null}
       />
     </div>
+    </div>
   );
 };
 
@@ -612,44 +613,52 @@ function OverviewTab({ job, onProjectLinked }: { job: any; onProjectLinked?: (pr
     : '—';
 
   return (
-    <div className="space-y-6">
-      {/* Automation Pipeline Tracker */}
-      {currentWorkspace?.id && (
-        <AutomationPipelineTracker
-          jobId={job.id}
-          workspaceId={currentWorkspace.id}
-          automationEnabled={job.automation_enabled ?? false}
-          specApproved={job.spec_approved}
-          shortlistLocked={job.shortlist_locked}
-        />
-      )}
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+      {/* LEFT — Job spec in white document panel */}
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className="px-6 py-3 border-b border-gray-200 flex items-center justify-between bg-gray-50">
+          <span className="text-sm font-medium text-gray-600">Job Specification</span>
+        </div>
+        <div className="p-8">
+          <JobBriefSection job={job} onProjectLinked={onProjectLinked} />
+        </div>
+      </div>
 
-      {/* Job Brief Section — the primary workflow entry point */}
-      <JobBriefSection job={job} onProjectLinked={onProjectLinked} />
+      {/* RIGHT — Details sidebar */}
+      <div className="space-y-4">
+        {currentWorkspace?.id && (
+          <AutomationPipelineTracker
+            jobId={job.id}
+            workspaceId={currentWorkspace.id}
+            automationEnabled={job.automation_enabled ?? false}
+            specApproved={job.spec_approved}
+            shortlistLocked={job.shortlist_locked}
+          />
+        )}
 
-      {/* Details card */}
-      <Card>
-        <CardHeader><CardTitle className="text-sm">Details</CardTitle></CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <Row label="Job Type" value={job.job_type || '—'} />
-          <Row label="Location" value={job.location || '—'} />
-          <Row label="Remote Policy" value={job.remote_policy || '—'} />
-          <Row label="Salary" value={salaryStr} />
-          <Row label="Start Date" value={job.start_date ? format(new Date(job.start_date), 'dd MMM yyyy') : '—'} />
-          {job.end_date && <Row label="End Date" value={format(new Date(job.end_date), 'dd MMM yyyy')} />}
-          <div className="flex items-center justify-between pt-2 border-t border-border">
-            <div>
-              <Label htmlFor="confidential-toggle" className="text-sm font-medium">Confidential Role</Label>
-              <p className="text-xs text-muted-foreground">Hide company name from adverts</p>
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Details</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <Row label="Job Type" value={job.job_type || '—'} />
+            <Row label="Location" value={job.location || '—'} />
+            <Row label="Remote Policy" value={job.remote_policy || '—'} />
+            <Row label="Salary" value={salaryStr} />
+            <Row label="Start Date" value={job.start_date ? format(new Date(job.start_date), 'dd MMM yyyy') : '—'} />
+            {job.end_date && <Row label="End Date" value={format(new Date(job.end_date), 'dd MMM yyyy')} />}
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <div>
+                <Label htmlFor="confidential-toggle" className="text-sm font-medium">Confidential Role</Label>
+                <p className="text-xs text-muted-foreground">Hide company name from adverts</p>
+              </div>
+              <Switch
+                id="confidential-toggle"
+                checked={isConfidential}
+                onCheckedChange={(checked) => toggleConfidential.mutate({ jobId: job.id, isConfidential: checked })}
+              />
             </div>
-            <Switch
-              id="confidential-toggle"
-              checked={isConfidential}
-              onCheckedChange={(checked) => toggleConfidential.mutate({ jobId: job.id, isConfidential: checked })}
-            />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

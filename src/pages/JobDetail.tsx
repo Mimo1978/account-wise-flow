@@ -69,6 +69,7 @@ import {
 import { GenerateAdvertsModal } from '@/components/jobs/GenerateAdvertsModal';
 import { BoardFormatModal } from '@/components/jobs/BoardFormatModal';
 import { ShortlistBuilderModal } from '@/components/jobs/ShortlistBuilderModal';
+import { PostJobForm } from '@/components/jobs/PostJobForm';
 import { JarvisInlineHint } from '@/components/jarvis/JarvisHints';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/sonner';
@@ -575,7 +576,7 @@ const JobDetail = () => {
         </TabsList>
 
         <TabsContent value="overview" data-jarvis-section="job-brief-box"><OverviewTab job={job} onProjectLinked={handleProjectLinked} /></TabsContent>
-        <TabsContent value="adverts" data-jarvis-section="job-adverts-list"><AdvertsTab jobId={job.id} jobTitle={job.title} /></TabsContent>
+        <TabsContent value="adverts" data-jarvis-section="job-adverts-list"><AdvertsTab jobId={job.id} jobTitle={job.title} jobSpec={job.full_spec || job.raw_brief || null} /></TabsContent>
         <TabsContent value="shortlist" data-jarvis-section="job-shortlist-table"><ShortlistTab jobId={job.id} jobTitle={job.title} onProjectLinked={handleProjectLinked} onOpenShortlistBuilder={openShortlistBuilder} /></TabsContent>
         <TabsContent value="outreach"><OutreachTab jobId={job.id} jobTitle={job.title} /></TabsContent>
         <TabsContent value="applications" data-jarvis-section="job-applications-table"><ApplicationsTab jobId={job.id} /></TabsContent>
@@ -670,7 +671,8 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 // ---------- Adverts Tab ----------
-function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
+function AdvertsTab({ jobId, jobTitle, jobSpec }: { jobId: string; jobTitle: string; jobSpec?: string | null }) {
+  const [advertMode, setAdvertMode] = useState<'ai' | 'post'>('ai');
   const { data: adverts = [], isLoading } = useJobAdverts(jobId);
   const { data: boardFormats = [] } = useBoardFormats();
   const { data: jobProjectLinks = [] } = useJobProjects(jobId);
@@ -748,6 +750,30 @@ function AdvertsTab({ jobId, jobTitle }: { jobId: string; jobTitle: string }) {
 
   return (
     <>
+      <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1 mb-4 w-fit">
+        <button
+          onClick={() => setAdvertMode('ai')}
+          className={cn("px-3 py-1.5 rounded-md text-sm font-medium transition-all", advertMode === 'ai' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+        >
+          <Sparkles className="w-3.5 h-3.5 inline mr-1.5" /> AI-Generated Adverts
+        </button>
+        <button
+          onClick={() => setAdvertMode('post')}
+          className={cn("px-3 py-1.5 rounded-md text-sm font-medium transition-all", advertMode === 'post' ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+        >
+          <Send className="w-3.5 h-3.5 inline mr-1.5" /> Post to Job Boards
+        </button>
+      </div>
+
+      {advertMode === 'post' && (
+        <Card>
+          <CardContent className="p-4">
+            <PostJobForm jobId={jobId} jobTitle={jobTitle} jobSpec={jobSpec} />
+          </CardContent>
+        </Card>
+      )}
+
+      {advertMode === 'ai' && (
       <Card>
         <CardHeader className="flex-row items-center justify-between">
           <CardTitle className="text-sm">Job Adverts</CardTitle>

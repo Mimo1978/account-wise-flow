@@ -34,7 +34,9 @@ export function JobBriefSection({ job, onProjectLinked }: JobBriefSectionProps) 
   const qc = useQueryClient();
   const [brief, setBrief] = useState(job.raw_brief || '');
   const [spec, setSpec] = useState(job.full_spec || '');
-  const [approved, setApproved] = useState(!!job.full_spec && (job as any).spec_approved);
+  // Drive from prop — prevents double alert when query refetches after auto-advance toggle
+  const approved = !!job.full_spec && !!(job as any).spec_approved;
+  const setApproved = (_: boolean) => {};
 
   // Quick config modal
   const [showQuickConfig, setShowQuickConfig] = useState(false);

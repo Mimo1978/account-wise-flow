@@ -905,6 +905,7 @@ function AdvertsTab({ jobId, jobTitle, jobSpec }: { jobId: string; jobTitle: str
           )}
         </CardContent>
       </Card>
+      )}
 
       <GenerateAdvertsModal
         open={showGenerateModal}

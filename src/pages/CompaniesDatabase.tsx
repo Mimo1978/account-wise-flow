@@ -552,6 +552,7 @@ export default function CompaniesDatabase() {
                           width: 48,
                           minWidth: 48,
                           backgroundColor: "hsl(var(--card))",
+                          backgroundClip: "padding-box",
                         }}
                       >
                         <Checkbox

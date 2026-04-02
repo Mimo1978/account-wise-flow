@@ -1097,7 +1097,7 @@ export default function TalentDatabase() {
                       <TableCell 
                         onClick={(e) => e.stopPropagation()} 
                         className="relative"
-                        style={getCheckboxCellStyles(false, rowBg)}
+                        style={getCheckboxCellStyles(false)}
                       >
                         <div className="flex items-center gap-1">
                           <Checkbox

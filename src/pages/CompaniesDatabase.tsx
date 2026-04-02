@@ -444,15 +444,7 @@ export default function CompaniesDatabase() {
                 <TableRow className="bg-muted">
                   <TableHead 
                     className="w-12"
-                    style={{ 
-                      position: "sticky", 
-                      left: 0, 
-                      zIndex: 40,
-                      width: 48,
-                      minWidth: 48,
-                      background: "hsl(var(--muted))",
-                      backgroundClip: "padding-box",
-                    }}
+                    style={{ width: 48, minWidth: 48 }}
                   >
                     <Checkbox
                       checked={isAllSelected}

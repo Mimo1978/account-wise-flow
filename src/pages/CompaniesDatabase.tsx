@@ -437,7 +437,7 @@ export default function CompaniesDatabase() {
           <ScrollableTableContainer
             showScrollHint={isFirstVisit}
             stickyHeader
-            maxHeight="100%"
+            maxHeight="calc(100vh - 240px)"
             leftPinnedWidth={248}
           >
             <Table className="min-w-[1200px]">

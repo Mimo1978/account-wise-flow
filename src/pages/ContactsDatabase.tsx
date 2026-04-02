@@ -830,13 +830,8 @@ export default function ContactsDatabase() {
                   <TableHead 
                     className="font-semibold whitespace-nowrap"
                     style={{ 
-                      position: "sticky", 
-                      left: 140, 
-                      zIndex: 40,
                       minWidth: 180,
                       background: "hsl(var(--muted))",
-                      backgroundClip: "padding-box",
-                      boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
                     }}
                   >
                     Name

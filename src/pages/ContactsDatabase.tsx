@@ -1033,13 +1033,8 @@ export default function ContactsDatabase() {
                     <TableCell 
                       className="font-medium"
                       style={{ 
-                        position: "sticky", 
-                        left: 140, 
-                        zIndex: 20,
                         minWidth: 180,
-                        boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
                         background: rowBg,
-                        backgroundClip: "padding-box",
                       }}
                     >
                       <div className="flex items-center gap-2 group/name">

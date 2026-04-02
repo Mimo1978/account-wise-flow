@@ -146,7 +146,7 @@ export const ScrollableTableContainer = forwardRef<HTMLDivElement, ScrollableTab
   };
 
   return (
-    <div className={cn("relative flex-1", className)}>
+    <div className={cn("relative w-full h-full", className)}>
       {/* Premium Edge Fade - Left Pinned Boundary */}
       {leftPinnedWidth > 0 && (
         <PinnedEdgeFade

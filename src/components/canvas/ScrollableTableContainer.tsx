@@ -24,7 +24,7 @@ export const ScrollableTableContainer = forwardRef<HTMLDivElement, ScrollableTab
   return (
     <div
       ref={scrollRef}
-      className={cn("overflow-x-auto overflow-y-auto scroll-smooth", className)}
+      className={cn("cm-table-scroll overflow-x-auto overflow-y-auto scroll-smooth", className)}
       style={{ maxHeight }}
       onScroll={onScroll}
     >

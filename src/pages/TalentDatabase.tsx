@@ -1090,7 +1090,7 @@ export default function TalentDatabase() {
                   return (
                     <TableRow
                       key={talent.id}
-                      style={{ background: rowBg }}
+                      style={{}}
                       className="cursor-pointer transition-colors group/row hover:bg-muted/30"
                       onClick={() => handleRowClick(talent)}
                     >

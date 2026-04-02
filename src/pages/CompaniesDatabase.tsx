@@ -455,15 +455,7 @@ export default function CompaniesDatabase() {
                   </TableHead>
                   <TableHead 
                     className="font-semibold whitespace-nowrap"
-                    style={{ 
-                      position: "sticky", 
-                      left: 48, 
-                      zIndex: 40,
-                      minWidth: 200,
-                      background: "hsl(var(--muted))",
-                      backgroundClip: "padding-box",
-                      boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
-                    }}
+                    style={{ minWidth: 200 }}
                   >
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />

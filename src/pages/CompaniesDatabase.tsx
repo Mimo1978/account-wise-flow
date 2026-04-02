@@ -284,7 +284,7 @@ export default function CompaniesDatabase() {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-background">
+    <div className="bg-background">
       {/* Page Sub-header */}
       <div className="border-b border-border bg-card">
         <div className="px-6 py-4">
@@ -353,7 +353,7 @@ export default function CompaniesDatabase() {
       ) : (
         <>
       {/* Search and Selection Bar */}
-      <div className="px-6 py-4 flex-1 flex flex-col overflow-hidden min-h-0">
+      <div className="container mx-auto px-4 py-4">
         <div className="flex flex-wrap items-center gap-4 mb-4">
           <div className="relative flex-1 min-w-[250px] max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -433,11 +433,11 @@ export default function CompaniesDatabase() {
         </div>
 
         {/* Company-Level Table (NO contacts column) */}
-        <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-border bg-card relative" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
+        <div className="rounded-xl border border-border bg-card overflow-visible relative" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
           <ScrollableTableContainer
             showScrollHint={isFirstVisit}
             stickyHeader
-            maxHeight="100%"
+            maxHeight="calc(100vh - 240px)"
             leftPinnedWidth={248}
           >
             <Table className="min-w-[1200px]">

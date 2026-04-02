@@ -462,18 +462,28 @@ thead > tr {
   font-weight: 700 !important;
 }
 
-/* Table scrollbar — always visible */
-.overflow-x-auto::-webkit-scrollbar { height: 10px; }
-.overflow-x-auto::-webkit-scrollbar-track {
+/* Table scrollbar — both axes always visible */
+.overflow-x-auto::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.overflow-x-auto::-webkit-scrollbar-track,
+.overflow-y-auto::-webkit-scrollbar-track {
   background: hsl(var(--muted));
-  border-radius: 10px;
-  margin: 0 4px;
+  border-radius: 0;
 }
-.overflow-x-auto::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 10px;
-  border: 2px solid hsl(var(--muted));
+.overflow-x-auto::-webkit-scrollbar-thumb,
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.35);
+  border-radius: 4px;
+  border: 1px solid hsl(var(--muted));
 }
-.overflow-x-auto::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
+.overflow-x-auto::-webkit-scrollbar-thumb:hover,
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.6);
+}
+.overflow-x-auto::-webkit-scrollbar-corner,
+.overflow-y-auto::-webkit-scrollbar-corner {
+  background: hsl(var(--muted));
 }

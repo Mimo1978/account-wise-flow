@@ -460,28 +460,26 @@ thead > tr {
   font-weight: 700 !important;
 }
 
-/* Table scrollbar — both axes always visible */
-.overflow-x-auto::-webkit-scrollbar,
-.overflow-y-auto::-webkit-scrollbar {
+/* Scrollbars — bright blue, both axes, every page */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.7) hsl(var(--muted));
+}
+*::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
-.overflow-x-auto::-webkit-scrollbar-track,
-.overflow-y-auto::-webkit-scrollbar-track {
+*::-webkit-scrollbar-track {
   background: hsl(var(--muted));
-  border-radius: 0;
 }
-.overflow-x-auto::-webkit-scrollbar-thumb,
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground) / 0.35);
+*::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary) / 0.7);
   border-radius: 4px;
   border: 1px solid hsl(var(--muted));
 }
-.overflow-x-auto::-webkit-scrollbar-thumb:hover,
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.6);
+*::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
 }
-.overflow-x-auto::-webkit-scrollbar-corner,
-.overflow-y-auto::-webkit-scrollbar-corner {
+*::-webkit-scrollbar-corner {
   background: hsl(var(--muted));
 }

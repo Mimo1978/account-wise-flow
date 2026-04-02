@@ -870,7 +870,7 @@ export default function ContactsDatabase() {
                     <TableCell
                       data-quality-action
                       className="w-10"
-                      style={{ position: "sticky", left: 0, zIndex: 20, background: rowBg, backgroundClip: "padding-box" }}
+                      style={{ background: rowBg }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Checkbox

@@ -804,7 +804,7 @@ export default function ContactsDatabase() {
                   {/* Checkbox col */}
                   <TableHead
                     className="w-10"
-                    style={{ position: "sticky", left: 0, zIndex: 40, background: "hsl(var(--muted))", backgroundClip: "padding-box" }}
+                    style={{ background: "hsl(var(--muted))" }}
                   >
                     <Checkbox
                       checked={filteredContacts.length > 0 && selectedIds.size === filteredContacts.length}

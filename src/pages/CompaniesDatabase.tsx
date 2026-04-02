@@ -438,7 +438,7 @@ export default function CompaniesDatabase() {
             showScrollHint={isFirstVisit}
             stickyHeader
             maxHeight="100%"
-            leftPinnedWidth={260}
+            leftPinnedWidth={248}
           >
             <Table className="min-w-[1200px]">
               <TableHeader>

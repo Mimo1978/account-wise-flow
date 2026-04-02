@@ -775,6 +775,7 @@ const AccountsBillingHub = () => {
 
       <CreateInvoiceModal open={createOpen} onOpenChange={setCreateOpen} />
     </div>
+    </div>
   );
 };
 

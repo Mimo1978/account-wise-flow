@@ -434,10 +434,10 @@ export default function CompaniesDatabase() {
 
         {/* Company-Level Table (NO contacts column) */}
         <div className="rounded-xl border border-border bg-card overflow-hidden relative flex-1 min-h-0" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
-          <ScrollableTableContainer 
+          <ScrollableTableContainer
             showScrollHint={isFirstVisit}
             stickyHeader
-            maxHeight="calc(100vh - 280px)"
+            maxHeight="100%"
             leftPinnedWidth={260}
           >
             <Table className="min-w-[1200px]">

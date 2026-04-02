@@ -571,8 +571,7 @@ export default function CompaniesDatabase() {
                           zIndex: 20,
                           minWidth: 200,
                           boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
-                          background: rowBg,
-                          backgroundClip: "padding-box",
+                          backgroundColor: "hsl(var(--card))",
                         }}
                       >
                         <div className="flex items-center gap-2">

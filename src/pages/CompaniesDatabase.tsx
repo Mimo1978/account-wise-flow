@@ -528,15 +528,7 @@ export default function CompaniesDatabase() {
                     >
                       <TableCell 
                         data-checkbox 
-                        style={{ 
-                          position: "sticky", 
-                          left: 0, 
-                          zIndex: 20,
-                          width: 48,
-                          minWidth: 48,
-                          backgroundColor: "hsl(var(--card))",
-                          backgroundClip: "padding-box",
-                        }}
+                      style={{ width: 48, minWidth: 48 }}
                       >
                         <Checkbox
                           checked={selectedIds.has(account.id)}

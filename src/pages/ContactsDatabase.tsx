@@ -853,11 +853,7 @@ export default function ContactsDatabase() {
               {filteredContacts.map((contact, index) => {
                 const isReady = isContactReady(contact);
                 const isSelected = selectedIds.has(contact.id) || selectedRowId === contact.id;
-                const rowBg = isSelected
-                  ? "rgba(99,102,241,0.12)"
-                  : index % 2 === 1
-                    ? "rgba(255,255,255,0.03)"
-                    : "hsl(var(--card))";
+                const rowBg = isSelected ? "hsl(var(--primary) / 0.15)" : "transparent";
                 return (
                   <TableRow
                     key={contact.id}

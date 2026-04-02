@@ -1087,9 +1087,6 @@ export default function TalentDatabase() {
                     ? booleanSearch.results.find(r => r.candidate.id === talent.id)
                     : undefined;
                     
-                  const rowBg = index % 2 === 1
-                    ? "rgba(255,255,255,0.03)"
-                    : "hsl(var(--card))";
                   return (
                     <TableRow
                       key={talent.id}

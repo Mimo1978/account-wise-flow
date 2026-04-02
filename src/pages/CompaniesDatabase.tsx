@@ -552,6 +552,7 @@ export default function CompaniesDatabase() {
                           width: 48,
                           minWidth: 48,
                           backgroundColor: "hsl(var(--card))",
+                          backgroundClip: "padding-box",
                         }}
                       >
                         <Checkbox
@@ -570,8 +571,9 @@ export default function CompaniesDatabase() {
                           left: 48, 
                           zIndex: 20,
                           minWidth: 200,
-                          boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
+                          boxShadow: "4px 0 8px -4px hsl(var(--border))",
                           backgroundColor: "hsl(var(--card))",
+                          backgroundClip: "padding-box",
                         }}
                       >
                         <div className="flex items-center gap-2">

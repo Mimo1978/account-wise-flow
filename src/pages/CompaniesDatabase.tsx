@@ -540,8 +540,7 @@ export default function CompaniesDatabase() {
                   return (
                     <TableRow
                       key={account.id}
-                      style={{ background: rowBg }}
-                      className="cursor-pointer transition-colors group hover:bg-muted/30"
+                      className="cursor-pointer transition-colors group hover:bg-primary/10"
                       onClick={(e) => handleRowClick(account, e)}
                     >
                       <TableCell 

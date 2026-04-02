@@ -205,7 +205,7 @@ const ExecutiveInsights = () => {
   ];
 
   return (
-    <div className="min-h-screen" style={{ background: D.page }}>
+    <div className="h-full overflow-y-auto" style={{ background: D.page }}>
       <div className="container mx-auto px-6 py-8 max-w-7xl space-y-5">
         <PageBackButton />
 

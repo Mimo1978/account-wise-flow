@@ -683,8 +683,6 @@ export default function TalentDatabase() {
     } else if (pinPosition === "right") {
       return {
         ...baseStyles,
-        position: "sticky",
-        right: rightOffsets[columnId] ?? 0,
         zIndex: isHeader ? 30 : 20,
         background: isHeader ? "hsl(var(--muted))" : (rowBackground ?? "hsl(var(--card))"),
         backgroundClip: "padding-box",

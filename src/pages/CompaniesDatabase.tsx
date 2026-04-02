@@ -536,11 +536,6 @@ export default function CompaniesDatabase() {
                   const statusConfig = getRelationshipStatusConfig(account.relationshipStatus);
                   const qualityConfig = getDataQualityConfig(account.dataQuality);
                   const isSelected = selectedIds.has(account.id);
-                  const rowBg = isSelected
-                    ? "rgba(99,102,241,0.12)"
-                    : index % 2 === 1
-                      ? "rgba(255,255,255,0.03)"
-                      : "hsl(var(--card))";
                   
                   return (
                     <TableRow

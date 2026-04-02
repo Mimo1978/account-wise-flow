@@ -388,22 +388,20 @@ All colors MUST be HSL.
   padding-left: 0.5rem;
 }
 
-/* ── Data-table zebra striping, hover & selected rows ── */
-tbody > tr:nth-child(even) {
-  background-color: rgba(255, 255, 255, 0.04);
-}
+/* ── Data-table rows ── */
 tbody > tr {
   cursor: pointer;
-  transition: background-color 0.1s ease;
+  transition: background-color 0.12s ease;
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
 }
 tbody > tr:hover {
-  background-color: rgba(99, 102, 241, 0.15) !important;
+  background-color: hsl(var(--primary) / 0.08) !important;
 }
 tbody > tr[data-state="selected"] {
-  background-color: rgba(99, 102, 241, 0.2) !important;
+  background-color: hsl(var(--primary) / 0.15) !important;
 }
 thead > tr {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 /* ── Force toast to screen centre ── */

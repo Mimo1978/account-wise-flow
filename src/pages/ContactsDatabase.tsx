@@ -821,12 +821,8 @@ export default function ContactsDatabase() {
                   <TableHead 
                     className="font-semibold whitespace-nowrap"
                     style={{ 
-                      position: "sticky", 
-                      left: 40, 
-                      zIndex: 40,
                       minWidth: 100,
                       background: "hsl(var(--muted))",
-                      backgroundClip: "padding-box",
                     }}
                   >
                     Data Quality

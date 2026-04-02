@@ -1145,7 +1145,7 @@ export default function TalentDatabase() {
                               // Pinned cells override with slightly different styling on hover
                               pinPosition && "group-hover/row:bg-muted/50"
                             )}
-                            style={getCellStyles(column.id, false, rowBg)}
+                            style={getCellStyles(column.id, false)}
                           >
                             <div className="min-w-0 overflow-hidden text-ellipsis">
                               {renderCellContent(column.id, talent, viewPreferences.wrapText)}

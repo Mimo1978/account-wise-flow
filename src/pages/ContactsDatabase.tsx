@@ -887,12 +887,8 @@ export default function ContactsDatabase() {
                     <TableCell 
                       data-quality-action
                       style={{ 
-                        position: "sticky", 
-                        left: 40, 
-                        zIndex: 20,
                         minWidth: 100,
                         background: rowBg,
-                        backgroundClip: "padding-box",
                       }}
                     >
                       {isReady ? (

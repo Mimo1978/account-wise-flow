@@ -284,10 +284,10 @@ export default function CompaniesDatabase() {
   };
 
   return (
-    <div className="bg-background h-full flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden bg-background">
       {/* Page Sub-header */}
       <div className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
+        <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-foreground">
@@ -353,7 +353,7 @@ export default function CompaniesDatabase() {
       ) : (
         <>
       {/* Search and Selection Bar */}
-      <div className="px-4 py-4 flex-1 flex flex-col overflow-hidden min-h-0">
+      <div className="px-6 py-4 flex-1 flex flex-col overflow-hidden min-h-0">
         <div className="flex flex-wrap items-center gap-4 mb-4">
           <div className="relative flex-1 min-w-[250px] max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -433,12 +433,12 @@ export default function CompaniesDatabase() {
         </div>
 
         {/* Company-Level Table (NO contacts column) */}
-        <div className="rounded-xl border border-border bg-card overflow-hidden relative flex-1 min-h-0" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
+        <div className="flex-1 min-h-0 overflow-hidden rounded-xl border border-border bg-card relative" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
           <ScrollableTableContainer
             showScrollHint={isFirstVisit}
             stickyHeader
             maxHeight="100%"
-            leftPinnedWidth={260}
+            leftPinnedWidth={248}
           >
             <Table className="min-w-[1200px]">
               <TableHeader>
@@ -536,17 +536,11 @@ export default function CompaniesDatabase() {
                   const statusConfig = getRelationshipStatusConfig(account.relationshipStatus);
                   const qualityConfig = getDataQualityConfig(account.dataQuality);
                   const isSelected = selectedIds.has(account.id);
-                  const rowBg = isSelected
-                    ? "rgba(99,102,241,0.12)"
-                    : index % 2 === 1
-                      ? "rgba(255,255,255,0.03)"
-                      : "hsl(var(--card))";
                   
                   return (
                     <TableRow
                       key={account.id}
-                      style={{ background: rowBg }}
-                      className="cursor-pointer transition-colors group hover:bg-muted/30"
+                      className="cursor-pointer transition-colors group hover:bg-primary/10"
                       onClick={(e) => handleRowClick(account, e)}
                     >
                       <TableCell 
@@ -557,8 +551,7 @@ export default function CompaniesDatabase() {
                           zIndex: 20,
                           width: 48,
                           minWidth: 48,
-                          background: rowBg,
-                          backgroundClip: "padding-box",
+                          backgroundColor: "hsl(var(--card))",
                         }}
                       >
                         <Checkbox
@@ -578,8 +571,7 @@ export default function CompaniesDatabase() {
                           zIndex: 20,
                           minWidth: 200,
                           boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
-                          background: rowBg,
-                          backgroundClip: "padding-box",
+                          backgroundColor: "hsl(var(--card))",
                         }}
                       >
                         <div className="flex items-center gap-2">

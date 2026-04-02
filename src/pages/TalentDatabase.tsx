@@ -702,8 +702,8 @@ export default function TalentDatabase() {
 
   // Get checkbox column styles (always sticky left)
   const getCheckboxCellStyles = (isHeader: boolean = false, rowBackground?: string): React.CSSProperties => ({
-    position: "sticky",
-    left: 0,
+    width: CHECKBOX_COL_WIDTH,
+    minWidth: CHECKBOX_COL_WIDTH,
     width: CHECKBOX_COL_WIDTH,
     minWidth: CHECKBOX_COL_WIDTH,
     maxWidth: CHECKBOX_COL_WIDTH,

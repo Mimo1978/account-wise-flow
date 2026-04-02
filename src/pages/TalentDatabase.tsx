@@ -1036,7 +1036,6 @@ export default function TalentDatabase() {
           
           <ScrollableTableContainer 
             showScrollHint={isFirstVisit}
-            stickyHeader
             maxHeight="calc(100vh - 320px)"
           >
             <Table style={{ minWidth: viewPreferences.fitToScreen ? undefined : `${totalTableWidth}px`, width: viewPreferences.fitToScreen ? '100%' : undefined }}>

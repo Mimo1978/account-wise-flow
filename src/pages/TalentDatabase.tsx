@@ -1087,20 +1087,17 @@ export default function TalentDatabase() {
                     ? booleanSearch.results.find(r => r.candidate.id === talent.id)
                     : undefined;
                     
-                  const rowBg = index % 2 === 1
-                    ? "rgba(255,255,255,0.03)"
-                    : "hsl(var(--card))";
                   return (
                     <TableRow
                       key={talent.id}
-                      style={{ background: rowBg }}
+                      style={{}}
                       className="cursor-pointer transition-colors group/row hover:bg-muted/30"
                       onClick={() => handleRowClick(talent)}
                     >
                       <TableCell 
                         onClick={(e) => e.stopPropagation()} 
                         className="relative"
-                        style={getCheckboxCellStyles(false, rowBg)}
+                        style={getCheckboxCellStyles(false)}
                       >
                         <div className="flex items-center gap-1">
                           <Checkbox
@@ -1148,7 +1145,7 @@ export default function TalentDatabase() {
                               // Pinned cells override with slightly different styling on hover
                               pinPosition && "group-hover/row:bg-muted/50"
                             )}
-                            style={getCellStyles(column.id, false, rowBg)}
+                            style={getCellStyles(column.id, false)}
                           >
                             <div className="min-w-0 overflow-hidden text-ellipsis">
                               {renderCellContent(column.id, talent, viewPreferences.wrapText)}

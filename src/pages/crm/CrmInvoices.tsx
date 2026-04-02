@@ -168,5 +168,6 @@ export default function CrmInvoicesPage() {
 
       <CreateCrmInvoicePanel open={panelOpen} onOpenChange={setPanelOpen} />
     </div>
+    </div>
   );
 }

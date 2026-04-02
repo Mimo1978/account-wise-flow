@@ -436,7 +436,6 @@ export default function CompaniesDatabase() {
         <div className="rounded-xl border border-border bg-card overflow-visible relative" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
           <ScrollableTableContainer
             showScrollHint={isFirstVisit}
-            stickyHeader
             maxHeight="calc(100vh - 240px)"
             leftPinnedWidth={248}
           >

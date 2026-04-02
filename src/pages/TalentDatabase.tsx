@@ -704,8 +704,6 @@ export default function TalentDatabase() {
   const getCheckboxCellStyles = (isHeader: boolean = false, rowBackground?: string): React.CSSProperties => ({
     width: CHECKBOX_COL_WIDTH,
     minWidth: CHECKBOX_COL_WIDTH,
-    width: CHECKBOX_COL_WIDTH,
-    minWidth: CHECKBOX_COL_WIDTH,
     maxWidth: CHECKBOX_COL_WIDTH,
     zIndex: isHeader ? 31 : 21, // Slightly higher than other pinned cols
     background: isHeader ? "hsl(var(--muted))" : (rowBackground ?? "hsl(var(--card))"),

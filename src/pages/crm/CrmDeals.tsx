@@ -237,7 +237,7 @@ export default function CrmDealsPage() {
                     return (
                       <TableRow key={d.id} className="cursor-pointer"
                         style={{
-                          background: index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                          background: 'transparent',
                           transition: 'background 0.1s ease',
                         }}
                         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99, 102, 241, 0.15)'; }}

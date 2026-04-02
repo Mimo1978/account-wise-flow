@@ -541,7 +541,7 @@ const AccountsBillingHub = () => {
 
   return (
     <div className="h-full overflow-y-auto overflow-x-auto">
-    <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6" data-jarvis-id="accounts-page">
+      <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6" data-jarvis-id="accounts-page">
       {/* Back Button */}
       <PageBackButton fallback="/home" />
 

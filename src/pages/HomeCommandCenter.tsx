@@ -465,7 +465,7 @@ const HomeCommandCenter = () => {
   const handleRefresh = async () => { setRefreshing(true); await refreshWorkspaces(); setTimeout(() => setRefreshing(false), 600); };
 
   return (
-    <div className="h-full overflow-y-auto" style={{ background: DARK.page }}>
+    <div className="h-full overflow-y-auto overflow-x-auto" style={{ background: DARK.page }}>
       <div className="container mx-auto px-6 py-8 max-w-7xl space-y-5">
 
         {/* ═══ ROW 1 — HEADER ═══ */}

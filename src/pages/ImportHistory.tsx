@@ -71,7 +71,7 @@ export default function ImportHistory() {
   }, [currentWorkspace?.id]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-full overflow-y-auto bg-background">
       <div className="container mx-auto px-6 py-8 max-w-5xl space-y-6">
         <div>
          <h1 className="text-2xl font-bold tracking-tight text-foreground">Import History</h1>

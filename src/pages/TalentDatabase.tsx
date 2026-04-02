@@ -672,8 +672,6 @@ export default function TalentDatabase() {
     if (pinPosition === "left") {
       return {
         ...baseStyles,
-        position: "sticky",
-        left: leftOffsets[columnId] ?? 0,
         zIndex: isHeader ? 30 : 20,
         background: isHeader ? "hsl(var(--muted))" : (rowBackground ?? "hsl(var(--card))"),
         backgroundClip: "padding-box",
@@ -685,8 +683,6 @@ export default function TalentDatabase() {
     } else if (pinPosition === "right") {
       return {
         ...baseStyles,
-        position: "sticky",
-        right: rightOffsets[columnId] ?? 0,
         zIndex: isHeader ? 30 : 20,
         background: isHeader ? "hsl(var(--muted))" : (rowBackground ?? "hsl(var(--card))"),
         backgroundClip: "padding-box",
@@ -706,8 +702,6 @@ export default function TalentDatabase() {
 
   // Get checkbox column styles (always sticky left)
   const getCheckboxCellStyles = (isHeader: boolean = false, rowBackground?: string): React.CSSProperties => ({
-    position: "sticky",
-    left: 0,
     width: CHECKBOX_COL_WIDTH,
     minWidth: CHECKBOX_COL_WIDTH,
     maxWidth: CHECKBOX_COL_WIDTH,
@@ -1036,11 +1030,10 @@ export default function TalentDatabase() {
           
           <ScrollableTableContainer 
             showScrollHint={isFirstVisit}
-            stickyHeader
             maxHeight="calc(100vh - 320px)"
           >
             <Table style={{ minWidth: viewPreferences.fitToScreen ? undefined : `${totalTableWidth}px`, width: viewPreferences.fitToScreen ? '100%' : undefined }}>
-              <TableHeader className="sticky top-0 z-20">
+              <TableHeader>
                 <TableRow className="bg-muted">
                   <TableHead 
                     className="w-[50px] bg-muted"

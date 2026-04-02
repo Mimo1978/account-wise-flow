@@ -436,7 +436,6 @@ export default function CompaniesDatabase() {
         <div className="rounded-xl border border-border bg-card overflow-visible relative" style={{ borderLeft: '4px solid hsl(var(--primary))' }}>
           <ScrollableTableContainer
             showScrollHint={isFirstVisit}
-            stickyHeader
             maxHeight="calc(100vh - 240px)"
             leftPinnedWidth={248}
           >
@@ -445,15 +444,7 @@ export default function CompaniesDatabase() {
                 <TableRow className="bg-muted">
                   <TableHead 
                     className="w-12"
-                    style={{ 
-                      position: "sticky", 
-                      left: 0, 
-                      zIndex: 40,
-                      width: 48,
-                      minWidth: 48,
-                      background: "hsl(var(--muted))",
-                      backgroundClip: "padding-box",
-                    }}
+                    style={{ width: 48, minWidth: 48 }}
                   >
                     <Checkbox
                       checked={isAllSelected}
@@ -464,15 +455,7 @@ export default function CompaniesDatabase() {
                   </TableHead>
                   <TableHead 
                     className="font-semibold whitespace-nowrap"
-                    style={{ 
-                      position: "sticky", 
-                      left: 48, 
-                      zIndex: 40,
-                      minWidth: 200,
-                      background: "hsl(var(--muted))",
-                      backgroundClip: "padding-box",
-                      boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
-                    }}
+                    style={{ minWidth: 200 }}
                   >
                     <div className="flex items-center gap-2">
                       <Building2 className="h-4 w-4" />
@@ -545,15 +528,7 @@ export default function CompaniesDatabase() {
                     >
                       <TableCell 
                         data-checkbox 
-                        style={{ 
-                          position: "sticky", 
-                          left: 0, 
-                          zIndex: 20,
-                          width: 48,
-                          minWidth: 48,
-                          backgroundColor: "hsl(var(--card))",
-                          backgroundClip: "padding-box",
-                        }}
+                      style={{ width: 48, minWidth: 48 }}
                       >
                         <Checkbox
                           checked={selectedIds.has(account.id)}
@@ -566,15 +541,7 @@ export default function CompaniesDatabase() {
                       </TableCell>
                       <TableCell 
                         className="font-medium"
-                        style={{ 
-                          position: "sticky", 
-                          left: 48, 
-                          zIndex: 20,
-                          minWidth: 200,
-                          boxShadow: "4px 0 8px -4px hsl(var(--border))",
-                          backgroundColor: "hsl(var(--card))",
-                          backgroundClip: "padding-box",
-                        }}
+                      style={{ minWidth: 200 }}
                       >
                         <div className="flex items-center gap-2">
                           <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">

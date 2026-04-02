@@ -795,7 +795,6 @@ export default function ContactsDatabase() {
         <div className="rounded-xl border border-border bg-card overflow-visible relative" style={{ borderLeft: '4px solid hsl(199 89% 48%)' }}>
           <ScrollableTableContainer 
             showScrollHint={isFirstVisit}
-            stickyHeader
             maxHeight="calc(100vh - 280px)"
             leftPinnedWidth={280}
           >
@@ -805,7 +804,7 @@ export default function ContactsDatabase() {
                   {/* Checkbox col */}
                   <TableHead
                     className="w-10"
-                    style={{ position: "sticky", left: 0, zIndex: 40, background: "hsl(var(--muted))", backgroundClip: "padding-box" }}
+                    style={{ background: "hsl(var(--muted))" }}
                   >
                     <Checkbox
                       checked={filteredContacts.length > 0 && selectedIds.size === filteredContacts.length}
@@ -822,12 +821,8 @@ export default function ContactsDatabase() {
                   <TableHead 
                     className="font-semibold whitespace-nowrap"
                     style={{ 
-                      position: "sticky", 
-                      left: 40, 
-                      zIndex: 40,
                       minWidth: 100,
                       background: "hsl(var(--muted))",
-                      backgroundClip: "padding-box",
                     }}
                   >
                     Data Quality
@@ -835,13 +830,8 @@ export default function ContactsDatabase() {
                   <TableHead 
                     className="font-semibold whitespace-nowrap"
                     style={{ 
-                      position: "sticky", 
-                      left: 140, 
-                      zIndex: 40,
                       minWidth: 180,
                       background: "hsl(var(--muted))",
-                      backgroundClip: "padding-box",
-                      boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
                     }}
                   >
                     Name
@@ -880,7 +870,7 @@ export default function ContactsDatabase() {
                     <TableCell
                       data-quality-action
                       className="w-10"
-                      style={{ position: "sticky", left: 0, zIndex: 20, background: rowBg, backgroundClip: "padding-box" }}
+                      style={{ background: rowBg }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Checkbox
@@ -897,12 +887,8 @@ export default function ContactsDatabase() {
                     <TableCell 
                       data-quality-action
                       style={{ 
-                        position: "sticky", 
-                        left: 40, 
-                        zIndex: 20,
                         minWidth: 100,
                         background: rowBg,
-                        backgroundClip: "padding-box",
                       }}
                     >
                       {isReady ? (
@@ -1047,13 +1033,8 @@ export default function ContactsDatabase() {
                     <TableCell 
                       className="font-medium"
                       style={{ 
-                        position: "sticky", 
-                        left: 140, 
-                        zIndex: 20,
                         minWidth: 180,
-                        boxShadow: "4px 0 8px -4px hsl(var(--foreground) / 0.12)",
                         background: rowBg,
-                        backgroundClip: "padding-box",
                       }}
                     >
                       <div className="flex items-center gap-2 group/name">

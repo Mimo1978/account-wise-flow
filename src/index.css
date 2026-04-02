@@ -464,6 +464,7 @@ thead > tr {
 * {
   scrollbar-width: thin;
   scrollbar-color: #FACC15 #1e2535;
+  scrollbar-gutter: stable;
 }
 *::-webkit-scrollbar {
   width: 12px;
@@ -471,11 +472,14 @@ thead > tr {
 }
 *::-webkit-scrollbar-track {
   background: #1e2535;
+  border-radius: 0;
 }
 *::-webkit-scrollbar-thumb {
   background: #FACC15;
   border-radius: 6px;
   border: 2px solid #1e2535;
+  min-height: 40px;
+  min-width: 40px;
 }
 *::-webkit-scrollbar-thumb:hover {
   background: #fde047;

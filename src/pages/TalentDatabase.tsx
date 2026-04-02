@@ -1039,7 +1039,7 @@ export default function TalentDatabase() {
             maxHeight="calc(100vh - 320px)"
           >
             <Table style={{ minWidth: viewPreferences.fitToScreen ? undefined : `${totalTableWidth}px`, width: viewPreferences.fitToScreen ? '100%' : undefined }}>
-              <TableHeader className="sticky top-0 z-20">
+              <TableHeader>
                 <TableRow className="bg-muted">
                   <TableHead 
                     className="w-[50px] bg-muted"

@@ -541,15 +541,7 @@ export default function CompaniesDatabase() {
                       </TableCell>
                       <TableCell 
                         className="font-medium"
-                        style={{ 
-                          position: "sticky", 
-                          left: 48, 
-                          zIndex: 20,
-                          minWidth: 200,
-                          boxShadow: "4px 0 8px -4px hsl(var(--border))",
-                          backgroundColor: "hsl(var(--card))",
-                          backgroundClip: "padding-box",
-                        }}
+                      style={{ minWidth: 200 }}
                       >
                         <div className="flex items-center gap-2">
                           <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">

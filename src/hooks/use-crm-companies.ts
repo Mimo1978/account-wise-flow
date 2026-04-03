@@ -105,6 +105,7 @@ export function useSoftDeleteCrmCompany() {
       }
     },
     onSuccess: () => {
+      toast.success("Company deleted");
       qc.invalidateQueries({ queryKey: ["crm_companies"] });
       qc.invalidateQueries({ queryKey: ["companies"] });
     },

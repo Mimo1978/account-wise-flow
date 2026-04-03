@@ -85,7 +85,10 @@ export function useUpdateCrmCompany() {
       if (error) throw error;
       return data as unknown as CrmCompany;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_companies"] }),
+    onSuccess: () => {
+      toast.success("Company updated");
+      qc.invalidateQueries({ queryKey: ["crm_companies"] });
+    },
   });
 }
 

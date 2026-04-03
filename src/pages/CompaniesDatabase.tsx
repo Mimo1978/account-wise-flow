@@ -387,30 +387,40 @@ export default function CompaniesDatabase() {
                   variant="outline"
                   className={perm.canDeleteDirectly ? "gap-1.5 text-destructive hover:text-destructive" : "gap-1.5 text-amber-500 hover:text-amber-600"}
                   onClick={async () => {
-                    if (perm.canDeleteDirectly) {
-                      const ids = Array.from(selectedIds);
-                      for (const cid of ids) {
-                        const company = filteredCompanies.find(c => c.id === cid);
-                        await softDelete.mutateAsync({
-                          recordType: "companies",
-                          recordId: cid,
-                          recordName: company?.name || "Unknown",
-                          reason: "Bulk deletion",
-                        });
+                    const ids = Array.from(selectedIds);
+                    let successCount = 0;
+                    let failCount = 0;
+                    for (const cid of ids) {
+                      const company = filteredCompanies.find(c => c.id === cid);
+                      try {
+                        if (perm.canDeleteDirectly) {
+                          await softDelete.mutateAsync({
+                            recordType: "companies",
+                            recordId: cid,
+                            recordName: company?.name || "Unknown",
+                            reason: "Bulk deletion",
+                          });
+                        } else {
+                          await requestDeletion.mutateAsync({
+                            recordType: "companies",
+                            recordId: cid,
+                            recordName: company?.name || "Unknown",
+                            reason: "Bulk deletion request",
+                          });
+                        }
+                        successCount++;
+                      } catch {
+                        failCount++;
                       }
-                      setSelectedIds(new Set());
-                    } else {
-                      const ids = Array.from(selectedIds);
-                      for (const cid of ids) {
-                        const company = filteredCompanies.find(c => c.id === cid);
-                        await requestDeletion.mutateAsync({
-                          recordType: "companies",
-                          recordId: cid,
-                          recordName: company?.name || "Unknown",
-                          reason: "Bulk deletion request",
-                        });
-                      }
-                      setSelectedIds(new Set());
+                    }
+                    setSelectedIds(new Set());
+                    if (successCount > 0 && perm.canDeleteDirectly) {
+                      toast.success(`${successCount} ${successCount === 1 ? "company" : "companies"} deleted. Recoverable for 30 days in Admin → Governance.`);
+                    } else if (successCount > 0) {
+                      toast.success(`Deletion requested for ${successCount} ${successCount === 1 ? "company" : "companies"}.`);
+                    }
+                    if (failCount > 0) {
+                      toast.error(`${failCount} ${failCount === 1 ? "company" : "companies"} could not be deleted — linked records exist.`);
                     }
                   }}
                   disabled={softDelete.isPending || requestDeletion.isPending}

@@ -85,7 +85,10 @@ export function useUpdateCrmInvoice() {
       if (error) throw error;
       return data as unknown as CrmInvoice;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_invoices"] }),
+    onSuccess: () => {
+      toast.success("Invoice updated");
+      qc.invalidateQueries({ queryKey: ["crm_invoices"] });
+    },
   });
 }
 

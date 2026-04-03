@@ -110,9 +110,9 @@ export function useSoftDelete() {
           .from("companies" as any)
           .select("name")
           .eq("id", recordId)
-          .single();
+          .single() as any;
 
-        if (deleted?.name) {
+        if ((deleted as any)?.name) {
           await supabase
             .from("crm_companies" as any)
             .update({
@@ -121,7 +121,7 @@ export function useSoftDelete() {
               deletion_reason: reason,
               deletion_scheduled_purge_at: purgeAt,
             } as any)
-            .ilike("name", deleted.name)
+            .ilike("name", (deleted as any).name)
             .is("deleted_at", null);
         }
       }

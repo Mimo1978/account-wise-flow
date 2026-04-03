@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import type { CrmInvoice } from "@/types/crm";
 
 const TABLE = "crm_invoices";
@@ -66,6 +67,7 @@ export function useCreateCrmInvoice() {
       return data as unknown as CrmInvoice;
     },
     onSuccess: () => {
+      toast.success("Invoice created");
       qc.invalidateQueries({ queryKey: ["crm_invoices"] });
     },
   });
@@ -83,7 +85,10 @@ export function useUpdateCrmInvoice() {
       if (error) throw error;
       return data as unknown as CrmInvoice;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_invoices"] }),
+    onSuccess: () => {
+      toast.success("Invoice updated");
+      qc.invalidateQueries({ queryKey: ["crm_invoices"] });
+    },
   });
 }
 

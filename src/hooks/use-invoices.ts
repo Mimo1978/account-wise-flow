@@ -97,6 +97,7 @@ export function useUpdateInvoice() {
       return data;
     },
     onSuccess: () => {
+      toast.success("Invoice updated");
       qc.invalidateQueries({ queryKey: ['invoices'] });
     },
   });

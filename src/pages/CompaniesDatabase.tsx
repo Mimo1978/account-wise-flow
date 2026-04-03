@@ -113,7 +113,7 @@ export default function CompaniesDatabase() {
   const { role, canInsert, isLoading: permissionsLoading } = usePermissions();
   const insertTooltip = getPermissionTooltip("insert", role);
   const perm = useDeletionPermission();
-  const softDelete = useHardDelete();
+  const softDelete = useSoftDelete();
   const requestDeletion = useRequestDeletion();
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   

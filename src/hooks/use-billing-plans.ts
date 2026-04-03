@@ -123,6 +123,7 @@ export function useDeleteBillingPlan() {
       if (error) throw error;
     },
     onSuccess: () => {
+      toast.success("Plan deleted");
       qc.invalidateQueries({ queryKey: ['billing-plans'] });
     },
   });

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from "sonner";
 
 export interface Invoice {
   id: string;
@@ -75,6 +76,7 @@ export function useCreateInvoice() {
       return data;
     },
     onSuccess: () => {
+      toast.success("Invoice created");
       qc.invalidateQueries({ queryKey: ['crm_invoices'] });
       qc.invalidateQueries({ queryKey: ['invoices'] });
     },
@@ -95,6 +97,7 @@ export function useUpdateInvoice() {
       return data;
     },
     onSuccess: () => {
+      toast.success("Invoice updated");
       qc.invalidateQueries({ queryKey: ['invoices'] });
     },
   });

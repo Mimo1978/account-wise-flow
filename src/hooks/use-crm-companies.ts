@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import type { CrmCompany } from "@/types/crm";
 
 const TABLE = "crm_companies";
@@ -65,7 +66,10 @@ export function useCreateCrmCompany() {
       if (error) throw error;
       return data as unknown as CrmCompany;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_companies"] }),
+    onSuccess: () => {
+      toast.success("Company created");
+      qc.invalidateQueries({ queryKey: ["crm_companies"] });
+    },
   });
 }
 
@@ -81,7 +85,10 @@ export function useUpdateCrmCompany() {
       if (error) throw error;
       return data as unknown as CrmCompany;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_companies"] }),
+    onSuccess: () => {
+      toast.success("Company updated");
+      qc.invalidateQueries({ queryKey: ["crm_companies"] });
+    },
   });
 }
 
@@ -98,6 +105,7 @@ export function useSoftDeleteCrmCompany() {
       }
     },
     onSuccess: () => {
+      toast.success("Company deleted");
       qc.invalidateQueries({ queryKey: ["crm_companies"] });
       qc.invalidateQueries({ queryKey: ["companies"] });
     },

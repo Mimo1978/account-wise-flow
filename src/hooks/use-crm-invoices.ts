@@ -67,6 +67,7 @@ export function useCreateCrmInvoice() {
       return data as unknown as CrmInvoice;
     },
     onSuccess: () => {
+      toast.success("Invoice created");
       qc.invalidateQueries({ queryKey: ["crm_invoices"] });
     },
   });

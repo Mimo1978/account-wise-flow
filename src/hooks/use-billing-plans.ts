@@ -106,6 +106,7 @@ export function useUpdateBillingPlan() {
       return data;
     },
     onSuccess: () => {
+      toast.success("Plan updated");
       qc.invalidateQueries({ queryKey: ['billing-plans'] });
     },
   });

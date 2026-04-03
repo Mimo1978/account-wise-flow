@@ -66,7 +66,10 @@ export function useCreateCrmCompany() {
       if (error) throw error;
       return data as unknown as CrmCompany;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_companies"] }),
+    onSuccess: () => {
+      toast.success("Company created");
+      qc.invalidateQueries({ queryKey: ["crm_companies"] });
+    },
   });
 }
 

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from "sonner";
 
 export interface BillingPlan {
   id: string;
@@ -85,6 +86,7 @@ export function useCreateBillingPlan() {
       return data;
     },
     onSuccess: () => {
+      toast.success("Plan created");
       qc.invalidateQueries({ queryKey: ['billing-plans'] });
     },
   });
@@ -104,6 +106,7 @@ export function useUpdateBillingPlan() {
       return data;
     },
     onSuccess: () => {
+      toast.success("Plan updated");
       qc.invalidateQueries({ queryKey: ['billing-plans'] });
     },
   });
@@ -120,6 +123,7 @@ export function useDeleteBillingPlan() {
       if (error) throw error;
     },
     onSuccess: () => {
+      toast.success("Plan deleted");
       qc.invalidateQueries({ queryKey: ['billing-plans'] });
     },
   });

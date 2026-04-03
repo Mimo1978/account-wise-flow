@@ -52,7 +52,7 @@ import {
 import { format, parseISO } from "date-fns";
 import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { cn } from "@/lib/utils";
-import { useDeletionPermission, useHardDelete, useRequestDeletion } from "@/hooks/use-deletion";
+import { useDeletionPermission, useSoftDelete, useRequestDeletion } from "@/hooks/use-deletion";
 import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
 import { toast } from "sonner";
 

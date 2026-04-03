@@ -86,6 +86,7 @@ export function useCreateBillingPlan() {
       return data;
     },
     onSuccess: () => {
+      toast.success("Plan created");
       qc.invalidateQueries({ queryKey: ['billing-plans'] });
     },
   });

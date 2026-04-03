@@ -104,6 +104,28 @@ export function useSoftDelete() {
         throw error;
       }
 
+      // If deleting from companies, also sync to crm_companies by name
+      if (recordType === "companies") {
+        const { data: deleted } = await supabase
+          .from("companies" as any)
+          .select("name")
+          .eq("id", recordId)
+          .single();
+
+        if (deleted?.name) {
+          await supabase
+            .from("crm_companies" as any)
+            .update({
+              deleted_at: now,
+              deleted_by: userId,
+              deletion_reason: reason,
+              deletion_scheduled_purge_at: purgeAt,
+            } as any)
+            .ilike("name", deleted.name)
+            .is("deleted_at", null);
+        }
+      }
+
       // Log to audit
       if (currentWorkspace?.id) {
         await supabase.from("audit_log" as any).insert({

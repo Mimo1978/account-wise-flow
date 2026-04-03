@@ -161,12 +161,10 @@ export function useHardDelete() {
       return { recordId, recordType };
     },
     onSuccess: (_, vars) => {
-      toast.success(`${vars.recordName} permanently deleted.`);
       invalidateRelated(qc, vars.recordType);
     },
     onError: (err: any) => {
       console.error("[useHardDelete] Error:", err);
-      toast.error("Failed to delete: " + (err.message || "Unknown error"));
     },
   });
 }

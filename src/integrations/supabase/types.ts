@@ -5798,6 +5798,73 @@ export type Database = {
           },
         ]
       }
+      talent_company_engagements: {
+        Row: {
+          company_id: string
+          created_at: string
+          department: string | null
+          end_date: string | null
+          id: string
+          notes: string | null
+          role_type: string | null
+          start_date: string | null
+          status: string
+          talent_id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          department?: string | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          role_type?: string | null
+          start_date?: string | null
+          status?: string
+          talent_id: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          department?: string | null
+          end_date?: string | null
+          id?: string
+          notes?: string | null
+          role_type?: string | null
+          start_date?: string | null
+          status?: string
+          talent_id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talent_company_engagements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_company_engagements_talent_id_fkey"
+            columns: ["talent_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talent_company_engagements_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talent_documents: {
         Row: {
           created_at: string

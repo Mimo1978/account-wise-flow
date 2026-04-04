@@ -735,34 +735,26 @@ export const ContactDetailPanel = ({
                 <Badge variant="outline" className="text-xs px-2 py-0.5">{roleConfig[editedContact.role]}</Badge>
               )}
 
-              {/* Tags - Inline */}
+              {/* Status Quick-Change — tap to update org chart dot instantly */}
               <div className="flex items-center gap-1.5 ml-auto">
-                {editedContact.tags?.slice(0, 3).map((tag) => (
-                  <Badge key={tag} variant="secondary" className="gap-1 text-xs px-2 py-0.5">
-                    <Tag className="w-2.5 h-2.5" />
-                    {tag}
-                    <button onClick={() => handleRemoveTag(tag)} className="ml-0.5 hover:text-destructive transition-colors">
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </Badge>
+                {[
+                  { key: "champion", color: "bg-node-champion", label: "Champion" },
+                  { key: "engaged", color: "bg-node-engaged", label: "Engaged" },
+                  { key: "warm", color: "bg-node-warm", label: "Warm" },
+                  { key: "unknown", color: "bg-node-unknown", label: "Unknown" },
+                  { key: "blocker", color: "bg-node-blocker", label: "Blocker" },
+                ].map(({ key, color, label }) => (
+                  <button
+                    key={key}
+                    title={label}
+                    onClick={() => handleStatusChange(key)}
+                    className={`w-5 h-5 rounded-full transition-all ${color} ${
+                      editedContact.status === key
+                        ? "ring-2 ring-offset-2 ring-offset-background ring-foreground scale-125"
+                        : "opacity-50 hover:opacity-100 hover:scale-110"
+                    }`}
+                  />
                 ))}
-                {editedContact.tags && editedContact.tags.length > 3 && (
-                  <Badge variant="secondary" className="text-xs px-2 py-0.5">
-                    +{editedContact.tags.length - 3}
-                  </Badge>
-                )}
-                <Select onValueChange={handleAddTag}>
-                  <SelectTrigger className="h-6 w-20 text-xs border-dashed">
-                    <SelectValue placeholder="+ Tag" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {predefinedTags
-                      .filter(tag => !editedContact.tags?.includes(tag))
-                      .map((tag) => (
-                        <SelectItem key={tag} value={tag} className="text-xs">{tag}</SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           </div>

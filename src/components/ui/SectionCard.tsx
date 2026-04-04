@@ -19,24 +19,19 @@ export function SectionCard({
 }: SectionCardProps) {
   return (
     <div
-      className={`rounded-xl overflow-hidden ${className}`}
+      className={`rounded-xl overflow-hidden bg-card border ${className}`}
       style={{
-        background: "#1A1F2E",
-        border: "1px solid #2D3748",
         borderLeft: `4px solid ${accentColor}`,
       }}
     >
       <div className="flex items-center justify-between px-6 py-4">
         <div className="flex items-center gap-2.5">
           {icon && (
-            <span style={{ color: "#94A3B8" }} className="shrink-0">
+            <span className="shrink-0 text-muted-foreground">
               {icon}
             </span>
           )}
-          <h2
-            className="text-sm font-semibold uppercase tracking-wide"
-            style={{ color: "#F8FAFC" }}
-          >
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
             {title}
           </h2>
         </div>

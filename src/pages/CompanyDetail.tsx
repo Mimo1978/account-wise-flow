@@ -1518,6 +1518,7 @@ export default function CompanyDetail() {
                   <CardContent className="p-0">
                     <div className="h-[500px] relative">
                       <AccountCanvas
+                        searchLocked={true}
                         account={(() => {
                           // Build hierarchy maps from org_chart_edges (same source as full Canvas page)
                           const parentMap = new Map<string, string | null>();

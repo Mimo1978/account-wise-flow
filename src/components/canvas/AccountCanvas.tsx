@@ -1160,11 +1160,12 @@ AccountCanvas.displayName = "AccountCanvas";
 // Node factory functions (pure — no hooks, no closures over component state)
 // ─────────────────────────────────────────────────────────────────────────────
 const createCompanyNode = (name: string, x: number, y: number): Group => {
-  const bgCircle = new Circle({ radius: 38, fill: "hsl(221 83% 53%)", originX: "center", originY: "center" });
-  const ring = new Circle({ radius: 38, fill: "", stroke: "hsl(221 83% 70%)", strokeWidth: 2, originX: "center", originY: "center" });
-  const initial = new Text(name.charAt(0).toUpperCase(), { fontSize: 32, fontWeight: "bold", fill: "white", originX: "center", originY: "center", top: 1 });
-  const label = new Text(name.toUpperCase(), { fontSize: 11, fontWeight: "bold", fill: "hsl(221 83% 53%)", originX: "center", originY: "center", top: 52, letterSpacing: 2 });
-  return new Group([bgCircle, ring, initial, label], { left: x, top: y, originX: "center", originY: "center", selectable: false, hasControls: false, hasBorders: false });
+  const badgeW = Math.max(160, name.length * 9 + 48);
+  const badge = new Rect({ width: badgeW, height: 44, fill: "hsl(221 83% 53%)", rx: 22, ry: 22, originX: "center", originY: "center" });
+  const dot1 = new Circle({ radius: 3, fill: "white", opacity: 0.5, left: -badgeW / 2 + 16, top: 0, originX: "center", originY: "center" });
+  const dot2 = new Circle({ radius: 3, fill: "white", opacity: 0.5, left: badgeW / 2 - 16, top: 0, originX: "center", originY: "center" });
+  const label = new Text(name, { fontSize: 15, fontWeight: "600", fill: "white", originX: "center", originY: "center", top: 1 });
+  return new Group([badge, dot1, dot2, label], { left: x, top: y, originX: "center", originY: "center", selectable: false, hasControls: false, hasBorders: false });
 };
 
 const createContactNode = (contact: Contact, x: number, y: number): Group => {

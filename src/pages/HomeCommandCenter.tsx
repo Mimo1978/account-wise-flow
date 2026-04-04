@@ -38,12 +38,12 @@ import { toast } from 'sonner';
 
 /* ─── Dark theme constants ─── */
 const DARK = {
-  page: '#0F1117',
-  card: '#1A1F2E',
-  border: '#2D3748',
-  text: '#F8FAFC',
-  textSecondary: '#94A3B8',
-  hover: '#252B3B',
+  page: 'hsl(var(--background))',
+  card: 'hsl(var(--card))',
+  border: 'hsl(var(--border))',
+  text: 'hsl(var(--foreground))',
+  textSecondary: 'hsl(var(--muted-foreground))',
+  hover: 'hsl(var(--muted))',
 };
 
 /* ─── Types ─── */

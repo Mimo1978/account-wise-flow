@@ -40,8 +40,8 @@ export const CanvasSearch = ({
 
   // Generate storage keys
   const storageKey = workspaceId && userId 
-    ? `canvasSearchBarPos_v2:${workspaceId}:${userId}` 
-    : 'canvasSearchBarPos_v2:default';
+    ? `canvasSearchBarPos_v3:${workspaceId}:${userId}` 
+    : 'canvasSearchBarPos_v3:default';
   const hintShownKey = workspaceId && userId 
     ? `canvasSearchBarHintShown:${workspaceId}:${userId}` 
     : 'canvasSearchBarHintShown:default';

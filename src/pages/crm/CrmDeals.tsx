@@ -175,7 +175,7 @@ export default function CrmDealsPage() {
               <button
                 onClick={() => setViewMode("table")}
                 className={cn("px-3 py-1.5 text-xs flex items-center gap-1 transition-colors", viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
-                style={viewMode !== "table" ? { background: '#1A1F2E' } : {}}
+                style={viewMode !== "table" ? { background: 'hsl(var(--muted))' } : {}}
               >
                 <List className="h-3.5 w-3.5" /> Table
               </button>

@@ -298,7 +298,7 @@ export default function DocumentsHub() {
   })() : null;
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-auto" style={{ background: '#0F1117' }}>
+    <div className="h-full overflow-y-auto overflow-x-auto bg-background">
       <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
 
         {/* Header */}

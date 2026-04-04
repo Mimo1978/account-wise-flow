@@ -66,6 +66,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ContactDetailPanelProps {
   contact: Contact | null;
@@ -270,6 +271,8 @@ export const ContactDetailPanel = ({
     return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
 
+  const qc = useQueryClient();
+
   const handleStatusChange = async (newStatus: string) => {
     if (!contact?.id) return;
     setEditedContact({ ...editedContact, status: newStatus as any });
@@ -281,6 +284,8 @@ export const ContactDetailPanel = ({
       toast.error("Failed to update status");
     } else {
       toast.success("Status updated");
+      // Invalidate canvas so the org chart dot updates immediately
+      qc.invalidateQueries({ queryKey: ['canvas-company'], exact: false });
     }
   };
 

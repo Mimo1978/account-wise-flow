@@ -164,7 +164,7 @@ export default function CrmDealsPage() {
             {stageFilter && (
               <Button variant="ghost" size="sm" onClick={() => handleStageFilter(null)} className="text-muted-foreground">Clear stage filter</Button>
             )}
-            <div className="ml-auto flex items-center border rounded-md overflow-hidden" style={{ borderColor: '#2D3748' }}>
+            <div className="ml-auto flex items-center border rounded-md overflow-hidden" style={{ borderColor: 'hsl(var(--border))' }}>
               <button
                 onClick={() => setViewMode("cards")}
                 className={cn("px-3 py-1.5 text-xs flex items-center gap-1 transition-colors", viewMode === "cards" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}

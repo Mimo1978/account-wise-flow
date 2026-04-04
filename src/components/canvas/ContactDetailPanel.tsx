@@ -272,7 +272,7 @@ export const ContactDetailPanel = ({
 
   const handleStatusChange = async (newStatus: string) => {
     if (!contact?.id) return;
-    setEditedContact({ ...editedContact, status: newStatus });
+    setEditedContact({ ...editedContact, status: newStatus as any });
     const { error } = await supabase
       .from("contacts" as any)
       .update({ status: newStatus })

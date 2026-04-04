@@ -132,7 +132,7 @@ export default function CrmProjectsPage() {
                     <TableCell>
                       {stageDef ? (
                         <Badge variant="secondary" className="text-xs text-white border-0" style={{ backgroundColor: stageDef.colour }}>{stageDef.label}</Badge>
-                      ) : <span className="text-xs" style={{ color: '#94A3B8' }}>—</span>}
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell><Badge className={STATUS_COLORS[p.status] || ""} variant="secondary">{p.status}</Badge></TableCell>
                     <TableCell>{p.budget != null ? `${currencySymbol(p.currency)}${p.budget.toLocaleString()}` : "—"}</TableCell>

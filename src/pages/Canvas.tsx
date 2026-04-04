@@ -489,6 +489,17 @@ const Canvas = () => {
       jarvisId: "canvas-talent-overlay",
     });
 
+    if (account) {
+      actions.push({
+        id: "assign-talent",
+        label: "Assign Talent",
+        icon: <UserPlus className="w-4 h-4" />,
+        onClick: () => setShowAssignTalentModal(true),
+        priority: "secondary",
+        jarvisId: "canvas-assign-talent",
+      });
+    }
+
     actions.push({
       id: "missing-roles",
       label: "Missing Roles",

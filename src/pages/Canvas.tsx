@@ -587,7 +587,7 @@ const Canvas = () => {
     });
 
     return actions;
-  }, [isRoleSuggestionsOpen, isAIKnowledgeOpen]);
+  }, [isRoleSuggestionsOpen, isAIKnowledgeOpen, showTalentOverlay, account, companyEngagements.length]);
 
   // Left side content for the toolbar
   const toolbarLeftContent = account ? (

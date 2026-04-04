@@ -18,8 +18,9 @@ import { AIRoleSuggestionsPanel } from "@/components/canvas/AIRoleSuggestionsPan
 import { ResponsiveToolbar, ToolbarAction } from "@/components/canvas/ResponsiveToolbar";
 import { OrgChartBuilderModal } from "@/components/orgchart/OrgChartBuilderModal";
 import { mockAccount, mockAccounts } from "@/lib/mock-data";
-import { mockTalents, mockEngagements } from "@/lib/mock-talent";
-import { Account, Contact, Talent, TalentEngagement } from "@/lib/types";
+import { Account, Contact, Talent, TalentEngagement, EngagementStatus } from "@/lib/types";
+
+type TalentEngagementWithData = TalentEngagement & { talent: Talent };
 import { TalentProfilePanel } from "@/components/talent/TalentProfilePanel";
 import { toast } from "sonner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";

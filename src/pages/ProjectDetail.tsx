@@ -1709,6 +1709,7 @@ const ProjectDetail = () => {
         onDeleted={() => navigate("/projects")}
       />
     </div>
+    </div>
   );
 };
 

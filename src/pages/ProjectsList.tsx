@@ -59,7 +59,7 @@ const ProjectsList = () => {
             </div>
           ) : engagements.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-12">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: '#2D3748' }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-muted">
                 <Briefcase className="w-6 h-6" style={{ color: '#94A3B8' }} />
               </div>
               <h3 className="text-sm font-semibold" style={{ color: '#F8FAFC' }}>No projects yet</h3>

@@ -16,6 +16,7 @@ export type DropZone = "top" | "bottom" | "left" | "right" | "company_root";
 
 interface AccountCanvasProps {
   account: Account;
+  hideSearch?: boolean;
   onContactClick: (contact: Contact) => void;
   onTalentClick?: (talent: Talent, engagement: TalentEngagement) => void;
   highlightedContactIds?: string[];
@@ -49,6 +50,7 @@ interface TalentNodeData {
 
 export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({ 
   account, 
+  hideSearch = false,
   onContactClick,
   onTalentClick,
   highlightedContactIds = [],
@@ -1129,17 +1131,19 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
   return (
     <div ref={containerRef} className="w-full h-full absolute inset-0">
-      <CanvasSearch
-        onSearch={handleSearch}
-        onClear={handleClearSearch}
-        matchCount={matchedNodes.length}
-        currentMatchIndex={currentMatchIndex}
-        onNextMatch={handleNextMatch}
-        onPrevMatch={handlePrevMatch}
-        onReset={handleResetPositions}
-        workspaceId={account.id}
-        userId="current-user"
-      />
+      {!hideSearch && (
+        <CanvasSearch
+          onSearch={handleSearch}
+          onClear={handleClearSearch}
+          matchCount={matchedNodes.length}
+          currentMatchIndex={currentMatchIndex}
+          onNextMatch={handleNextMatch}
+          onPrevMatch={handlePrevMatch}
+          onReset={handleResetPositions}
+          workspaceId={account.id}
+          userId="current-user"
+        />
+      )}
       <canvas ref={canvasRef} className="w-full h-full block" />
       <CanvasMinimap mainCanvas={fabricCanvas} />
       {showCompanyHover && companyNodeRef.current && (

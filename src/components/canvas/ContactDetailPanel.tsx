@@ -285,8 +285,7 @@ export const ContactDetailPanel = ({
     } else {
       toast.success("Status updated");
       // Invalidate canvas so the org chart dot updates immediately
-      qc.invalidateQueries({ queryKey: ['canvas-company', contact.companyId] });
-      qc.invalidateQueries({ queryKey: ['canvas-company'] });
+      qc.invalidateQueries({ queryKey: ['canvas-company'], exact: false });
     }
   };
 

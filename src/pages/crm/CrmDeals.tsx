@@ -206,7 +206,7 @@ export default function CrmDealsPage() {
                     </div>
                     <p className="text-lg font-bold mt-1" style={{ color: '#F8FAFC' }}>{currencySymbol(d.currency)}{(d.value || 0).toLocaleString()}</p>
                     <DealIntegrityBadges contactId={(d as any).contact_id} projectId={(d as any).project_id} />
-                    <div className="flex items-center justify-between text-xs mt-2" style={{ color: '#94A3B8' }}>
+                    <div className="flex items-center justify-between text-xs mt-2 text-muted-foreground">
                       <span>{d.crm_companies?.name || "No company"}</span>
                       <span>{daysOpen}d open</span>
                     </div>

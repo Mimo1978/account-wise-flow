@@ -167,7 +167,6 @@ const JobsList = () => {
             <Button size="sm" variant={showUnlinked ? 'default' : 'outline'} className={`gap-1.5 h-9 ${!showUnlinked ? 'border-border text-muted-foreground' : ''}`} onClick={() => setShowUnlinked(v => !v)}>
               <Filter className="w-3.5 h-3.5" /> Unlinked Jobs
             </Button>
-            </Button>
           </div>
 
           {/* Table */}

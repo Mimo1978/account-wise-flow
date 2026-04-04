@@ -216,7 +216,7 @@ export default function CrmDealsPage() {
             </div>
           ) : (
             /* ═══ TABLE VIEW ═══ */
-            <div className="rounded-lg overflow-auto mt-4" style={{ border: '1px solid #2D3748' }}>
+            <div className="rounded-lg overflow-auto mt-4" style={{ border: '1px solid hsl(var(--border))' }}>
               <Table>
                 <TableHeader>
                   <TableRow>

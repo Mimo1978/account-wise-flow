@@ -14,7 +14,7 @@ import { CompanyDatabaseView } from "@/components/canvas/CompanyDatabaseView";
 import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
 // AIInsightsPanel removed — merged into AIKnowledgePanel
 import { AIRoleSuggestionsPanel } from "@/components/canvas/AIRoleSuggestionsPanel";
-import { GlobalSearch } from "@/components/canvas/GlobalSearch";
+
 import { ResponsiveToolbar, ToolbarAction } from "@/components/canvas/ResponsiveToolbar";
 import { OrgChartBuilderModal } from "@/components/orgchart/OrgChartBuilderModal";
 import { mockAccount, mockAccounts } from "@/lib/mock-data";
@@ -505,11 +505,6 @@ const Canvas = () => {
       <QRCodeButton 
         accountId={account.id}
         accountName={account.name}
-      />
-      <div className="h-6 w-px bg-border shrink-0" />
-      <GlobalSearch
-        onSelectCompany={handleGlobalSelectCompany}
-        onSelectContact={handleGlobalSelectContact}
       />
       <div className="h-6 w-px bg-border shrink-0" />
       

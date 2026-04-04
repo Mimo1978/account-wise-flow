@@ -433,7 +433,7 @@ const JobDetail = () => {
           <Button variant="outline" size="sm" data-jarvis-id="job-generate-spec-button">
             <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Spec
           </Button>
-          <Button variant="outline" size="sm" onClick={openShortlistBuilder} data-jarvis-id="job-run-shortlist-button">
+          <Button variant="default" size="sm" onClick={openShortlistBuilder} data-jarvis-id="job-run-shortlist-button">
             <Users className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist
           </Button>
         </div>

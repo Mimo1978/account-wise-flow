@@ -134,14 +134,56 @@ const Canvas = () => {
   const [showEditSaveDialog, setShowEditSaveDialog] = useState(false);
   const [hasPendingStructuralChanges, setHasPendingStructuralChanges] = useState(false);
 
-  // Get engagements for current company with talent data
-  const companyEngagements = account ? mockEngagements
-    .filter((eng) => eng.companyId === account.id)
-    .map((eng) => ({
-      ...eng,
-      talent: mockTalents.find((t) => t.id === eng.talentId),
-    }))
-    .filter((eng) => eng.talent) as (TalentEngagement & { talent: Talent })[] : [];
+  // Get real talent engagements for current company from Supabase
+  const { data: rawEngagements = [] } = useQuery({
+    queryKey: ['talent-company-engagements', account?.id, currentWorkspace?.id],
+    enabled: !!account?.id && !!currentWorkspace?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('talent_company_engagements' as any)
+        .select(`
+          id, status, role_type, department, start_date, end_date, notes, talent_id, company_id,
+          talent:candidates(id, first_name, last_name, email, phone, role_type, seniority, availability_status)
+        `)
+        .eq('company_id', account!.id)
+        .eq('workspace_id', currentWorkspace!.id);
+      if (error) { console.error('[Canvas] talent engagements:', error); return []; }
+      return data || [];
+    },
+  });
+  const companyEngagements = rawEngagements
+    .filter((e: any) => e.talent)
+    .map((e: any) => ({
+      id: e.id,
+      talentId: e.talent_id,
+      companyId: e.company_id,
+      status: e.status as EngagementStatus,
+      roleType: e.role_type || e.talent?.role_type || '',
+      department: e.department || '',
+      startDate: e.start_date,
+      endDate: e.end_date,
+      notes: e.notes || '',
+      talent: {
+        id: e.talent.id,
+        name: `${e.talent.first_name} ${e.talent.last_name}`,
+        email: e.talent.email || '',
+        phone: e.talent.phone || '',
+        phoneNumbers: [],
+        skills: [],
+        roleType: e.talent.role_type || '',
+        seniority: e.talent.seniority || 'mid',
+        availability: e.talent.availability_status || 'unknown',
+        rate: '',
+        notes: '',
+        aiOverview: '',
+        linkedIn: '',
+        location: '',
+        lastUpdated: '',
+        dataQuality: 'parsed' as const,
+        status: 'active' as const,
+        cvSource: 'upload' as const,
+      },
+    })) as TalentEngagementWithData[];
 
   const handleCompanySwitch = (newAccount: Account) => {
     // If there are unsaved changes, show confirmation dialog

@@ -115,7 +115,7 @@ const JobsList = () => {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Jobs</h1>
-            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>
+            <p className="text-sm mt-1 text-muted-foreground">
               {activeCount} active role{activeCount !== 1 ? 's' : ''} in workspace
             </p>
           </div>
@@ -127,7 +127,7 @@ const JobsList = () => {
           icon={<Briefcase className="w-4 h-4" />}
           headerRight={
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" className="gap-1.5 border-[#2D3748] text-slate-300 hover:bg-[#252B3B]" asChild>
+              <Button size="sm" variant="outline" className="gap-1.5" asChild>
                 <a href="/jobs/board" target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="w-3.5 h-3.5" /> View Public Board
                 </a>
@@ -141,7 +141,7 @@ const JobsList = () => {
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#94A3B8' }} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input placeholder="Search jobs or companies…" value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -164,8 +164,7 @@ const JobsList = () => {
                 <SelectItem value="temp">Temp</SelectItem>
               </SelectContent>
             </Select>
-            <Button size="sm" variant={showUnlinked ? 'default' : 'outline'} className="gap-1.5 h-9" onClick={() => setShowUnlinked(v => !v)}
-              style={!showUnlinked ? { borderColor: '#2D3748', color: '#94A3B8' } : {}}>
+            <Button size="sm" variant={showUnlinked ? 'default' : 'outline'} className={`gap-1.5 h-9 ${!showUnlinked ? 'border-border text-muted-foreground' : ''}`} onClick={() => setShowUnlinked(v => !v)}>
               <Filter className="w-3.5 h-3.5" /> Unlinked Jobs
             </Button>
           </div>
@@ -180,10 +179,10 @@ const JobsList = () => {
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-12">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 bg-muted">
-                <Briefcase className="w-6 h-6" style={{ color: '#94A3B8' }} />
+                <Briefcase className="w-6 h-6 text-muted-foreground" />
               </div>
               <h3 className="text-sm font-semibold" style={{ color: '#F8FAFC' }}>No jobs yet</h3>
-              <p className="text-xs mt-1 max-w-sm" style={{ color: '#94A3B8' }}>
+              <p className="text-xs mt-1 max-w-sm text-muted-foreground">
                 Create a job to start building specs, adverts, and shortlists.
               </p>
               <Button size="sm" className="mt-4 gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={handleCreate}>
@@ -191,7 +190,7 @@ const JobsList = () => {
               </Button>
             </div>
           ) : (
-            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #2D3748' }}>
+            <div className="rounded-lg overflow-hidden border border-border">
               <Table>
                 <TableHeader>
                    <TableRow>
@@ -227,14 +226,14 @@ const JobsList = () => {
                         onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
                         onClick={() => navigate(`/jobs/${job.id}`)}>
                         <TableCell className="font-medium">{job.title}</TableCell>
-                        <TableCell style={{ color: '#94A3B8' }}>{(job as any).companies?.name || '—'}</TableCell>
-                        <TableCell className="text-sm" style={{ color: '#94A3B8' }}>
+                        <TableCell className="text-muted-foreground">{(job as any).companies?.name || '—'}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
                           {(job as any).hiring_manager
                             ? <span className="text-primary cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${(job as any).hiring_manager.id}`); }}>{(job as any).hiring_manager.first_name} {(job as any).hiring_manager.last_name}</span>
                             : '—'}
                         </TableCell>
-                        <TableCell className="capitalize" style={{ color: '#94A3B8' }}>{job.job_type || '—'}</TableCell>
-                        <TableCell style={{ color: '#94A3B8' }}>{job.location || '—'}</TableCell>
+                        <TableCell className="capitalize text-muted-foreground">{job.job_type || '—'}</TableCell>
+                        <TableCell className="text-muted-foreground">{job.location || '—'}</TableCell>
                         <TableCell><Badge variant={badge.variant} className={badge.className}>{badge.label}</Badge></TableCell>
                         <TableCell>
                           {linkedProject ? (
@@ -243,16 +242,16 @@ const JobsList = () => {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center gap-1 text-sm" style={{ color: '#94A3B8' }}>— <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /></span>
+                                  <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">— <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /></span>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-[220px] text-xs">This active job isn't linked to a project.</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           ) : (
-                            <span className="text-sm" style={{ color: '#94A3B8' }}>—</span>
+                            <span className="text-sm text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm" style={{ color: '#94A3B8' }}>
+                        <TableCell className="text-sm text-muted-foreground">
                           {linkedDeal ? (
                             <span className="font-medium" style={{ color: '#F8FAFC' }}>
                               {linkedDeal.currency === 'GBP' ? '£' : linkedDeal.currency === 'USD' ? '$' : linkedDeal.currency === 'EUR' ? '€' : ''}{linkedDeal.value.toLocaleString()}
@@ -261,7 +260,7 @@ const JobsList = () => {
                         </TableCell>
                         <TableCell className="text-center">{appCount}</TableCell>
                         <TableCell className="text-center">{shortCount}</TableCell>
-                        <TableCell className="text-sm" style={{ color: '#94A3B8' }}>{format(new Date(job.created_at), 'dd MMM yyyy')}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{format(new Date(job.created_at), 'dd MMM yyyy')}</TableCell>
                       </TableRow>
                     );
                   })}

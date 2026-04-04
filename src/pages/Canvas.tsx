@@ -230,7 +230,11 @@ const Canvas = () => {
     },
   ] : [];
 
-  const companyEngagements = realEngagements.length > 0 ? realEngagements : demoEngagements;
+  const companyEngagements = useMemo(
+    () => realEngagements.length > 0 ? realEngagements : demoEngagements,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rawEngagements, account?.id]
+  );
 
   const handleCompanySwitch = (newAccount: Account) => {
     // If there are unsaved changes, show confirmation dialog
@@ -525,15 +529,6 @@ const Canvas = () => {
       jarvisId: "canvas-build-orgchart",
     });
 
-    actions.push({
-      id: "talent-overlay",
-      label: "Talent Overlay",
-      icon: <Users className="w-4 h-4" />,
-      onClick: () => setShowTalentOverlay(!showTalentOverlay),
-      isActive: showTalentOverlay,
-      priority: "secondary",
-      jarvisId: "canvas-talent-overlay",
-    });
 
     if (account) {
       actions.push({
@@ -618,9 +613,18 @@ const Canvas = () => {
         accountName={account.name}
       />
       <div className="h-6 w-px bg-border shrink-0" />
-      
-      
-
+      {/* Talent Overlay Switch */}
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50 shrink-0">
+        <Users className={`w-4 h-4 ${showTalentOverlay ? "text-primary" : "text-muted-foreground"}`} />
+        <Label htmlFor="talent-toggle" className="text-sm cursor-pointer whitespace-nowrap select-none">
+          Talent
+        </Label>
+        <Switch
+          id="talent-toggle"
+          checked={showTalentOverlay}
+          onCheckedChange={setShowTalentOverlay}
+        />
+      </div>
     </>
   ) : null;
 

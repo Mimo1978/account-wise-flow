@@ -115,7 +115,7 @@ const JobsList = () => {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Jobs</h1>
-            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>
+            <p className="text-sm mt-1 text-muted-foreground">
               {activeCount} active role{activeCount !== 1 ? 's' : ''} in workspace
             </p>
           </div>

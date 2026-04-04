@@ -162,7 +162,7 @@ export default function CrmDealsPage() {
               </SelectContent>
             </Select>
             {stageFilter && (
-              <Button variant="ghost" size="sm" onClick={() => handleStageFilter(null)} style={{ color: '#94A3B8' }}>Clear stage filter</Button>
+              <Button variant="ghost" size="sm" onClick={() => handleStageFilter(null)} className="text-muted-foreground">Clear stage filter</Button>
             )}
             <div className="ml-auto flex items-center border rounded-md overflow-hidden" style={{ borderColor: '#2D3748' }}>
               <button

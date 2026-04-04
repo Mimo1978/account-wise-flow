@@ -261,7 +261,7 @@ const JobsList = () => {
                         </TableCell>
                         <TableCell className="text-center">{appCount}</TableCell>
                         <TableCell className="text-center">{shortCount}</TableCell>
-                        <TableCell className="text-sm" style={{ color: '#94A3B8' }}>{format(new Date(job.created_at), 'dd MMM yyyy')}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{format(new Date(job.created_at), 'dd MMM yyyy')}</TableCell>
                       </TableRow>
                     );
                   })}

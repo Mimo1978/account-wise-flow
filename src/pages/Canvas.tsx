@@ -152,14 +152,14 @@ const Canvas = () => {
       return data || [];
     },
   });
-  const companyEngagements = rawEngagements
+  const realEngagements = rawEngagements
     .filter((e: any) => e.talent)
     .map((e: any) => ({
       id: e.id,
       talentId: e.talent_id,
       companyId: e.company_id,
       status: e.status as EngagementStatus,
-      roleType: e.role_type || e.talent?.role_type || '',
+      roleType: e.role_type || e.talent?.current_title || '',
       department: e.department || '',
       startDate: e.start_date,
       endDate: e.end_date,
@@ -171,9 +171,9 @@ const Canvas = () => {
         phone: e.talent.phone || '',
         phoneNumbers: [],
         skills: [],
-        roleType: e.talent.current_title || e.roleType || '',
-        seniority: 'mid',
-        availability: 'available',
+        roleType: e.talent.current_title || '',
+        seniority: 'mid' as const,
+        availability: 'available' as const,
         rate: '',
         notes: '',
         aiOverview: '',
@@ -185,6 +185,52 @@ const Canvas = () => {
         cvSource: 'upload' as const,
       },
     })) as TalentEngagementWithData[];
+
+  // Demo fallback: show sample placements so users can see the overlay feature
+  // Remove this block once real talent placements are created
+  const demoEngagements: TalentEngagementWithData[] = account && realEngagements.length === 0 ? [
+    {
+      id: 'demo-1', talentId: 'demo-t1', companyId: account.id,
+      status: 'deployed' as EngagementStatus,
+      roleType: 'Senior Data Engineer', department: 'Technology / Engineering',
+      startDate: '2026-01-15', endDate: '2026-07-15', notes: '',
+      talent: {
+        id: 'demo-t1', name: 'Alex Chen', email: 'alex.chen@consultant.com',
+        phone: '', phoneNumbers: [], skills: [], roleType: 'Senior Data Engineer',
+        seniority: 'senior' as const, availability: 'available' as const,
+        rate: '£650/day', notes: '', aiOverview: '', linkedIn: '', location: 'London',
+        lastUpdated: '', dataQuality: 'parsed' as const, status: 'active' as const, cvSource: 'upload' as const,
+      },
+    },
+    {
+      id: 'demo-2', talentId: 'demo-t2', companyId: account.id,
+      status: 'interviewing' as EngagementStatus,
+      roleType: 'Business Analyst', department: 'Technology / Engineering',
+      startDate: '2026-03-01', notes: '',
+      talent: {
+        id: 'demo-t2', name: 'Maria Santos', email: 'maria@freelance.io',
+        phone: '', phoneNumbers: [], skills: [], roleType: 'Business Analyst',
+        seniority: 'mid' as const, availability: 'available' as const,
+        rate: '£450/day', notes: '', aiOverview: '', linkedIn: '', location: 'London',
+        lastUpdated: '', dataQuality: 'parsed' as const, status: 'active' as const, cvSource: 'upload' as const,
+      },
+    },
+    {
+      id: 'demo-3', talentId: 'demo-t3', companyId: account.id,
+      status: 'proposed' as EngagementStatus,
+      roleType: 'Solutions Architect', department: 'Technology / Engineering',
+      notes: '',
+      talent: {
+        id: 'demo-t3', name: 'James Wilson', email: 'james@consult.com',
+        phone: '', phoneNumbers: [], skills: [], roleType: 'Solutions Architect',
+        seniority: 'senior' as const, availability: 'available' as const,
+        rate: '£800/day', notes: '', aiOverview: '', linkedIn: '', location: 'London',
+        lastUpdated: '', dataQuality: 'parsed' as const, status: 'active' as const, cvSource: 'upload' as const,
+      },
+    },
+  ] : [];
+
+  const companyEngagements = realEngagements.length > 0 ? realEngagements : demoEngagements;
 
   const handleCompanySwitch = (newAccount: Account) => {
     // If there are unsaved changes, show confirmation dialog

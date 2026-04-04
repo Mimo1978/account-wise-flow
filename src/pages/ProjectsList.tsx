@@ -146,7 +146,7 @@ const ProjectsList = () => {
                             <td className="px-4 py-3">
                               <span className={`inline-block w-2.5 h-2.5 rounded-full ${HEALTH_COLORS[eng.health] ?? 'bg-muted'}`} />
                             </td>
-                            <td className="px-4 py-3 text-xs" style={{ color: '#94A3B8' }}>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
                               {format(new Date(eng.updated_at), 'dd MMM yyyy')}
                             </td>
                           </tr>

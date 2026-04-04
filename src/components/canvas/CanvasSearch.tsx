@@ -181,7 +181,7 @@ export const CanvasSearch = ({
           </div>
         )}
 
-        <div className="pl-2 border-l border-border">
+        <div className="pl-2 border-l-2 border-primary/30">
           <Button
             variant="outline"
             size="sm"

@@ -184,7 +184,7 @@ export default function CrmDealsPage() {
 
           {/* Content */}
           {isLoading ? (
-            <p className="text-center py-12" style={{ color: '#94A3B8' }}>Loading deals…</p>
+            <p className="text-center py-12 text-muted-foreground">Loading deals…</p>
           ) : sorted.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-12">
               <DollarSign className="h-8 w-8 mx-auto mb-3" style={{ color: '#94A3B8' }} />

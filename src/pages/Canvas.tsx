@@ -536,22 +536,6 @@ const Canvas = () => {
         </>
       )}
       
-      {/* View Toggle */}
-      <ToggleGroup 
-        type="single" 
-        value={viewMode} 
-        onValueChange={(value) => value && setViewMode(value as "canvas" | "database")}
-        className="shrink-0"
-      >
-        <ToggleGroupItem value="canvas" aria-label="Canvas view" className="gap-2">
-          <Network className="w-4 h-4" />
-          <span className="hidden lg:inline">Canvas</span>
-        </ToggleGroupItem>
-        <ToggleGroupItem value="database" aria-label="Database view" className="gap-2">
-          <Table2 className="w-4 h-4" />
-          <span className="hidden lg:inline">Database</span>
-        </ToggleGroupItem>
-      </ToggleGroup>
 
     </>
   ) : null;

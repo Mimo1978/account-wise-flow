@@ -111,7 +111,7 @@ export default function CrmProjectsPage() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8" style={{ color: '#94A3B8' }}>Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 ) : sorted.length === 0 ? (
                   <TableRow><TableCell colSpan={9} className="text-center py-8" style={{ color: '#94A3B8' }}>No projects found</TableCell></TableRow>
                 ) : sorted.map(p => {

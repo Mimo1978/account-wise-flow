@@ -69,7 +69,7 @@ export default function CrmContactsPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Contacts</h1>
-            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>CRM contact database · {contacts.length} contact{contacts.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm mt-1 text-muted-foreground">CRM contact database · {contacts.length} contact{contacts.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
 

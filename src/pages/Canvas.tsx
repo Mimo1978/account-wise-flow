@@ -507,11 +507,6 @@ const Canvas = () => {
         accountName={account.name}
       />
       <div className="h-6 w-px bg-border shrink-0" />
-      <GlobalSearch
-        onSelectCompany={handleGlobalSelectCompany}
-        onSelectContact={handleGlobalSelectContact}
-      />
-      <div className="h-6 w-px bg-border shrink-0" />
       
       {/* Talent Overlay Toggle - Only show in canvas mode */}
       {viewMode === "canvas" && companyEngagements.length > 0 && (

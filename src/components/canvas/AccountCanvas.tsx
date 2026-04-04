@@ -1133,7 +1133,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
 
   return (
     <div ref={containerRef} className="w-full h-full absolute inset-0">
-      {!hideSearch && (
+      {!hideSearch && !searchLocked && (
         <CanvasSearch
           onSearch={handleSearch}
           onClear={handleClearSearch}
@@ -1145,6 +1145,15 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
           workspaceId={account.id}
           userId="current-user"
         />
+      )}
+      {!hideSearch && searchLocked && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-background/95 backdrop-blur-sm border-2 border-primary/40 rounded-lg shadow-lg px-3 py-2">
+          <input
+            className="outline-none bg-transparent text-sm text-muted-foreground w-56 placeholder:text-muted-foreground/60"
+            placeholder="Search by name, title, department..."
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+        </div>
       )}
       <canvas ref={canvasRef} className="w-full h-full block" />
       <CanvasMinimap mainCanvas={fabricCanvas} />

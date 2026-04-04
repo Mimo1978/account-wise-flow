@@ -113,7 +113,7 @@ export default function CrmProjectsPage() {
                 {isLoading ? (
                   <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 ) : sorted.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8" style={{ color: '#94A3B8' }}>No projects found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No projects found</TableCell></TableRow>
                 ) : sorted.map(p => {
                   const wfStage = (p as any).workflow_stage;
                   const stages = getWorkflowStages(p.project_type);

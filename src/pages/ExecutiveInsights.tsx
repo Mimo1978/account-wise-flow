@@ -23,12 +23,12 @@ import { PageBackButton } from '@/components/ui/page-back-button';
 
 /* ─── Dark theme constants (matching Command Centre) ─── */
 const D = {
-  page: '#0F1117',
-  card: '#1A1F2E',
-  border: '#2D3748',
-  text: '#F8FAFC',
-  muted: '#94A3B8',
-  hover: '#252B3B',
+  page: 'hsl(var(--background))',
+  card: 'hsl(var(--card))',
+  border: 'hsl(var(--border))',
+  text: 'hsl(var(--foreground))',
+  muted: 'hsl(var(--muted-foreground))',
+  hover: 'hsl(var(--muted))',
 };
 
 const TOOLTIP_STYLE = { background: D.card, border: `1px solid ${D.border}`, color: D.text, borderRadius: 8, fontSize: 12 };

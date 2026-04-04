@@ -181,6 +181,14 @@ export const CanvasSearch = ({
           </div>
         )}
 
+        {query.length > 0 && matchCount === 0 && (
+          <div className="pl-2 border-l-2 border-primary/30">
+            <span className="text-sm text-muted-foreground/60 whitespace-nowrap italic">
+              No contacts found
+            </span>
+          </div>
+        )}
+
         <div className="pl-2 border-l-2 border-primary/30">
           <Button
             variant="outline"

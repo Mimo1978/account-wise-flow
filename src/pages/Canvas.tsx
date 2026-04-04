@@ -143,7 +143,7 @@ const Canvas = () => {
         .from('talent_company_engagements' as any)
         .select(`
           id, status, role_type, department, start_date, end_date, notes, talent_id, company_id,
-          talent:candidates(id, first_name, last_name, email, phone, role_type, seniority, availability_status)
+          talent:candidates(id, name, email, phone, current_title, headline)
         `)
         .eq('company_id', account!.id)
         .eq('workspace_id', currentWorkspace!.id);

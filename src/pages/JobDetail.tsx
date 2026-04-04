@@ -552,7 +552,8 @@ const JobDetail = () => {
               <XCircle className="w-3.5 h-3.5 mr-1.5" /> Cancel
             </Button>
           )}
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">

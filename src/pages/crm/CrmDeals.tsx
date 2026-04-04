@@ -107,7 +107,7 @@ export default function CrmDealsPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Deals</h1>
-            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>
+            <p className="text-sm mt-1 text-muted-foreground">
               Pipeline overview · {deals.length} deal{deals.length !== 1 ? "s" : ""} · £{totalValue.toLocaleString()} across all stages
             </p>
           </div>

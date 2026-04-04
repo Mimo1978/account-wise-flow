@@ -479,6 +479,16 @@ const Canvas = () => {
     });
 
     actions.push({
+      id: "talent-overlay",
+      label: "Talent Overlay",
+      icon: <Users className="w-4 h-4" />,
+      onClick: () => setShowTalentOverlay(!showTalentOverlay),
+      isActive: showTalentOverlay,
+      priority: "secondary",
+      jarvisId: "canvas-talent-overlay",
+    });
+
+    actions.push({
       id: "missing-roles",
       label: "Missing Roles",
       icon: <UserPlus className="w-4 h-4" />,
@@ -551,35 +561,6 @@ const Canvas = () => {
       />
       <div className="h-6 w-px bg-border shrink-0" />
       
-      {/* Talent Overlay Toggle - Always visible in canvas mode */}
-      {viewMode === "canvas" && (
-        <>
-          <div
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50 shrink-0"
-            title={companyEngagements.length === 0 ? "No talent linked to this company yet. Assign talent from the Talent page." : ""}
-          >
-            <Users className={`w-4 h-4 ${companyEngagements.length === 0 ? "text-muted-foreground/40" : "text-muted-foreground"}`} />
-            <Label
-              htmlFor="talent-overlay"
-              className={`text-sm whitespace-nowrap ${companyEngagements.length === 0 ? "text-muted-foreground/40 cursor-not-allowed" : "cursor-pointer"}`}
-            >
-              Talent Overlay
-            </Label>
-            <Switch
-              id="talent-overlay"
-              checked={showTalentOverlay}
-              onCheckedChange={setShowTalentOverlay}
-              disabled={companyEngagements.length === 0}
-            />
-            {showTalentOverlay && companyEngagements.length > 0 && (
-              <span className="text-xs text-muted-foreground">
-                ({companyEngagements.length})
-              </span>
-            )}
-          </div>
-          <div className="h-6 w-px bg-border shrink-0" />
-        </>
-      )}
       
 
     </>

@@ -508,8 +508,7 @@ const JobDetail = () => {
       </Dialog>
 
       {/* Status Controls */}
-      <Card>
-        <CardContent className="py-3 flex items-center gap-2 flex-wrap">
+      <div className="inline-flex items-center gap-2 bg-muted/40 rounded-lg px-3 py-2">
           <span className="text-sm font-medium text-muted-foreground mr-2">Change status:</span>
           {job.status !== 'draft' && (
             <Button variant="outline" size="sm" onClick={() => handleStatusChange('draft')}>
@@ -552,8 +551,7 @@ const JobDetail = () => {
               <XCircle className="w-3.5 h-3.5 mr-1.5" /> Cancel
             </Button>
           )}
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">

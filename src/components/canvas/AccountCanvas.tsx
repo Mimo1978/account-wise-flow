@@ -1178,12 +1178,12 @@ const createContactNode = (contact: Contact, x: number, y: number): Group => {
     new: "hsl(221 83% 53%)", blocker: "hsl(0 84% 60%)", unknown: "hsl(210 20% 90%)",
   };
   const bgColor = statusColors[contact.status] || statusColors.unknown;
-  const cardBg = new Rect({ width: 180, height: 90, fill: "white", stroke: "hsl(214 32% 91%)", strokeWidth: 1, rx: 8, ry: 8, left: -90, top: -45 });
-  const profileCircle = new Circle({ radius: 25, fill: "hsl(210 20% 90%)", left: -75, top: -20 });
-  const silhouetteText = new Text("👤", { fontSize: 24, fill: "hsl(215 16% 47%)", left: -75, top: -20, originX: "center", originY: "center" });
-  const nameText = new Text(contact.name, { fontSize: 11, fontWeight: "600", fill: "hsl(222 47% 11%)", left: -40, top: -25, width: 110 });
-  const titleText = new Text(contact.title, { fontSize: 9, fill: "hsl(215 16% 47%)", left: -40, top: -8, width: 110 });
-  const deptText = new Text(contact.department, { fontSize: 8, fill: "hsl(215 16% 47%)", left: -40, top: 8, width: 110 });
+  const cardBg = new Rect({ width: 180, height: 90, fill: "hsl(222 47% 14%)", stroke: "hsl(221 83% 53%)", strokeWidth: 1, rx: 8, ry: 8, left: -90, top: -45 });
+  const profileCircle = new Circle({ radius: 25, fill: "hsl(217 33% 22%)", left: -75, top: -20 });
+  const silhouetteText = new Text("👤", { fontSize: 24, fill: "hsl(215 20% 65%)", left: -75, top: -20, originX: "center", originY: "center" });
+  const nameText = new Text(contact.name, { fontSize: 11, fontWeight: "600", fill: "hsl(210 40% 98%)", left: -40, top: -25, width: 110 });
+  const titleText = new Text(contact.title, { fontSize: 9, fill: "hsl(215 20% 65%)", left: -40, top: -8, width: 110 });
+  const deptText = new Text(contact.department, { fontSize: 8, fill: "hsl(199 89% 60%)", left: -40, top: 8, width: 110 });
   const statusIndicator = new Circle({ radius: 5, fill: bgColor, left: 65, top: -35 });
   const anchorTop = new Circle({ radius: 4, fill: "hsl(221 83% 53%)", top: -50, opacity: 0 });
   const anchorBottom = new Circle({ radius: 4, fill: "hsl(221 83% 53%)", top: 50, opacity: 0 });

@@ -168,7 +168,7 @@ export default function CrmDealsPage() {
               <button
                 onClick={() => setViewMode("cards")}
                 className={cn("px-3 py-1.5 text-xs flex items-center gap-1 transition-colors", viewMode === "cards" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
-                style={viewMode !== "cards" ? { background: '#1A1F2E' } : {}}
+                style={viewMode !== "cards" ? { background: 'hsl(var(--muted))' } : {}}
               >
                 <LayoutGrid className="h-3.5 w-3.5" /> Cards
               </button>

@@ -73,6 +73,14 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
       });
   }, [user]);
 
+  const initials = (() => {
+    if (!displayName) return '?';
+    const parts = displayName.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (displayName.includes('@')) return displayName[0].toUpperCase();
+    return displayName.slice(0, 2).toUpperCase();
+  })();
+
   const timeGreeting = (() => {
     const h = new Date().getHours();
     return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
@@ -330,12 +338,8 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="gap-2 max-w-[180px]">
-                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <User className="w-4 h-4 text-primary" />
-                    </div>
-                    <div className="hidden sm:flex flex-col items-end max-w-[160px]">
-                      <span className="text-[11px] leading-tight text-muted-foreground">{timeGreeting}</span>
-                      <span className="text-[13px] font-medium leading-tight truncate max-w-[160px]">{displayName}</span>
+                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-[11px] font-semibold text-primary">
+                      {initials}
                     </div>
                   </Button>
                 </DropdownMenuTrigger>

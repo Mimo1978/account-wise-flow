@@ -104,7 +104,7 @@ export function useSoftDelete() {
         throw error;
       }
 
-      // If deleting from companies, also sync to crm_companies by name
+      // If deleting from companies, also sync deletion to crm_companies by name
       if (recordType === "companies") {
         const { data: deleted } = await supabase
           .from("companies" as any)

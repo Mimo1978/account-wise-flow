@@ -143,7 +143,7 @@ const Canvas = () => {
         .from('talent_company_engagements' as any)
         .select(`
           id, status, role_type, department, start_date, end_date, notes, talent_id, company_id,
-          talent:candidates(id, first_name, last_name, email, phone, role_type, seniority, availability_status)
+          talent:candidates(id, name, email, phone, current_title, headline)
         `)
         .eq('company_id', account!.id)
         .eq('workspace_id', currentWorkspace!.id);
@@ -165,14 +165,14 @@ const Canvas = () => {
       notes: e.notes || '',
       talent: {
         id: e.talent.id,
-        name: `${e.talent.first_name} ${e.talent.last_name}`,
+        name: e.talent.name || '',
         email: e.talent.email || '',
         phone: e.talent.phone || '',
         phoneNumbers: [],
         skills: [],
-        roleType: e.talent.role_type || '',
-        seniority: e.talent.seniority || 'mid',
-        availability: e.talent.availability_status || 'unknown',
+        roleType: e.talent.current_title || e.roleType || '',
+        seniority: 'mid',
+        availability: 'available',
         rate: '',
         notes: '',
         aiOverview: '',

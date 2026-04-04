@@ -405,6 +405,7 @@ const JobDetail = () => {
             )}
             <Badge variant="outline" className={resolvedBadge.className}>{resolvedBadge.label}</Badge>
           </div>
+          <div className="h-2" />
           <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
             <Popover open={showCompanySearch} onOpenChange={setShowCompanySearch}>
               <PopoverTrigger asChild>

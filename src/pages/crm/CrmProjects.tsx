@@ -64,7 +64,7 @@ export default function CrmProjectsPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Projects</h1>
-            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>All CRM projects · {projects.length} total</p>
+            <p className="text-sm mt-1 text-muted-foreground">All CRM projects · {projects.length} total</p>
           </div>
         </div>
 

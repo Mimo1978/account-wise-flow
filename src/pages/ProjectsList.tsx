@@ -76,14 +76,14 @@ const ProjectsList = () => {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr style={{ borderBottom: '1px solid #2D3748' }}>
-                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Name</th>
-                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Company</th>
-                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Contact</th>
-                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Type</th>
-                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Stage</th>
-                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Health</th>
-                        <th className="text-left px-4 py-3 font-medium" style={{ color: '#94A3B8' }}>Updated</th>
+                      <tr className="border-b border-border">
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Company</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Contact</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Stage</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Health</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Updated</th>
                       </tr>
                     </thead>
                     <tbody>

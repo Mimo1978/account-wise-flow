@@ -613,9 +613,18 @@ const Canvas = () => {
         accountName={account.name}
       />
       <div className="h-6 w-px bg-border shrink-0" />
-      
-      
-
+      {/* Talent Overlay Switch */}
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background/50 shrink-0">
+        <Users className={`w-4 h-4 ${showTalentOverlay ? "text-primary" : "text-muted-foreground"}`} />
+        <Label htmlFor="talent-toggle" className="text-sm cursor-pointer whitespace-nowrap select-none">
+          Talent
+        </Label>
+        <Switch
+          id="talent-toggle"
+          checked={showTalentOverlay}
+          onCheckedChange={setShowTalentOverlay}
+        />
+      </div>
     </>
   ) : null;
 

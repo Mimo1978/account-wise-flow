@@ -120,7 +120,7 @@ export default function CrmContactsPage() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8" style={{ color: '#94A3B8' }}>Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 ) : sorted.length === 0 ? (
                   <TableRow><TableCell colSpan={7} className="text-center py-8" style={{ color: '#94A3B8' }}>No contacts found</TableCell></TableRow>
                 ) : sorted.map(c => (

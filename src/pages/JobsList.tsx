@@ -127,7 +127,7 @@ const JobsList = () => {
           icon={<Briefcase className="w-4 h-4" />}
           headerRight={
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" className="gap-1.5 border-[#2D3748] text-slate-300 hover:bg-[#252B3B]" asChild>
+              <Button size="sm" variant="outline" className="gap-1.5" asChild>
                 <a href="/jobs/board" target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="w-3.5 h-3.5" /> View Public Board
                 </a>

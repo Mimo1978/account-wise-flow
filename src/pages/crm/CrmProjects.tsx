@@ -94,7 +94,7 @@ export default function CrmProjectsPage() {
             </Select>
           </div>
 
-          <div className="rounded-lg overflow-auto" style={{ border: '1px solid #2D3748' }}>
+          <div className="rounded-lg overflow-auto" style={{ border: '1px solid hsl(var(--border))' }}>
             <Table>
               <TableHeader>
                 <TableRow>

@@ -230,7 +230,11 @@ const Canvas = () => {
     },
   ] : [];
 
-  const companyEngagements = realEngagements.length > 0 ? realEngagements : demoEngagements;
+  const companyEngagements = useMemo(
+    () => realEngagements.length > 0 ? realEngagements : demoEngagements,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rawEngagements, account?.id]
+  );
 
   const handleCompanySwitch = (newAccount: Account) => {
     // If there are unsaved changes, show confirmation dialog

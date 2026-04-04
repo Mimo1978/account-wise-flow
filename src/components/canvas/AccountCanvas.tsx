@@ -52,6 +52,7 @@ interface TalentNodeData {
 export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({ 
   account, 
   hideSearch = false,
+  searchLocked = false,
   onContactClick,
   onTalentClick,
   highlightedContactIds = [],

@@ -529,15 +529,6 @@ const Canvas = () => {
       jarvisId: "canvas-build-orgchart",
     });
 
-    actions.push({
-      id: "talent-overlay",
-      label: "Talent Overlay",
-      icon: <Users className="w-4 h-4" />,
-      onClick: () => setShowTalentOverlay(!showTalentOverlay),
-      isActive: showTalentOverlay,
-      priority: "secondary",
-      jarvisId: "canvas-talent-overlay",
-    });
 
     if (account) {
       actions.push({

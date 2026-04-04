@@ -119,7 +119,7 @@ export function AIKnowledgePanel({
     const minimapOuterHeight = minimapCanvasHeight + minimapBorder * 2;
 
     const buttonHeight = 48; // matches h-12
-    const gapAboveMinimap = 56; // moved down a tiny bit more
+    const gapAboveMinimap = 72;
     const leftNudge = 17; // one pixel right
 
     if (forPanel) {

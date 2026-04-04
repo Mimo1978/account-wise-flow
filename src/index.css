@@ -388,22 +388,20 @@ All colors MUST be HSL.
   padding-left: 0.5rem;
 }
 
-/* ── Job detail tabs — underline style ── */
+/* ── Job detail — underline tab style ── */
 [data-jarvis-id="job-tab-overview"],
 [data-jarvis-id="job-tab-adverts"],
 [data-jarvis-id="job-tab-shortlist"],
 [data-jarvis-id="job-tab-outreach"],
 [data-jarvis-id="job-tab-applications"],
 [data-jarvis-id="job-tab-activity"] {
-  border-radius: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
+  border-radius: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
   padding-bottom: 0.75rem;
   padding-top: 0.25rem;
-  font-size: 0.875rem;
-  font-weight: 500;
   color: hsl(var(--muted-foreground));
-  box-shadow: none;
 }
 
 [data-jarvis-id="job-tab-overview"][data-state="active"],
@@ -412,13 +410,13 @@ All colors MUST be HSL.
 [data-jarvis-id="job-tab-outreach"][data-state="active"],
 [data-jarvis-id="job-tab-applications"][data-state="active"],
 [data-jarvis-id="job-tab-activity"][data-state="active"] {
-  border-bottom: 2px solid hsl(var(--primary));
-  color: hsl(var(--primary));
-  background: transparent;
-  box-shadow: none;
+  border-bottom: 2px solid hsl(var(--primary)) !important;
+  color: hsl(var(--primary)) !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
-/* ── Data-table rows ── */
+
 tbody > tr {
   cursor: pointer;
   transition: background-color 0.12s ease;

@@ -1160,16 +1160,11 @@ AccountCanvas.displayName = "AccountCanvas";
 // Node factory functions (pure — no hooks, no closures over component state)
 // ─────────────────────────────────────────────────────────────────────────────
 const createCompanyNode = (name: string, x: number, y: number): Group => {
-  const buildingMain = new Rect({ width: 50, height: 60, fill: "hsl(221 83% 53%)", originX: "center", originY: "center" });
-  const buildingTop = new Rect({ width: 30, height: 15, fill: "hsl(221 83% 53%)", originX: "center", originY: "center", top: -30 });
-  const windows: Rect[] = [];
-  for (let row = 0; row < 4; row++) {
-    for (let col = 0; col < 3; col++) {
-      windows.push(new Rect({ width: 6, height: 8, fill: "white", opacity: 0.7, left: -15 + col * 10, top: -20 + row * 12, originX: "center", originY: "center" }));
-    }
-  }
-  const text = new Text(name.toUpperCase(), { fontSize: 14, fontWeight: "bold", fill: "hsl(221 83% 53%)", originX: "center", originY: "center", top: -55 });
-  return new Group([buildingMain, buildingTop, ...windows, text], { left: x, top: y, originX: "center", originY: "center", selectable: false, hasControls: false, hasBorders: false });
+  const bgCircle = new Circle({ radius: 38, fill: "hsl(221 83% 53%)", originX: "center", originY: "center" });
+  const ring = new Circle({ radius: 38, fill: "", stroke: "hsl(221 83% 70%)", strokeWidth: 2, originX: "center", originY: "center" });
+  const initial = new Text(name.charAt(0).toUpperCase(), { fontSize: 32, fontWeight: "bold", fill: "white", originX: "center", originY: "center", top: 1 });
+  const label = new Text(name.toUpperCase(), { fontSize: 11, fontWeight: "bold", fill: "hsl(221 83% 53%)", originX: "center", originY: "center", top: 52, letterSpacing: 2 });
+  return new Group([bgCircle, ring, initial, label], { left: x, top: y, originX: "center", originY: "center", selectable: false, hasControls: false, hasBorders: false });
 };
 
 const createContactNode = (contact: Contact, x: number, y: number): Group => {

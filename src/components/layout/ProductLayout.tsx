@@ -73,6 +73,14 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
       });
   }, [user]);
 
+  const initials = (() => {
+    if (!displayName) return '?';
+    const parts = displayName.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (displayName.includes('@')) return displayName[0].toUpperCase();
+    return displayName.slice(0, 2).toUpperCase();
+  })();
+
   const timeGreeting = (() => {
     const h = new Date().getHours();
     return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';

@@ -561,7 +561,7 @@ export default function ContactsDatabase() {
   };
 
   return (
-    <div className="bg-background">
+    <div className="bg-background h-full overflow-y-auto overflow-x-auto">
       {/* Page Sub-header */}
       <div className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">

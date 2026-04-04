@@ -270,6 +270,20 @@ export const ContactDetailPanel = ({
     return new Date(b.date).getTime() - new Date(a.date).getTime();
   });
 
+  const handleStatusChange = async (newStatus: string) => {
+    if (!contact?.id) return;
+    setEditedContact({ ...editedContact, status: newStatus });
+    const { error } = await supabase
+      .from("contacts" as any)
+      .update({ status: newStatus })
+      .eq("id", contact.id);
+    if (error) {
+      toast.error("Failed to update status");
+    } else {
+      toast.success("Status updated");
+    }
+  };
+
   const handleSave = (field: string, value: any) => {
     setEditedContact({ ...editedContact, [field]: value });
     setIsEditing(null);

@@ -63,7 +63,7 @@ const ProjectsList = () => {
                 <Briefcase className="w-6 h-6 text-muted-foreground" />
               </div>
               <h3 className="text-sm font-semibold" style={{ color: '#F8FAFC' }}>No projects yet</h3>
-              <p className="text-xs mt-1 max-w-sm" style={{ color: '#94A3B8' }}>
+              <p className="text-xs mt-1 max-w-sm text-muted-foreground">
                 Create a project to track placements, engagements and deliverables.
               </p>
               <Button size="sm" className="gap-1.5 mt-4 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => setCreateOpen(true)}>

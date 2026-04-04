@@ -252,7 +252,7 @@ const JobsList = () => {
                             <span className="text-sm text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm" style={{ color: '#94A3B8' }}>
+                        <TableCell className="text-sm text-muted-foreground">
                           {linkedDeal ? (
                             <span className="font-medium" style={{ color: '#F8FAFC' }}>
                               {linkedDeal.currency === 'GBP' ? '£' : linkedDeal.currency === 'USD' ? '$' : linkedDeal.currency === 'EUR' ? '€' : ''}{linkedDeal.value.toLocaleString()}

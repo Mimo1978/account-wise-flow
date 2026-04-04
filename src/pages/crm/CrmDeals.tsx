@@ -187,8 +187,8 @@ export default function CrmDealsPage() {
             <p className="text-center py-12 text-muted-foreground">Loading deals…</p>
           ) : sorted.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-12">
-              <DollarSign className="h-8 w-8 mx-auto mb-3" style={{ color: '#94A3B8' }} />
-              <p style={{ color: '#94A3B8' }}>{search || stageFilter || statusFilter || companyFilter ? "No deals match your filters." : "No deals yet. Create your first deal."}</p>
+              <DollarSign className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-muted-foreground">{search || stageFilter || statusFilter || companyFilter ? "No deals match your filters." : "No deals yet. Create your first deal."}</p>
             </div>
           ) : viewMode === "cards" ? (
             /* ═══ CARD VIEW ═══ */

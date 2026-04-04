@@ -7,24 +7,19 @@ type ToasterProps = React.ComponentProps<typeof Sonner>;
 export const toast = Object.assign(
   (message: string, opts?: any) => {
     flashConfirm(String(message), "info", opts?.description);
-    return sonnerToast(message, opts);
   },
   {
     success: (message: string, opts?: any) => {
       flashConfirm(String(message), "success", opts?.description);
-      return sonnerToast.success(message, opts);
     },
     error: (message: string, opts?: any) => {
       flashConfirm(String(message), "error", opts?.description);
-      return sonnerToast.error(message, opts);
     },
     warning: (message: string, opts?: any) => {
       flashConfirm(String(message), "warning", opts?.description);
-      return sonnerToast.warning(message, opts);
     },
     info: (message: string, opts?: any) => {
       flashConfirm(String(message), "info", opts?.description);
-      return sonnerToast.info(message, opts);
     },
     dismiss: sonnerToast.dismiss,
     loading: sonnerToast.loading,

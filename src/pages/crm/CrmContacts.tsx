@@ -69,7 +69,7 @@ export default function CrmContactsPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Contacts</h1>
-            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>CRM contact database · {contacts.length} contact{contacts.length !== 1 ? 's' : ''}</p>
+            <p className="text-sm mt-1 text-muted-foreground">CRM contact database · {contacts.length} contact{contacts.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
 
@@ -85,7 +85,7 @@ export default function CrmContactsPage() {
         >
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#94A3B8' }} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search contacts…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <Select value={companyFilter} onValueChange={v => setCompanyFilter(v === "_all" ? "" : v)}>
@@ -105,7 +105,7 @@ export default function CrmContactsPage() {
             </Select>
           </div>
 
-          <div className="rounded-lg overflow-auto" style={{ border: '1px solid #2D3748' }}>
+          <div className="rounded-lg overflow-auto" style={{ border: '1px solid hsl(var(--border))' }}>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -120,9 +120,9 @@ export default function CrmContactsPage() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8" style={{ color: '#94A3B8' }}>Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 ) : sorted.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center py-8" style={{ color: '#94A3B8' }}>No contacts found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No contacts found</TableCell></TableRow>
                 ) : sorted.map(c => (
                   <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/contacts/${c.id}`)}>
                     <TableCell className="font-medium text-primary">{c.first_name} {c.last_name}</TableCell>

@@ -64,7 +64,7 @@ export default function CrmProjectsPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Projects</h1>
-            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>All CRM projects · {projects.length} total</p>
+            <p className="text-sm mt-1 text-muted-foreground">All CRM projects · {projects.length} total</p>
           </div>
         </div>
 
@@ -80,7 +80,7 @@ export default function CrmProjectsPage() {
         >
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#94A3B8' }} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search projects…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <Select value={status} onValueChange={v => setStatus(v === "_all" ? "" : v)}>
@@ -94,7 +94,7 @@ export default function CrmProjectsPage() {
             </Select>
           </div>
 
-          <div className="rounded-lg overflow-auto" style={{ border: '1px solid #2D3748' }}>
+          <div className="rounded-lg overflow-auto" style={{ border: '1px solid hsl(var(--border))' }}>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -111,9 +111,9 @@ export default function CrmProjectsPage() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8" style={{ color: '#94A3B8' }}>Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 ) : sorted.length === 0 ? (
-                  <TableRow><TableCell colSpan={9} className="text-center py-8" style={{ color: '#94A3B8' }}>No projects found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No projects found</TableCell></TableRow>
                 ) : sorted.map(p => {
                   const wfStage = (p as any).workflow_stage;
                   const stages = getWorkflowStages(p.project_type);
@@ -132,7 +132,7 @@ export default function CrmProjectsPage() {
                     <TableCell>
                       {stageDef ? (
                         <Badge variant="secondary" className="text-xs text-white border-0" style={{ backgroundColor: stageDef.colour }}>{stageDef.label}</Badge>
-                      ) : <span className="text-xs" style={{ color: '#94A3B8' }}>—</span>}
+                      ) : <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell><Badge className={STATUS_COLORS[p.status] || ""} variant="secondary">{p.status}</Badge></TableCell>
                     <TableCell>{p.budget != null ? `${currencySymbol(p.currency)}${p.budget.toLocaleString()}` : "—"}</TableCell>

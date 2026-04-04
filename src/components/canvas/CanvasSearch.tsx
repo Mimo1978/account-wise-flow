@@ -106,7 +106,7 @@ export const CanvasSearch = ({
     <div 
       ref={dragRef}
       className={cn(
-        "fixed z-10 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-2",
+        "fixed z-10 bg-background/95 backdrop-blur-sm border-2 border-primary/40 rounded-lg shadow-lg p-2",
         // Hide until positioned to prevent flash
         !isPositioned && "opacity-0",
         isPositioned && "animate-fade-in",

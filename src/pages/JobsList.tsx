@@ -249,7 +249,7 @@ const JobsList = () => {
                               </Tooltip>
                             </TooltipProvider>
                           ) : (
-                            <span className="text-sm" style={{ color: '#94A3B8' }}>—</span>
+                            <span className="text-sm text-muted-foreground">—</span>
                           )}
                         </TableCell>
                         <TableCell className="text-sm" style={{ color: '#94A3B8' }}>

@@ -359,9 +359,13 @@ const JobDetail = () => {
     );
   }
 
-  const badge = STATUS_BADGE[job.status] || STATUS_BADGE.draft;
-  const pipelineType = (job as any).pipeline_type || 'confirmed';
-  const ptBadge = PIPELINE_TYPE_BADGE[pipelineType] || PIPELINE_TYPE_BADGE.confirmed;
+  // Compute single mutually-exclusive status badge
+  const resolvedBadge = (() => {
+    if (job.status === 'cancelled') return STATUS_BADGE.cancelled;
+    if (job.status === 'filled') return STATUS_BADGE.filled;
+    if (job.status === 'active' && (job as any).spec_approved) return PIPELINE_TYPE_BADGE.confirmed;
+    return STATUS_BADGE.draft;
+  })();
   const hasLinkedProject = jobProjectLinks.length > 0;
   const handleStatusChange = (newStatus: string) => {
     updateStatus.mutate({ id: job.id, status: newStatus });
@@ -399,8 +403,7 @@ const JobDetail = () => {
                 {job.title}
               </h1>
             )}
-            <Badge variant="outline" className={badge.className}>{badge.label}</Badge>
-            <Badge variant="outline" className={ptBadge.className}>{ptBadge.label}</Badge>
+            <Badge variant="outline" className={resolvedBadge.className}>{resolvedBadge.label}</Badge>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
             <Popover open={showCompanySearch} onOpenChange={setShowCompanySearch}>

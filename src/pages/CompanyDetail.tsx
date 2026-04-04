@@ -1097,7 +1097,7 @@ export default function CompanyDetail() {
   if (championCount > 0) insights.push({ type: "success", text: `${championCount} identified champion${championCount > 1 ? "s" : ""}` });
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="bg-background h-full overflow-y-auto overflow-x-auto">
       {/* ─── HEADER ─── */}
       <div className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4 space-y-4">
@@ -1272,7 +1272,7 @@ export default function CompanyDetail() {
             <TabsTrigger value="projects" data-jarvis-id="company-tab-projects">Projects ({(projects as any[]).length})</TabsTrigger>
             <TabsTrigger value="documents" data-jarvis-id="company-tab-documents">Documents ({(companyDocs as any[]).length})</TabsTrigger>
             <TabsTrigger value="activity" data-jarvis-id="company-tab-activity">Activity</TabsTrigger>
-            <TabsTrigger value="canvas" data-jarvis-id="company-tab-canvas">Canvas</TabsTrigger>
+            <TabsTrigger value="canvas" data-jarvis-id="company-tab-canvas">Org Chart</TabsTrigger>
             <TabsTrigger value="invoices" data-jarvis-id="company-tab-invoices">Invoices ({(invoices as any[]).length})</TabsTrigger>
           </TabsList>
 

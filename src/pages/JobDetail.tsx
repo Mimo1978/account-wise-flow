@@ -405,6 +405,7 @@ const JobDetail = () => {
             )}
             <Badge variant="outline" className={resolvedBadge.className}>{resolvedBadge.label}</Badge>
           </div>
+          <div className="h-2" />
           <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
             <Popover open={showCompanySearch} onOpenChange={setShowCompanySearch}>
               <PopoverTrigger asChild>
@@ -432,7 +433,7 @@ const JobDetail = () => {
           <Button variant="outline" size="sm" data-jarvis-id="job-generate-spec-button">
             <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Spec
           </Button>
-          <Button variant="outline" size="sm" onClick={openShortlistBuilder} data-jarvis-id="job-run-shortlist-button">
+          <Button variant="default" size="sm" onClick={openShortlistBuilder} data-jarvis-id="job-run-shortlist-button">
             <Users className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist
           </Button>
         </div>
@@ -507,8 +508,7 @@ const JobDetail = () => {
       </Dialog>
 
       {/* Status Controls */}
-      <Card>
-        <CardContent className="py-3 flex items-center gap-2 flex-wrap">
+      <div className="inline-flex items-center gap-2 bg-muted/40 rounded-lg px-3 py-2">
           <span className="text-sm font-medium text-muted-foreground mr-2">Change status:</span>
           {job.status !== 'draft' && (
             <Button variant="outline" size="sm" onClick={() => handleStatusChange('draft')}>
@@ -551,29 +551,28 @@ const JobDetail = () => {
               <XCircle className="w-3.5 h-3.5 mr-1.5" /> Cancel
             </Button>
           )}
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview" data-jarvis-id="job-tab-overview">
+        <TabsList className="border-b border-border w-full justify-start rounded-none bg-transparent p-0 h-auto">
+          <TabsTrigger value="overview" data-jarvis-id="job-tab-overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary pb-3 pt-1 font-medium text-sm text-muted-foreground">
             <Briefcase className="w-3.5 h-3.5 mr-1.5" /> Overview
           </TabsTrigger>
-          <TabsTrigger value="adverts" data-jarvis-id="job-tab-adverts">
+          <TabsTrigger value="adverts" data-jarvis-id="job-tab-adverts" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary pb-3 pt-1 font-medium text-sm text-muted-foreground">
             <FileText className="w-3.5 h-3.5 mr-1.5" /> Adverts
           </TabsTrigger>
-          <TabsTrigger value="shortlist" data-jarvis-id="job-tab-shortlist" className="relative">
+          <TabsTrigger value="shortlist" data-jarvis-id="job-tab-shortlist" className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary pb-3 pt-1 font-medium text-sm text-muted-foreground">
             <Users className="w-3.5 h-3.5 mr-1.5" /> Shortlist
             <ShortlistReplyBadge jobId={job.id} />
           </TabsTrigger>
-          <TabsTrigger value="outreach" data-jarvis-id="job-tab-outreach">
+          <TabsTrigger value="outreach" data-jarvis-id="job-tab-outreach" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary pb-3 pt-1 font-medium text-sm text-muted-foreground">
             <Send className="w-3.5 h-3.5 mr-1.5" /> Outreach
           </TabsTrigger>
-          <TabsTrigger value="applications" data-jarvis-id="job-tab-applications">
+          <TabsTrigger value="applications" data-jarvis-id="job-tab-applications" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary pb-3 pt-1 font-medium text-sm text-muted-foreground">
             <Inbox className="w-3.5 h-3.5 mr-1.5" /> Applications
           </TabsTrigger>
-          <TabsTrigger value="activity" data-jarvis-id="job-tab-activity">
+          <TabsTrigger value="activity" data-jarvis-id="job-tab-activity" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary pb-3 pt-1 font-medium text-sm text-muted-foreground">
             <Activity className="w-3.5 h-3.5 mr-1.5" /> Activity
           </TabsTrigger>
         </TabsList>

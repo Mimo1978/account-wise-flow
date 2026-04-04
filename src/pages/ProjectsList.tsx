@@ -55,7 +55,7 @@ const ProjectsList = () => {
         >
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-5 h-5 animate-spin" style={{ color: '#94A3B8' }} />
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
           ) : engagements.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-12">

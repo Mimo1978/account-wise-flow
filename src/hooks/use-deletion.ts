@@ -104,15 +104,15 @@ export function useSoftDelete() {
         throw error;
       }
 
-      // If deleting from companies, also sync to crm_companies by name
+      // If deleting from companies, also sync deletion to crm_companies by name
       if (recordType === "companies") {
         const { data: deleted } = await supabase
           .from("companies" as any)
           .select("name")
           .eq("id", recordId)
-          .single() as any;
+          .single();
 
-        if ((deleted as any)?.name) {
+        if (deleted?.name) {
           await supabase
             .from("crm_companies" as any)
             .update({
@@ -121,7 +121,7 @@ export function useSoftDelete() {
               deletion_reason: reason,
               deletion_scheduled_purge_at: purgeAt,
             } as any)
-            .ilike("name", (deleted as any).name)
+            .ilike("name", deleted.name)
             .is("deleted_at", null);
         }
       }

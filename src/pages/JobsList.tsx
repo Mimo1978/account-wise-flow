@@ -243,7 +243,7 @@ const JobsList = () => {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center gap-1 text-sm" style={{ color: '#94A3B8' }}>— <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /></span>
+                                  <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">— <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /></span>
                                 </TooltipTrigger>
                                 <TooltipContent side="top" className="max-w-[220px] text-xs">This active job isn't linked to a project.</TooltipContent>
                               </Tooltip>

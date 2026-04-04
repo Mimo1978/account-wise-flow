@@ -540,3 +540,14 @@ thead > tr {
 .cm-table-scroll::-webkit-scrollbar-corner {
   background: #1e2535;
 }
+
+/* ── Theme-aware replacements for hardcoded dark constants ── */
+
+:root {
+  --page-bg: hsl(var(--background));
+  --card-bg: hsl(var(--card));
+  --border-color: hsl(var(--border));
+  --text-primary: hsl(var(--foreground));
+  --text-secondary: hsl(var(--muted-foreground));
+  --hover-bg: hsl(var(--muted));
+}

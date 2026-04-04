@@ -14,7 +14,7 @@ import { CompanyDatabaseView } from "@/components/canvas/CompanyDatabaseView";
 import { AIKnowledgePanel } from "@/components/canvas/AIKnowledgePanel";
 // AIInsightsPanel removed — merged into AIKnowledgePanel
 import { AIRoleSuggestionsPanel } from "@/components/canvas/AIRoleSuggestionsPanel";
-import { GlobalSearch } from "@/components/canvas/GlobalSearch";
+
 import { ResponsiveToolbar, ToolbarAction } from "@/components/canvas/ResponsiveToolbar";
 import { OrgChartBuilderModal } from "@/components/orgchart/OrgChartBuilderModal";
 import { mockAccount, mockAccounts } from "@/lib/mock-data";

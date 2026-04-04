@@ -479,6 +479,16 @@ const Canvas = () => {
     });
 
     actions.push({
+      id: "talent-overlay",
+      label: "Talent Overlay",
+      icon: <Users className="w-4 h-4" />,
+      onClick: () => setShowTalentOverlay(!showTalentOverlay),
+      isActive: showTalentOverlay,
+      priority: "secondary",
+      jarvisId: "canvas-talent-overlay",
+    });
+
+    actions.push({
       id: "missing-roles",
       label: "Missing Roles",
       icon: <UserPlus className="w-4 h-4" />,

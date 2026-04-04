@@ -164,9 +164,9 @@ const JobsList = () => {
                 <SelectItem value="temp">Temp</SelectItem>
               </SelectContent>
             </Select>
-            <Button size="sm" variant={showUnlinked ? 'default' : 'outline'} className="gap-1.5 h-9" onClick={() => setShowUnlinked(v => !v)}
-              style={!showUnlinked ? { borderColor: '#2D3748', color: '#94A3B8' } : {}}>
+            <Button size="sm" variant={showUnlinked ? 'default' : 'outline'} className={`gap-1.5 h-9 ${!showUnlinked ? 'border-border text-muted-foreground' : ''}`} onClick={() => setShowUnlinked(v => !v)}>
               <Filter className="w-3.5 h-3.5" /> Unlinked Jobs
+            </Button>
             </Button>
           </div>
 

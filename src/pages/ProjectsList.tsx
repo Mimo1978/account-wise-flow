@@ -72,7 +72,7 @@ const ProjectsList = () => {
             </div>
           ) : (
             <TooltipProvider>
-              <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #2D3748' }}>
+              <div className="rounded-lg overflow-hidden border border-border">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>

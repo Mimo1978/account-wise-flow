@@ -120,7 +120,7 @@ export default function CrmDealsPage() {
           icon={<TrendingUp className="w-4 h-4" />}
           headerRight={
             <div className="flex items-center gap-3">
-              <span className="text-xs" style={{ color: '#94A3B8' }}>
+              <span className="text-xs text-muted-foreground">
                 {deals.length} deals · £{totalValue.toLocaleString()}
               </span>
               <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => { setEditDeal(null); setPanelOpen(true); }}>

@@ -106,7 +106,7 @@ export const CanvasSearch = ({
     <div 
       ref={dragRef}
       className={cn(
-        "fixed z-10 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-lg p-2",
+        "fixed z-10 bg-background/95 backdrop-blur-sm border-2 border-primary/40 rounded-lg shadow-lg p-2",
         // Hide until positioned to prevent flash
         !isPositioned && "opacity-0",
         isPositioned && "animate-fade-in",
@@ -154,7 +154,7 @@ export const CanvasSearch = ({
         </div>
 
         {matchCount > 0 && (
-          <div className="flex items-center gap-2 pl-2 border-l border-border">
+          <div className="flex items-center gap-2 pl-2 border-l-2 border-primary/30">
             <span className="text-sm text-muted-foreground whitespace-nowrap">
               {currentMatchIndex + 1} of {matchCount}
             </span>
@@ -181,7 +181,7 @@ export const CanvasSearch = ({
           </div>
         )}
 
-        <div className="pl-2 border-l border-border">
+        <div className="pl-2 border-l-2 border-primary/30">
           <Button
             variant="outline"
             size="sm"

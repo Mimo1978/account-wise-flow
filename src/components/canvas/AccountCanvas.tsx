@@ -17,6 +17,7 @@ export type DropZone = "top" | "bottom" | "left" | "right" | "company_root";
 interface AccountCanvasProps {
   account: Account;
   hideSearch?: boolean;
+  searchLocked?: boolean;
   onContactClick: (contact: Contact) => void;
   onTalentClick?: (talent: Talent, engagement: TalentEngagement) => void;
   highlightedContactIds?: string[];

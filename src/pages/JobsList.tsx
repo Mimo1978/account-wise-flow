@@ -233,8 +233,8 @@ const JobsList = () => {
                             ? <span className="text-primary cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${(job as any).hiring_manager.id}`); }}>{(job as any).hiring_manager.first_name} {(job as any).hiring_manager.last_name}</span>
                             : '—'}
                         </TableCell>
-                        <TableCell className="capitalize" style={{ color: '#94A3B8' }}>{job.job_type || '—'}</TableCell>
-                        <TableCell style={{ color: '#94A3B8' }}>{job.location || '—'}</TableCell>
+                        <TableCell className="capitalize text-muted-foreground">{job.job_type || '—'}</TableCell>
+                        <TableCell className="text-muted-foreground">{job.location || '—'}</TableCell>
                         <TableCell><Badge variant={badge.variant} className={badge.className}>{badge.label}</Badge></TableCell>
                         <TableCell>
                           {linkedProject ? (

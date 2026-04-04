@@ -117,6 +117,7 @@ const Canvas = () => {
   const [isRoleSuggestionsOpen, setIsRoleSuggestionsOpen] = useState(false);
   const [highlightedContactIds, setHighlightedContactIds] = useState<string[]>([]);
   const [showTalentOverlay, setShowTalentOverlay] = useState(false);
+  const [showAssignTalentModal, setShowAssignTalentModal] = useState(false);
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [showTalentPanel, setShowTalentPanel] = useState(false);
   const canvasRef = useRef<AccountCanvasRef>(null);
@@ -487,6 +488,17 @@ const Canvas = () => {
       priority: "secondary",
       jarvisId: "canvas-talent-overlay",
     });
+
+    if (account) {
+      actions.push({
+        id: "assign-talent",
+        label: "Assign Talent",
+        icon: <UserPlus className="w-4 h-4" />,
+        onClick: () => setShowAssignTalentModal(true),
+        priority: "secondary",
+        jarvisId: "canvas-assign-talent",
+      });
+    }
 
     actions.push({
       id: "missing-roles",

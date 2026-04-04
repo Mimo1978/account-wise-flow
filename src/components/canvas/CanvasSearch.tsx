@@ -19,8 +19,8 @@ interface CanvasSearchProps {
 
 // Hard default (only used when there is NO saved position)
 // Requirement: start well below the ribbon, anchored to the canvas experience.
-const DEFAULT_LEFT = 24;
-const DEFAULT_TOP = 200;
+const DEFAULT_LEFT = 16;
+const DEFAULT_TOP = 141;
 const BAR_WIDTH = 560; // Approximate width of the search bar
 const BAR_HEIGHT = 56; // Approximate height of the search bar
 

@@ -388,6 +388,31 @@ All colors MUST be HSL.
   padding-left: 0.5rem;
 }
 
+/* ── Company detail tabs — visible active state in light mode ── */
+[data-jarvis-id="company-tab-overview"],
+[data-jarvis-id="company-tab-contacts"],
+[data-jarvis-id="company-tab-deals"],
+[data-jarvis-id="company-tab-projects"],
+[data-jarvis-id="company-tab-documents"],
+[data-jarvis-id="company-tab-activity"],
+[data-jarvis-id="company-tab-canvas"],
+[data-jarvis-id="company-tab-invoices"] {
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
+[data-jarvis-id="company-tab-overview"][data-state="active"],
+[data-jarvis-id="company-tab-contacts"][data-state="active"],
+[data-jarvis-id="company-tab-deals"][data-state="active"],
+[data-jarvis-id="company-tab-projects"][data-state="active"],
+[data-jarvis-id="company-tab-documents"][data-state="active"],
+[data-jarvis-id="company-tab-activity"][data-state="active"],
+[data-jarvis-id="company-tab-canvas"][data-state="active"],
+[data-jarvis-id="company-tab-invoices"][data-state="active"] {
+  background: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  font-weight: 600;
+}
+
 /* ── Job detail — underline tab style ── */
 [data-jarvis-id="job-tab-overview"],
 [data-jarvis-id="job-tab-adverts"],

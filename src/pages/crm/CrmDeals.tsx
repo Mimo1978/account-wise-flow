@@ -107,7 +107,7 @@ export default function CrmDealsPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#F8FAFC' }}>Deals</h1>
-            <p className="text-sm mt-1" style={{ color: '#94A3B8' }}>
+            <p className="text-sm mt-1 text-muted-foreground">
               Pipeline overview · {deals.length} deal{deals.length !== 1 ? "s" : ""} · £{totalValue.toLocaleString()} across all stages
             </p>
           </div>
@@ -120,7 +120,7 @@ export default function CrmDealsPage() {
           icon={<TrendingUp className="w-4 h-4" />}
           headerRight={
             <div className="flex items-center gap-3">
-              <span className="text-xs" style={{ color: '#94A3B8' }}>
+              <span className="text-xs text-muted-foreground">
                 {deals.length} deals · £{totalValue.toLocaleString()}
               </span>
               <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => { setEditDeal(null); setPanelOpen(true); }}>
@@ -144,7 +144,7 @@ export default function CrmDealsPage() {
           {/* Filters + view toggle */}
           <div className="flex flex-wrap items-center gap-3 mt-4">
             <div className="relative flex-1 min-w-[200px] max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: '#94A3B8' }} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input placeholder="Search deals…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <Select value={statusFilter} onValueChange={v => setStatusFilter(v === "_all" ? "" : v)}>
@@ -162,20 +162,20 @@ export default function CrmDealsPage() {
               </SelectContent>
             </Select>
             {stageFilter && (
-              <Button variant="ghost" size="sm" onClick={() => handleStageFilter(null)} style={{ color: '#94A3B8' }}>Clear stage filter</Button>
+              <Button variant="ghost" size="sm" onClick={() => handleStageFilter(null)} className="text-muted-foreground">Clear stage filter</Button>
             )}
-            <div className="ml-auto flex items-center border rounded-md overflow-hidden" style={{ borderColor: '#2D3748' }}>
+            <div className="ml-auto flex items-center border rounded-md overflow-hidden" style={{ borderColor: 'hsl(var(--border))' }}>
               <button
                 onClick={() => setViewMode("cards")}
                 className={cn("px-3 py-1.5 text-xs flex items-center gap-1 transition-colors", viewMode === "cards" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
-                style={viewMode !== "cards" ? { background: '#1A1F2E' } : {}}
+                style={viewMode !== "cards" ? { background: 'hsl(var(--muted))' } : {}}
               >
                 <LayoutGrid className="h-3.5 w-3.5" /> Cards
               </button>
               <button
                 onClick={() => setViewMode("table")}
                 className={cn("px-3 py-1.5 text-xs flex items-center gap-1 transition-colors", viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
-                style={viewMode !== "table" ? { background: '#1A1F2E' } : {}}
+                style={viewMode !== "table" ? { background: 'hsl(var(--muted))' } : {}}
               >
                 <List className="h-3.5 w-3.5" /> Table
               </button>
@@ -184,11 +184,11 @@ export default function CrmDealsPage() {
 
           {/* Content */}
           {isLoading ? (
-            <p className="text-center py-12" style={{ color: '#94A3B8' }}>Loading deals…</p>
+            <p className="text-center py-12 text-muted-foreground">Loading deals…</p>
           ) : sorted.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-12">
-              <DollarSign className="h-8 w-8 mx-auto mb-3" style={{ color: '#94A3B8' }} />
-              <p style={{ color: '#94A3B8' }}>{search || stageFilter || statusFilter || companyFilter ? "No deals match your filters." : "No deals yet. Create your first deal."}</p>
+              <DollarSign className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+              <p className="text-muted-foreground">{search || stageFilter || statusFilter || companyFilter ? "No deals match your filters." : "No deals yet. Create your first deal."}</p>
             </div>
           ) : viewMode === "cards" ? (
             /* ═══ CARD VIEW ═══ */
@@ -198,7 +198,7 @@ export default function CrmDealsPage() {
                 const daysOpen = d.created_at ? differenceInDays(new Date(), parseISO(d.created_at)) : 0;
                 return (
                   <div key={d.id} className="rounded-lg p-4 transition-all hover:brightness-110 cursor-pointer"
-                    style={{ background: '#252B3B', border: '1px solid #2D3748' }}
+                    style={{ background: 'hsl(var(--muted))', border: '1px solid hsl(var(--border))' }}
                     onClick={() => navigate(`/crm/deals/${d.id}`)}>
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-semibold text-sm truncate" style={{ color: '#F8FAFC' }}>{d.title}</p>
@@ -206,7 +206,7 @@ export default function CrmDealsPage() {
                     </div>
                     <p className="text-lg font-bold mt-1" style={{ color: '#F8FAFC' }}>{currencySymbol(d.currency)}{(d.value || 0).toLocaleString()}</p>
                     <DealIntegrityBadges contactId={(d as any).contact_id} projectId={(d as any).project_id} />
-                    <div className="flex items-center justify-between text-xs mt-2" style={{ color: '#94A3B8' }}>
+                    <div className="flex items-center justify-between text-xs mt-2 text-muted-foreground">
                       <span>{d.crm_companies?.name || "No company"}</span>
                       <span>{daysOpen}d open</span>
                     </div>
@@ -216,7 +216,7 @@ export default function CrmDealsPage() {
             </div>
           ) : (
             /* ═══ TABLE VIEW ═══ */
-            <div className="rounded-lg overflow-auto mt-4" style={{ border: '1px solid #2D3748' }}>
+            <div className="rounded-lg overflow-auto mt-4" style={{ border: '1px solid hsl(var(--border))' }}>
               <Table>
                 <TableHeader>
                   <TableRow>

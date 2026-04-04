@@ -154,7 +154,7 @@ export const CanvasSearch = ({
         </div>
 
         {matchCount > 0 && (
-          <div className="flex items-center gap-2 pl-2 border-l border-border">
+          <div className="flex items-center gap-2 pl-2 border-l-2 border-primary/30">
             <span className="text-sm text-muted-foreground whitespace-nowrap">
               {currentMatchIndex + 1} of {matchCount}
             </span>

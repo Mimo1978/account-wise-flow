@@ -191,7 +191,7 @@ const JobsList = () => {
               </Button>
             </div>
           ) : (
-            <div className="rounded-lg overflow-hidden" style={{ border: '1px solid #2D3748' }}>
+            <div className="rounded-lg overflow-hidden border border-border">
               <Table>
                 <TableHeader>
                    <TableRow>

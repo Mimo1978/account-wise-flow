@@ -198,7 +198,7 @@ export default function CrmDealsPage() {
                 const daysOpen = d.created_at ? differenceInDays(new Date(), parseISO(d.created_at)) : 0;
                 return (
                   <div key={d.id} className="rounded-lg p-4 transition-all hover:brightness-110 cursor-pointer"
-                    style={{ background: '#252B3B', border: '1px solid #2D3748' }}
+                    style={{ background: 'hsl(var(--muted))', border: '1px solid hsl(var(--border))' }}
                     onClick={() => navigate(`/crm/deals/${d.id}`)}>
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-semibold text-sm truncate" style={{ color: '#F8FAFC' }}>{d.title}</p>

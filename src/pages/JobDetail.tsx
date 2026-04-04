@@ -373,7 +373,7 @@ const JobDetail = () => {
   const openShortlistBuilder = () => setShowShortlistBuilder(true);
 
   return (
-    <div className="h-full overflow-y-auto">
+    <div className="h-full overflow-y-auto overflow-x-auto">
     <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
       <PageBackButton fallback="/jobs" />
 

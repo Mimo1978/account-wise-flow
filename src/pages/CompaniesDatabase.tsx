@@ -284,7 +284,7 @@ export default function CompaniesDatabase() {
   };
 
   return (
-    <div className="bg-background">
+    <div className="bg-background h-full overflow-y-auto overflow-x-auto">
       {/* Page Sub-header */}
       <div className="border-b border-border bg-card">
         <div className="px-6 py-4">

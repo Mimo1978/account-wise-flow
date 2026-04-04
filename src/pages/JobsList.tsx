@@ -227,7 +227,7 @@ const JobsList = () => {
                         onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
                         onClick={() => navigate(`/jobs/${job.id}`)}>
                         <TableCell className="font-medium">{job.title}</TableCell>
-                        <TableCell style={{ color: '#94A3B8' }}>{(job as any).companies?.name || '—'}</TableCell>
+                        <TableCell className="text-muted-foreground">{(job as any).companies?.name || '—'}</TableCell>
                         <TableCell className="text-sm" style={{ color: '#94A3B8' }}>
                           {(job as any).hiring_manager
                             ? <span className="text-primary cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${(job as any).hiring_manager.id}`); }}>{(job as any).hiring_manager.first_name} {(job as any).hiring_manager.last_name}</span>

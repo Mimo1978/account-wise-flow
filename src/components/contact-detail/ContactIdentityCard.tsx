@@ -112,7 +112,7 @@ export function ContactIdentityCard({ contact }: Props) {
         <Button variant="outline" size="sm" className="w-full justify-start gap-2">
           <Mail className="h-4 w-4" /> Send Email
         </Button>
-        <Button variant="outline" size="sm" className="w-full justify-start gap-2">
+        <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => document.querySelector<HTMLTextAreaElement>('textarea[placeholder="Write a note…"]')?.scrollIntoView({ behavior: 'smooth' })}>
           <MessageSquare className="h-4 w-4" /> Add Note
         </Button>
         <Button variant="outline" size="sm" className="w-full justify-start gap-2">

@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Contact } from "@/lib/types";
 import { usePermissions } from "@/hooks/use-permissions";
 import { AccountCanvas } from "@/components/canvas/AccountCanvas";
+import { ContactDetailPanel } from "@/components/canvas/ContactDetailPanel";
 import { useOrgChartTree } from "@/hooks/use-org-chart-tree";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -838,6 +839,7 @@ export default function CompanyDetail() {
   const [ownerPopoverOpen, setOwnerPopoverOpen] = useState(false);
   // addLeadOpen removed — Capture Lead replaced by Add Deal
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [selectedContact, setSelectedContact] = useState<any | null>(null);
 
   // ── Fetch company (from companies table) ──
   const { data: rawCompany, isLoading } = useQuery({
@@ -1451,7 +1453,7 @@ export default function CompanyDetail() {
                     </tr></thead>
                     <tbody>
                       {contacts.map(c => (
-                        <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
+                        <tr key={c.id} className="border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`, { state: { from: `/companies/${id}`, fromLabel: `Back to ${company.name}` } })}>
                           <td className="p-3 font-medium text-primary hover:underline cursor-pointer">{c.name}</td>
                           <td className="p-3 text-muted-foreground">{c.title || "—"}</td>
                           <td className="p-3 text-muted-foreground">{c.department || "—"}</td>
@@ -1550,7 +1552,7 @@ export default function CompanyDetail() {
                           };
                         })()}
                         onContactClick={(contact) => {
-                          navigate(`/contacts/${contact.id}`, { state: { from: `/companies/${id}`, fromLabel: `Back to ${company.name}` } });
+                          setSelectedContact(contact);
                         }}
                       />
                     </div>
@@ -1649,6 +1651,12 @@ export default function CompanyDetail() {
 
           {/* AddLeadPanel removed — unified into Add Deal */}
         </>
+      )}
+      {selectedContact && (
+        <ContactDetailPanel
+          contact={selectedContact}
+          onClose={() => setSelectedContact(null)}
+        />
       )}
     </div>
   );

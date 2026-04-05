@@ -526,7 +526,7 @@ export const ContactDetailPanel = ({
         "flex flex-col bg-background pointer-events-auto",
         isExpanded 
           ? "fixed inset-4 z-50 rounded-2xl shadow-2xl border border-border animate-scale-in" 
-          : "fixed z-[9999] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-border min-w-[740px] w-[880px] max-w-[960px] max-h-[calc(100vh-140px)]"
+          : "fixed z-[9999] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-border min-w-[740px] w-[880px] max-w-[960px] : "fixed z-[9999] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-border min-w-[740px] w-[880px] max-w-[960px] max-h-[calc(100vh-80px)]""
       )}
       style={!isExpanded ? {
         left: position.x,
@@ -875,14 +875,14 @@ export const ContactDetailPanel = ({
       </div>
 
       {/* Single Scrollable Content Area - Split screen layout in all modes */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         <div className="p-4 h-full">
           <div className={cn(
             "grid gap-4 h-full",
             focusedSection ? "grid-cols-1" : "grid-cols-2"
           )}>
             {/* Left Column: AI Insights, Contact Info & Engagement */}
-            <div className="space-y-4 overflow-y-auto">
+            <div className="space-y-4">
               {/* AI Insights Section */}
               {(!focusedSection || focusedSection === "ai-insights") && (
                 <Section
@@ -1009,7 +1009,7 @@ export const ContactDetailPanel = ({
             </div>
 
             {/* Right Column: Notes & Activity Timeline */}
-            <div className="space-y-4 overflow-y-auto">
+            <div className="space-y-4">
               {/* Notes Section */}
               {(!focusedSection || focusedSection === "notes") && (
                 <Section

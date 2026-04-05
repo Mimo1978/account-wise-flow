@@ -274,8 +274,8 @@ export const ContactDetailPanel = ({
     queryKey: ["contact-activities-panel", contact?.id],
     queryFn: async () => {
       if (!contact?.id) return [];
-      const { data, error } = await supabase
-        .from("contact_activities")
+      const { data, error } = await (supabase
+        .from("contact_activities" as any))
         .select("*")
         .eq("contact_id", contact.id)
         .order("created_at", { ascending: false })

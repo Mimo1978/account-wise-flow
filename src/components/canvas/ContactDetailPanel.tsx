@@ -334,21 +334,8 @@ export const ContactDetailPanel = ({
     }
   };
 
-  const toggleSection = (sectionId: string) => {
-    if (focusedSection) {
-      setFocusedSection(null);
-    }
-    setOpenSection(openSection === sectionId ? null : sectionId);
-  };
 
-  const toggleFocus = (sectionId: string) => {
-    if (focusedSection === sectionId) {
-      setFocusedSection(null);
-    } else {
-      setFocusedSection(sectionId);
-      setOpenSection(sectionId);
-    }
-  };
+
 
   // Editable Field Component
   const EditableField = ({ 

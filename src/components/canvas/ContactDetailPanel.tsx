@@ -492,27 +492,38 @@ export const ContactDetailPanel = ({
         </div>
       )}
       
-      {/* Panel Header with Title */}
+      {/* Action Bar */}
       <div className={cn(
-        "sticky top-0 z-10 bg-background border-b border-border",
+        "sticky top-0 z-10 bg-background",
         isExpanded && "rounded-t-2xl"
       )}>
-        {/* Panel Title Bar */}
-        <div className={cn(
-          "flex items-center justify-between px-6 py-3 bg-muted/30",
-          isExpanded && "rounded-t-2xl"
-        )}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <User className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg">Contact Details</h3>
-              <p className="text-xs text-muted-foreground">View and manage contact information</p>
-            </div>
+        <div className="flex items-center gap-2 px-5 py-2.5 border-b border-border/50">
+          <Button size="sm" className="gap-1.5 h-8" onClick={() => { setIsAddingNote(true); setOpenSection("notes"); }}>
+            <FileText className="w-3.5 h-3.5" /> Note
+          </Button>
+          <CallActionModal phone={editedContact.phone} email={editedContact.email} contactName={editedContact.name}>
+            <Button variant="outline" size="sm" className="gap-1.5 h-8">
+              <Phone className="w-3.5 h-3.5" /> Call
+            </Button>
+          </CallActionModal>
+          <EmailActionModal email={editedContact.email} phone={editedContact.phone} contactName={editedContact.name}>
+            <Button variant="outline" size="sm" className="gap-1.5 h-8">
+              <Mail className="w-3.5 h-3.5" /> Email
+            </Button>
+          </EmailActionModal>
+          <ScheduleActionModal email={editedContact.email} contactName={editedContact.name}>
+            <Button variant="outline" size="sm" className="gap-1.5 h-8">
+              <Calendar className="w-3.5 h-3.5" /> Schedule
+            </Button>
+          </ScheduleActionModal>
+          <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
+
+          {/* Hidden PhotoCapture trigger */}
+          <div className="hidden">
+            <PhotoCapture onDataExtracted={handlePhotoDataExtracted} />
           </div>
-          <div className="flex items-center gap-2">
-            {/* Request Edit Access button - shown when user can view but not edit */}
+
+          <div className="ml-auto flex items-center gap-2">
             {!canEdit && editedContact.id && (
               <RequestAccessModal
                 entityType="contact"
@@ -520,95 +531,19 @@ export const ContactDetailPanel = ({
                 entityName={editedContact.name}
               />
             )}
+            {editedContact.lastContact && (
+              <span className="text-xs text-muted-foreground">
+                Last contact: {editedContact.lastContact}
+              </span>
+            )}
             {onExpandToggle && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onExpandToggle}
-                className="gap-2"
-              >
+              <Button variant="ghost" size="icon" onClick={onExpandToggle} className="h-8 w-8">
                 {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                {isExpanded ? "Exit Full Screen" : "Full Screen"}
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9">
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
               <X className="w-4 h-4" />
             </Button>
-          </div>
-        </div>
-        
-        {/* Quick Actions Bar */}
-        {/* Quick Capture Tools, Actions & Expand Button */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-border/50">
-          <div className="flex items-center gap-2">
-            {/* Capture Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Camera className="w-4 h-4" />
-                  Capture
-                  <ChevronDown className="w-3 h-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="z-[10000] bg-popover border border-border shadow-lg">
-                <DropdownMenuItem onClick={() => document.getElementById('photo-capture-trigger')?.click()}>
-                  <User className="w-4 h-4 mr-2" />
-                  Contact Photo
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => document.getElementById('photo-capture-trigger')?.click()}>
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Business Card
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setIsAddingNote(true); setOpenSection("notes"); }}>
-                  <FileText className="w-4 h-4 mr-2" />
-                  Notes
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Network className="w-4 h-4 mr-2" />
-                  Org Chart
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
-            
-            {/* Hidden PhotoCapture trigger */}
-            <div className="hidden">
-              <PhotoCapture onDataExtracted={handlePhotoDataExtracted} />
-            </div>
-
-            <div className="w-px h-6 bg-border mx-1" />
-
-            {/* Action Buttons */}
-            <CallActionModal 
-              phone={editedContact.phone} 
-              email={editedContact.email}
-              contactName={editedContact.name}
-            >
-              <Button variant="outline" size="sm" className="gap-2">
-                <Phone className="w-4 h-4" />
-                Call
-              </Button>
-            </CallActionModal>
-            <EmailActionModal
-              email={editedContact.email}
-              phone={editedContact.phone}
-              contactName={editedContact.name}
-            >
-              <Button variant="outline" size="sm" className="gap-2">
-                <Mail className="w-4 h-4" />
-                Email
-              </Button>
-            </EmailActionModal>
-            <ScheduleActionModal
-              email={editedContact.email}
-              contactName={editedContact.name}
-            >
-              <Button variant="outline" size="sm" className="gap-2">
-                <Calendar className="w-4 h-4" />
-                Schedule
-              </Button>
-            </ScheduleActionModal>
           </div>
         </div>
 

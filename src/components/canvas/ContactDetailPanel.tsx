@@ -534,13 +534,20 @@ export const ContactDetailPanel = ({
               <Calendar className="w-3 h-3" /> Schedule
             </Button>
           </ScheduleActionModal>
+          {/* Open full contact page */}
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5 h-7 text-xs px-2 text-muted-foreground"
-            onClick={() => { navigate(`/contacts/${editedContact.id}`, { state: { from: window.location.pathname, fromLabel: "Back to Canvas" } }); onClose(); }}
+            className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              if (editedContact?.id) {
+                window.location.href = `/contacts/${editedContact.id}`;
+              }
+            }}
+            title="Open full contact page"
           >
-            <Maximize2 className="w-3 h-3" /> Full page
+            <ExternalLink className="w-3.5 h-3.5" />
+            Open contact
           </Button>
           <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
 

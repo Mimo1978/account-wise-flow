@@ -1,10 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { Mail, Phone, Linkedin, MapPin, Calendar, User, Briefcase, MessageSquare, FileText, Network } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Mail, Phone, Linkedin, MapPin, Calendar, User, Briefcase, MessageSquare, Network } from "lucide-react";
 import { CallActionModal } from "@/components/canvas/CallActionModal";
 import { ScheduleActionModal } from "@/components/canvas/ScheduleActionModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Props {
   contact: any;
@@ -32,6 +36,14 @@ function getAvatarGradient(name: string): string {
   return gradients[hash % gradients.length];
 }
 
+const STATUS_OPTIONS = [
+  { value: "champion", label: "Champion", color: "bg-violet-500/20 text-violet-400 border-violet-500/30 hover:bg-violet-500/30" },
+  { value: "engaged", label: "Engaged", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30" },
+  { value: "warm", label: "Warm", color: "bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30" },
+  { value: "unknown", label: "Unknown", color: "bg-muted text-muted-foreground border-border hover:bg-muted/80" },
+  { value: "blocker", label: "Blocker", color: "bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30" },
+];
+
 const statusColors: Record<string, string> = {
   new: "bg-blue-500/20 text-blue-400 border-blue-500/30",
   warm: "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -43,10 +55,27 @@ const statusColors: Record<string, string> = {
 
 export function ContactIdentityCard({ contact }: Props) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const initials = getInitials(contact.name);
   const gradient = getAvatarGradient(contact.name);
   const status = contact.status || "unknown";
   const company = contact.companies;
+
+  const updateStatus = useMutation({
+    mutationFn: async (newStatus: string) => {
+      const { error } = await supabase
+        .from("contacts")
+        .update({ status: newStatus })
+        .eq("id", contact.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contact-detail", contact.id] });
+      qc.invalidateQueries({ queryKey: ["canvas-company"], exact: false });
+      toast.success("Status updated");
+    },
+    onError: () => toast.error("Failed to update status"),
+  });
 
   return (
     <div className="rounded-xl border border-border bg-card border-l-4 border-l-primary p-5 space-y-5">
@@ -74,6 +103,31 @@ export function ContactIdentityCard({ contact }: Props) {
         <Badge variant="outline" className={`text-xs ${statusColors[status]}`}>
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </Badge>
+      </div>
+
+      <Separator className="bg-border" />
+
+      {/* Relationship Status Selector */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+          Relationship Status
+        </h3>
+        <div className="flex flex-wrap gap-1.5">
+          {STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => updateStatus.mutate(opt.value)}
+              disabled={updateStatus.isPending}
+              className={cn(
+                "px-2.5 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer",
+                opt.color,
+                status === opt.value && "ring-2 ring-offset-1 ring-offset-card ring-current font-bold"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <Separator className="bg-border" />

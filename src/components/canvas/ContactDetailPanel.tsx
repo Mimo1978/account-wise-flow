@@ -474,48 +474,36 @@ export const ContactDetailPanel = ({
         transition: isDragging ? 'none' : 'box-shadow 0.2s ease',
       } : undefined}
     >
-      {/* Drag Handle Bar - Only visible in floating mode */}
-      {!isExpanded && (
-        <div 
-          {...dragHandleProps}
-          className="flex items-center justify-center py-2 bg-muted/50 rounded-t-2xl border-b border-border/50 hover:bg-muted/70 transition-colors"
-        >
-          <GripHorizontal className="w-5 h-5 text-muted-foreground" />
-        </div>
-      )}
-      
-      {/* Action Bar */}
+      {/* Sticky header */}
       <div className={cn(
         "sticky top-0 z-10 bg-background",
         isExpanded && "rounded-t-2xl"
       )}>
-        <div className="flex items-center gap-2 px-5 py-2.5 border-b border-border/50">
-          <Button size="sm" className="gap-1.5 h-8" onClick={() => { setIsAddingNote(true); setOpenSection("notes"); }}>
-            <FileText className="w-3.5 h-3.5" /> Note
+        {/* Action Bar */}
+        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border/50">
+          {/* Drag handle dots inline */}
+          <div {...dragHandleProps} className="flex items-center mr-1 cursor-grab">
+            <GripHorizontal className="w-4 h-4 text-muted-foreground" />
+          </div>
+
+          <Button size="sm" className="gap-1.5 h-7 text-xs px-2.5" onClick={() => { setIsAddingNote(true); setOpenSection("notes"); }}>
+            <FileText className="w-3 h-3" /> Note
           </Button>
           <CallActionModal phone={editedContact.phone} email={editedContact.email} contactName={editedContact.name}>
-            <Button variant="outline" size="sm" className="gap-1.5 h-8">
-              <Phone className="w-3.5 h-3.5" /> Call
+            <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs px-2.5">
+              <Phone className="w-3 h-3" /> Call
             </Button>
           </CallActionModal>
           <EmailActionModal email={editedContact.email} phone={editedContact.phone} contactName={editedContact.name}>
-            <Button variant="outline" size="sm" className="gap-1.5 h-8">
-              <Mail className="w-3.5 h-3.5" /> Email
+            <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs px-2.5">
+              <Mail className="w-3 h-3" /> Email
             </Button>
           </EmailActionModal>
           <ScheduleActionModal email={editedContact.email} contactName={editedContact.name}>
-            <Button variant="outline" size="sm" className="gap-1.5 h-8">
-              <Calendar className="w-3.5 h-3.5" /> Schedule
+            <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs px-2.5">
+              <Calendar className="w-3 h-3" /> Schedule
             </Button>
           </ScheduleActionModal>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 h-8 ml-1 text-muted-foreground"
-            onClick={() => { navigate(`/contacts/${editedContact.id}`); onClose(); }}
-          >
-            <Maximize2 className="w-3.5 h-3.5" /> Full page
-          </Button>
           <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
 
           {/* Hidden PhotoCapture trigger */}
@@ -523,7 +511,7 @@ export const ContactDetailPanel = ({
             <PhotoCapture onDataExtracted={handlePhotoDataExtracted} />
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1.5">
             {!canEdit && editedContact.id && (
               <RequestAccessModal
                 entityType="contact"
@@ -531,266 +519,35 @@ export const ContactDetailPanel = ({
                 entityName={editedContact.name}
               />
             )}
-            {editedContact.lastContact && (
-              <span className="text-xs text-muted-foreground">
-                Last contact: {editedContact.lastContact}
-              </span>
-            )}
             {onExpandToggle && (
-              <Button variant="ghost" size="icon" onClick={onExpandToggle} className="h-8 w-8">
-                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              <Button variant="ghost" size="icon" onClick={onExpandToggle} className="h-7 w-7" title="Full screen">
+                {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
               </Button>
             )}
-            <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
-              <X className="w-4 h-4" />
+            <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7">
+              <X className="w-3.5 h-3.5" />
             </Button>
           </div>
         </div>
 
-        {/* Profile Header - Compact in Fullscreen, Expanded in Normal */}
-        {isExpanded ? (
-          /* Fullscreen: Single-line compact header */
-          <div className="px-6 py-3 border-b border-border/50">
-            <div className="flex items-center gap-4">
-              <Avatar className="w-10 h-10 shrink-0 ring-2 ring-primary/20">
-                <AvatarImage src={editedContact.profilePhoto} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
-                  {getInitials(editedContact.name)}
-                </AvatarFallback>
-              </Avatar>
-              
-              {/* Name - Editable */}
-              {isEditing === "name" ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={editedContact.name}
-                    onChange={(e) => setEditedContact({ ...editedContact, name: e.target.value })}
-                    className="text-lg font-bold h-9 w-48"
-                    autoFocus
-                  />
-                  <Button size="sm" onClick={() => handleSave("name", editedContact.name)} className="h-8">
-                    <Save className="w-3 h-3" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setIsEditing(null)} className="h-8">
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
-              ) : (
-                <button 
-                  className="group flex items-center gap-1 hover:text-primary transition-colors"
-                  onClick={() => setIsEditing("name")}
-                >
-                  <span className="text-lg font-bold">{editedContact.name}</span>
-                  <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
-              )}
-
-              <span className="text-muted-foreground">•</span>
-              
-              {/* Title - Editable */}
-              {isEditing === "title" ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={editedContact.title}
-                    onChange={(e) => setEditedContact({ ...editedContact, title: e.target.value })}
-                    className="h-8 w-40 text-sm"
-                    autoFocus
-                  />
-                  <Button size="sm" onClick={() => handleSave("title", editedContact.title)} className="h-7">
-                    <Save className="w-3 h-3" />
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setIsEditing(null)} className="h-7">
-                    <X className="w-3 h-3" />
-                  </Button>
-                </div>
-              ) : (
-                <button 
-                  className="group flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => setIsEditing("title")}
-                >
-                  <span className="text-sm">{editedContact.title}</span>
-                  <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
-              )}
-
-              <span className="text-muted-foreground">•</span>
-              
-              {/* Status Badge */}
-              <Badge className={cn(statusInfo.color, "text-xs px-2 py-0.5")}>{statusInfo.label}</Badge>
-              
-              {/* Role Badge */}
-              {editedContact.role && (
-                <Badge variant="outline" className="text-xs px-2 py-0.5">{roleConfig[editedContact.role]}</Badge>
-              )}
-
-              {/* Status Quick-Change — tap to update org chart dot instantly */}
-              <div className="flex items-center gap-1.5 ml-auto">
-                {[
-                  { key: "champion", color: "bg-node-champion", label: "Champion" },
-                  { key: "engaged", color: "bg-node-engaged", label: "Engaged" },
-                  { key: "warm", color: "bg-node-warm", label: "Warm" },
-                  { key: "unknown", color: "bg-node-unknown", label: "Unknown" },
-                  { key: "blocker", color: "bg-node-blocker", label: "Blocker" },
-                ].map(({ key, color, label }) => (
-                  <button
-                    key={key}
-                    title={label}
-                    onClick={() => handleStatusChange(key)}
-                    className={`w-5 h-5 rounded-full transition-all ${color} ${
-                      editedContact.status === key
-                        ? "ring-2 ring-offset-2 ring-offset-background ring-foreground scale-125"
-                        : "opacity-50 hover:opacity-100 hover:scale-110"
-                    }`}
-                  />
-                ))}
+        {/* Compact identity strip */}
+        <div className="px-4 py-2.5 border-b border-border/50">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-9 h-9 shrink-0 ring-1 ring-primary/20">
+              <AvatarImage src={editedContact.profilePhoto} />
+              <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                {getInitials(editedContact.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold truncate">{editedContact.name}</h2>
+                <Badge className={cn(statusInfo.color, "text-xs px-1.5 py-0 h-4 shrink-0")}>{statusInfo.label}</Badge>
               </div>
+              <p className="text-xs text-muted-foreground truncate">{editedContact.title}</p>
             </div>
           </div>
-        ) : (
-          /* Normal mode: Full header */
-          <div className="px-6 py-6">
-            <div className="flex items-start gap-5">
-              <Avatar className="w-20 h-20 shrink-0 ring-2 ring-primary/20">
-                <AvatarImage src={editedContact.profilePhoto} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-xl font-semibold">
-                  {getInitials(editedContact.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0 space-y-3">
-                {/* Name */}
-                {isEditing === "name" ? (
-                  <div className="space-y-3">
-                    <Input
-                      value={editedContact.name}
-                      onChange={(e) => setEditedContact({ ...editedContact, name: e.target.value })}
-                      className="text-xl font-bold h-12"
-                      autoFocus
-                    />
-                    <div className="flex gap-3">
-                      <Button onClick={() => handleSave("name", editedContact.name)} className="h-10">
-                        <Save className="w-4 h-4 mr-2" /> Save
-                      </Button>
-                      <Button variant="ghost" onClick={() => setIsEditing(null)} className="h-10">Cancel</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="group flex items-center gap-3">
-                    <h2 className="text-2xl font-bold truncate">{editedContact.name}</h2>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="opacity-0 group-hover:opacity-100 h-8 w-8"
-                      onClick={() => setIsEditing("name")}
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                )}
-                
-                {/* Title */}
-                {isEditing === "title" ? (
-                  <div className="space-y-3">
-                    <Input
-                      value={editedContact.title}
-                      onChange={(e) => setEditedContact({ ...editedContact, title: e.target.value })}
-                      className="h-10"
-                      autoFocus
-                    />
-                    <div className="flex gap-3">
-                      <Button onClick={() => handleSave("title", editedContact.title)} className="h-10">
-                        <Save className="w-4 h-4 mr-2" /> Save
-                      </Button>
-                      <Button variant="ghost" onClick={() => setIsEditing(null)} className="h-10">Cancel</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="group flex items-center gap-2">
-                    <p className="text-base text-muted-foreground truncate">{editedContact.title}</p>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="opacity-0 group-hover:opacity-100 h-7 w-7"
-                      onClick={() => setIsEditing("title")}
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                )}
-
-                {/* Status & Role Badges */}
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <Badge className={cn(statusInfo.color, "text-sm px-3 py-1")}>{statusInfo.label}</Badge>
-                  {editedContact.role && (
-                    <Badge variant="outline" className="text-sm px-3 py-1">{roleConfig[editedContact.role]}</Badge>
-                  )}
-                </div>
-
-                {/* Relationship Status — one tap updates org chart dot */}
-                <div className="pt-2 space-y-2">
-                  <span className="text-xs text-muted-foreground uppercase tracking-wide">Relationship:</span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {[
-                      { key: "champion", color: "bg-node-champion", label: "Champion" },
-                      { key: "engaged", color: "bg-node-engaged", label: "Engaged" },
-                      { key: "warm", color: "bg-node-warm", label: "Warm" },
-                      { key: "unknown", color: "bg-node-unknown", label: "Unknown" },
-                      { key: "blocker", color: "bg-node-blocker", label: "Blocker" },
-                    ].map(({ key, color, label }) => (
-                      <button
-                        key={key}
-                        onClick={() => handleStatusChange(key)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
-                          editedContact.status === key
-                            ? `${color} text-white border-transparent shadow-md scale-105`
-                            : "bg-background text-muted-foreground border-border hover:border-foreground/30"
-                        }`}
-                      >
-                        <span className={`w-2 h-2 rounded-full ${color}`} />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Next Action — the feature CRMs get wrong */}
-                <div className="pt-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Next Action</span>
-                    {editedContact.lastContact && (
-                      <span className="text-xs text-muted-foreground">
-                        Last contact: {editedContact.lastContact}
-                      </span>
-                    )}
-                  </div>
-                  {isEditing === "nextAction" ? (
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="e.g. Send proposal by Friday"
-                        value={(editedContact as any).nextAction || ""}
-                        onChange={(e) => setEditedContact({ ...editedContact, nextAction: e.target.value } as any)}
-                        className="h-8 text-sm flex-1"
-                        autoFocus
-                      />
-                      <Button size="sm" onClick={() => handleSave("nextAction", (editedContact as any).nextAction)} className="h-8 px-3">
-                        <Save className="w-3 h-3" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setIsEditing(null)} className="h-8">
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setIsEditing("nextAction")}
-                      className="w-full text-left text-sm px-3 py-2 rounded-lg border border-dashed border-border hover:border-primary hover:bg-primary/5 transition-all text-muted-foreground hover:text-foreground"
-                    >
-                      {(editedContact as any).nextAction || "+ Add next action..."}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Two-column body layout */}

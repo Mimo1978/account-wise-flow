@@ -129,8 +129,37 @@ export function ContactDetailTabs({ contact }: Props) {
   });
 
   // Deals linked to this contact
+  const { data: deals = [] } = useQuery({
+    queryKey: ["contact-deals", contact.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("crm_deals")
+        .select("id, title, stage, value, currency, status, company_id, crm_companies(name)")
+        .eq("contact_id", contact.id)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
 
-  // Timeline: audit log entries
+  // Notes for this contact
+  const { data: notes = [] } = useQuery({
+    queryKey: ["contact-notes", contact.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("notes")
+        .select("*, profiles(first_name, last_name)")
+        .eq("entity_type", "contact")
+        .eq("entity_id", contact.id)
+        .order("pinned", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const { data: timeline = [] } = useQuery({
     queryKey: ["contact-timeline", contact.id],
     queryFn: async () => {

@@ -526,7 +526,7 @@ export const ContactDetailPanel = ({
         "flex flex-col bg-background pointer-events-auto",
         isExpanded 
           ? "fixed inset-4 z-50 rounded-2xl shadow-2xl border border-border animate-scale-in" 
-          : "fixed z-[9999] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-border min-w-[740px] w-[880px] max-w-[960px] : "fixed z-[9999] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-border min-w-[740px] w-[880px] max-w-[960px] max-h-[calc(100vh-80px)]""
+          : "fixed z-[9999] rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.12)] border border-border min-w-[740px] w-[880px] max-w-[960px] max-h-[calc(100vh-80px)]"
       )}
       style={!isExpanded ? {
         left: position.x,

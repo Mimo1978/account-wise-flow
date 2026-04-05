@@ -15,7 +15,10 @@ import {
   FileText,
   Briefcase,
   Lightbulb,
-  MessageSquare
+  MessageSquare,
+  Phone,
+  Calendar,
+  Mic
 } from "lucide-react";
 import { ContactOverviewTab } from "./ContactOverviewTab";
 import { ContactNotesTab } from "./ContactNotesTab";
@@ -140,22 +143,27 @@ export function ContactRecordPanel({
           </div>
 
           {/* Quick Actions */}
-          <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
-            <Button size="sm" variant="outline" onClick={() => setActiveTab("notes")}>
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Add Note
+          <div className="flex flex-wrap gap-2 mt-4">
+            <Button size="sm" variant="outline" onClick={() => setActiveTab("notes")} className="gap-1.5">
+              <Plus className="h-3.5 w-3.5" /> Note
             </Button>
-            <Button size="sm" variant="outline" onClick={handleEmailContact} disabled={!contact.email}>
-              <Mail className="h-3.5 w-3.5 mr-1.5" />
-              Email
+            <Button size="sm" variant="outline" onClick={handleEmailContact} disabled={!contact.email} className="gap-1.5">
+              <Mail className="h-3.5 w-3.5" /> Email
             </Button>
-            <Button size="sm" variant="outline" onClick={handleViewOnCanvas}>
-              <Network className="h-3.5 w-3.5 mr-1.5" />
-              Open on Canvas
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => contact.phone && window.open(`tel:${contact.phone}`)}
+              disabled={!contact.phone}
+              className="gap-1.5"
+            >
+              <Phone className="h-3.5 w-3.5" /> Call
             </Button>
-            <Button size="sm" variant="outline" onClick={onOpenCompany}>
-              <Building2 className="h-3.5 w-3.5 mr-1.5" />
-              View Company
+            <Button size="sm" variant="outline" onClick={handleViewOnCanvas} className="gap-1.5">
+              <Network className="h-3.5 w-3.5" /> Canvas
+            </Button>
+            <Button size="sm" variant="outline" onClick={onOpenCompany} className="gap-1.5">
+              <Building2 className="h-3.5 w-3.5" /> Company
             </Button>
           </div>
         </div>

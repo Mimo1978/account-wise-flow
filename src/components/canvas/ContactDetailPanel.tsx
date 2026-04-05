@@ -56,6 +56,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface ContactDetailPanelProps {
   contact: Contact | null;
@@ -120,6 +121,7 @@ export const ContactDetailPanel = ({
   
   // Permissions
   const { role, canEdit, isLoading: permissionsLoading } = usePermissions();
+  const { currentWorkspace } = useWorkspace();
   const editTooltip = getPermissionTooltip("edit", role);
   
   // Notes state
@@ -159,7 +161,7 @@ export const ContactDetailPanel = ({
   const statusInfo = statusConfig[editedContact.status as keyof typeof statusConfig] || statusConfig.unknown;
 
   const { data: realNotes = [], refetch: refetchNotes } = useQuery({
-    queryKey: ["contact-notes-panel", contact?.id],
+    queryKey: ["contact-notes", contact?.id],
     queryFn: async () => {
       if (!contact?.id) return [];
       const { data, error } = await supabase
@@ -167,8 +169,9 @@ export const ContactDetailPanel = ({
         .select("*")
         .eq("entity_type", "contact")
         .eq("entity_id", contact.id)
+        .order("pinned", { ascending: false })
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
       if (error) throw error;
       return (data || []).map((n: any) => ({
         id: n.id,
@@ -238,19 +241,28 @@ export const ContactDetailPanel = ({
     toast.success("Updated successfully");
   };
 
-  const handleAddNote = async () => {
+  const handleAddNote = async (sourceType: string = "ui") => {
     if (!newNoteContent.trim()) {
       toast.error("Note cannot be empty");
       return;
     }
     if (!contact?.id) return;
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("notes").insert({
       entity_type: "contact",
       entity_id: contact.id,
-      content: newNoteContent,
+      content: newNoteContent.trim(),
       visibility: newNoteVisibility,
+      owner_id: user?.id || null,
+      team_id: currentWorkspace?.id || null,
+      pinned: false,
+      source: sourceType as any,
     });
-    if (error) { toast.error("Failed to save note"); return; }
+    if (error) {
+      toast.error("Failed to save note");
+      console.error(error);
+      return;
+    }
     refetchNotes();
     setNewNoteContent("");
     setNewNoteVisibility("team");
@@ -258,20 +270,21 @@ export const ContactDetailPanel = ({
     toast.success("Note saved");
   };
 
-  const handleEditNote = (noteId: string) => {
-    if (!editNoteContent.trim()) {
-      toast.error("Note cannot be empty");
-      return;
-    }
-    console.log("Editing note:", noteId, editNoteContent);
+  const handleEditNote = async (noteId: string) => {
+    if (!editNoteContent.trim()) { toast.error("Note cannot be empty"); return; }
+    const { error } = await supabase.from("notes").update({ content: editNoteContent.trim() }).eq("id", noteId);
+    if (error) { toast.error("Failed to update note"); return; }
+    refetchNotes();
     setEditingNoteId(null);
     setEditNoteContent("");
     toast.success("Note updated");
   };
 
-  const handlePinNote = (noteId: string) => {
-    console.log("Pinning note:", noteId);
-    toast.success("Note pinned");
+  const handlePinNote = async (noteId: string, currentPinned: boolean) => {
+    const { error } = await supabase.from("notes").update({ pinned: !currentPinned }).eq("id", noteId);
+    if (error) { toast.error("Failed to update note"); return; }
+    refetchNotes();
+    toast.success(currentPinned ? "Note unpinned" : "Note pinned");
   };
 
   const handleAddTag = (tag: string) => {
@@ -303,14 +316,30 @@ export const ContactDetailPanel = ({
     toast.success("Contact data extracted and pre-filled");
   };
 
-  const handleVoiceTranscript = (transcript: string, noteType: string) => {
-    const prefix = noteType === "meeting" ? "[Meeting Notes] " 
-      : noteType === "call" ? "[Call Notes] " 
-      : noteType === "reminder" ? "[Reminder] " 
+  const handleVoiceTranscript = async (transcript: string, noteType: string) => {
+    const prefix = noteType === "meeting" ? "[Meeting Notes] "
+      : noteType === "call" ? "[Call Notes] "
+      : noteType === "reminder" ? "[Reminder] "
       : "";
-    setNewNoteContent(prefix + transcript);
-    setIsAddingNote(true);
+    const content = prefix + transcript;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from("notes").insert({
+      entity_type: "contact",
+      entity_id: contact.id,
+      content: content.trim(),
+      visibility: "team",
+      owner_id: user?.id || null,
+      team_id: currentWorkspace?.id || null,
+      pinned: false,
+      source: "voice",
+    });
+    if (error) {
+      toast.error("Failed to save voice note");
+      return;
+    }
+    refetchNotes();
     setOpenSection("notes");
+    toast.success("Voice note saved");
   };
 
   const getActivityIcon = (type: string) => {
@@ -688,7 +717,7 @@ export const ContactDetailPanel = ({
                       </Select>
                     </div>
                     <div className="flex gap-3">
-                      <Button onClick={handleAddNote} size="sm" className="h-9 px-4">
+                      <Button onClick={() => handleAddNote("ui")} size="sm" className="h-9 px-4">
                         <Save className="w-3 h-3 mr-1.5" /> Save
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => { setIsAddingNote(false); setNewNoteContent(""); setNewNoteVisibility("team"); }} className="h-9">
@@ -773,7 +802,7 @@ export const ContactDetailPanel = ({
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-muted-foreground">{note.date}</span>
-                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handlePinNote(note.id)}>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handlePinNote(note.id, note.pinned)}>
                                 <Pin className={cn("w-3 h-3", note.pinned && "fill-current")} />
                               </Button>
                               <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingNoteId(note.id); setEditNoteContent(note.content); }}>

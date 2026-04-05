@@ -25,6 +25,7 @@ import { AddTargetsModal } from '@/components/outreach/AddTargetsModal';
 import { OutreachTargetRow } from '@/components/outreach/OutreachTargetRow';
 import { TargetDetailSheet } from '@/components/outreach/TargetDetailSheet';
 import { DocumentList } from '@/components/documents/DocumentList';
+import { AddEditDealPanel } from '@/components/crm/AddEditDealPanel';
 import {
   ArrowLeft,
   ChevronLeft,
@@ -1393,6 +1394,8 @@ const ProjectDetail = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [dealPanelOpen, setDealPanelOpen] = useState(false);
+  const [dealDefaults, setDealDefaults] = useState<any>(null);
   const perm = useDeletionPermission();
 
   const engSows = useMemo(() => {
@@ -1462,6 +1465,20 @@ const ProjectDetail = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              setDealDefaults({
+                title: engagement.name,
+                company_id: engagement.company_id || null,
+              });
+              setDealPanelOpen(true);
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            Create deal
+          </Button>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEditOpen(true)}>
             <Pencil className="w-4 h-4" />
             Edit
@@ -1707,6 +1724,11 @@ const ProjectDetail = () => {
         recordId={engagement.id}
         recordName={engagement.name}
         onDeleted={() => navigate("/projects")}
+      />
+      <AddEditDealPanel
+        open={dealPanelOpen}
+        onOpenChange={setDealPanelOpen}
+        defaultValues={dealDefaults}
       />
     </div>
     </div>

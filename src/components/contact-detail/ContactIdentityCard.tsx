@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Mail, Phone, Linkedin, MapPin, Calendar, User, Briefcase, MessageSquare, FileText, Network } from "lucide-react";
+import { CallActionModal } from "@/components/canvas/CallActionModal";
+import { ScheduleActionModal } from "@/components/canvas/ScheduleActionModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -109,23 +111,34 @@ export function ContactIdentityCard({ contact }: Props) {
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           Quick Actions
         </h3>
-        <Button variant="outline" size="sm" className="w-full justify-start gap-2">
-          <Mail className="h-4 w-4" /> Send Email
-        </Button>
-        <Button variant="outline" size="sm" className="w-full justify-start gap-2" onClick={() => document.querySelector<HTMLTextAreaElement>('textarea[placeholder="Write a note…"]')?.scrollIntoView({ behavior: 'smooth' })}>
-          <MessageSquare className="h-4 w-4" /> Add Note
-        </Button>
-        <Button variant="outline" size="sm" className="w-full justify-start gap-2">
-          <Calendar className="h-4 w-4" /> Log Activity
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full justify-start gap-2"
-          onClick={() => navigate(`/canvas?company=${contact.company_id}`)}
-          disabled={!contact.company_id}
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" size="sm" className="justify-start gap-2"
+            onClick={() => contact.email && window.open(`mailto:${contact.email}`)}
+            disabled={!contact.email}
+          >
+            <Mail className="h-4 w-4" /> Email
+          </Button>
+          <CallActionModal phone={contact.phone} email={contact.email} contactName={contact.name}>
+            <Button variant="outline" size="sm" className="w-full justify-start gap-2">
+              <Phone className="h-4 w-4" /> Call
+            </Button>
+          </CallActionModal>
+          <ScheduleActionModal email={contact.email} contactName={contact.name}>
+            <Button variant="outline" size="sm" className="w-full justify-start gap-2">
+              <Calendar className="h-4 w-4" /> Schedule
+            </Button>
+          </ScheduleActionModal>
+          <Button variant="outline" size="sm" className="justify-start gap-2"
+            onClick={() => navigate(`/canvas?company=${contact.company_id}`)}
+            disabled={!contact.company_id}
+          >
+            <Network className="h-4 w-4" /> Canvas
+          </Button>
+        </div>
+        <Button variant="outline" size="sm" className="w-full justify-start gap-2"
+          onClick={() => document.querySelector<HTMLTextAreaElement>('textarea[placeholder="Write a note…"]')?.scrollIntoView({ behavior: 'smooth' })}
         >
-          <Network className="h-4 w-4" /> Open on Canvas
+          <MessageSquare className="h-4 w-4" /> Add Note
         </Button>
       </div>
     </div>

@@ -907,6 +907,42 @@ export const ContactDetailPanel = ({
                     ))}
                   </div>
                 </div>
+
+                {/* Next Action — the feature CRMs get wrong */}
+                <div className="pt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wide">Next Action</span>
+                    {editedContact.lastContact && (
+                      <span className="text-xs text-muted-foreground">
+                        Last contact: {editedContact.lastContact}
+                      </span>
+                    )}
+                  </div>
+                  {isEditing === "nextAction" ? (
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="e.g. Send proposal by Friday"
+                        value={(editedContact as any).nextAction || ""}
+                        onChange={(e) => setEditedContact({ ...editedContact, nextAction: e.target.value } as any)}
+                        className="h-8 text-sm flex-1"
+                        autoFocus
+                      />
+                      <Button size="sm" onClick={() => handleSave("nextAction", (editedContact as any).nextAction)} className="h-8 px-3">
+                        <Save className="w-3 h-3" />
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setIsEditing(null)} className="h-8">
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditing("nextAction")}
+                      className="w-full text-left text-sm px-3 py-2 rounded-lg border border-dashed border-border hover:border-primary hover:bg-primary/5 transition-all text-muted-foreground hover:text-foreground"
+                    >
+                      {(editedContact as any).nextAction || "+ Add next action..."}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

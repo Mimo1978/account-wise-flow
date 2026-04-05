@@ -840,6 +840,7 @@ export default function CompanyDetail() {
   // addLeadOpen removed — Capture Lead replaced by Add Deal
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedContact, setSelectedContact] = useState<any | null>(null);
+  const [isPanelExpanded, setIsPanelExpanded] = useState(false);
 
   // ── Fetch company (from companies table) ──
   const { data: rawCompany, isLoading } = useQuery({
@@ -1655,7 +1656,9 @@ export default function CompanyDetail() {
       {selectedContact && (
         <ContactDetailPanel
           contact={selectedContact}
-          onClose={() => setSelectedContact(null)}
+          onClose={() => { setSelectedContact(null); setIsPanelExpanded(false); }}
+          isExpanded={isPanelExpanded}
+          onExpandToggle={() => setIsPanelExpanded(p => !p)}
         />
       )}
     </div>

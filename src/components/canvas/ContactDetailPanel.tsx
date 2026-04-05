@@ -533,6 +533,14 @@ export const ContactDetailPanel = ({
               <Calendar className="w-3 h-3" /> Schedule
             </Button>
           </ScheduleActionModal>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 h-7 text-xs px-2 text-muted-foreground"
+            onClick={() => { navigate(`/contacts/${editedContact.id}`, { state: { from: window.location.pathname, fromLabel: "Back to Canvas" } }); onClose(); }}
+          >
+            <Maximize2 className="w-3 h-3" /> Full page
+          </Button>
           <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
 
           {/* Hidden PhotoCapture trigger */}

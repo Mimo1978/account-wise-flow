@@ -186,7 +186,7 @@ export function ContactDetailTabs({ contact }: Props) {
 
   return (
     <Tabs defaultValue="overview">
-      <TabsList className="bg-[#1A1F2E] border border-border">
+      <TabsList className="bg-card border border-border">
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="timeline">Timeline</TabsTrigger>
         <TabsTrigger value="deals">Deals</TabsTrigger>
@@ -197,7 +197,7 @@ export function ContactDetailTabs({ contact }: Props) {
       {/* OVERVIEW TAB */}
       <TabsContent value="overview" className="space-y-4 mt-4">
         {/* Connected Deals */}
-        <Card className="bg-[#1A1F2E] border-border">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-[#378ADD]" />
@@ -237,7 +237,7 @@ export function ContactDetailTabs({ contact }: Props) {
         </Card>
 
         {/* Connected Projects */}
-        <Card className="bg-[#1A1F2E] border-border">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <FolderOpen className="h-4 w-4 text-emerald-400" />
@@ -272,7 +272,7 @@ export function ContactDetailTabs({ contact }: Props) {
         </Card>
 
         {/* Recent Notes */}
-        <Card className="bg-[#1A1F2E] border-border">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-amber-400" />
@@ -322,7 +322,7 @@ export function ContactDetailTabs({ contact }: Props) {
 
       {/* TIMELINE TAB */}
       <TabsContent value="timeline" className="mt-4">
-        <Card className="bg-[#1A1F2E] border-border">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm">Activity Timeline</CardTitle>
             <Button variant="outline" size="sm">
@@ -375,7 +375,7 @@ export function ContactDetailTabs({ contact }: Props) {
 
       {/* DEALS TAB — with pipeline chevrons */}
       <TabsContent value="deals" className="mt-4">
-        <Card className="bg-[#1A1F2E] border-border">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm">Linked Deals</CardTitle>
             <div className="flex gap-2">
@@ -421,7 +421,7 @@ export function ContactDetailTabs({ contact }: Props) {
 
       {/* PROJECTS TAB — combined direct + via deals */}
       <TabsContent value="projects" className="mt-4">
-        <Card className="bg-[#1A1F2E] border-border">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Connected Projects</CardTitle>
           </CardHeader>
@@ -459,7 +459,7 @@ export function ContactDetailTabs({ contact }: Props) {
 
       {/* DOCUMENTS TAB */}
       <TabsContent value="documents" className="mt-4">
-        <Card className="bg-[#1A1F2E] border-border">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm">Documents</CardTitle>
             <Button variant="outline" size="sm">

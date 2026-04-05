@@ -66,7 +66,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 interface ContactDetailPanelProps {
   contact: Contact | null;
@@ -246,21 +246,52 @@ export const ContactDetailPanel = ({
 
   const statusInfo = statusConfig[editedContact.status as keyof typeof statusConfig] || statusConfig.unknown;
 
-  const mockNotes: Note[] = editedContact.notes || [
-    { id: "1", date: "2025-01-22", author: "Sarah Williams", content: "Key decision maker for infrastructure projects. Mentioned budget approval needed by Q2.", pinned: true, visibility: "team" },
-    { id: "2", date: "2025-01-18", author: "Michael Chen", content: "Technical requirements align well with our platform. Should involve in next technical workshop.", visibility: "public" },
-    { id: "3", date: "2025-01-15", author: "John Doe", content: "", visibility: "private", isRedacted: true },
-  ];
+  const { data: realNotes = [], refetch: refetchNotes } = useQuery({
+    queryKey: ["contact-notes-panel", contact?.id],
+    queryFn: async () => {
+      if (!contact?.id) return [];
+      const { data, error } = await supabase
+        .from("notes")
+        .select("*")
+        .eq("entity_type", "contact")
+        .eq("entity_id", contact.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data || []).map((n: any) => ({
+        id: n.id,
+        date: n.created_at,
+        author: n.owner_id || "Unknown",
+        content: n.content || "",
+        pinned: n.pinned || false,
+        visibility: n.visibility || "team",
+      }));
+    },
+    enabled: !!contact?.id,
+  });
 
-  const mockActivities: Activity[] = editedContact.activities || [
-    { id: "1", type: "email", date: "2025-01-23", description: "Followed up on product demo feedback" },
-    { id: "2", type: "meeting", date: "2025-01-20", description: "Product demo - very positive response" },
-    { id: "3", type: "call", date: "2025-01-15", description: "Initial discovery call" },
-    { id: "4", type: "owner-change", date: "2025-01-12", description: "Contact owner changed to Sarah Williams" },
-    { id: "5", type: "score-change", date: "2025-01-10", description: "Engagement score increased from 45 to 72", metadata: { "Previous": "45", "New": "72" } },
-  ];
+  const { data: realActivities = [] } = useQuery({
+    queryKey: ["contact-activities-panel", contact?.id],
+    queryFn: async () => {
+      if (!contact?.id) return [];
+      const { data, error } = await supabase
+        .from("contact_activities")
+        .select("*")
+        .eq("contact_id", contact.id)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) return [];
+      return (data || []).map((a: any) => ({
+        id: a.id,
+        type: a.type || "note",
+        date: a.created_at,
+        description: a.description || a.content || "",
+      }));
+    },
+    enabled: !!contact?.id,
+  });
 
-  const filteredNotes = mockNotes.filter(note => 
+  const filteredNotes = realNotes.filter((note: any) => 
     note.content.toLowerCase().includes(noteSearchQuery.toLowerCase()) ||
     note.author.toLowerCase().includes(noteSearchQuery.toLowerCase())
   );
@@ -295,16 +326,24 @@ export const ContactDetailPanel = ({
     toast.success("Updated successfully");
   };
 
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     if (!newNoteContent.trim()) {
       toast.error("Note cannot be empty");
       return;
     }
-    console.log("Adding note:", { content: newNoteContent, visibility: newNoteVisibility });
+    if (!contact?.id) return;
+    const { error } = await supabase.from("notes").insert({
+      entity_type: "contact",
+      entity_id: contact.id,
+      content: newNoteContent,
+      visibility: newNoteVisibility,
+    });
+    if (error) { toast.error("Failed to save note"); return; }
+    refetchNotes();
     setNewNoteContent("");
     setNewNoteVisibility("team");
     setIsAddingNote(false);
-    toast.success("Note added");
+    toast.success("Note saved");
   };
 
   const handleEditNote = (noteId: string) => {

@@ -1,10 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { Plus, FileText, MessageSquare, Clock, Briefcase, FolderOpen } from "lucide-react";
 import { format } from "date-fns";
 
@@ -51,6 +54,7 @@ function PipelineChevron({ currentStage }: { currentStage: string }) {
 
 export function ContactDetailTabs({ contact }: Props) {
   const navigate = useNavigate();
+  const [newNote, setNewNote] = useState("");
 
   // Deals linked to this contact
   const { data: deals = [] } = useQuery({
@@ -81,6 +85,29 @@ export function ContactDetailTabs({ contact }: Props) {
       if (error) throw error;
       return data || [];
     },
+  });
+
+  const queryClient = useQueryClient();
+
+  const addNoteMutation = useMutation({
+    mutationFn: async ({ content, visibility }: { content: string; visibility: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("notes").insert({
+        entity_type: "contact",
+        entity_id: contact.id,
+        content: content.trim(),
+        visibility: visibility as any,
+        owner_id: user?.id || null,
+        pinned: false,
+        source: "ui",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["contact-notes", contact.id] });
+      toast.success("Note saved");
+    },
+    onError: () => toast.error("Failed to save note"),
   });
 
   // Timeline: audit log entries
@@ -258,6 +285,23 @@ export function ContactDetailTabs({ contact }: Props) {
             )}
           </CardHeader>
           <CardContent>
+            <div className="space-y-2 mb-3">
+              <Textarea
+                placeholder="Write a note…"
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                className="min-h-[80px] text-sm"
+              />
+              <div className="flex justify-end">
+                <Button
+                  size="sm"
+                  disabled={!newNote.trim() || addNoteMutation.isPending}
+                  onClick={() => addNoteMutation.mutate({ content: newNote, visibility: "team" }, { onSuccess: () => setNewNote("") })}
+                >
+                  Save note
+                </Button>
+              </div>
+            </div>
             {notes.length === 0 ? (
               <EmptyState icon={MessageSquare} text="No notes yet" actionLabel="+ Add Note" />
             ) : (

@@ -50,7 +50,7 @@ export default function ContactDetail() {
   }
 
   return (
-    <div className="space-y-4 p-6">
+    <div className="h-full overflow-y-auto space-y-4 p-6">
       <ContactDetailHeader contact={contact} />
 
       <div className="flex flex-col lg:flex-row gap-6">

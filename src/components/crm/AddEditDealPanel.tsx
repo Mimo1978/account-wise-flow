@@ -44,9 +44,14 @@ interface Props {
     value: number;
     currency: string;
   } | null;
+  defaultValues?: {
+    title?: string;
+    company_id?: string | null;
+    engagement_id?: string | null;
+  } | null;
 }
 
-export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: Props) {
+export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, defaultValues }: Props) {
   const isEdit = !!deal;
   const createMut = useCreateCrmDeal();
   const updateMut = useUpdateCrmDeal();
@@ -120,6 +125,16 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
         source: "",
       });
       setProbManual(false);
+    } else if (defaultValues) {
+      setForm({
+        title: defaultValues.title || "",
+        company_id: defaultValues.company_id || "",
+        contact_id: "", opportunity_id: "", value: "",
+        currency: "GBP", stage: "lead", probability: "10",
+        signed_date: "", start_date: "", end_date: "", expected_close_date: "",
+        payment_terms: "", status: "active", notes: "", project_id: "", source: "",
+      });
+      setProbManual(false);
     } else {
       setForm({
         title: "", company_id: "", contact_id: "", opportunity_id: "", value: "",
@@ -129,7 +144,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity }: 
       });
       setProbManual(false);
     }
-  }, [deal, fromOpportunity, open]);
+  }, [deal, fromOpportunity, defaultValues, open]);
 
   const handleStageChange = (stage: string) => {
     setForm(f => ({

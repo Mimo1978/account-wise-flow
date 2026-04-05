@@ -40,6 +40,7 @@ import {
   Clock,
   Maximize2,
   Minimize2,
+  ExternalLink,
   FileText,
   Activity as ActivityIcon,
   Pin,
@@ -533,13 +534,20 @@ export const ContactDetailPanel = ({
               <Calendar className="w-3 h-3" /> Schedule
             </Button>
           </ScheduleActionModal>
+          {/* Open full contact page */}
           <Button
             variant="ghost"
             size="sm"
-            className="gap-1.5 h-7 text-xs px-2 text-muted-foreground"
-            onClick={() => { navigate(`/contacts/${editedContact.id}`, { state: { from: window.location.pathname, fromLabel: "Back to Canvas" } }); onClose(); }}
+            className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              if (editedContact?.id) {
+                window.location.href = `/contacts/${editedContact.id}`;
+              }
+            }}
+            title="Open full contact page"
           >
-            <Maximize2 className="w-3 h-3" /> Full page
+            <ExternalLink className="w-3.5 h-3.5" />
+            Open contact
           </Button>
           <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
 
@@ -556,9 +564,10 @@ export const ContactDetailPanel = ({
                 entityName={editedContact.name}
               />
             )}
+            {/* Expand panel in-place */}
             {onExpandToggle && (
-              <Button variant="ghost" size="icon" onClick={onExpandToggle} className="h-7 w-7" title="Full screen">
-                {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              <Button variant="ghost" size="icon" onClick={onExpandToggle} className="h-8 w-8" title={isExpanded ? "Collapse panel" : "Expand panel"}>
+                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </Button>
             )}
             <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7">

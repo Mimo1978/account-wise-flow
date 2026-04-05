@@ -479,6 +479,8 @@ export const ContactDetailPanel = ({
       style={!isExpanded ? {
         left: position.x,
         top: position.y,
+        width: 'clamp(720px, 75vw, 1080px)',
+        height: 'clamp(560px, 80vh, 860px)',
         transition: isDragging ? 'none' : 'box-shadow 0.2s ease',
       } : undefined}
     >

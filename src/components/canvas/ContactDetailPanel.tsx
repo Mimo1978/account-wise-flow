@@ -56,6 +56,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 interface ContactDetailPanelProps {
   contact: Contact | null;

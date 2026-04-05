@@ -45,8 +45,6 @@ import {
   Plus,
   Search,
   ChevronDown,
-  ChevronRight,
-  Focus,
   Camera,
   CreditCard,
   Network,

@@ -424,7 +424,7 @@ export default function CrmDealDetail() {
               {d.contact_id && currentContact ? (
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-sm font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/contacts/${currentContact.id}`)}>{currentContact.first_name} {currentContact.last_name}</span>
+                    <span className="text-sm font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/contacts/${currentContact.id}`)}>{currentContact.first_name} {currentContact.last_name}</span>
                     {currentContact.job_title && <p className="text-xs text-muted-foreground">{currentContact.job_title}</p>}
                   </div>
                   <Popover open={contactPopoverOpen} onOpenChange={(v) => { setContactPopoverOpen(v); setContactSearch(""); }}>

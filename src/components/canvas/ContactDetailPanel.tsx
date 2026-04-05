@@ -654,6 +654,57 @@ export const ContactDetailPanel = ({
 
           {/* Tab content - scrollable */}
           <div className="flex-1 overflow-y-auto p-4">
+            <div className="px-4 pt-3 pb-2 space-y-2 border-b border-border/40 -mx-4 -mt-4 mb-4">
+              {/* Relationship pills */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs text-muted-foreground uppercase tracking-wide mr-1">Relationship:</span>
+                {[
+                  { key: "champion", color: "bg-node-champion", label: "Champion" },
+                  { key: "engaged", color: "bg-node-engaged", label: "Engaged" },
+                  { key: "warm", color: "bg-node-warm", label: "Warm" },
+                  { key: "unknown", color: "bg-node-unknown", label: "Unknown" },
+                  { key: "blocker", color: "bg-node-blocker", label: "Blocker" },
+                ].map(({ key, color, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => handleStatusChange(key)}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-all border ${
+                      editedContact.status === key
+                        ? `${color} text-white border-transparent shadow-sm`
+                        : "bg-background text-muted-foreground border-border hover:border-foreground/30"
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${color}`} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* Next action */}
+              {isEditing === "nextAction" ? (
+                <div className="flex gap-1.5">
+                  <Input
+                    placeholder="e.g. Send proposal by Friday"
+                    value={(editedContact as any).nextAction || ""}
+                    onChange={(e) => setEditedContact({ ...editedContact, nextAction: e.target.value } as any)}
+                    className="h-7 text-xs flex-1"
+                    autoFocus
+                  />
+                  <Button size="sm" onClick={() => { handleSave("nextAction", (editedContact as any).nextAction); }} className="h-7 px-2">
+                    <Save className="w-3 h-3" />
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setIsEditing(null)} className="h-7 px-2">
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsEditing("nextAction")}
+                  className="w-full text-left text-xs px-2.5 py-1.5 rounded-md border border-dashed border-border hover:border-primary hover:bg-primary/5 transition-all text-muted-foreground"
+                >
+                  {(editedContact as any).nextAction ? `Next: ${(editedContact as any).nextAction}` : "+ Add next action..."}
+                </button>
+              )}
+            </div>
             {openSection === "notes" && (
               <div className="space-y-4">
                 {/* Search & Add */}

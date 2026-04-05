@@ -47,7 +47,7 @@ export function ContactIdentityCard({ contact }: Props) {
   const company = contact.companies;
 
   return (
-    <div className="rounded-xl border border-border bg-[#1A1F2E] border-l-4 border-l-[#378ADD] p-5 space-y-5">
+    <div className="rounded-xl border border-border bg-card border-l-4 border-l-primary p-5 space-y-5">
       {/* Avatar + Name */}
       <div className="flex flex-col items-center text-center gap-3">
         <div

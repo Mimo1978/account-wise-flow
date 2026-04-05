@@ -1496,6 +1496,7 @@ export type Database = {
           phone: string | null
           postcode: string | null
           size: string | null
+          source_company_id: string | null
           team_id: string | null
           updated_at: string
           website: string | null
@@ -1518,6 +1519,7 @@ export type Database = {
           phone?: string | null
           postcode?: string | null
           size?: string | null
+          source_company_id?: string | null
           team_id?: string | null
           updated_at?: string
           website?: string | null
@@ -1540,11 +1542,19 @@ export type Database = {
           phone?: string | null
           postcode?: string | null
           size?: string | null
+          source_company_id?: string | null
           team_id?: string | null
           updated_at?: string
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_companies_source_company_id_fkey"
+            columns: ["source_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_companies_team_id_fkey"
             columns: ["team_id"]

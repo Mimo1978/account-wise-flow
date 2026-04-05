@@ -331,12 +331,19 @@ export function ContactDetailTabs({ contact }: Props) {
               Recent Notes
             </CardTitle>
             {notes.length > 3 && (
-              <button className="text-xs text-[#378ADD] hover:underline">
-                View all
+              <button
+                className="text-xs text-[#378ADD] hover:underline"
+                onClick={() => {
+                  const tab = document.querySelector('[value="notes"]') as HTMLElement;
+                  tab?.click();
+                }}
+              >
+                View all ({notes.length})
               </button>
             )}
           </CardHeader>
           <CardContent>
+            {/* Compact composer */}
             <div className="space-y-2 mb-3">
               <Textarea
                 placeholder="Write a note…"
@@ -344,13 +351,24 @@ export function ContactDetailTabs({ contact }: Props) {
                 onChange={(e) => setNewNote(e.target.value)}
                 className="min-h-[80px] text-sm"
               />
-              <div className="flex justify-end">
+              {isRecording && voiceTranscript && (
+                <p className="text-xs text-muted-foreground italic px-1">Recording: {voiceTranscript}</p>
+              )}
+              <div className="flex items-center justify-between">
+                <Button
+                  size="sm"
+                  variant={isRecording ? "destructive" : "outline"}
+                  className="gap-1.5 h-8 text-xs"
+                  onClick={isRecording ? stopVoice : startVoice}
+                >
+                  {isRecording ? <><Square className="w-3 h-3" /> Stop</> : <><Mic className="w-3 h-3" /> Dictate</>}
+                </Button>
                 <Button
                   size="sm"
                   disabled={!newNote.trim() || addNote.isPending}
                   onClick={() => addNote.mutate()}
                 >
-                  Save note
+                  {addNote.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save note"}
                 </Button>
               </div>
             </div>
@@ -367,14 +385,32 @@ export function ContactDetailTabs({ contact }: Props) {
               />
             ) : (
               <div className="space-y-2">
-                {notes.slice(0, 3).map((note: any) => (
-                  <div key={note.id} className="p-3 rounded-lg border border-border bg-background/50">
-                    <p className="text-sm text-foreground line-clamp-2">{note.content}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {format(new Date(note.created_at), "dd MMM yyyy HH:mm")}
-                    </p>
-                  </div>
-                ))}
+                {notes.slice(0, 3).map((note: any) => {
+                  const author = note.profiles;
+                  const noteInitials = author
+                    ? `${(author.first_name || "")[0] || ""}${(author.last_name || "")[0] || ""}`.toUpperCase() || "?"
+                    : "?";
+                  const authorName = author
+                    ? `${author.first_name || ""} ${author.last_name || ""}`.trim() || "Unknown"
+                    : "Unknown";
+                  return (
+                    <div key={note.id} className={cn("p-3 rounded-lg border border-border bg-background/50", note.pinned && "border-primary/40")}>
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0 mt-0.5">
+                          {noteInitials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-xs font-medium text-foreground">{authorName}</span>
+                            <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
+                            {note.pinned && <Badge variant="outline" className="text-[10px] h-4 px-1 border-primary/40 text-primary">pinned</Badge>}
+                          </div>
+                          <p className="text-sm text-foreground line-clamp-2">{note.content}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>

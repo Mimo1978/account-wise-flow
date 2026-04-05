@@ -40,6 +40,7 @@ import {
   Clock,
   Maximize2,
   Minimize2,
+  ExternalLink,
   FileText,
   Activity as ActivityIcon,
   Pin,
@@ -556,9 +557,10 @@ export const ContactDetailPanel = ({
                 entityName={editedContact.name}
               />
             )}
+            {/* Expand panel in-place */}
             {onExpandToggle && (
-              <Button variant="ghost" size="icon" onClick={onExpandToggle} className="h-7 w-7" title="Full screen">
-                {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              <Button variant="ghost" size="icon" onClick={onExpandToggle} className="h-8 w-8" title={isExpanded ? "Collapse panel" : "Expand panel"}>
+                {isExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </Button>
             )}
             <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7">

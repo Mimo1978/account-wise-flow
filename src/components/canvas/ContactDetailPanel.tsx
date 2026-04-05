@@ -66,7 +66,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 
 interface ContactDetailPanelProps {
   contact: Contact | null;
@@ -246,21 +246,52 @@ export const ContactDetailPanel = ({
 
   const statusInfo = statusConfig[editedContact.status as keyof typeof statusConfig] || statusConfig.unknown;
 
-  const mockNotes: Note[] = editedContact.notes || [
-    { id: "1", date: "2025-01-22", author: "Sarah Williams", content: "Key decision maker for infrastructure projects. Mentioned budget approval needed by Q2.", pinned: true, visibility: "team" },
-    { id: "2", date: "2025-01-18", author: "Michael Chen", content: "Technical requirements align well with our platform. Should involve in next technical workshop.", visibility: "public" },
-    { id: "3", date: "2025-01-15", author: "John Doe", content: "", visibility: "private", isRedacted: true },
-  ];
+  const { data: realNotes = [], refetch: refetchNotes } = useQuery({
+    queryKey: ["contact-notes-panel", contact?.id],
+    queryFn: async () => {
+      if (!contact?.id) return [];
+      const { data, error } = await supabase
+        .from("notes")
+        .select("*")
+        .eq("entity_type", "contact")
+        .eq("entity_id", contact.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data || []).map((n: any) => ({
+        id: n.id,
+        date: n.created_at,
+        author: n.owner_id || "Unknown",
+        content: n.content || "",
+        pinned: n.pinned || false,
+        visibility: n.visibility || "team",
+      }));
+    },
+    enabled: !!contact?.id,
+  });
 
-  const mockActivities: Activity[] = editedContact.activities || [
-    { id: "1", type: "email", date: "2025-01-23", description: "Followed up on product demo feedback" },
-    { id: "2", type: "meeting", date: "2025-01-20", description: "Product demo - very positive response" },
-    { id: "3", type: "call", date: "2025-01-15", description: "Initial discovery call" },
-    { id: "4", type: "owner-change", date: "2025-01-12", description: "Contact owner changed to Sarah Williams" },
-    { id: "5", type: "score-change", date: "2025-01-10", description: "Engagement score increased from 45 to 72", metadata: { "Previous": "45", "New": "72" } },
-  ];
+  const { data: realActivities = [] } = useQuery({
+    queryKey: ["contact-activities-panel", contact?.id],
+    queryFn: async () => {
+      if (!contact?.id) return [];
+      const { data, error } = await (supabase
+        .from("contact_activities" as any))
+        .select("*")
+        .eq("contact_id", contact.id)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (error) return [];
+      return (data || []).map((a: any) => ({
+        id: a.id,
+        type: a.type || "note",
+        date: a.created_at,
+        description: a.description || a.content || "",
+      }));
+    },
+    enabled: !!contact?.id,
+  });
 
-  const filteredNotes = mockNotes.filter(note => 
+  const filteredNotes = realNotes.filter((note: any) => 
     note.content.toLowerCase().includes(noteSearchQuery.toLowerCase()) ||
     note.author.toLowerCase().includes(noteSearchQuery.toLowerCase())
   );
@@ -295,16 +326,24 @@ export const ContactDetailPanel = ({
     toast.success("Updated successfully");
   };
 
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
     if (!newNoteContent.trim()) {
       toast.error("Note cannot be empty");
       return;
     }
-    console.log("Adding note:", { content: newNoteContent, visibility: newNoteVisibility });
+    if (!contact?.id) return;
+    const { error } = await supabase.from("notes").insert({
+      entity_type: "contact",
+      entity_id: contact.id,
+      content: newNoteContent,
+      visibility: newNoteVisibility,
+    });
+    if (error) { toast.error("Failed to save note"); return; }
+    refetchNotes();
     setNewNoteContent("");
     setNewNoteVisibility("team");
     setIsAddingNote(false);
-    toast.success("Note added");
+    toast.success("Note saved");
   };
 
   const handleEditNote = (noteId: string) => {
@@ -1016,7 +1055,7 @@ export const ContactDetailPanel = ({
                   id="notes"
                   title="Notes"
                   icon={<FileText className="w-5 h-5" />}
-                  badge={mockNotes.length}
+                  badge={realNotes.length}
                   isOpen={openSection === "notes"}
                   isFocused={focusedSection === "notes"}
                   onToggle={() => toggleSection("notes")}
@@ -1104,9 +1143,9 @@ export const ContactDetailPanel = ({
                         sortedNotes.map((note) => (
                           <div key={note.id} className={cn(
                             "p-4 rounded-xl space-y-3",
-                            note.isRedacted ? "bg-muted/20 border border-dashed border-muted-foreground/30" : "bg-muted/40"
+                            (note as any).isRedacted ? "bg-muted/20 border border-dashed border-muted-foreground/30" : "bg-muted/40"
                           )}>
-                            {note.isRedacted ? (
+                            {(note as any).isRedacted ? (
                               /* Redacted Note Display */
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -1192,20 +1231,20 @@ export const ContactDetailPanel = ({
                   id="activity"
                   title="Activity Timeline"
                   icon={<ActivityIcon className="w-5 h-5" />}
-                  badge={mockActivities.length}
+                  badge={realActivities.length}
                   isOpen={openSection === "activity"}
                   isFocused={focusedSection === "activity"}
                   onToggle={() => toggleSection("activity")}
                   onFocus={() => toggleFocus("activity")}
                 >
                   <div className="space-y-1">
-                    {mockActivities.map((activity, index) => (
+                    {realActivities.map((activity: any, index: number) => (
                       <div key={activity.id} className="flex gap-4 py-3">
                         <div className="flex flex-col items-center">
                           <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
                             {getActivityIcon(activity.type)}
                           </div>
-                          {index < mockActivities.length - 1 && (
+                          {index < realActivities.length - 1 && (
                             <div className="w-px h-full bg-border mt-2" />
                           )}
                         </div>
@@ -1217,9 +1256,9 @@ export const ContactDetailPanel = ({
                           <p className="text-sm text-muted-foreground leading-relaxed">{activity.description}</p>
                           {activity.metadata && (
                             <div className="flex flex-wrap gap-1.5 mt-2">
-                              {Object.entries(activity.metadata).map(([key, value]) => (
+                              {Object.entries(activity.metadata).map(([key, value]: [string, any]) => (
                                 <Badge key={key} variant="outline" className="text-xs">
-                                  {key}: {value}
+                                  {key}: {String(value)}
                                 </Badge>
                               ))}
                             </div>

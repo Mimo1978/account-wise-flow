@@ -1055,7 +1055,7 @@ export const ContactDetailPanel = ({
                   id="notes"
                   title="Notes"
                   icon={<FileText className="w-5 h-5" />}
-                  badge={mockNotes.length}
+                  badge={realNotes.length}
                   isOpen={openSection === "notes"}
                   isFocused={focusedSection === "notes"}
                   onToggle={() => toggleSection("notes")}
@@ -1143,9 +1143,9 @@ export const ContactDetailPanel = ({
                         sortedNotes.map((note) => (
                           <div key={note.id} className={cn(
                             "p-4 rounded-xl space-y-3",
-                            note.isRedacted ? "bg-muted/20 border border-dashed border-muted-foreground/30" : "bg-muted/40"
+                            (note as any).isRedacted ? "bg-muted/20 border border-dashed border-muted-foreground/30" : "bg-muted/40"
                           )}>
-                            {note.isRedacted ? (
+                            {(note as any).isRedacted ? (
                               /* Redacted Note Display */
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -1231,20 +1231,20 @@ export const ContactDetailPanel = ({
                   id="activity"
                   title="Activity Timeline"
                   icon={<ActivityIcon className="w-5 h-5" />}
-                  badge={mockActivities.length}
+                  badge={realActivities.length}
                   isOpen={openSection === "activity"}
                   isFocused={focusedSection === "activity"}
                   onToggle={() => toggleSection("activity")}
                   onFocus={() => toggleFocus("activity")}
                 >
                   <div className="space-y-1">
-                    {mockActivities.map((activity, index) => (
+                    {realActivities.map((activity: any, index: number) => (
                       <div key={activity.id} className="flex gap-4 py-3">
                         <div className="flex flex-col items-center">
                           <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
                             {getActivityIcon(activity.type)}
                           </div>
-                          {index < mockActivities.length - 1 && (
+                          {index < realActivities.length - 1 && (
                             <div className="w-px h-full bg-border mt-2" />
                           )}
                         </div>
@@ -1256,9 +1256,9 @@ export const ContactDetailPanel = ({
                           <p className="text-sm text-muted-foreground leading-relaxed">{activity.description}</p>
                           {activity.metadata && (
                             <div className="flex flex-wrap gap-1.5 mt-2">
-                              {Object.entries(activity.metadata).map(([key, value]) => (
+                              {Object.entries(activity.metadata).map(([key, value]: [string, any]) => (
                                 <Badge key={key} variant="outline" className="text-xs">
-                                  {key}: {value}
+                                  {key}: {String(value)}
                                 </Badge>
                               ))}
                             </div>

@@ -125,8 +125,8 @@ export const ContactDetailPanel = ({
 }: ContactDetailPanelProps) => {
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [editedContact, setEditedContact] = useState(contact);
-  const [openSection, setOpenSection] = useState<string | null>("ai-insights");
-  const [focusedSection, setFocusedSection] = useState<string | null>(null);
+  const [openSection, setOpenSection] = useState<string>("notes");
+
   
   // Permissions
   const { role, canEdit, isLoading: permissionsLoading } = usePermissions();

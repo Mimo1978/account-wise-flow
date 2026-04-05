@@ -1656,6 +1656,7 @@ export type Database = {
       }
       crm_deals: {
         Row: {
+          candidate_id: string | null
           company_id: string | null
           contact_id: string | null
           created_at: string
@@ -1688,6 +1689,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          candidate_id?: string | null
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
@@ -1720,6 +1722,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          candidate_id?: string | null
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
@@ -1752,6 +1755,13 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_deals_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_deals_company_id_fkey"
             columns: ["company_id"]

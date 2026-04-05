@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Contact, Note, Activity, NoteVisibility } from "@/lib/types";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -111,6 +112,7 @@ export const ContactDetailPanel = ({
   onUnsavedChanges,
   readOnly = false
 }: ContactDetailPanelProps) => {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [editedContact, setEditedContact] = useState(contact);
   const [openSection, setOpenSection] = useState<string>("notes");
@@ -506,6 +508,14 @@ export const ContactDetailPanel = ({
               <Calendar className="w-3.5 h-3.5" /> Schedule
             </Button>
           </ScheduleActionModal>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 h-8 ml-1 text-muted-foreground"
+            onClick={() => { navigate(`/contacts/${editedContact.id}`); onClose(); }}
+          >
+            <Maximize2 className="w-3.5 h-3.5" /> Full page
+          </Button>
           <VoiceInput onTranscriptComplete={handleVoiceTranscript} />
 
           {/* Hidden PhotoCapture trigger */}

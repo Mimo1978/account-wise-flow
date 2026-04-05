@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronLeft, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
@@ -12,6 +12,7 @@ interface Props {
 
 export function ContactDetailHeader({ contact }: Props) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const perm = useDeletionPermission();
 
@@ -20,11 +21,11 @@ export function ContactDetailHeader({ contact }: Props) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/contacts")}
+            onClick={() => navigate(location.state?.from || "/contacts")}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground px-2 py-1 -ml-2 rounded-md transition-all duration-150 hover:bg-accent border-l-2 border-transparent hover:border-primary group"
           >
             <ChevronLeft className="h-4 w-4 transition-transform duration-150 group-hover:-translate-x-0.5" />
-            Back to Contacts
+            {location.state?.fromLabel || "Back to Contacts"}
           </button>
           <span className="text-muted-foreground text-sm">/</span>
           <span className="text-sm font-medium text-foreground">{contact.name}</span>
@@ -56,7 +57,7 @@ export function ContactDetailHeader({ contact }: Props) {
         recordType="contacts"
         recordId={contact.id}
         recordName={contact.name}
-        onDeleted={() => navigate("/contacts")}
+        onDeleted={() => navigate(location.state?.from || "/contacts")}
       />
     </>
   );

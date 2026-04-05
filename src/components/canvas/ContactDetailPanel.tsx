@@ -860,363 +860,319 @@ export const ContactDetailPanel = ({
         )}
       </div>
 
-      {/* Single Scrollable Content Area - Split screen layout in all modes */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="p-4 h-full">
-          <div className={cn(
-            "grid gap-4 h-full",
-            focusedSection ? "grid-cols-1" : "grid-cols-2"
-          )}>
-            {/* Left Column: AI Insights, Contact Info & Engagement */}
-            <div className="space-y-4">
-              {/* AI Insights Section */}
-              {(!focusedSection || focusedSection === "ai-insights") && (
-                <Section
-                  id="ai-insights"
-                  title="AI Insights"
-                  icon={<Sparkles className="w-5 h-5" />}
-                  isOpen={openSection === "ai-insights"}
-                  isFocused={focusedSection === "ai-insights"}
-                  onToggle={() => toggleSection("ai-insights")}
-                  onFocus={() => toggleFocus("ai-insights")}
-                >
-                  <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-                    <p className="text-sm leading-relaxed text-foreground mb-3">
-                      High engagement contact with strong buying signals. Recommended next action: Schedule technical deep-dive within 7 days.
-                    </p>
-                    <div className="flex items-center gap-2 text-sm text-primary font-medium">
-                      <TrendingUp className="w-4 h-4" />
-                      <span>Engagement trending upward</span>
-                    </div>
-                  </div>
-                </Section>
-              )}
+      {/* Two-column body layout */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* LEFT: static fields sidebar - 240px fixed width */}
+        <div className="w-60 shrink-0 border-r border-border overflow-y-auto p-4 space-y-4">
+          {/* Contact Information */}
+          <div className="space-y-3">
+            <span className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Contact Info</span>
+            <EditableField field="email" value={editedContact.email} icon={<Mail className="w-4 h-4" />} type="email" />
+            <EditableField field="phone" value={editedContact.phone} icon={<Phone className="w-4 h-4" />} type="tel" />
+            <DisplayField value={editedContact.department} icon={<Building2 className="w-4 h-4" />} label="Department" />
+            <DisplayField value={seniorityConfig[editedContact.seniority]} icon={<Briefcase className="w-4 h-4" />} label="Seniority" />
+            {editedContact.location && (
+              <DisplayField value={editedContact.location} icon={<MapPin className="w-4 h-4" />} label="Location" />
+            )}
+            {editedContact.linkedIn && (
+              <EditableField field="linkedIn" value={editedContact.linkedIn} icon={<Linkedin className="w-4 h-4" />} />
+            )}
+          </div>
 
-              {/* Contact Information Section */}
-              {(!focusedSection || focusedSection === "contact-info") && (
-                <Section
-                  id="contact-info"
-                  title="Contact Information"
-                  icon={<User className="w-5 h-5" />}
-                  isOpen={openSection === "contact-info"}
-                  isFocused={focusedSection === "contact-info"}
-                  onToggle={() => toggleSection("contact-info")}
-                  onFocus={() => toggleFocus("contact-info")}
-                >
-                  <div className="space-y-3">
-                    <EditableField field="email" value={editedContact.email} icon={<Mail className="w-4 h-4" />} type="email" />
-                    <EditableField field="phone" value={editedContact.phone} icon={<Phone className="w-4 h-4" />} type="tel" />
-                    <DisplayField value={editedContact.department} icon={<Building2 className="w-4 h-4" />} label="Department" />
-                    <DisplayField value={seniorityConfig[editedContact.seniority]} icon={<Briefcase className="w-4 h-4" />} label="Seniority" />
-                    {editedContact.location && (
-                      <DisplayField value={editedContact.location} icon={<MapPin className="w-4 h-4" />} label="Location" />
-                    )}
-                    {editedContact.linkedIn && (
-                      <EditableField field="linkedIn" value={editedContact.linkedIn} icon={<Linkedin className="w-4 h-4" />} />
-                    )}
-                  </div>
-                </Section>
-              )}
+          {/* Engagement & Ownership */}
+          <div className="space-y-4">
+            <span className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Engagement</span>
+            <OwnershipSection
+              entityType="contact"
+              entityId={editedContact.id}
+              ownerId={null}
+              teamMembers={[]}
+              onOwnerChange={(newOwnerId) => {
+                console.log("Owner changed:", newOwnerId);
+              }}
+              onTeamChange={(newTeam) => {
+                console.log("Team changed:", newTeam);
+              }}
+            />
 
-              {/* Engagement & Ownership Section */}
-              {(!focusedSection || focusedSection === "engagement") && (
-                <Section
-                  id="engagement"
-                  title="Engagement & Ownership"
-                  icon={<TrendingUp className="w-5 h-5" />}
-                  isOpen={openSection === "engagement"}
-                  isFocused={focusedSection === "engagement"}
-                  onToggle={() => toggleSection("engagement")}
-                  onFocus={() => toggleFocus("engagement")}
-                >
-                  <div className="space-y-4">
-                    {/* Ownership Section - Collapsible */}
-                    <OwnershipSection
-                      entityType="contact"
-                      entityId={editedContact.id}
-                      ownerId={null} // In real app, would come from editedContact.owner_id
-                      teamMembers={[]}
-                      onOwnerChange={(newOwnerId) => {
-                        console.log("Owner changed:", newOwnerId);
-                        // In real app, update the contact's owner_id
-                      }}
-                      onTeamChange={(newTeam) => {
-                        console.log("Team changed:", newTeam);
-                        // In real app, update contact_team_members table
-                      }}
-                    />
+            <AuditHistorySection
+              entityType="contacts"
+              entityId={editedContact.id}
+            />
 
-                    {/* Audit History Section - Collapsible */}
-                    <AuditHistorySection
-                      entityType="contacts"
-                      entityId={editedContact.id}
-                    />
-
-                    {/* Engagement Score */}
-                    <div className="p-4 rounded-xl bg-muted/40">
-                      <div className="flex justify-between text-sm mb-3">
-                        <span className="text-muted-foreground font-medium">Engagement Score</span>
-                        <span className="font-bold text-xl text-primary">{editedContact.engagementScore}/100</span>
-                      </div>
-                      <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-primary/60 to-primary transition-all rounded-full"
-                          style={{ width: `${editedContact.engagementScore}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3">
-                      <div className="rounded-xl bg-muted/40 p-3">
-                        <span className="text-xs text-muted-foreground uppercase tracking-wide block mb-1.5">Last Contact</span>
-                        <div className="flex items-center gap-3">
-                          <div className="p-1.5 rounded-lg bg-background/50 text-muted-foreground">
-                            <Calendar className="w-4 h-4" />
-                          </div>
-                          <span className="text-sm font-medium">{editedContact.lastContact}</span>
-                        </div>
-                      </div>
-
-                      {editedContact.nextFollowUp && (
-                        <div className="rounded-xl bg-muted/40 p-3">
-                          <span className="text-xs text-muted-foreground uppercase tracking-wide block mb-1.5">Next Follow-up</span>
-                          <div className="flex items-center gap-3">
-                            <div className="p-1.5 rounded-lg bg-background/50 text-muted-foreground">
-                              <Clock className="w-4 h-4" />
-                            </div>
-                            <span className="text-sm font-medium">{editedContact.nextFollowUp}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Section>
-              )}
+            {/* Engagement Score */}
+            <div className="p-4 rounded-xl bg-muted/40">
+              <div className="flex justify-between text-sm mb-3">
+                <span className="text-muted-foreground font-medium">Engagement Score</span>
+                <span className="font-bold text-xl text-primary">{editedContact.engagementScore}/100</span>
+              </div>
+              <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-primary/60 to-primary transition-all rounded-full"
+                  style={{ width: `${editedContact.engagementScore}%` }}
+                />
+              </div>
             </div>
 
-            {/* Right Column: Notes & Activity Timeline */}
-            <div className="space-y-4">
-              {/* Notes Section */}
-              {(!focusedSection || focusedSection === "notes") && (
-                <Section
-                  id="notes"
-                  title="Notes"
-                  icon={<FileText className="w-5 h-5" />}
-                  badge={realNotes.length}
-                  isOpen={openSection === "notes"}
-                  isFocused={focusedSection === "notes"}
-                  onToggle={() => toggleSection("notes")}
-                  onFocus={() => toggleFocus("notes")}
-                >
-                  <div className="space-y-4">
-                    {/* Search & Add */}
-                    <div className="flex items-center gap-3">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Search notes..."
-                          value={noteSearchQuery}
-                          onChange={(e) => setNoteSearchQuery(e.target.value)}
-                          className="pl-10 h-10 text-sm"
-                        />
-                      </div>
-                      <Button onClick={() => setIsAddingNote(true)} disabled={isAddingNote} size="sm" className="h-10 px-4">
-                        <Plus className="w-4 h-4 mr-1.5" /> Add
-                      </Button>
+            <div className="grid gap-3">
+              <div className="rounded-xl bg-muted/40 p-3">
+                <span className="text-xs text-muted-foreground uppercase tracking-wide block mb-1.5">Last Contact</span>
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 rounded-lg bg-background/50 text-muted-foreground">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm font-medium">{editedContact.lastContact}</span>
+                </div>
+              </div>
+
+              {editedContact.nextFollowUp && (
+                <div className="rounded-xl bg-muted/40 p-3">
+                  <span className="text-xs text-muted-foreground uppercase tracking-wide block mb-1.5">Next Follow-up</span>
+                  <div className="flex items-center gap-3">
+                    <div className="p-1.5 rounded-lg bg-background/50 text-muted-foreground">
+                      <Clock className="w-4 h-4" />
                     </div>
+                    <span className="text-sm font-medium">{editedContact.nextFollowUp}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
-                    {/* Add Note Form */}
-                    {isAddingNote && (
-                      <div className="p-4 rounded-xl bg-muted/50 space-y-4 animate-fade-in">
-                        <Textarea
-                          placeholder="Type your note here..."
-                          value={newNoteContent}
-                          onChange={(e) => setNewNoteContent(e.target.value)}
-                          className="min-h-[120px] text-sm leading-relaxed resize-y p-3"
-                          autoFocus
-                        />
-                        <div className="flex items-center justify-between">
-                          {/* Visibility Selector */}
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Visibility:</span>
-                            <Select value={newNoteVisibility} onValueChange={(v) => setNewNoteVisibility(v as NoteVisibility)}>
-                              <SelectTrigger className="h-8 w-28 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="public" className="text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <Globe className="w-3 h-3" />
-                                    <span>Public</span>
-                                  </div>
-                                </SelectItem>
-                                <SelectItem value="team" className="text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <Users className="w-3 h-3" />
-                                    <span>Team</span>
-                                  </div>
-                                </SelectItem>
-                                <SelectItem value="private" className="text-xs">
-                                  <div className="flex items-center gap-2">
-                                    <Lock className="w-3 h-3" />
-                                    <span>Private</span>
-                                  </div>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="flex gap-3">
-                            <Button onClick={handleAddNote} size="sm" className="h-9 px-4">
-                              <Save className="w-3 h-3 mr-1.5" /> Save
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => { setIsAddingNote(false); setNewNoteContent(""); setNewNoteVisibility("team"); }} className="h-9">
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
+        {/* RIGHT: tabbed workspace - flex-1 */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Tab bar - sticky */}
+          <div className="border-b border-border px-4">
+            <div className="flex gap-1">
+              {["notes", "activity", "details", "ai-insights"].map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setOpenSection(tab)}
+                  className={cn(
+                    "h-9 px-3 text-xs capitalize border-b-2 transition-colors",
+                    openSection === tab
+                      ? "border-primary text-primary font-medium"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {tab.replace("-", " ")}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Tab content - scrollable */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {openSection === "notes" && (
+              <div className="space-y-4">
+                {/* Search & Add */}
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search notes..."
+                      value={noteSearchQuery}
+                      onChange={(e) => setNoteSearchQuery(e.target.value)}
+                      className="pl-10 h-10 text-sm"
+                    />
+                  </div>
+                  <Button onClick={() => setIsAddingNote(true)} disabled={isAddingNote} size="sm" className="h-10 px-4">
+                    <Plus className="w-4 h-4 mr-1.5" /> Add
+                  </Button>
+                </div>
+
+                {/* Add Note Form */}
+                {isAddingNote && (
+                  <div className="p-4 rounded-xl bg-muted/50 space-y-4 animate-fade-in">
+                    <Textarea
+                      placeholder="Type your note here..."
+                      value={newNoteContent}
+                      onChange={(e) => setNewNoteContent(e.target.value)}
+                      className="min-h-[120px] text-sm leading-relaxed resize-y p-3"
+                      autoFocus
+                    />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">Visibility:</span>
+                        <Select value={newNoteVisibility} onValueChange={(v) => setNewNoteVisibility(v as NoteVisibility)}>
+                          <SelectTrigger className="h-8 w-28 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="public" className="text-xs">
+                              <div className="flex items-center gap-2">
+                                <Globe className="w-3 h-3" />
+                                <span>Public</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="team" className="text-xs">
+                              <div className="flex items-center gap-2">
+                                <Users className="w-3 h-3" />
+                                <span>Team</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="private" className="text-xs">
+                              <div className="flex items-center gap-2">
+                                <Lock className="w-3 h-3" />
+                                <span>Private</span>
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    )}
+                      <div className="flex gap-3">
+                        <Button onClick={handleAddNote} size="sm" className="h-9 px-4">
+                          <Save className="w-3 h-3 mr-1.5" /> Save
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => { setIsAddingNote(false); setNewNoteContent(""); setNewNoteVisibility("team"); }} className="h-9">
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                    {/* Notes List */}
-                    <div className="space-y-3">
-                      {sortedNotes.length === 0 ? (
-                        <div className="text-center py-8 rounded-xl bg-muted/30">
-                          <FileText className="w-10 h-10 mx-auto text-muted-foreground/50 mb-2" />
-                          <p className="text-sm text-muted-foreground">
-                            {noteSearchQuery ? "No notes found" : "No notes yet"}
-                          </p>
-                        </div>
-                      ) : (
-                        sortedNotes.map((note) => (
-                          <div key={note.id} className={cn(
-                            "p-4 rounded-xl space-y-3",
-                            (note as any).isRedacted ? "bg-muted/20 border border-dashed border-muted-foreground/30" : "bg-muted/40"
-                          )}>
-                            {(note as any).isRedacted ? (
-                              /* Redacted Note Display */
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                  <EyeOff className="w-4 h-4" />
-                                  <span className="text-sm italic">Private note — request access</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-muted-foreground">{note.date}</span>
-                                  <Badge variant="outline" className="h-5 px-2 text-xs text-muted-foreground">
-                                    <Lock className="w-2.5 h-2.5 mr-1" /> Private
+                {/* Notes List */}
+                <div className="space-y-3">
+                  {sortedNotes.length === 0 ? (
+                    <div className="text-center py-8 rounded-xl bg-muted/30">
+                      <FileText className="w-10 h-10 mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        {noteSearchQuery ? "No notes found" : "No notes yet"}
+                      </p>
+                    </div>
+                  ) : (
+                    sortedNotes.map((note) => (
+                      <div key={note.id} className={cn(
+                        "p-4 rounded-xl space-y-3",
+                        (note as any).isRedacted ? "bg-muted/20 border border-dashed border-muted-foreground/30" : "bg-muted/40"
+                      )}>
+                        {(note as any).isRedacted ? (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <EyeOff className="w-4 h-4" />
+                              <span className="text-sm italic">Private note — request access</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">{note.date}</span>
+                              <Badge variant="outline" className="h-5 px-2 text-xs text-muted-foreground">
+                                <Lock className="w-2.5 h-2.5 mr-1" /> Private
+                              </Badge>
+                            </div>
+                          </div>
+                        ) : editingNoteId === note.id ? (
+                          <div className="space-y-4">
+                            <Textarea
+                              value={editNoteContent}
+                              onChange={(e) => setEditNoteContent(e.target.value)}
+                              className="min-h-[120px] text-sm leading-relaxed resize-y p-3"
+                              autoFocus
+                            />
+                            <div className="flex gap-3">
+                              <Button onClick={() => handleEditNote(note.id)} size="sm" className="h-9 px-4">
+                                <Save className="w-3 h-3 mr-1.5" /> Save
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => { setEditingNoteId(null); setEditNoteContent(""); }} className="h-9">
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold">{note.author}</span>
+                                {note.pinned && (
+                                  <Badge variant="secondary" className="h-5 px-2 text-xs">
+                                    <Pin className="w-2.5 h-2.5 mr-1 fill-current" /> Pinned
                                   </Badge>
-                                </div>
-                              </div>
-                            ) : editingNoteId === note.id ? (
-                              <div className="space-y-4">
-                                <Textarea
-                                  value={editNoteContent}
-                                  onChange={(e) => setEditNoteContent(e.target.value)}
-                                  className="min-h-[120px] text-sm leading-relaxed resize-y p-3"
-                                  autoFocus
-                                />
-                                <div className="flex gap-3">
-                                  <Button onClick={() => handleEditNote(note.id)} size="sm" className="h-9 px-4">
-                                    <Save className="w-3 h-3 mr-1.5" /> Save
-                                  </Button>
-                                  <Button variant="ghost" size="sm" onClick={() => { setEditingNoteId(null); setEditNoteContent(""); }} className="h-9">
-                                    Cancel
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-semibold">{note.author}</span>
-                                    {note.pinned && (
-                                      <Badge variant="secondary" className="h-5 px-2 text-xs">
-                                        <Pin className="w-2.5 h-2.5 mr-1 fill-current" /> Pinned
-                                      </Badge>
+                                )}
+                                {note.visibility && (
+                                  <Badge 
+                                    variant="outline" 
+                                    className={cn(
+                                      "h-5 px-2 text-xs",
+                                      note.visibility === "public" && "text-green-600 border-green-600/30",
+                                      note.visibility === "team" && "text-blue-600 border-blue-600/30",
+                                      note.visibility === "private" && "text-orange-600 border-orange-600/30"
                                     )}
-                                    {/* Visibility Badge */}
-                                    {note.visibility && (
-                                      <Badge 
-                                        variant="outline" 
-                                        className={cn(
-                                          "h-5 px-2 text-xs",
-                                          note.visibility === "public" && "text-green-600 border-green-600/30",
-                                          note.visibility === "team" && "text-blue-600 border-blue-600/30",
-                                          note.visibility === "private" && "text-orange-600 border-orange-600/30"
-                                        )}
-                                      >
-                                        {note.visibility === "public" && <Globe className="w-2.5 h-2.5 mr-1" />}
-                                        {note.visibility === "team" && <Users className="w-2.5 h-2.5 mr-1" />}
-                                        {note.visibility === "private" && <Lock className="w-2.5 h-2.5 mr-1" />}
-                                        {note.visibility.charAt(0).toUpperCase() + note.visibility.slice(1)}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground">{note.date}</span>
-                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handlePinNote(note.id)}>
-                                      <Pin className={cn("w-3 h-3", note.pinned && "fill-current")} />
-                                    </Button>
-                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingNoteId(note.id); setEditNoteContent(note.content); }}>
-                                      <Edit2 className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                                <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{note.content}</p>
-                              </>
-                            )}
-                          </div>
-                        ))
+                                  >
+                                    {note.visibility === "public" && <Globe className="w-2.5 h-2.5 mr-1" />}
+                                    {note.visibility === "team" && <Users className="w-2.5 h-2.5 mr-1" />}
+                                    {note.visibility === "private" && <Lock className="w-2.5 h-2.5 mr-1" />}
+                                    {note.visibility.charAt(0).toUpperCase() + note.visibility.slice(1)}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">{note.date}</span>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => handlePinNote(note.id)}>
+                                  <Pin className={cn("w-3 h-3", note.pinned && "fill-current")} />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingNoteId(note.id); setEditNoteContent(note.content); }}>
+                                  <Edit2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{note.content}</p>
+                          </>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {openSection === "activity" && (
+              <div className="space-y-1">
+                {realActivities.map((activity: any, index: number) => (
+                  <div key={activity.id} className="flex gap-4 py-3">
+                    <div className="flex flex-col items-center">
+                      <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+                        {getActivityIcon(activity.type)}
+                      </div>
+                      {index < realActivities.length - 1 && (
+                        <div className="w-px h-full bg-border mt-2" />
+                      )}
+                    </div>
+                    <div className="flex-1 pb-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-semibold capitalize">{activity.type.replace("-", " ")}</span>
+                        <span className="text-xs text-muted-foreground">{activity.date}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{activity.description}</p>
+                      {activity.metadata && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {Object.entries(activity.metadata).map(([key, value]: [string, any]) => (
+                            <Badge key={key} variant="outline" className="text-xs">
+                              {key}: {String(value)}
+                            </Badge>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>
-                </Section>
-              )}
+                ))}
+              </div>
+            )}
 
-              {/* Activity Timeline Section */}
-              {(!focusedSection || focusedSection === "activity") && (
-                <Section
-                  id="activity"
-                  title="Activity Timeline"
-                  icon={<ActivityIcon className="w-5 h-5" />}
-                  badge={realActivities.length}
-                  isOpen={openSection === "activity"}
-                  isFocused={focusedSection === "activity"}
-                  onToggle={() => toggleSection("activity")}
-                  onFocus={() => toggleFocus("activity")}
-                >
-                  <div className="space-y-1">
-                    {realActivities.map((activity: any, index: number) => (
-                      <div key={activity.id} className="flex gap-4 py-3">
-                        <div className="flex flex-col items-center">
-                          <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-                            {getActivityIcon(activity.type)}
-                          </div>
-                          {index < realActivities.length - 1 && (
-                            <div className="w-px h-full bg-border mt-2" />
-                          )}
-                        </div>
-                        <div className="flex-1 pb-1">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-semibold capitalize">{activity.type.replace("-", " ")}</span>
-                            <span className="text-xs text-muted-foreground">{activity.date}</span>
-                          </div>
-                          <p className="text-sm text-muted-foreground leading-relaxed">{activity.description}</p>
-                          {activity.metadata && (
-                            <div className="flex flex-wrap gap-1.5 mt-2">
-                              {Object.entries(activity.metadata).map(([key, value]: [string, any]) => (
-                                <Badge key={key} variant="outline" className="text-xs">
-                                  {key}: {String(value)}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Section>
-              )}
-            </div>
+            {openSection === "details" && (
+              <div className="text-sm text-muted-foreground">Additional details</div>
+            )}
+
+            {openSection === "ai-insights" && (
+              <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+                <p className="text-sm leading-relaxed text-foreground mb-3">
+                  High engagement contact with strong buying signals. Recommended next action: Schedule technical deep-dive within 7 days.
+                </p>
+                <div className="flex items-center gap-2 text-sm text-primary font-medium">
+                  <TrendingUp className="w-4 h-4" />
+                  <span>Engagement trending upward</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

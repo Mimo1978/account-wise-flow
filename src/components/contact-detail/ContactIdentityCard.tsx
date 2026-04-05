@@ -136,7 +136,13 @@ export function ContactIdentityCard({ contact }: Props) {
           </Button>
         </div>
         <Button variant="outline" size="sm" className="w-full justify-start gap-2"
-          onClick={() => document.querySelector<HTMLTextAreaElement>('textarea[placeholder="Write a note…"]')?.scrollIntoView({ behavior: 'smooth' })}
+          onClick={() => {
+            const tab = document.querySelector('[value="notes"]') as HTMLElement;
+            tab?.click();
+            setTimeout(() => {
+              document.getElementById("note-composer")?.focus();
+            }, 150);
+          }}
         >
           <MessageSquare className="h-4 w-4" /> Add Note
         </Button>

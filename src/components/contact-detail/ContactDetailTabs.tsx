@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,8 +7,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, FileText, MessageSquare, Clock, Briefcase, FolderOpen } from "lucide-react";
-import { format } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Plus, FileText, MessageSquare, Clock, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin, Loader2 } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Props {
   contact: any;
@@ -54,49 +56,54 @@ function PipelineChevron({ currentStage }: { currentStage: string }) {
 
 export function ContactDetailTabs({ contact }: Props) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [newNote, setNewNote] = useState("");
+  const [noteVisibility, setNoteVisibility] = useState<"public" | "team" | "private">("team");
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState("");
+  const recognitionRef = useRef<any>(null);
 
-  // Deals linked to this contact
-  const { data: deals = [] } = useQuery({
-    queryKey: ["contact-deals", contact.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("crm_deals")
-        .select("id, title, stage, value, currency, status, company_id, crm_companies(name)")
-        .eq("contact_id", contact.id)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  useEffect(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+    recognitionRef.current = new SR();
+    recognitionRef.current.continuous = true;
+    recognitionRef.current.interimResults = true;
+    recognitionRef.current.onresult = (event: any) => {
+      let final = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) final += event.results[i][0].transcript + " ";
+      }
+      if (final) setVoiceTranscript(prev => prev + final);
+    };
+    recognitionRef.current.onerror = () => { setIsRecording(false); toast.error("Voice error — try again"); };
+    return () => recognitionRef.current?.stop();
+  }, []);
 
-  // Notes for this contact
-  const { data: notes = [] } = useQuery({
-    queryKey: ["contact-notes", contact.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notes")
-        .select("*")
-        .eq("entity_type", "contact")
-        .eq("entity_id", contact.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  const startVoice = () => {
+    if (!recognitionRef.current) { toast.error("Voice not supported in this browser"); return; }
+    setVoiceTranscript("");
+    setIsRecording(true);
+    recognitionRef.current.start();
+  };
 
-  const queryClient = useQueryClient();
+  const stopVoice = () => {
+    recognitionRef.current?.stop();
+    setIsRecording(false);
+    if (voiceTranscript.trim()) setNewNote(prev => (prev + " " + voiceTranscript).trim());
+    setVoiceTranscript("");
+  };
 
-  const addNoteMutation = useMutation({
-    mutationFn: async ({ content, visibility }: { content: string; visibility: string }) => {
+  const addNote = useMutation({
+    mutationFn: async () => {
+      const content = newNote.trim();
+      if (!content) throw new Error("empty");
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.from("notes").insert({
         entity_type: "contact",
         entity_id: contact.id,
-        content: content.trim(),
-        visibility: visibility as any,
+        content,
+        visibility: noteVisibility,
         owner_id: user?.id || null,
         pinned: false,
         source: "ui",
@@ -104,11 +111,24 @@ export function ContactDetailTabs({ contact }: Props) {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["contact-notes", contact.id] });
+      qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] });
+      setNewNote("");
       toast.success("Note saved");
     },
-    onError: () => toast.error("Failed to save note"),
+    onError: (e: any) => {
+      if (e.message !== "empty") toast.error("Failed to save note");
+    },
   });
+
+  const pinNote = useMutation({
+    mutationFn: async ({ id, pinned }: { id: string; pinned: boolean }) => {
+      const { error } = await supabase.from("notes").update({ pinned: !pinned }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] }),
+  });
+
+  // Deals linked to this contact
 
   // Timeline: audit log entries
   const { data: timeline = [] } = useQuery({
@@ -188,6 +208,9 @@ export function ContactDetailTabs({ contact }: Props) {
     <Tabs defaultValue="overview">
       <TabsList className="bg-card border border-border">
         <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="notes">
+          Notes {notes.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{notes.length}</span>}
+        </TabsTrigger>
         <TabsTrigger value="timeline">Timeline</TabsTrigger>
         <TabsTrigger value="deals">Deals</TabsTrigger>
         <TabsTrigger value="projects">Projects</TabsTrigger>
@@ -295,15 +318,24 @@ export function ContactDetailTabs({ contact }: Props) {
               <div className="flex justify-end">
                 <Button
                   size="sm"
-                  disabled={!newNote.trim() || addNoteMutation.isPending}
-                  onClick={() => addNoteMutation.mutate({ content: newNote, visibility: "team" }, { onSuccess: () => setNewNote("") })}
+                  disabled={!newNote.trim() || addNote.isPending}
+                  onClick={() => addNote.mutate()}
                 >
                   Save note
                 </Button>
               </div>
             </div>
             {notes.length === 0 ? (
-              <EmptyState icon={MessageSquare} text="No notes yet" actionLabel="+ Add Note" />
+              <EmptyState
+                icon={MessageSquare}
+                text="No notes yet"
+                actionLabel="+ Add Note"
+                onAction={() => {
+                  const tab = document.querySelector('[value="notes"]') as HTMLElement;
+                  tab?.click();
+                  setTimeout(() => document.getElementById("note-composer")?.focus(), 150);
+                }}
+              />
             ) : (
               <div className="space-y-2">
                 {notes.slice(0, 3).map((note: any) => (
@@ -318,6 +350,105 @@ export function ContactDetailTabs({ contact }: Props) {
             )}
           </CardContent>
         </Card>
+      </TabsContent>
+
+      {/* NOTES TAB */}
+      <TabsContent value="notes" className="mt-4 space-y-4">
+        {/* Composer */}
+        <Card className="bg-card border-border">
+          <CardContent className="pt-4 space-y-3">
+            <Textarea
+              id="note-composer"
+              placeholder="Write a note about this contact..."
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              className="min-h-[96px] text-sm resize-none"
+            />
+            {isRecording && voiceTranscript && (
+              <p className="text-xs text-muted-foreground italic px-1">Recording: {voiceTranscript}</p>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant={isRecording ? "destructive" : "outline"}
+                  className="gap-1.5 h-8 text-xs"
+                  onClick={isRecording ? stopVoice : startVoice}
+                >
+                  {isRecording ? <><Square className="w-3 h-3" /> Stop</> : <><Mic className="w-3 h-3" /> Voice</>}
+                </Button>
+                <Select value={noteVisibility} onValueChange={(v) => setNoteVisibility(v as any)}>
+                  <SelectTrigger className="h-8 w-28 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public"><span className="flex items-center gap-1.5 text-xs"><Globe className="w-3 h-3" /> Public</span></SelectItem>
+                    <SelectItem value="team"><span className="flex items-center gap-1.5 text-xs"><Users className="w-3 h-3" /> Team</span></SelectItem>
+                    <SelectItem value="private"><span className="flex items-center gap-1.5 text-xs"><Lock className="w-3 h-3" /> Private</span></SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                size="sm"
+                className="h-8 text-xs px-4"
+                disabled={!newNote.trim() || addNote.isPending}
+                onClick={() => addNote.mutate()}
+              >
+                {addNote.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save note"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notes list */}
+        {notes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <MessageSquare className="h-8 w-8 text-muted-foreground/40 mb-2" />
+            <p className="text-sm text-muted-foreground">No notes yet. Add the first one above.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {notes.map((note: any) => {
+              const author = note.profiles;
+              const initials = author
+                ? `${(author.first_name || "")[0] || ""}${(author.last_name || "")[0] || ""}`.toUpperCase() || "?"
+                : "?";
+              const authorName = author
+                ? `${author.first_name || ""} ${author.last_name || ""}`.trim() || "Unknown"
+                : "Unknown";
+              const visIcon = note.visibility === "public" ? <Globe className="w-3 h-3" /> : note.visibility === "private" ? <Lock className="w-3 h-3" /> : <Users className="w-3 h-3" />;
+              return (
+                <Card key={note.id} className={cn("bg-card border-border", note.pinned && "border-primary/40")}>
+                  <CardContent className="pt-3 pb-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary shrink-0 mt-0.5">
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-xs font-medium text-foreground">{authorName}</span>
+                          <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
+                          <span className="text-xs text-muted-foreground" title={format(new Date(note.created_at), "dd MMM yyyy HH:mm")}>{format(new Date(note.created_at), "dd MMM yyyy")}</span>
+                          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">{visIcon} {note.visibility}</span>
+                          {note.source === "voice" && <Badge variant="outline" className="text-[10px] h-4 px-1">voice</Badge>}
+                          {note.pinned && <Badge variant="outline" className="text-[10px] h-4 px-1 border-primary/40 text-primary">pinned</Badge>}
+                        </div>
+                        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{note.content}</p>
+                      </div>
+                      <button
+                        onClick={() => pinNote.mutate({ id: note.id, pinned: note.pinned })}
+                        className="shrink-0 text-muted-foreground hover:text-primary transition-colors mt-0.5"
+                        title={note.pinned ? "Unpin" : "Pin"}
+                      >
+                        <Pin className={cn("w-3.5 h-3.5", note.pinned && "fill-primary text-primary")} />
+                      </button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </TabsContent>
 
       {/* TIMELINE TAB */}

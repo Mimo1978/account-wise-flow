@@ -869,6 +869,10 @@ export default function CompanyDetail() {
 
       if (existing && existing.length > 0) {
         console.log("[CompanyDetail] Found existing crm_companies record:", existing[0].id);
+        // Backfill source_company_id if not set
+        if (!(existing[0] as any).source_company_id) {
+          await supabase.from("crm_companies").update({ source_company_id: id } as any).eq("id", existing[0].id);
+        }
         return existing[0].id as string;
       }
 
@@ -879,7 +883,8 @@ export default function CompanyDetail() {
           industry: rawCompany.industry || null,
           website: rawCompany.website || null,
           phone: rawCompany.switchboard || null,
-        }).select("id").single();
+          source_company_id: id,
+        } as any).select("id").single();
 
       if (error) {
         console.error("[CompanyDetail] Failed to create crm_companies record:", error);

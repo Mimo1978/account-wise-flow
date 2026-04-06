@@ -1,9 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { Talent, TalentAvailability, TalentDataQuality, TalentStatus, TalentCvSource } from "@/lib/types";
+import { Talent, TalentDataQuality, TalentStatus, TalentCvSource } from "@/lib/types";
+import { getTalentAvailabilityFromRow } from "@/lib/talent-status";
 
 interface CandidateRow {
+  availability_status: string | null;
   id: string;
   name: string;
   email: string | null;
@@ -39,13 +41,7 @@ function transformCandidate(row: CandidateRow): Talent {
     }
   }
 
-  // Determine availability based on status
-  let availability: TalentAvailability = "available";
-  if (row.status === "interviewing") {
-    availability = "interviewing";
-  } else if (row.status === "deployed" || row.status === "on-project") {
-    availability = "deployed";
-  }
+  const availability = getTalentAvailabilityFromRow(row);
 
   // Determine data quality
   const dataQuality: TalentDataQuality = row.source === "import" ? "parsed" : "needs-review";

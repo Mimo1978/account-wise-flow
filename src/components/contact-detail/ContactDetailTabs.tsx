@@ -14,8 +14,9 @@ import { cn } from "@/lib/utils";
 
 interface Props { contact: any; }
 
-function NoteComposer({ contactId, onSaved }: { contactId: string; onSaved: () => void }) {
-  const [content, setContent] = useState("");
+function NoteComposer({ contactId, onSaved, note, setNote, saveNote }: { contactId: string; onSaved: () => void; note: string; setNote: (v: string) => void; saveNote: { mutate: () => void; isPending: boolean } }) {
+  const content = note;
+  const setContent = setNote;
   const [visibility, setVisibility] = useState<"public"|"team"|"private">("team");
   const [isRecording, setIsRecording] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
@@ -35,7 +36,7 @@ function NoteComposer({ contactId, onSaved }: { contactId: string; onSaved: () =
         if (event.results[i].isFinal) final += t + " ";
         else interim += t;
       }
-      if (final) { setContent(prev => (prev + " " + final).trim()); }
+      if (final) { setNote(note + " " + final); }
       setLiveTranscript(interim);
     };
     r.onerror = () => { setIsRecording(false); setLiveTranscript(""); };
@@ -107,8 +108,8 @@ function NoteComposer({ contactId, onSaved }: { contactId: string; onSaved: () =
             </SelectContent>
           </Select>
         </div>
-        <Button size="sm" className="h-8 text-xs px-4" disabled={!content.trim() || saving} onClick={save}>
-          {saving ? <Loader2 className="w-3 h-3 animate-spin"/> : "Save note"}
+        <Button size="sm" className="h-8 text-xs px-4" disabled={!note.trim() || saveNote.isPending} onClick={() => { if (note.trim()) saveNote.mutate(); }}>
+          {saveNote.isPending ? <Loader2 className="w-3 h-3 animate-spin"/> : "Save note"}
         </Button>
       </div>
       <p className="text-[10px] text-muted-foreground">⌘+Enter to save quickly</p>
@@ -193,6 +194,29 @@ export function ContactDetailTabs({ contact }: Props) {
   const qc = useQueryClient();
   const [showDealLink, setShowDealLink] = useState(false);
   const [showProjectLink, setShowProjectLink] = useState(false);
+  const [note, setNote] = useState("");
+
+  const saveNote = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await supabase.from("notes").insert({
+        entity_type: "contact",
+        entity_id: contact.id,
+        content: note.trim(),
+        visibility: "team",
+        owner_id: user?.id || null,
+        pinned: false,
+        source: "ui",
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] });
+      setNote("");
+      toast.success("Note saved");
+    },
+    onError: () => toast.error("Failed to save note"),
+  });
 
   const { data: notes = [], refetch: refetchNotes } = useQuery({
     queryKey: ["contact-notes", contact.id],
@@ -271,7 +295,7 @@ export function ContactDetailTabs({ contact }: Props) {
             {notes.length > 0 && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">{notes.length}</span>}
           </h2>
         </div>
-        <NoteComposer contactId={contact.id} onSaved={() => qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] })}/>
+        <NoteComposer contactId={contact.id} onSaved={() => qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] })} note={note} setNote={setNote} saveNote={saveNote}/>
         {notes.length > 0 && (
           <div className="space-y-2 mt-4">
             {notes.map((note: any) => (

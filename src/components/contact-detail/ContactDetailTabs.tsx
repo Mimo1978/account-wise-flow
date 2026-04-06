@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogPortal, DialogOverlay, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, Link2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
@@ -119,7 +119,10 @@ function BrowseDealsModal({ open, onOpenChange, onLink, linkedDealIds }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col z-[10001]">
+      <DialogPortal>
+        <DialogOverlay className="z-[10000]" />
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center pointer-events-none">
+          <div className="relative w-full max-w-2xl max-h-[80vh] flex flex-col border bg-background p-6 shadow-lg sm:rounded-lg pointer-events-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Briefcase className="w-4 h-4 text-primary"/>Browse & Link Deals

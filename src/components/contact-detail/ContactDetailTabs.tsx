@@ -9,8 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogPortal, DialogOverlay, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, Link2 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, Link2, CalendarDays } from "lucide-react";
+import { format, formatDistanceToNow, isWithinInterval, startOfDay, endOfDay, parseISO } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 

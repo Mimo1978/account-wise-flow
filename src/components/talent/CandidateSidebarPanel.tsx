@@ -702,6 +702,9 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
         </CardContent>
       </Card>
 
+      {/* ── EXPERIENCE ── */}
+      <ExperienceBox experience={candidate.experience || []} />
+
       {/* Modals */}
       <BrowseDealsModal open={showDealBrowser} onOpenChange={setShowDealBrowser}
         onLink={linkDeal} linkedDealIds={deals.map((d: any) => d.id)} />

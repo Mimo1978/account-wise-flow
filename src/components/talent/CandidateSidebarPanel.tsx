@@ -12,11 +12,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import {
   MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin,
-  Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown,
-  Link2, CalendarIcon, Mail, Phone, MapPin, Linkedin,
+  Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, ChevronRight,
+  Link2, CalendarIcon, Mail, Phone, MapPin, Linkedin, Clock,
 } from "lucide-react";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";

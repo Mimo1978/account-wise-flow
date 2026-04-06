@@ -356,13 +356,6 @@ export default function CandidateProfile() {
                 Edit Profile
               </Button>
             )}
-            <Button variant="default" size="sm" onClick={() => {
-              document.getElementById("notes-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              setExpandedSections(prev => new Set([...prev, "notes"]));
-            }}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              Add Note
-            </Button>
           </div>
         </div>
       </div>

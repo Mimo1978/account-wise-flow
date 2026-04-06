@@ -194,6 +194,7 @@ export function ContactDetailTabs({ contact }: Props) {
   const qc = useQueryClient();
   const [showDealLink, setShowDealLink] = useState(false);
   const [showProjectLink, setShowProjectLink] = useState(false);
+  const [note, setNote] = useState("");
   const [editingNoteId, setEditingNoteId] = useState<string|null>(null);
   const [editContent, setEditContent] = useState("");
   const [deletingNoteId, setDeletingNoteId] = useState<string|null>(null);

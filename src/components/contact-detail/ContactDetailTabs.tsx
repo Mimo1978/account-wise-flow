@@ -481,9 +481,13 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
             {/* Notes list */}
             {(() => {
               const filtered = notes.filter((n: any) => {
-                if (!noteSearch) return true;
-                const q = noteSearch.toLowerCase();
-                return n.content.toLowerCase().includes(q) || format(new Date(n.created_at), "dd MMM yyyy").toLowerCase().includes(q);
+                const matchesText = !noteSearch || n.content.toLowerCase().includes(noteSearch.toLowerCase());
+                const noteDate = new Date(n.created_at);
+                const matchesDate = !dateRange.from || isWithinInterval(noteDate, {
+                  start: startOfDay(dateRange.from),
+                  end: endOfDay(dateRange.to || dateRange.from),
+                });
+                return matchesText && matchesDate;
               });
               const visible = showAllNotes ? filtered : filtered.slice(0, 5);
               return (

@@ -273,6 +273,8 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
   const qc = useQueryClient();
   const [showDealBrowser, setShowDealBrowser] = useState(false);
   const [showProjectBrowser, setShowProjectBrowser] = useState(false);
+  const [showCampaignBrowser, setShowCampaignBrowser] = useState(false);
+  const [showCreateCampaign, setShowCreateCampaign] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string|null>(null);
   const [editContent, setEditContent] = useState("");
   const [deletingNoteId, setDeletingNoteId] = useState<string|null>(null);

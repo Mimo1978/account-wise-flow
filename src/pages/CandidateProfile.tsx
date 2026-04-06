@@ -74,6 +74,15 @@ import { ScheduleCallbackPopover } from "@/components/outreach/ScheduleCallbackP
 import type { OutreachTarget } from "@/hooks/use-outreach";
 import { Bot } from "lucide-react";
 
+const HEADER_STATUSES = [
+  { key: "open_to_work", label: "Open to Work", color: "bg-emerald-500 hover:bg-emerald-600 text-white" },
+  { key: "on_assignment", label: "On Assignment", color: "bg-blue-500 hover:bg-blue-600 text-white" },
+  { key: "not_available", label: "Not Available", color: "bg-red-500 hover:bg-red-600 text-white" },
+  { key: "newly_added", label: "Newly Added", color: "bg-purple-500 hover:bg-purple-600 text-white" },
+  { key: "interviewing", label: "Interviewing", color: "bg-amber-500 hover:bg-amber-600 text-white" },
+  { key: "placed", label: "Placed", color: "bg-teal-600 hover:bg-teal-700 text-white" },
+] as const;
+
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",
   interviewing: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
@@ -151,6 +160,7 @@ export default function CandidateProfile() {
   const [smsOpen, setSmsOpen] = useState(false);
   const [callbackOpen, setCallbackOpen] = useState(false);
   const [addNoteOpen, setAddNoteOpen] = useState(false);
+  const [headerActiveStatus, setHeaderActiveStatus] = useState("open_to_work");
   const queryClient = useQueryClient();
 
   // Auto-expand CV section when navigating from table Docs indicator
@@ -167,6 +177,16 @@ export default function CandidateProfile() {
   const candidate = useMemo(() => {
     return candidates.find((c) => c.id === candidateId) || null;
   }, [candidates, candidateId]);
+
+  // Sync header status from candidate data
+  useEffect(() => {
+    if (!candidate) return;
+    const s = candidate.availability === "deployed" ? "on_assignment"
+      : candidate.availability === "interviewing" ? "interviewing"
+      : candidate.status === "new" ? "newly_added"
+      : "open_to_work";
+    setHeaderActiveStatus(s);
+  }, [candidate]);
 
   const toggleSection = (section: string) => {
     const newSet = new Set(expandedSections);
@@ -262,57 +282,33 @@ export default function CandidateProfile() {
             <div>
               <h1 className="text-2xl font-bold">{candidate.name}</h1>
               <p className="text-muted-foreground">{candidate.roleType}</p>
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium cursor-pointer transition-colors hover:opacity-80", availabilityColors[candidate.availability])}>
-                      {availabilityLabels[candidate.availability]}
-                      <ChevronDown className="h-3 w-3" />
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {HEADER_STATUSES.map(s => {
+                  const isActive = headerActiveStatus === s.key;
+                  return (
+                    <button key={s.key} onClick={async () => {
+                      setHeaderActiveStatus(s.key);
+                      let availabilityVal = "available";
+                      let statusVal = "active";
+                      if (s.key === "on_assignment") { availabilityVal = "deployed"; }
+                      else if (s.key === "not_available") { availabilityVal = "deployed"; statusVal = "on-hold"; }
+                      else if (s.key === "newly_added") { statusVal = "new"; }
+                      else if (s.key === "interviewing") { availabilityVal = "interviewing"; }
+                      else if (s.key === "placed") { availabilityVal = "deployed"; }
+                      await supabase.from('candidates')
+                        .update({ availability_status: availabilityVal, status: statusVal, updated_at: new Date().toISOString() })
+                        .eq('id', candidate.id);
+                      queryClient.invalidateQueries({ queryKey: ['candidates'] });
+                      toast.success(`Status: ${s.label}`);
+                    }}
+                      className={cn(
+                        "px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all",
+                        isActive ? s.color + " ring-2 ring-offset-1 ring-offset-background shadow-sm" : "bg-muted text-muted-foreground hover:opacity-80"
+                      )}>
+                      {s.label}
                     </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuLabel>Availability</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {Object.entries(availabilityLabels).map(([key, label]) => (
-                      <DropdownMenuItem key={key} onClick={async () => {
-                        await supabase.from('candidates')
-                          .update({ availability_status: key, updated_at: new Date().toISOString() })
-                          .eq('id', candidate.id);
-                        queryClient.invalidateQueries({ queryKey: ['candidates'] });
-                        toast.success(`Availability updated to ${label}`);
-                      }}>
-                        {label}
-                        {candidate.availability === key && <Check className="h-3 w-3 ml-auto" />}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium cursor-pointer transition-colors hover:opacity-80", statusColors[candidate.status])}>
-                      {statusLabels[candidate.status]}
-                      <ChevronDown className="h-3 w-3" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuLabel>Status</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {Object.entries(statusLabels).map(([key, label]) => (
-                      <DropdownMenuItem key={key} onClick={async () => {
-                        await supabase.from('candidates')
-                          .update({ status: key, updated_at: new Date().toISOString() })
-                          .eq('id', candidate.id);
-                        queryClient.invalidateQueries({ queryKey: ['candidates'] });
-                        toast.success(`Status updated to ${label}`);
-                      }}>
-                        {label}
-                        {candidate.status === key && <Check className="h-3 w-3 ml-auto" />}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-
+                  );
+                })}
                 {getDataQualityBadge()}
                 {candidate.rate && (
                   <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
@@ -530,7 +526,7 @@ export default function CandidateProfile() {
               </div>
             </CollapsibleSection>
 
-            {/* ── NEW: Notes, Deals, Projects Panel ── */}
+            {/* ── Notes, Deals, Projects Panel ── */}
             <CandidateSidebarPanel
               candidate={candidate}
               canEdit={canEdit}
@@ -538,19 +534,6 @@ export default function CandidateProfile() {
               currentUserId={userId}
               workspaceId={currentWorkspace?.id || null}
             />
-
-            {/* Activity Log */}
-            <CollapsibleSection
-              id="activity"
-              title="Activity Log"
-              icon={<Activity className="h-4 w-4" />}
-              expanded={expandedSections.has("activity")}
-              onToggle={() => toggleSection("activity")}
-            >
-              <div className="text-sm text-muted-foreground">
-                <p>No activity recorded yet.</p>
-              </div>
-            </CollapsibleSection>
           </div>
 
           {/* RIGHT COLUMN — CV viewer panel, fills remaining space */}

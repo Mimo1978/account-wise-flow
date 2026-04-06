@@ -12,17 +12,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Separator } from "@/components/ui/separator";
 import {
   MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin,
-  Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown,
-  Link2, CalendarIcon, Mail, Phone, MapPin, Linkedin,
+  Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, ChevronRight,
+  Link2, CalendarIcon, Mail, Phone, MapPin, Linkedin, Clock,
 } from "lucide-react";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { DateRange } from "react-day-picker";
-import type { Talent } from "@/lib/types";
+import type { Talent, TalentExperience } from "@/lib/types";
 
 /* ─── Status Hot Buttons ─── */
 const CANDIDATE_STATUSES = [
@@ -115,21 +116,19 @@ function NoteComposer({ candidateId, currentUserId, workspaceId, onSaved }: {
           <span className="text-[10px] text-destructive font-medium">Recording</span>
         </div>
       )}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <Button size="sm" variant={isRecording ? "destructive" : "outline"} className="gap-1 h-7 text-[10px] px-2" onClick={toggleVoice}>
-            {isRecording ? <><Square className="w-3 h-3"/>Stop</> : <><Mic className="w-3 h-3"/>Dictate</>}
-          </Button>
-          <Select value={visibility} onValueChange={v => setVisibility(v as any)}>
-            <SelectTrigger className="h-7 w-20 text-[10px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="public"><span className="flex items-center gap-1 text-[10px]"><Globe className="w-3 h-3"/>Public</span></SelectItem>
-              <SelectItem value="team"><span className="flex items-center gap-1 text-[10px]"><Users className="w-3 h-3"/>Team</span></SelectItem>
-              <SelectItem value="private"><span className="flex items-center gap-1 text-[10px]"><Lock className="w-3 h-3"/>Private</span></SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button size="sm" className="h-7 text-[10px] px-3 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!note.trim() || saving} onClick={save}>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Button size="sm" variant={isRecording ? "destructive" : "outline"} className="gap-1 h-7 text-[10px] px-2" onClick={toggleVoice}>
+          {isRecording ? <><Square className="w-3 h-3"/>Stop</> : <><Mic className="w-3 h-3"/>Dictate</>}
+        </Button>
+        <Select value={visibility} onValueChange={v => setVisibility(v as any)}>
+          <SelectTrigger className="h-7 w-[70px] text-[10px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="public"><span className="flex items-center gap-1 text-[10px]"><Globe className="w-3 h-3"/>Public</span></SelectItem>
+            <SelectItem value="team"><span className="flex items-center gap-1 text-[10px]"><Users className="w-3 h-3"/>Team</span></SelectItem>
+            <SelectItem value="private"><span className="flex items-center gap-1 text-[10px]"><Lock className="w-3 h-3"/>Private</span></SelectItem>
+          </SelectContent>
+        </Select>
+        <Button size="sm" className="h-7 text-[10px] px-3 bg-emerald-600 hover:bg-emerald-700 text-white ml-auto" disabled={!note.trim() || saving} onClick={save}>
           {saving ? <Loader2 className="w-3 h-3 animate-spin"/> : "Save note"}
         </Button>
       </div>
@@ -251,6 +250,62 @@ function BrowseProjectsModal({ open, onOpenChange, onLink, linkedProjectIds }: {
         </div>
       </DialogPortal>
     </Dialog>
+  );
+}
+
+/* ─── Experience Box ─── */
+function ExperienceBox({ experience }: { experience: TalentExperience[] }) {
+  const [expanded, setExpanded] = useState(true);
+  const formatDate = (d: string) => {
+    try { return format(new Date(d + "-01"), "MMM yyyy"); } catch { return d; }
+  };
+  return (
+    <Card>
+      <Collapsible open={expanded} onOpenChange={setExpanded}>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="pb-2 pt-3 cursor-pointer hover:bg-muted/50 transition-colors">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Briefcase className="w-3.5 h-3.5 text-indigo-500"/>
+                Experience
+                {experience.length > 0 && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">{experience.length}</span>}
+              </CardTitle>
+              {expanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground"/> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground"/>}
+            </div>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="pt-0">
+            {experience.length === 0 ? (
+              <div className="flex flex-col items-center py-3 text-center border border-dashed border-border rounded-lg">
+                <Briefcase className="w-5 h-5 text-muted-foreground/30 mb-1"/>
+                <p className="text-[10px] text-muted-foreground">No experience data</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {experience.map((exp, idx) => (
+                  <div key={exp.id || idx} className="relative pl-4">
+                    {idx !== experience.length - 1 && (
+                      <div className="absolute left-[5px] top-5 bottom-0 w-0.5 bg-border"/>
+                    )}
+                    <div className="absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-primary bg-background z-10"/>
+                    <div>
+                      <p className="text-xs font-medium">{exp.title}</p>
+                      <p className="text-[10px] text-muted-foreground">{exp.company}</p>
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                        <Clock className="w-2.5 h-2.5"/>
+                        <span>{formatDate(exp.startDate)} – {exp.current ? "Present" : exp.endDate ? formatDate(exp.endDate) : "—"}</span>
+                      </div>
+                      {exp.description && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{exp.description}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
   );
 }
 
@@ -702,6 +757,9 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
           )}
         </CardContent>
       </Card>
+
+      {/* ── EXPERIENCE ── */}
+      <ExperienceBox experience={candidate.experience || []} />
 
       {/* Modals */}
       <BrowseDealsModal open={showDealBrowser} onOpenChange={setShowDealBrowser}

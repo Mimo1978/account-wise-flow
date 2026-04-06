@@ -539,7 +539,7 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
                               </div>
                               <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{n.content}</p>
                             </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <div className="flex items-center gap-1 shrink-0">
                               <button onClick={() => pinNote.mutate({ id: n.id, pinned: n.pinned })}
                                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title={n.pinned?"Unpin":"Pin"}>
                                 <Pin className={cn("w-3 h-3", n.pinned && "fill-primary text-primary")}/>

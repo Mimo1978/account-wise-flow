@@ -326,26 +326,52 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
     },
   });
 
-  const { data: deals = [], refetch: refetchDeals } = useQuery({
-    queryKey: ["contact-deals", contact.id],
+  // Resolve canonical contact -> crm_contacts id for FK-based queries
+  const { data: crmContactId } = useQuery({
+    queryKey: ["crm-contact-resolve", contact.id, contact.email, contact.name],
     queryFn: async () => {
+      if (contact.email) {
+        const { data } = await supabase.from("crm_contacts")
+          .select("id").eq("email", contact.email).limit(1).maybeSingle();
+        if (data) return data.id;
+      }
+      const nameParts = (contact.name || "").trim().split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      if (firstName && lastName) {
+        const { data } = await supabase.from("crm_contacts")
+          .select("id").ilike("first_name", firstName).ilike("last_name", lastName).limit(1).maybeSingle();
+        if (data) return data.id;
+      }
+      return null;
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: deals = [], refetch: refetchDeals } = useQuery({
+    queryKey: ["contact-deals", contact.id, crmContactId],
+    queryFn: async () => {
+      if (!crmContactId) return [];
       const { data } = await supabase.from("crm_deals")
         .select("id, title, stage, value, currency, status, contact_id, crm_companies(name)")
-        .or(`contact_id.eq.${contact.id}`)
+        .eq("contact_id", crmContactId)
         .is("deleted_at", null).order("created_at", { ascending: false });
       return data || [];
     },
+    enabled: !!crmContactId,
   });
 
   const { data: projects = [], refetch: refetchProjects } = useQuery({
-    queryKey: ["contact-projects", contact.id],
+    queryKey: ["contact-projects", contact.id, crmContactId],
     queryFn: async () => {
+      if (!crmContactId) return [];
       const { data } = await supabase.from("engagements")
         .select("id, name, engagement_type, stage, health, company_id")
-        .or(`contact_id.eq.${contact.id}`)
+        .eq("contact_id", crmContactId)
         .order("created_at", { ascending: false });
       return data || [];
     },
+    enabled: !!crmContactId,
   });
 
   const pinNote = useMutation({
@@ -403,17 +429,65 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
     }
   };
 
+  // Resolve the crm_contacts id for this canonical contact (needed for FK constraints)
+  const resolveCrmContactId = async (): Promise<string | null> => {
+    // Use cached value if available
+    if (crmContactId) return crmContactId;
+    // Try to find existing crm_contacts record by email match
+    if (contact.email) {
+      const { data: existing } = await supabase.from("crm_contacts")
+        .select("id").eq("email", contact.email).limit(1).maybeSingle();
+      if (existing) return existing.id;
+    }
+    // Try name match as fallback
+    const nameParts = (contact.name || "").trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+    if (firstName && lastName) {
+      const { data: byName } = await supabase.from("crm_contacts")
+        .select("id").ilike("first_name", firstName).ilike("last_name", lastName).limit(1).maybeSingle();
+      if (byName) return byName.id;
+    }
+    // Create a new crm_contacts record
+    const { data: newContact, error: createErr } = await supabase.from("crm_contacts")
+      .insert({
+        first_name: firstName || contact.name || "Unknown",
+        last_name: lastName || "",
+        email: contact.email || null,
+        phone: contact.phone || null,
+        job_title: contact.title || null,
+        company_id: null,
+      } as any)
+      .select("id").single();
+    if (createErr) { toast.error("Failed to resolve CRM contact: " + createErr.message); return null; }
+    qc.invalidateQueries({ queryKey: ["crm-contact-resolve", contact.id] });
+    return newContact?.id || null;
+  };
+
   const linkDeal = async (deal: any) => {
-    await supabase.from("crm_deals").update({ contact_id: contact.id }).eq("id", deal.id);
+    const crmContactId = await resolveCrmContactId();
+    if (!crmContactId) return;
+    const { error } = await supabase.from("crm_deals").update({ contact_id: crmContactId } as any).eq("id", deal.id);
+    if (error) { toast.error("Failed to link deal: " + error.message); return; }
     refetchDeals();
     qc.invalidateQueries({ queryKey: ["browse-all-deals"] });
+    qc.invalidateQueries({ queryKey: ["crm_deals"] });
+    qc.invalidateQueries({ queryKey: ["deal-detail"] });
     toast.success("Deal linked");
   };
 
   const linkProject = async (project: any) => {
-    await supabase.from("engagements").update({ contact_id: contact.id }).eq("id", project.id);
+    const crmContactId = await resolveCrmContactId();
+    if (!crmContactId) return;
+    const { error } = await supabase.from("engagements").update({ contact_id: crmContactId } as any).eq("id", project.id);
+    if (error) { toast.error("Failed to link project: " + error.message); return; }
     refetchProjects();
     qc.invalidateQueries({ queryKey: ["browse-all-projects"] });
+    qc.invalidateQueries({ queryKey: ["engagements"] });
+    qc.invalidateQueries({ queryKey: ["engagement"] });
+    qc.invalidateQueries({ queryKey: ["crm_projects"] });
+    qc.invalidateQueries({ queryKey: ["project-detail"] });
+    qc.invalidateQueries({ queryKey: ["engagement-contact-detail"] });
     toast.success("Project linked");
   };
 

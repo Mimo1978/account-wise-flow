@@ -57,10 +57,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { CandidateNotesSection } from "@/components/talent/CandidateNotesSection";
-import { CandidateInterviewsSection } from "@/components/talent/CandidateInterviewsSection";
-import { CandidateOpportunitiesSection } from "@/components/talent/CandidateOpportunitiesSection";
 import { CandidateOverviewEditor } from "@/components/talent/CandidateOverviewEditor";
+import { CandidateSidebarPanel } from "@/components/talent/CandidateSidebarPanel";
 
 import { SearchMatchSection } from "@/components/talent/SearchMatchSection";
 import { CVExportModal } from "@/components/cvexport";
@@ -144,7 +142,7 @@ export default function CandidateProfile() {
   const autoExpandSection = searchParams.get("section");
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(["overview", "skills", "experience", "notes", "interviews", "opportunities", ...(searchResult ? ["search-match"] : [])])
+    new Set(["overview", "skills", "experience", ...(searchResult ? ["search-match"] : [])])
   );
   const [showExportModal, setShowExportModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -358,13 +356,6 @@ export default function CandidateProfile() {
                 Edit Profile
               </Button>
             )}
-            <Button variant="default" size="sm" onClick={() => {
-              document.getElementById("notes-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
-              setExpandedSections(prev => new Set([...prev, "notes"]));
-            }}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              Add Note
-            </Button>
           </div>
         </div>
       </div>
@@ -440,20 +431,6 @@ export default function CandidateProfile() {
                       <span className="font-medium">{format(new Date(candidate.lastUpdated), "MMM d, yyyy")}</span>
                     </div>
                   )}
-                </div>
-
-                <Separator className="my-4" />
-
-                {/* Quick Actions */}
-                <div className="space-y-2">
-                  <Button variant="outline" size="sm" className="w-full justify-start">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Add Interview
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full justify-start">
-                    <Target className="h-4 w-4 mr-2" />
-                    Add to Opportunity
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -553,51 +530,14 @@ export default function CandidateProfile() {
               </div>
             </CollapsibleSection>
 
-            {/* Interviews */}
-            <CollapsibleSection
-              id="interviews"
-              title="Interviews"
-              icon={<Calendar className="h-4 w-4" />}
-              expanded={expandedSections.has("interviews")}
-              onToggle={() => toggleSection("interviews")}
-            >
-              <CandidateInterviewsSection
-                candidateId={candidate.id}
-                canEdit={canEdit}
-                canDelete={isAdmin || isManager}
-              />
-            </CollapsibleSection>
-
-            {/* Opportunities */}
-            <CollapsibleSection
-              id="opportunities"
-              title="Projects / Opportunities"
-              icon={<Target className="h-4 w-4" />}
-              expanded={expandedSections.has("opportunities")}
-              onToggle={() => toggleSection("opportunities")}
-            >
-              <CandidateOpportunitiesSection
-                candidateId={candidate.id}
-                canEdit={canEdit}
-                canDelete={isAdmin || isManager}
-              />
-            </CollapsibleSection>
-
-            {/* Notes */}
-            <CollapsibleSection
-              id="notes"
-              title="Notes"
-              icon={<MessageSquare className="h-4 w-4" />}
-              expanded={expandedSections.has("notes")}
-              onToggle={() => toggleSection("notes")}
-            >
-              <CandidateNotesSection
-                candidateId={candidate.id}
-                canEdit={canEdit}
-                canDelete={isAdmin || isManager}
-                currentUserId={userId}
-              />
-            </CollapsibleSection>
+            {/* ── NEW: Notes, Deals, Projects Panel ── */}
+            <CandidateSidebarPanel
+              candidate={candidate}
+              canEdit={canEdit}
+              canDelete={isAdmin || isManager}
+              currentUserId={userId}
+              workspaceId={currentWorkspace?.id || null}
+            />
 
             {/* Activity Log */}
             <CollapsibleSection

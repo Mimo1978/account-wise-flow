@@ -1,0 +1,1 @@
+ALTER TABLE public.candidate_notes ADD COLUMN IF NOT EXISTS pinned boolean NOT NULL DEFAULT false;

@@ -7,36 +7,34 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageSquare, Briefcase, FolderOpen, FileText, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Plus, Clock, Trash2, Pencil, X, Check, Sparkles, ChevronDown } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, Link2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface Props { contact: any; embedded?: boolean; }
 
+/* ─── Note Composer ─── */
 function NoteComposer({ contactId, onSaved, note, setNote, saveNote }: { contactId: string; onSaved: () => void; note: string; setNote: (v: string) => void; saveNote: { mutate: () => void; isPending: boolean } }) {
-  const content = note;
-  const setContent = setNote;
   const [visibility, setVisibility] = useState<"public"|"team"|"private">("team");
   const [isRecording, setIsRecording] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
-  const [saving, setSaving] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
     const r = new SR();
-    r.continuous = true;
-    r.interimResults = true;
+    r.continuous = true; r.interimResults = true;
     r.onresult = (event: any) => {
       let interim = "", final = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const t = event.results[i][0].transcript;
-        if (event.results[i].isFinal) final += t + " ";
-        else interim += t;
+        if (event.results[i].isFinal) final += t + " "; else interim += t;
       }
-      if (final) { setNote(note + " " + final); }
+      if (final) setNote(note + " " + final);
       setLiveTranscript(interim);
     };
     r.onerror = () => { setIsRecording(false); setLiveTranscript(""); };
@@ -51,35 +49,12 @@ function NoteComposer({ contactId, onSaved, note, setNote, saveNote }: { contact
     else { setIsRecording(true); recognitionRef.current.start(); }
   };
 
-  const save = async () => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    setSaving(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from("notes").insert({
-        entity_type: "contact", entity_id: contactId,
-        content: trimmed, visibility,
-        owner_id: user?.id || null, pinned: false, source: "ui",
-      });
-      if (error) throw error;
-      setContent(""); setLiveTranscript("");
-      onSaved(); toast.success("Note saved");
-    } catch { toast.error("Failed to save note"); }
-    finally { setSaving(false); }
-  };
-
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-4">
       <div className="relative">
-        <Textarea
-          id="note-input"
-          placeholder="Write a note about this contact..."
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          className="min-h-[100px] text-sm resize-none"
-          onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) save(); }}
-        />
+        <Textarea id="note-input" placeholder="Write a note about this contact..." value={note}
+          onChange={(e) => setNote(e.target.value)} className="min-h-[100px] text-sm resize-none"
+          onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { if (note.trim()) saveNote.mutate(); } }} />
         {isRecording && liveTranscript && (
           <p className="absolute bottom-2 left-3 right-3 text-xs text-primary/60 italic pointer-events-none truncate">{liveTranscript}</p>
         )}
@@ -88,10 +63,10 @@ function NoteComposer({ contactId, onSaved, note, setNote, saveNote }: { contact
         <div className="flex items-center gap-2 px-1">
           <div className="flex items-end gap-px h-4">
             {[...Array(10)].map((_, i) => (
-              <div key={i} className="w-0.5 bg-red-500 rounded-full animate-pulse" style={{ height: `${4 + (i % 3) * 4 + Math.random() * 4}px`, animationDelay: `${i * 60}ms` }} />
+              <div key={i} className="w-0.5 rounded-full animate-pulse bg-destructive" style={{ height: `${4 + (i % 3) * 4 + Math.random() * 4}px`, animationDelay: `${i * 60}ms` }} />
             ))}
           </div>
-          <span className="text-xs text-red-500 font-medium">Recording — speak now</span>
+          <span className="text-xs text-destructive font-medium">Recording — speak now</span>
         </div>
       )}
       <div className="flex items-center justify-between gap-2">
@@ -117,83 +92,168 @@ function NoteComposer({ contactId, onSaved, note, setNote, saveNote }: { contact
   );
 }
 
-function NoteCard({ note, onPin }: { note: any; onPin: () => void }) {
-  const p = note.profiles;
-  const initials = p ? `${(p.first_name||"")[0]||""}${(p.last_name||"")[0]||""}`.toUpperCase()||"?" : "?";
-  const name = p ? `${p.first_name||""} ${p.last_name||""}`.trim()||"Unknown" : "Unknown";
-  return (
-    <div className={cn("rounded-lg border bg-card p-3 transition-colors", note.pinned && "border-primary/30 bg-primary/5")}>
-      <div className="flex items-start gap-2.5">
-        <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-[11px] font-semibold text-primary shrink-0 mt-0.5">{initials}</div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="text-xs font-medium">{name}</span>
-            <span className="text-xs text-muted-foreground">{format(new Date(note.created_at), "dd MMM yyyy · HH:mm")}</span>
-            <span className="text-xs text-muted-foreground">({formatDistanceToNow(new Date(note.created_at), {addSuffix:true})})</span>
-            {note.visibility==="public" && <Globe className="w-3 h-3 text-muted-foreground"/>}
-            {note.visibility==="private" && <Lock className="w-3 h-3 text-muted-foreground"/>}
-            {note.source==="voice" && <span className="text-[10px] border border-border rounded px-1 text-muted-foreground">voice</span>}
-            {note.pinned && <span className="text-[10px] border border-primary/40 rounded px-1 text-primary">pinned</span>}
-          </div>
-          <p className="text-sm whitespace-pre-wrap leading-relaxed">{note.content}</p>
-        </div>
-        <button onClick={onPin} className="shrink-0 text-muted-foreground hover:text-primary transition-colors mt-0.5" title={note.pinned?"Unpin":"Pin"}>
-          <Pin className={cn("w-3.5 h-3.5", note.pinned && "fill-primary text-primary")}/>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function LinkSearchPanel({ title, searchFn, onLink, navigate, linkLabel }: {
-  title: string; searchFn: (q: string) => Promise<any[]>;
-  onLink: (item: any) => Promise<void>; navigate: any; linkLabel: string;
+/* ─── Browse All Deals Modal ─── */
+function BrowseDealsModal({ open, onOpenChange, onLink, linkedDealIds }: {
+  open: boolean; onOpenChange: (v: boolean) => void;
+  onLink: (deal: any) => Promise<void>; linkedDealIds: string[];
 }) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
   const [linking, setLinking] = useState<string|null>(null);
 
-  useEffect(() => {
-    if (!query.trim()) { setResults([]); return; }
-    const t = setTimeout(async () => {
-      setLoading(true);
-      const r = await searchFn(query);
-      setResults(r); setLoading(false);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [query]);
+  const { data: allDeals = [], isLoading } = useQuery({
+    queryKey: ["browse-all-deals"],
+    queryFn: async () => {
+      const { data } = await supabase.from("crm_deals")
+        .select("id, title, value, currency, stage, status, expected_close_date, crm_companies(name)")
+        .is("deleted_at", null).order("created_at", { ascending: false }).limit(200);
+      return data || [];
+    },
+    enabled: open,
+  });
+
+  const filtered = allDeals.filter((d: any) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return d.title?.toLowerCase().includes(q) || d.crm_companies?.name?.toLowerCase().includes(q) || d.stage?.toLowerCase().includes(q);
+  });
 
   return (
-    <div className="border border-border rounded-lg p-3 bg-muted/30 space-y-2">
-      <p className="text-xs font-medium text-muted-foreground">{title}</p>
-      <div className="relative">
-        <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
-        <Input placeholder="Search by name..." value={query} onChange={e => setQuery(e.target.value)} className="pl-8 h-8 text-xs"/>
-      </div>
-      {loading && <p className="text-xs text-muted-foreground px-1">Searching...</p>}
-      {results.map(item => (
-        <div key={item.id} className="flex items-center justify-between p-2 rounded border border-border bg-card text-xs">
-          <div>
-            <p className="font-medium">{item.title || item.name}</p>
-            {item.subtitle && <p className="text-muted-foreground">{item.subtitle}</p>}
-          </div>
-          <Button size="sm" variant="outline" className="h-6 text-[10px] px-2" disabled={!!linking}
-            onClick={async () => { setLinking(item.id); await onLink(item); setLinking(null); setQuery(""); setResults([]); }}>
-            {linking===item.id ? <Loader2 className="w-3 h-3 animate-spin"/> : linkLabel}
-          </Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Briefcase className="w-4 h-4 text-primary"/>Browse & Link Deals
+          </DialogTitle>
+        </DialogHeader>
+        <div className="relative mb-2">
+          <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
+          <Input placeholder="Search deals by name, company, or stage..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm"/>
         </div>
-      ))}
-      {query && !loading && results.length===0 && <p className="text-xs text-muted-foreground px-1">No results found</p>}
-    </div>
+        <ScrollArea className="flex-1 -mx-6 px-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-12">No deals found</p>
+          ) : (
+            <div className="space-y-1.5">
+              {filtered.map((deal: any) => {
+                const isLinked = linkedDealIds.includes(deal.id);
+                return (
+                  <div key={deal.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors">
+                    <div className="flex-1 min-w-0 mr-3">
+                      <p className="text-sm font-medium truncate">{deal.title}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {deal.crm_companies?.name && <span className="text-xs text-muted-foreground">{deal.crm_companies.name}</span>}
+                        <Badge variant="outline" className="text-[10px] capitalize h-5">{deal.stage}</Badge>
+                        <span className="text-xs font-medium">{deal.currency} {Number(deal.value).toLocaleString()}</span>
+                        {deal.expected_close_date && <span className="text-xs text-muted-foreground">Close: {format(new Date(deal.expected_close_date), "dd MMM yyyy")}</span>}
+                      </div>
+                    </div>
+                    {isLinked ? (
+                      <Badge className="text-[10px] bg-primary/15 text-primary border-0">Linked</Badge>
+                    ) : (
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0" disabled={!!linking}
+                        onClick={async () => { setLinking(deal.id); await onLink(deal); setLinking(null); }}>
+                        {linking === deal.id ? <Loader2 className="w-3 h-3 animate-spin"/> : <><Link2 className="w-3 h-3"/>Link</>}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+        <p className="text-[10px] text-muted-foreground mt-2">{filtered.length} deal{filtered.length !== 1 ? "s" : ""} shown</p>
+      </DialogContent>
+    </Dialog>
   );
 }
 
+/* ─── Browse All Projects Modal ─── */
+function BrowseProjectsModal({ open, onOpenChange, onLink, linkedProjectIds }: {
+  open: boolean; onOpenChange: (v: boolean) => void;
+  onLink: (project: any) => Promise<void>; linkedProjectIds: string[];
+}) {
+  const [search, setSearch] = useState("");
+  const [linking, setLinking] = useState<string|null>(null);
+
+  const { data: allProjects = [], isLoading } = useQuery({
+    queryKey: ["browse-all-projects"],
+    queryFn: async () => {
+      const { data } = await supabase.from("engagements")
+        .select("id, name, engagement_type, stage, health, company_id, companies(name)")
+        .order("created_at", { ascending: false }).limit(200);
+      return data || [];
+    },
+    enabled: open,
+  });
+
+  const filtered = allProjects.filter((p: any) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return p.name?.toLowerCase().includes(q) || p.companies?.name?.toLowerCase().includes(q) || p.stage?.toLowerCase().includes(q) || p.engagement_type?.toLowerCase().includes(q);
+  });
+
+  const healthColor: Record<string, string> = { green: "text-emerald-500", amber: "text-amber-500", red: "text-destructive" };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <FolderOpen className="w-4 h-4 text-primary"/>Browse & Link Projects
+          </DialogTitle>
+        </DialogHeader>
+        <div className="relative mb-2">
+          <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
+          <Input placeholder="Search projects by name, company, type, or stage..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm"/>
+        </div>
+        <ScrollArea className="flex-1 -mx-6 px-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>
+          ) : filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-12">No projects found</p>
+          ) : (
+            <div className="space-y-1.5">
+              {filtered.map((project: any) => {
+                const isLinked = linkedProjectIds.includes(project.id);
+                return (
+                  <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors">
+                    <div className="flex-1 min-w-0 mr-3">
+                      <p className="text-sm font-medium truncate">{project.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        {project.companies?.name && <span className="text-xs text-muted-foreground">{project.companies.name}</span>}
+                        <Badge variant="outline" className="text-[10px] capitalize h-5">{project.engagement_type?.replace("_"," ")||"—"}</Badge>
+                        <Badge variant="outline" className="text-[10px] h-5">{project.stage}</Badge>
+                        {project.health && <span className={cn("text-[10px] font-medium capitalize", healthColor[project.health] || "text-muted-foreground")}>● {project.health}</span>}
+                      </div>
+                    </div>
+                    {isLinked ? (
+                      <Badge className="text-[10px] bg-primary/15 text-primary border-0">Linked</Badge>
+                    ) : (
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0" disabled={!!linking}
+                        onClick={async () => { setLinking(project.id); await onLink(project); setLinking(null); }}>
+                        {linking === project.id ? <Loader2 className="w-3 h-3 animate-spin"/> : <><Link2 className="w-3 h-3"/>Link</>}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+        <p className="text-[10px] text-muted-foreground mt-2">{filtered.length} project{filtered.length !== 1 ? "s" : ""} shown</p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ─── Main Component ─── */
 export function ContactDetailTabs({ contact, embedded = false }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [showDealLink, setShowDealLink] = useState(false);
-  const [showProjectLink, setShowProjectLink] = useState(false);
+  const [showDealBrowser, setShowDealBrowser] = useState(false);
+  const [showProjectBrowser, setShowProjectBrowser] = useState(false);
   const [note, setNote] = useState("");
   const [editingNoteId, setEditingNoteId] = useState<string|null>(null);
   const [editContent, setEditContent] = useState("");
@@ -203,34 +263,28 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [showAllNotes, setShowAllNotes] = useState(false);
 
-
   const saveNote = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.from("notes").insert({
-        entity_type: "contact",
-        entity_id: contact.id,
-        content: note.trim(),
-        visibility: "team",
-        owner_id: user?.id || null,
-        pinned: false,
-        source: "ui",
+        entity_type: "contact", entity_id: contact.id,
+        content: note.trim(), visibility: "team",
+        owner_id: user?.id || null, pinned: false, source: "ui",
       });
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["contact-notes", contact.id], refetchType: "active" });
-      setNote("");
-      toast.success("Note saved");
+      setNote(""); toast.success("Note saved");
     },
     onError: () => toast.error("Failed to save note"),
   });
 
-  const { data: notes = [], refetch: refetchNotes } = useQuery({
+  const { data: notes = [] } = useQuery({
     queryKey: ["contact-notes", contact.id],
     queryFn: async () => {
       const { data } = await supabase.from("notes")
-        .select("*")
+        .select("*, profiles:owner_id(first_name, last_name)")
         .eq("entity_type", "contact").eq("entity_id", contact.id)
         .order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(100);
       return data || [];
@@ -273,9 +327,7 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["contact-notes", contact.id], refetchType: "active" });
-      setEditingNoteId(null);
-      setEditContent("");
-      toast.success("Note updated");
+      setEditingNoteId(null); setEditContent(""); toast.success("Note updated");
     },
     onError: () => toast.error("Failed to update note"),
   });
@@ -287,8 +339,7 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["contact-notes", contact.id], refetchType: "active" });
-      setDeletingNoteId(null);
-      toast.success("Note deleted");
+      setDeletingNoteId(null); toast.success("Note deleted");
     },
     onError: () => toast.error("Failed to delete note"),
   });
@@ -317,36 +368,31 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
     }
   };
 
-
-  const searchDeals = async (q: string) => {
-    const { data } = await supabase.from("crm_deals")
-      .select("id, title, value, currency, stage, crm_companies(name)")
-      .ilike("title", `%${q}%`).is("deleted_at", null).limit(8);
-    return (data || []).map((d: any) => ({ ...d, subtitle: `${d.currency} ${Number(d.value).toLocaleString()} · ${d.crm_companies?.name||""}` }));
-  };
-
   const linkDeal = async (deal: any) => {
     await supabase.from("crm_deals").update({ contact_id: contact.id }).eq("id", deal.id);
-    refetchDeals(); setShowDealLink(false);
+    refetchDeals();
+    qc.invalidateQueries({ queryKey: ["browse-all-deals"] });
     toast.success("Deal linked");
-  };
-
-  const searchProjects = async (q: string) => {
-    const { data } = await supabase.from("engagements")
-      .select("id, name, engagement_type, stage").ilike("name", `%${q}%`).limit(8);
-    return (data || []).map((p: any) => ({ ...p, title: p.name, subtitle: `${p.engagement_type} · ${p.stage}` }));
   };
 
   const linkProject = async (project: any) => {
     await supabase.from("engagements").update({ contact_id: contact.id }).eq("id", project.id);
-    refetchProjects(); setShowProjectLink(false);
+    refetchProjects();
+    qc.invalidateQueries({ queryKey: ["browse-all-projects"] });
     toast.success("Project linked");
+  };
+
+  const getAuthor = (n: any) => {
+    const p = n.profiles;
+    const initials = p ? `${(p.first_name||"")[0]||""}${(p.last_name||"")[0]||""}`.toUpperCase()||"?" : "?";
+    const name = p ? `${p.first_name||""} ${p.last_name||""}`.trim()||"You" : "You";
+    return { initials, name };
   };
 
   return (
     <div className="space-y-6">
 
-      {/* ── NOTES — always visible at top, no tab ── */}
+      {/* ── NOTES ── */}
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold flex items-center gap-2">
@@ -358,7 +404,7 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
         <NoteComposer contactId={contact.id} onSaved={() => qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] })} note={note} setNote={setNote} saveNote={saveNote}/>
         {notes.length > 0 && (
           <div className="mt-4">
-            {/* AI Summary */}
+            {/* AI Summary — always available when 3+ notes */}
             {notes.length >= 3 && (
               <div className="mb-3">
                 {aiSummary ? (
@@ -379,66 +425,68 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
               </div>
             )}
 
-            {/* Search - shows when more than 5 notes */}
+            {/* Search */}
             {notes.length > 5 && (
               <div className="relative mb-3">
                 <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
-                <Input placeholder="Search notes..." value={noteSearch} onChange={e => setNoteSearch(e.target.value)} className="pl-8 h-8 text-xs"/>
+                <Input placeholder="Search notes by content or date..." value={noteSearch} onChange={e => setNoteSearch(e.target.value)} className="pl-8 h-8 text-xs"/>
               </div>
             )}
 
             {/* Notes list */}
             {(() => {
-              const filtered = notes.filter((n: any) =>
-                noteSearch ? n.content.toLowerCase().includes(noteSearch.toLowerCase()) : true
-              );
+              const filtered = notes.filter((n: any) => {
+                if (!noteSearch) return true;
+                const q = noteSearch.toLowerCase();
+                return n.content.toLowerCase().includes(q) || format(new Date(n.created_at), "dd MMM yyyy").toLowerCase().includes(q);
+              });
               const visible = showAllNotes ? filtered : filtered.slice(0, 5);
               return (
                 <div className="space-y-2">
-                  {visible.map((n: any) => (
-                    <div key={n.id} className="rounded-lg border border-border bg-card p-3 group">
-                      {editingNoteId === n.id ? (
-                        <div className="space-y-2">
-                          <Textarea value={editContent} onChange={e => setEditContent(e.target.value)}
-                            className="min-h-[80px] text-sm resize-none" autoFocus/>
-                          <div className="flex gap-2">
-                            <Button size="sm" className="h-7 text-xs gap-1" disabled={!editContent.trim() || editNote.isPending}
-                              onClick={() => editNote.mutate({ id: n.id, content: editContent })}>
-                              <Check className="w-3 h-3"/> Save
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs"
-                              onClick={() => { setEditingNoteId(null); setEditContent(""); }}>
-                              Cancel
-                            </Button>
+                  {visible.map((n: any) => {
+                    const author = getAuthor(n);
+                    return (
+                      <div key={n.id} className="rounded-lg border border-border bg-card p-3 group">
+                        {editingNoteId === n.id ? (
+                          <div className="space-y-2">
+                            <Textarea value={editContent} onChange={e => setEditContent(e.target.value)}
+                              className="min-h-[80px] text-sm resize-none" autoFocus/>
+                            <div className="flex gap-2">
+                              <Button size="sm" className="h-7 text-xs gap-1" disabled={!editContent.trim() || editNote.isPending}
+                                onClick={() => editNote.mutate({ id: n.id, content: editContent })}>
+                                <Check className="w-3 h-3"/> Save
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs"
+                                onClick={() => { setEditingNoteId(null); setEditContent(""); }}>
+                                Cancel
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      ) : deletingNoteId === n.id ? (
-                        <div className="space-y-2">
-                          <p className="text-xs text-muted-foreground">Delete this note? This cannot be undone.</p>
-                          <div className="flex gap-2">
-                            <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" disabled={deleteNote.isPending}
-                              onClick={() => deleteNote.mutate(n.id)}>
-                              <Trash2 className="w-3 h-3"/> Delete
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs"
-                              onClick={() => setDeletingNoteId(null)}>
-                              Cancel
-                            </Button>
+                        ) : deletingNoteId === n.id ? (
+                          <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground">Delete this note? This cannot be undone.</p>
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" disabled={deleteNote.isPending}
+                                onClick={() => deleteNote.mutate(n.id)}>
+                                <Trash2 className="w-3 h-3"/> Delete
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 text-xs"
+                                onClick={() => setDeletingNoteId(null)}>
+                                Cancel
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <>
+                        ) : (
                           <div className="flex items-start gap-2.5">
                             <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0 mt-0.5">
-                              {n.profiles ? `${(n.profiles.first_name||"")[0]||""}${(n.profiles.last_name||"")[0]||""}`.toUpperCase()||"?" : "?"}
+                              {author.initials}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-medium">
-                                  {n.profiles ? `${n.profiles.first_name||""} ${n.profiles.last_name||""}`.trim()||"You" : "You"}
-                                </span>
+                                <span className="text-xs font-medium">{author.name}</span>
                                 <span className="text-xs text-muted-foreground">{format(new Date(n.created_at), "dd MMM yyyy · HH:mm")}</span>
                                 {n.source === "voice" && <span className="text-[10px] border border-border rounded px-1 text-muted-foreground">voice</span>}
+                                {n.pinned && <span className="text-[10px] border border-primary/40 rounded px-1 text-primary">pinned</span>}
                               </div>
                               <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{n.content}</p>
                             </div>
@@ -457,10 +505,10 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
                               </button>
                             </div>
                           </div>
-                        </>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                      </div>
+                    );
+                  })}
                   {filtered.length > 5 && (
                     <button onClick={() => setShowAllNotes(v => !v)}
                       className="w-full text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 py-1 transition-colors">
@@ -490,39 +538,29 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold flex items-center gap-2">
-            <Briefcase className="w-4 h-4 text-blue-500"/>
+            <Briefcase className="w-4 h-4 text-primary"/>
             Deals
             {deals.length > 0 && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">{deals.length}</span>}
           </h2>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowDealLink(v => !v)}>
-              <Search className="w-3 h-3"/> Link deal
-            </Button>
-            {!embedded && (
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => navigate("/crm/deals")}>
-                <ExternalLink className="w-3 h-3"/> All deals
-              </Button>
-            )}
-          </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowDealBrowser(true)}>
+            <Link2 className="w-3 h-3"/> Browse & link deal
+          </Button>
         </div>
-        {showDealLink && (
-          <div className="mb-3">
-            <LinkSearchPanel title="Search and link an existing deal" searchFn={searchDeals} onLink={linkDeal} navigate={navigate} linkLabel="Link"/>
-          </div>
-        )}
         {deals.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-6 text-center border border-dashed border-border rounded-lg">
             <Briefcase className="w-6 h-6 text-muted-foreground/30 mb-2"/>
             <p className="text-sm text-muted-foreground mb-2">No deals linked to this contact</p>
-            <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => setShowDealLink(true)}>
-              <Search className="w-3 h-3"/> Link a deal
+            <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => setShowDealBrowser(true)}>
+              <Link2 className="w-3 h-3"/> Browse & link a deal
             </Button>
           </div>
         ) : (
           <div className="space-y-2">
             {deals.map((deal: any) => (
-              <button key={deal.id} onClick={() => !embedded && navigate(`/crm/deals/${deal.id}`, { state: { from: `/contacts/${contact.id}`, fromLabel: contact.name } })}
-                className="w-full p-3 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors text-left">
+              <div key={deal.id}
+                className={cn("w-full p-3 rounded-lg border border-border bg-card text-left", !embedded && "hover:bg-accent/50 cursor-pointer transition-colors")}
+                onClick={() => !embedded && navigate(`/crm/deals/${deal.id}`, { state: { from: `/contacts/${contact.id}`, fromLabel: contact.name } })}
+                role={embedded ? undefined : "button"}>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium">{deal.title}</p>
@@ -533,7 +571,7 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
                     <Badge variant="outline" className="text-xs capitalize">{deal.stage}</Badge>
                   </div>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}
@@ -549,46 +587,41 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
             Projects
             {projects.length > 0 && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">{projects.length}</span>}
           </h2>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowProjectLink(v => !v)}>
-              <Search className="w-3 h-3"/> Link project
-            </Button>
-            {!embedded && (
-              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => navigate("/projects")}>
-                <ExternalLink className="w-3 h-3"/> All projects
-              </Button>
-            )}
-          </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowProjectBrowser(true)}>
+            <Link2 className="w-3 h-3"/> Browse & link project
+          </Button>
         </div>
-        {showProjectLink && (
-          <div className="mb-3">
-            <LinkSearchPanel title="Search and link an existing project" searchFn={searchProjects} onLink={linkProject} navigate={navigate} linkLabel="Link"/>
-          </div>
-        )}
         {projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-6 text-center border border-dashed border-border rounded-lg">
             <FolderOpen className="w-6 h-6 text-muted-foreground/30 mb-2"/>
             <p className="text-sm text-muted-foreground mb-2">No projects linked to this contact</p>
-            <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => setShowProjectLink(true)}>
-              <Search className="w-3 h-3"/> Link a project
+            <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => setShowProjectBrowser(true)}>
+              <Link2 className="w-3 h-3"/> Browse & link a project
             </Button>
           </div>
         ) : (
           <div className="space-y-2">
             {projects.map((project: any) => (
-              <button key={project.id} onClick={() => !embedded && navigate(`/projects/${project.id}`, { state: { from: `/contacts/${contact.id}`, fromLabel: contact.name } })}
-                className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors text-left">
+              <div key={project.id}
+                className={cn("w-full flex items-center justify-between p-3 rounded-lg border border-border bg-card text-left", !embedded && "hover:bg-accent/50 cursor-pointer transition-colors")}
+                onClick={() => !embedded && navigate(`/projects/${project.id}`, { state: { from: `/contacts/${contact.id}`, fromLabel: contact.name } })}
+                role={embedded ? undefined : "button"}>
                 <div>
                   <p className="text-sm font-medium">{project.name}</p>
                   <p className="text-xs text-muted-foreground capitalize">{project.engagement_type?.replace("_"," ")||"—"}</p>
                 </div>
                 <Badge variant="outline" className="text-xs">{project.stage}</Badge>
-              </button>
+              </div>
             ))}
           </div>
         )}
       </section>
 
+      {/* ── Picker Modals ── */}
+      <BrowseDealsModal open={showDealBrowser} onOpenChange={setShowDealBrowser}
+        onLink={linkDeal} linkedDealIds={deals.map((d: any) => d.id)}/>
+      <BrowseProjectsModal open={showProjectBrowser} onOpenChange={setShowProjectBrowser}
+        onLink={linkProject} linkedProjectIds={projects.map((p: any) => p.id)}/>
     </div>
   );
 }

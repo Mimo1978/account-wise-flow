@@ -397,7 +397,70 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
     await onStatusChange("interviewing");
   };
 
-  const getAuthor = (n: any) => {
+  // Outreach campaigns linked to this candidate
+  const { data: linkedCampaigns = [], refetch: refetchCampaigns } = useQuery({
+    queryKey: ["candidate-outreach-campaigns", candidate.id, workspaceId],
+    queryFn: async () => {
+      const db = supabase as any;
+      const { data: targets } = await db.from("outreach_targets")
+        .select("campaign_id, campaign:outreach_campaigns(id, name, status, channel, created_at)")
+        .eq("candidate_id", candidate.id)
+        .eq("entity_type", "candidate");
+      if (!targets) return [];
+      const seen = new Set<string>();
+      return targets.filter((t: any) => {
+        if (!t.campaign || seen.has(t.campaign.id)) return false;
+        seen.add(t.campaign.id);
+        return true;
+      }).map((t: any) => t.campaign);
+    },
+  });
+
+  // All campaigns for browse modal
+  const { data: allCampaigns = [] } = useQuery({
+    queryKey: ["browse-all-campaigns", workspaceId],
+    enabled: showCampaignBrowser,
+    queryFn: async () => {
+      const db = supabase as any;
+      const { data } = await db.from("outreach_campaigns")
+        .select("id, name, status, channel, created_at")
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: false }).limit(200);
+      return data || [];
+    },
+  });
+
+  const addCandidateToCampaign = async (campaignId: string, campaignName: string) => {
+    const db = supabase as any;
+    const { data: existing } = await db.from("outreach_targets")
+      .select("id").eq("campaign_id", campaignId).eq("candidate_id", candidate.id).maybeSingle();
+    if (existing) { toast.info("Candidate already in this campaign"); refetchCampaigns(); return; }
+    const { error } = await db.from("outreach_targets").insert({
+      campaign_id: campaignId, candidate_id: candidate.id, entity_type: "candidate",
+      entity_name: candidate.name, entity_email: candidate.email || null,
+      entity_phone: candidate.phone || null, entity_title: candidate.currentTitle || null,
+      entity_company: candidate.currentCompany || null, workspace_id: workspaceId,
+      state: "queued", priority: 5, added_by: currentUserId,
+    });
+    if (error) { toast.error("Failed to add candidate: " + error.message); return; }
+    const now = format(new Date(), "dd MMM yyyy · HH:mm");
+    await supabase.from("candidate_notes").insert({
+      candidate_id: candidate.id,
+      body: `Automatically added to campaign "${campaignName}" on ${now}.`,
+      visibility: "team", owner_id: currentUserId, team_id: workspaceId,
+    } as any);
+    refetchCampaigns(); refetchNotes();
+    qc.invalidateQueries({ queryKey: ["outreach_campaigns"] });
+    qc.invalidateQueries({ queryKey: ["outreach_targets"] });
+    toast.success(`Added to "${campaignName}"`);
+  };
+
+  const handleCampaignCreated = async (campaignId: string) => {
+    const db = supabase as any;
+    const { data: campaign } = await db.from("outreach_campaigns").select("name").eq("id", campaignId).single();
+    await addCandidateToCampaign(campaignId, campaign?.name || "New Campaign");
+  };
+
     const p = n.profiles;
     const initials = p ? `${(p.first_name||"")[0]||""}${(p.last_name||"")[0]||""}`.toUpperCase()||"?" : "?";
     const name = p ? `${p.first_name||""} ${p.last_name||""}`.trim()||"You" : "You";

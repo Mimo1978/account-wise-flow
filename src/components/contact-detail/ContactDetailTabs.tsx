@@ -419,8 +419,10 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
     refetchProjects();
     qc.invalidateQueries({ queryKey: ["browse-all-projects"] });
     qc.invalidateQueries({ queryKey: ["engagements"] });
+    qc.invalidateQueries({ queryKey: ["engagement"] });
     qc.invalidateQueries({ queryKey: ["crm_projects"] });
     qc.invalidateQueries({ queryKey: ["project-detail"] });
+    qc.invalidateQueries({ queryKey: ["engagement-contact-detail"] });
     toast.success("Project linked");
   };
 

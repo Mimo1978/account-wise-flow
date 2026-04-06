@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogPortal, DialogOverlay, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, Link2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
@@ -119,52 +119,58 @@ function BrowseDealsModal({ open, onOpenChange, onLink, linkedDealIds }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <Briefcase className="w-4 h-4 text-primary"/>Browse & Link Deals
-          </DialogTitle>
-        </DialogHeader>
-        <div className="relative mb-2">
-          <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
-          <Input placeholder="Search deals by name, company, or stage..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm"/>
-        </div>
-        <ScrollArea className="flex-1 -mx-6 px-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>
-          ) : filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-12">No deals found</p>
-          ) : (
-            <div className="space-y-1.5">
-              {filtered.map((deal: any) => {
-                const isLinked = linkedDealIds.includes(deal.id);
-                return (
-                  <div key={deal.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors">
-                    <div className="flex-1 min-w-0 mr-3">
-                      <p className="text-sm font-medium truncate">{deal.title}</p>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        {deal.crm_companies?.name && <span className="text-xs text-muted-foreground">{deal.crm_companies.name}</span>}
-                        <Badge variant="outline" className="text-[10px] capitalize h-5">{deal.stage}</Badge>
-                        <span className="text-xs font-medium">{deal.currency} {Number(deal.value).toLocaleString()}</span>
-                        {deal.expected_close_date && <span className="text-xs text-muted-foreground">Close: {format(new Date(deal.expected_close_date), "dd MMM yyyy")}</span>}
+      <DialogPortal>
+        <DialogOverlay className="z-[10000]" />
+        <div className="fixed left-[50%] top-[50%] z-[10001] w-full max-w-2xl translate-x-[-50%] translate-y-[-50%] max-h-[80vh] flex flex-col gap-4 border bg-background p-6 shadow-lg sm:rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Briefcase className="w-4 h-4 text-primary"/>Browse & Link Deals
+            </DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
+            <Input placeholder="Search deals by name, company, or stage..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm"/>
+          </div>
+          <ScrollArea className="flex-1 min-h-0">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>
+            ) : filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-12">No deals found</p>
+            ) : (
+              <div className="space-y-1.5 pr-3">
+                {filtered.map((deal: any) => {
+                  const isLinked = linkedDealIds.includes(deal.id);
+                  return (
+                    <div key={deal.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors">
+                      <div className="flex-1 min-w-0 mr-3">
+                        <p className="text-sm font-medium truncate">{deal.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          {deal.crm_companies?.name && <span className="text-xs text-muted-foreground">{deal.crm_companies.name}</span>}
+                          <Badge variant="outline" className="text-[10px] capitalize h-5">{deal.stage}</Badge>
+                          <span className="text-xs font-medium">{deal.currency} {Number(deal.value).toLocaleString()}</span>
+                          {deal.expected_close_date && <span className="text-xs text-muted-foreground">Close: {format(new Date(deal.expected_close_date), "dd MMM yyyy")}</span>}
+                        </div>
                       </div>
+                      {isLinked ? (
+                        <Badge className="text-[10px] bg-primary/15 text-primary border-0">Linked</Badge>
+                      ) : (
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0" disabled={!!linking}
+                          onClick={async () => { setLinking(deal.id); await onLink(deal); setLinking(null); }}>
+                          {linking === deal.id ? <Loader2 className="w-3 h-3 animate-spin"/> : <><Link2 className="w-3 h-3"/>Link</>}
+                        </Button>
+                      )}
                     </div>
-                    {isLinked ? (
-                      <Badge className="text-[10px] bg-primary/15 text-primary border-0">Linked</Badge>
-                    ) : (
-                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0" disabled={!!linking}
-                        onClick={async () => { setLinking(deal.id); await onLink(deal); setLinking(null); }}>
-                        {linking === deal.id ? <Loader2 className="w-3 h-3 animate-spin"/> : <><Link2 className="w-3 h-3"/>Link</>}
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
-        <p className="text-[10px] text-muted-foreground mt-2">{filtered.length} deal{filtered.length !== 1 ? "s" : ""} shown</p>
-      </DialogContent>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+          <p className="text-[10px] text-muted-foreground">{filtered.length} deal{filtered.length !== 1 ? "s" : ""} shown</p>
+          <button onClick={() => onOpenChange(false)} className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100">
+            <X className="h-4 w-4" /><span className="sr-only">Close</span>
+          </button>
+        </div>
+      </DialogPortal>
     </Dialog>
   );
 }
@@ -198,52 +204,58 @@ function BrowseProjectsModal({ open, onOpenChange, onLink, linkedProjectIds }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <FolderOpen className="w-4 h-4 text-primary"/>Browse & Link Projects
-          </DialogTitle>
-        </DialogHeader>
-        <div className="relative mb-2">
-          <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
-          <Input placeholder="Search projects by name, company, type, or stage..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm"/>
-        </div>
-        <ScrollArea className="flex-1 -mx-6 px-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>
-          ) : filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-12">No projects found</p>
-          ) : (
-            <div className="space-y-1.5">
-              {filtered.map((project: any) => {
-                const isLinked = linkedProjectIds.includes(project.id);
-                return (
-                  <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors">
-                    <div className="flex-1 min-w-0 mr-3">
-                      <p className="text-sm font-medium truncate">{project.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        {project.companies?.name && <span className="text-xs text-muted-foreground">{project.companies.name}</span>}
-                        <Badge variant="outline" className="text-[10px] capitalize h-5">{project.engagement_type?.replace("_"," ")||"—"}</Badge>
-                        <Badge variant="outline" className="text-[10px] h-5">{project.stage}</Badge>
-                        {project.health && <span className={cn("text-[10px] font-medium capitalize", healthColor[project.health] || "text-muted-foreground")}>● {project.health}</span>}
+      <DialogPortal>
+        <DialogOverlay className="z-[10000]" />
+        <div className="fixed left-[50%] top-[50%] z-[10001] w-full max-w-2xl translate-x-[-50%] translate-y-[-50%] max-h-[80vh] flex flex-col gap-4 border bg-background p-6 shadow-lg sm:rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <FolderOpen className="w-4 h-4 text-primary"/>Browse & Link Projects
+            </DialogTitle>
+          </DialogHeader>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
+            <Input placeholder="Search projects by name, company, type, or stage..." value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9 text-sm"/>
+          </div>
+          <ScrollArea className="flex-1 min-h-0">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground"/></div>
+            ) : filtered.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-12">No projects found</p>
+            ) : (
+              <div className="space-y-1.5 pr-3">
+                {filtered.map((project: any) => {
+                  const isLinked = linkedProjectIds.includes(project.id);
+                  return (
+                    <div key={project.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors">
+                      <div className="flex-1 min-w-0 mr-3">
+                        <p className="text-sm font-medium truncate">{project.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          {project.companies?.name && <span className="text-xs text-muted-foreground">{project.companies.name}</span>}
+                          <Badge variant="outline" className="text-[10px] capitalize h-5">{project.engagement_type?.replace("_"," ")||"—"}</Badge>
+                          <Badge variant="outline" className="text-[10px] h-5">{project.stage}</Badge>
+                          {project.health && <span className={cn("text-[10px] font-medium capitalize", healthColor[project.health] || "text-muted-foreground")}>● {project.health}</span>}
+                        </div>
                       </div>
+                      {isLinked ? (
+                        <Badge className="text-[10px] bg-primary/15 text-primary border-0">Linked</Badge>
+                      ) : (
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0" disabled={!!linking}
+                          onClick={async () => { setLinking(project.id); await onLink(project); setLinking(null); }}>
+                          {linking === project.id ? <Loader2 className="w-3 h-3 animate-spin"/> : <><Link2 className="w-3 h-3"/>Link</>}
+                        </Button>
+                      )}
                     </div>
-                    {isLinked ? (
-                      <Badge className="text-[10px] bg-primary/15 text-primary border-0">Linked</Badge>
-                    ) : (
-                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0" disabled={!!linking}
-                        onClick={async () => { setLinking(project.id); await onLink(project); setLinking(null); }}>
-                        {linking === project.id ? <Loader2 className="w-3 h-3 animate-spin"/> : <><Link2 className="w-3 h-3"/>Link</>}
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
-        <p className="text-[10px] text-muted-foreground mt-2">{filtered.length} project{filtered.length !== 1 ? "s" : ""} shown</p>
-      </DialogContent>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+          <p className="text-[10px] text-muted-foreground">{filtered.length} project{filtered.length !== 1 ? "s" : ""} shown</p>
+          <button onClick={() => onOpenChange(false)} className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100">
+            <X className="h-4 w-4" /><span className="sr-only">Close</span>
+          </button>
+        </div>
+      </DialogPortal>
     </Dialog>
   );
 }
@@ -283,11 +295,20 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
   const { data: notes = [] } = useQuery({
     queryKey: ["contact-notes", contact.id],
     queryFn: async () => {
-      const { data } = await supabase.from("notes")
-        .select("*, profiles:owner_id(first_name, last_name)")
+      const { data: rawNotes } = await supabase.from("notes")
+        .select("*")
         .eq("entity_type", "contact").eq("entity_id", contact.id)
         .order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(100);
-      return data || [];
+      if (!rawNotes || rawNotes.length === 0) return [];
+      // Fetch profiles for owner_ids
+      const ownerIds = [...new Set(rawNotes.map(n => n.owner_id).filter(Boolean))];
+      let profilesMap: Record<string, any> = {};
+      if (ownerIds.length > 0) {
+        const { data: profiles } = await supabase.from("profiles")
+          .select("id, first_name, last_name").in("id", ownerIds);
+        if (profiles) profiles.forEach(p => { profilesMap[p.id] = p; });
+      }
+      return rawNotes.map(n => ({ ...n, profiles: n.owner_id ? profilesMap[n.owner_id] || null : null }));
     },
   });
 

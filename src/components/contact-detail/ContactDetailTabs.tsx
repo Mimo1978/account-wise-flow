@@ -403,8 +403,50 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
     }
   };
 
+  // Resolve the crm_contacts id for this canonical contact (needed for FK constraints)
+  const resolveCrmContactId = async (): Promise<string | null> => {
+    // Try to find existing crm_contacts record by email match
+    if (contact.email) {
+      const { data: existing } = await supabase.from("crm_contacts")
+        .select("id")
+        .eq("email", contact.email)
+        .limit(1)
+        .maybeSingle();
+      if (existing) return existing.id;
+    }
+    // Try name match as fallback
+    const nameParts = (contact.name || "").trim().split(/\s+/);
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+    if (firstName && lastName) {
+      const { data: byName } = await supabase.from("crm_contacts")
+        .select("id")
+        .ilike("first_name", firstName)
+        .ilike("last_name", lastName)
+        .limit(1)
+        .maybeSingle();
+      if (byName) return byName.id;
+    }
+    // Create a new crm_contacts record
+    const { data: newContact, error: createErr } = await supabase.from("crm_contacts")
+      .insert({
+        first_name: firstName || contact.name || "Unknown",
+        last_name: lastName || "",
+        email: contact.email || null,
+        phone: contact.phone || null,
+        job_title: contact.title || null,
+        company_id: null,
+      } as any)
+      .select("id")
+      .single();
+    if (createErr) { toast.error("Failed to resolve CRM contact: " + createErr.message); return null; }
+    return newContact?.id || null;
+  };
+
   const linkDeal = async (deal: any) => {
-    const { error } = await supabase.from("crm_deals").update({ contact_id: contact.id } as any).eq("id", deal.id);
+    const crmContactId = await resolveCrmContactId();
+    if (!crmContactId) return;
+    const { error } = await supabase.from("crm_deals").update({ contact_id: crmContactId } as any).eq("id", deal.id);
     if (error) { toast.error("Failed to link deal: " + error.message); return; }
     refetchDeals();
     qc.invalidateQueries({ queryKey: ["browse-all-deals"] });
@@ -414,7 +456,9 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
   };
 
   const linkProject = async (project: any) => {
-    const { error } = await supabase.from("engagements").update({ contact_id: contact.id } as any).eq("id", project.id);
+    const crmContactId = await resolveCrmContactId();
+    if (!crmContactId) return;
+    const { error } = await supabase.from("engagements").update({ contact_id: crmContactId } as any).eq("id", project.id);
     if (error) { toast.error("Failed to link project: " + error.message); return; }
     refetchProjects();
     qc.invalidateQueries({ queryKey: ["browse-all-projects"] });

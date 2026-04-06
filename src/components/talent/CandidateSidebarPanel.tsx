@@ -325,6 +325,7 @@ interface CandidateSidebarPanelProps {
 
 export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUserId, workspaceId, activeStatus, onStatusChange }: CandidateSidebarPanelProps) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [showDealBrowser, setShowDealBrowser] = useState(false);
   const [showProjectBrowser, setShowProjectBrowser] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string|null>(null);

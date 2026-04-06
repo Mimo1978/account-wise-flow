@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
 import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBanner";
 import { useDeletionPermission } from "@/hooks/use-deletion";
+import { EditContactModal } from "./EditContactModal";
 
 interface Props {
   contact: any;
@@ -14,6 +15,7 @@ export function ContactDetailHeader({ contact }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const perm = useDeletionPermission();
 
   return (
@@ -32,7 +34,7 @@ export function ContactDetailHeader({ contact }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Pencil className="h-4 w-4 mr-1" /> Edit
           </Button>
           {perm.canSeeDeleteOption && (
@@ -59,6 +61,7 @@ export function ContactDetailHeader({ contact }: Props) {
         recordName={contact.name}
         onDeleted={() => navigate(location.state?.from || "/contacts")}
       />
+      <EditContactModal open={editOpen} onOpenChange={setEditOpen} contact={contact} />
     </>
   );
 }

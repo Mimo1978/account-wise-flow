@@ -94,7 +94,7 @@ export function ContactIdentityCard({ contact }: Props) {
           {company && (
             <button
               onClick={() => navigate(`/companies/${company.id}`)}
-              className="text-sm text-[#378ADD] hover:underline mt-0.5"
+              className="text-sm text-primary hover:underline mt-0.5"
             >
               {company.name}
             </button>
@@ -190,12 +190,7 @@ export function ContactIdentityCard({ contact }: Props) {
           </Button>
         </div>
         <Button variant="outline" size="sm" className="w-full justify-start gap-2"
-          onClick={() => {
-            const tab = document.querySelector('[data-value="notes"]') as HTMLElement;
-            tab?.click();
-            setTimeout(() => document.getElementById("note-composer")?.focus(), 120);
-          }}
-        >
+          onClick={() => document.getElementById("note-composer")?.focus()}>
           <MessageSquare className="h-4 w-4" /> Add Note
         </Button>
       </div>
@@ -226,7 +221,7 @@ function DetailRow({
           href={href}
           target={external ? "_blank" : undefined}
           rel={external ? "noopener noreferrer" : undefined}
-          className="text-[#378ADD] hover:underline truncate"
+          className="text-primary hover:underline truncate"
         >
           {display}
         </a>

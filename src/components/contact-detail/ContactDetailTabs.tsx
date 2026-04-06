@@ -119,7 +119,7 @@ function BrowseDealsModal({ open, onOpenChange, onLink, linkedDealIds }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col z-[10001]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <Briefcase className="w-4 h-4 text-primary"/>Browse & Link Deals
@@ -198,7 +198,7 @@ function BrowseProjectsModal({ open, onOpenChange, onLink, linkedProjectIds }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col z-[10001]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <FolderOpen className="w-4 h-4 text-primary"/>Browse & Link Projects
@@ -283,11 +283,20 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
   const { data: notes = [] } = useQuery({
     queryKey: ["contact-notes", contact.id],
     queryFn: async () => {
-      const { data } = await supabase.from("notes")
-        .select("*, profiles:owner_id(first_name, last_name)")
+      const { data: rawNotes } = await supabase.from("notes")
+        .select("*")
         .eq("entity_type", "contact").eq("entity_id", contact.id)
         .order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(100);
-      return data || [];
+      if (!rawNotes || rawNotes.length === 0) return [];
+      // Fetch profiles for owner_ids
+      const ownerIds = [...new Set(rawNotes.map(n => n.owner_id).filter(Boolean))];
+      let profilesMap: Record<string, any> = {};
+      if (ownerIds.length > 0) {
+        const { data: profiles } = await supabase.from("profiles")
+          .select("id, first_name, last_name").in("id", ownerIds);
+        if (profiles) profiles.forEach(p => { profilesMap[p.id] = p; });
+      }
+      return rawNotes.map(n => ({ ...n, profiles: n.owner_id ? profilesMap[n.owner_id] || null : null }));
     },
   });
 

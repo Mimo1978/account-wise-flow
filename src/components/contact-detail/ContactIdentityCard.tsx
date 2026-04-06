@@ -190,7 +190,7 @@ export function ContactIdentityCard({ contact }: Props) {
           </Button>
         </div>
         <Button variant="outline" size="sm" className="w-full justify-start gap-2"
-          onClick={() => document.getElementById("note-composer")?.focus()}>
+          onClick={() => document.getElementById("note-input")?.focus()}>
           <MessageSquare className="h-4 w-4" /> Add Note
         </Button>
       </div>

@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin,
   Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, ChevronRight,
-  Link2, CalendarIcon, Mail, Phone, MapPin, Linkedin, Clock,
+  Link2, CalendarIcon, Mail, Phone, MapPin, Linkedin, Clock, Megaphone, Plus,
 } from "lucide-react";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";

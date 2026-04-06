@@ -61,6 +61,7 @@ export function ContactDetailHeader({ contact }: Props) {
         recordName={contact.name}
         onDeleted={() => navigate(location.state?.from || "/contacts")}
       />
+      <EditContactModal open={editOpen} onOpenChange={setEditOpen} contact={contact} />
     </>
   );
 }

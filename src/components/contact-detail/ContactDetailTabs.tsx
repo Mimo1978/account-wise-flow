@@ -189,7 +189,7 @@ function LinkSearchPanel({ title, searchFn, onLink, navigate, linkLabel }: {
   );
 }
 
-export function ContactDetailTabs({ contact }: Props) {
+export function ContactDetailTabs({ contact, embedded = false }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [showDealLink, setShowDealLink] = useState(false);

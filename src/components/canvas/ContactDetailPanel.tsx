@@ -157,7 +157,7 @@ export const ContactDetailPanel = ({
 
             {/* Notes, Deals, Projects — always shown */}
             <div className={cn("flex-1 min-w-0", isExpanded && "lg:w-[65%]")}>
-              <ContactDetailTabs contact={displayContact} />
+              <ContactDetailTabs contact={displayContact} embedded />
             </div>
           </div>
         </div>

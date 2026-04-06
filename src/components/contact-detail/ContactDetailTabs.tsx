@@ -12,7 +12,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-interface Props { contact: any; }
+interface Props { contact: any; embedded?: boolean; }
 
 function NoteComposer({ contactId, onSaved, note, setNote, saveNote }: { contactId: string; onSaved: () => void; note: string; setNote: (v: string) => void; saveNote: { mutate: () => void; isPending: boolean } }) {
   const content = note;
@@ -189,7 +189,7 @@ function LinkSearchPanel({ title, searchFn, onLink, navigate, linkLabel }: {
   );
 }
 
-export function ContactDetailTabs({ contact }: Props) {
+export function ContactDetailTabs({ contact, embedded = false }: Props) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [showDealLink, setShowDealLink] = useState(false);
@@ -498,9 +498,11 @@ export function ContactDetailTabs({ contact }: Props) {
             <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowDealLink(v => !v)}>
               <Search className="w-3 h-3"/> Link deal
             </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => navigate("/crm/deals")}>
-              <ExternalLink className="w-3 h-3"/> All deals
-            </Button>
+            {!embedded && (
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => navigate("/crm/deals")}>
+                <ExternalLink className="w-3 h-3"/> All deals
+              </Button>
+            )}
           </div>
         </div>
         {showDealLink && (
@@ -519,7 +521,7 @@ export function ContactDetailTabs({ contact }: Props) {
         ) : (
           <div className="space-y-2">
             {deals.map((deal: any) => (
-              <button key={deal.id} onClick={() => navigate(`/crm/deals/${deal.id}`)}
+              <button key={deal.id} onClick={() => !embedded && navigate(`/crm/deals/${deal.id}`, { state: { from: `/contacts/${contact.id}`, fromLabel: contact.name } })}
                 className="w-full p-3 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors text-left">
                 <div className="flex items-center justify-between">
                   <div>
@@ -551,9 +553,11 @@ export function ContactDetailTabs({ contact }: Props) {
             <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowProjectLink(v => !v)}>
               <Search className="w-3 h-3"/> Link project
             </Button>
-            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => navigate("/projects")}>
-              <ExternalLink className="w-3 h-3"/> All projects
-            </Button>
+            {!embedded && (
+              <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => navigate("/projects")}>
+                <ExternalLink className="w-3 h-3"/> All projects
+              </Button>
+            )}
           </div>
         </div>
         {showProjectLink && (
@@ -572,7 +576,7 @@ export function ContactDetailTabs({ contact }: Props) {
         ) : (
           <div className="space-y-2">
             {projects.map((project: any) => (
-              <button key={project.id} onClick={() => navigate(`/projects/${project.id}`)}
+              <button key={project.id} onClick={() => !embedded && navigate(`/projects/${project.id}`, { state: { from: `/contacts/${contact.id}`, fromLabel: contact.name } })}
                 className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors text-left">
                 <div>
                   <p className="text-sm font-medium">{project.name}</p>

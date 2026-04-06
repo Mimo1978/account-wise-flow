@@ -74,6 +74,15 @@ import { ScheduleCallbackPopover } from "@/components/outreach/ScheduleCallbackP
 import type { OutreachTarget } from "@/hooks/use-outreach";
 import { Bot } from "lucide-react";
 
+const HEADER_STATUSES = [
+  { key: "open_to_work", label: "Open to Work", color: "bg-emerald-500 hover:bg-emerald-600 text-white" },
+  { key: "on_assignment", label: "On Assignment", color: "bg-blue-500 hover:bg-blue-600 text-white" },
+  { key: "not_available", label: "Not Available", color: "bg-red-500 hover:bg-red-600 text-white" },
+  { key: "newly_added", label: "Newly Added", color: "bg-purple-500 hover:bg-purple-600 text-white" },
+  { key: "interviewing", label: "Interviewing", color: "bg-amber-500 hover:bg-amber-600 text-white" },
+  { key: "placed", label: "Placed", color: "bg-teal-600 hover:bg-teal-700 text-white" },
+] as const;
+
 const availabilityColors: Record<TalentAvailability, string> = {
   available: "bg-green-500/20 text-green-400 border-green-500/30",
   interviewing: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",

@@ -23,6 +23,8 @@ interface ContactDetailPanelProps {
   onExpandToggle?: () => void;
   onUnsavedChanges?: (hasChanges: boolean) => void;
   readOnly?: boolean;
+  originPath?: string;
+  originLabel?: string;
 }
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -41,6 +43,8 @@ export const ContactDetailPanel = ({
   onExpandToggle,
   onUnsavedChanges,
   readOnly = false,
+  originPath,
+  originLabel,
 }: ContactDetailPanelProps) => {
   const navigate = useNavigate();
 
@@ -115,7 +119,7 @@ export const ContactDetailPanel = ({
               variant="ghost"
               size="sm"
               className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
-              onClick={() => navigate(`/contacts/${contact.id}`)}
+              onClick={() => navigate(`/contacts/${contact.id}`, { state: { from: originPath, fromLabel: originLabel } })}
               title="Open full contact page"
             >
               <ExternalLink className="w-3.5 h-3.5" />

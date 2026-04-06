@@ -380,6 +380,8 @@ const DemoWorkspace = () => {
           isExpanded={isExpanded}
           onExpandToggle={() => setIsExpanded(!isExpanded)}
           onUnsavedChanges={setHasUnsavedChanges}
+          originPath="/demo-workspace"
+          originLabel="Back to Demo"
         />
       )}
 

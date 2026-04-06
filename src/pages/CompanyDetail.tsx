@@ -1664,6 +1664,8 @@ export default function CompanyDetail() {
           onClose={() => { setSelectedContact(null); setIsPanelExpanded(false); }}
           isExpanded={isPanelExpanded}
           onExpandToggle={() => setIsPanelExpanded(p => !p)}
+          originPath={`/companies/${id}`}
+          originLabel={`Back to ${company.name}`}
         />
       )}
     </div>

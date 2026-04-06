@@ -353,6 +353,8 @@ const Demo = () => {
           onExpandToggle={() => setIsExpanded(!isExpanded)}
           onUnsavedChanges={setHasUnsavedChanges}
           readOnly={true}
+          originPath="/demo"
+          originLabel="Back to Demo"
         />
       )}
 

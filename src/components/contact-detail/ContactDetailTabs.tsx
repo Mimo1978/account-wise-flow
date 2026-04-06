@@ -166,9 +166,9 @@ function BrowseDealsModal({ open, onOpenChange, onLink, linkedDealIds }: {
             )}
           </ScrollArea>
           <p className="text-[10px] text-muted-foreground">{filtered.length} deal{filtered.length !== 1 ? "s" : ""} shown</p>
-          <button onClick={() => onOpenChange(false)} className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100">
+          <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="absolute right-4 top-4 h-7 w-7 rounded-full hover:bg-accent">
             <X className="h-4 w-4" /><span className="sr-only">Close</span>
-          </button>
+          </Button>
         </div>
       </DialogPortal>
     </Dialog>
@@ -251,9 +251,9 @@ function BrowseProjectsModal({ open, onOpenChange, onLink, linkedProjectIds }: {
             )}
           </ScrollArea>
           <p className="text-[10px] text-muted-foreground">{filtered.length} project{filtered.length !== 1 ? "s" : ""} shown</p>
-          <button onClick={() => onOpenChange(false)} className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100">
+          <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="absolute right-4 top-4 h-7 w-7 rounded-full hover:bg-accent">
             <X className="h-4 w-4" /><span className="sr-only">Close</span>
-          </button>
+          </Button>
         </div>
       </DialogPortal>
     </Dialog>

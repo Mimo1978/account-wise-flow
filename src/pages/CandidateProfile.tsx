@@ -178,10 +178,13 @@ export default function CandidateProfile() {
     return candidates.find((c) => c.id === candidateId) || null;
   }, [candidates, candidateId]);
 
-  // Sync header status from candidate data
+  // Sync header status from candidate data — only on initial load
+  const headerStatusInitRef = useRef(false);
   useEffect(() => {
-    if (!candidate) return;
-    const s = candidate.availability === "deployed" ? "on_assignment"
+    if (!candidate || headerStatusInitRef.current) return;
+    headerStatusInitRef.current = true;
+    const s = candidate.availability === "deployed" && candidate.status === "on-hold" ? "not_available"
+      : candidate.availability === "deployed" ? "on_assignment"
       : candidate.availability === "interviewing" ? "interviewing"
       : candidate.status === "new" ? "newly_added"
       : "open_to_work";

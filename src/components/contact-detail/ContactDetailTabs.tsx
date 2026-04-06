@@ -73,7 +73,7 @@ function NoteComposer({ contactId, onSaved, note, setNote, saveNote }: { contact
     <div className="space-y-3 rounded-lg border border-border bg-card p-4">
       <div className="relative">
         <Textarea
-          id="note-composer"
+          id="note-input"
           placeholder="Write a note about this contact..."
           value={content}
           onChange={(e) => setContent(e.target.value)}

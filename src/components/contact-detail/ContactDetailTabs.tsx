@@ -517,7 +517,7 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
                             <Textarea value={editContent} onChange={e => setEditContent(e.target.value)}
                               className="min-h-[80px] text-sm resize-none" autoFocus/>
                             <div className="flex gap-2">
-                              <Button size="sm" className="h-7 text-xs gap-1" disabled={!editContent.trim() || editNote.isPending}
+                              <Button size="sm" className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!editContent.trim() || editNote.isPending}
                                 onClick={() => editNote.mutate({ id: n.id, content: editContent })}>
                                 <Check className="w-3 h-3"/> Save
                               </Button>

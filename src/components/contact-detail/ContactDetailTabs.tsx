@@ -276,6 +276,8 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
   const [aiSummary, setAiSummary] = useState("");
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [showAllNotes, setShowAllNotes] = useState(false);
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const saveNote = useMutation({
     mutationFn: async () => {

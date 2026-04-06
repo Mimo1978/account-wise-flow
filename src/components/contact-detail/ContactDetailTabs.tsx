@@ -404,16 +404,23 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
   };
 
   const linkDeal = async (deal: any) => {
-    await supabase.from("crm_deals").update({ contact_id: contact.id }).eq("id", deal.id);
+    const { error } = await supabase.from("crm_deals").update({ contact_id: contact.id } as any).eq("id", deal.id);
+    if (error) { toast.error("Failed to link deal: " + error.message); return; }
     refetchDeals();
     qc.invalidateQueries({ queryKey: ["browse-all-deals"] });
+    qc.invalidateQueries({ queryKey: ["crm_deals"] });
+    qc.invalidateQueries({ queryKey: ["deal-detail"] });
     toast.success("Deal linked");
   };
 
   const linkProject = async (project: any) => {
-    await supabase.from("engagements").update({ contact_id: contact.id }).eq("id", project.id);
+    const { error } = await supabase.from("engagements").update({ contact_id: contact.id } as any).eq("id", project.id);
+    if (error) { toast.error("Failed to link project: " + error.message); return; }
     refetchProjects();
     qc.invalidateQueries({ queryKey: ["browse-all-projects"] });
+    qc.invalidateQueries({ queryKey: ["engagements"] });
+    qc.invalidateQueries({ queryKey: ["crm_projects"] });
+    qc.invalidateQueries({ queryKey: ["project-detail"] });
     toast.success("Project linked");
   };
 

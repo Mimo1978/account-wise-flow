@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageSquare, Briefcase, FolderOpen, FileText, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Plus, Clock } from "lucide-react";
+import { MessageSquare, Briefcase, FolderOpen, FileText, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Plus, Clock, Trash2, Pencil, X, Check, Sparkles, ChevronDown } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -195,6 +195,14 @@ export function ContactDetailTabs({ contact }: Props) {
   const [showDealLink, setShowDealLink] = useState(false);
   const [showProjectLink, setShowProjectLink] = useState(false);
   const [note, setNote] = useState("");
+  const [editingNoteId, setEditingNoteId] = useState<string|null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [deletingNoteId, setDeletingNoteId] = useState<string|null>(null);
+  const [noteSearch, setNoteSearch] = useState("");
+  const [aiSummary, setAiSummary] = useState("");
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [showAllNotes, setShowAllNotes] = useState(false);
+
 
   const saveNote = useMutation({
     mutationFn: async () => {
@@ -258,6 +266,58 @@ export function ContactDetailTabs({ contact }: Props) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] }),
   });
 
+  const editNote = useMutation({
+    mutationFn: async ({ id, content }: { id: string; content: string }) => {
+      const { error } = await supabase.from("notes").update({ content: content.trim() }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contact-notes", contact.id], refetchType: "active" });
+      setEditingNoteId(null);
+      setEditContent("");
+      toast.success("Note updated");
+    },
+    onError: () => toast.error("Failed to update note"),
+  });
+
+  const deleteNote = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("notes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contact-notes", contact.id], refetchType: "active" });
+      setDeletingNoteId(null);
+      toast.success("Note deleted");
+    },
+    onError: () => toast.error("Failed to delete note"),
+  });
+
+  const generateSummary = async () => {
+    if (notes.length === 0) return;
+    setSummaryLoading(true);
+    try {
+      const noteText = notes.map((n: any) => `- ${n.content}`).join("\n");
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-notes-summary`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ noteText }),
+      });
+      if (!response.ok) throw new Error("Failed");
+      const data = await response.json();
+      setAiSummary(data.summary || "Could not generate summary.");
+    } catch {
+      toast.error("AI summary failed");
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+
   const searchDeals = async (q: string) => {
     const { data } = await supabase.from("crm_deals")
       .select("id, title, value, currency, stage, crm_companies(name)")
@@ -297,17 +357,129 @@ export function ContactDetailTabs({ contact }: Props) {
         </div>
         <NoteComposer contactId={contact.id} onSaved={() => qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] })} note={note} setNote={setNote} saveNote={saveNote}/>
         {notes.length > 0 && (
-          <div className="space-y-2 mt-4">
-            {notes.map((note: any) => (
-              <NoteCard key={note.id} note={note} onPin={() => pinNote.mutate({ id: note.id, pinned: note.pinned })}/>
-            ))}
+          <div className="mt-4">
+            {/* AI Summary */}
+            {notes.length >= 3 && (
+              <div className="mb-3">
+                {aiSummary ? (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-primary flex items-center gap-1.5"><Sparkles className="w-3 h-3"/>AI Summary</span>
+                      <button onClick={() => setAiSummary("")} className="text-muted-foreground hover:text-foreground"><X className="w-3 h-3"/></button>
+                    </div>
+                    <p className="text-sm text-foreground leading-relaxed">{aiSummary}</p>
+                  </div>
+                ) : (
+                  <button onClick={generateSummary} disabled={summaryLoading}
+                    className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 transition-colors">
+                    <Sparkles className="w-3 h-3"/>
+                    {summaryLoading ? "Generating..." : "Summarise all notes with AI"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Search - shows when more than 5 notes */}
+            {notes.length > 5 && (
+              <div className="relative mb-3">
+                <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
+                <Input placeholder="Search notes..." value={noteSearch} onChange={e => setNoteSearch(e.target.value)} className="pl-8 h-8 text-xs"/>
+              </div>
+            )}
+
+            {/* Notes list */}
+            {(() => {
+              const filtered = notes.filter((n: any) =>
+                noteSearch ? n.content.toLowerCase().includes(noteSearch.toLowerCase()) : true
+              );
+              const visible = showAllNotes ? filtered : filtered.slice(0, 5);
+              return (
+                <div className="space-y-2">
+                  {visible.map((n: any) => (
+                    <div key={n.id} className="rounded-lg border border-border bg-card p-3 group">
+                      {editingNoteId === n.id ? (
+                        <div className="space-y-2">
+                          <Textarea value={editContent} onChange={e => setEditContent(e.target.value)}
+                            className="min-h-[80px] text-sm resize-none" autoFocus/>
+                          <div className="flex gap-2">
+                            <Button size="sm" className="h-7 text-xs gap-1" disabled={!editContent.trim() || editNote.isPending}
+                              onClick={() => editNote.mutate({ id: n.id, content: editContent })}>
+                              <Check className="w-3 h-3"/> Save
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs"
+                              onClick={() => { setEditingNoteId(null); setEditContent(""); }}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : deletingNoteId === n.id ? (
+                        <div className="space-y-2">
+                          <p className="text-xs text-muted-foreground">Delete this note? This cannot be undone.</p>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="destructive" className="h-7 text-xs gap-1" disabled={deleteNote.isPending}
+                              onClick={() => deleteNote.mutate(n.id)}>
+                              <Trash2 className="w-3 h-3"/> Delete
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs"
+                              onClick={() => setDeletingNoteId(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-start gap-2.5">
+                            <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0 mt-0.5">
+                              {n.profiles ? `${(n.profiles.first_name||"")[0]||""}${(n.profiles.last_name||"")[0]||""}`.toUpperCase()||"?" : "?"}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-medium">
+                                  {n.profiles ? `${n.profiles.first_name||""} ${n.profiles.last_name||""}`.trim()||"You" : "You"}
+                                </span>
+                                <span className="text-xs text-muted-foreground">{format(new Date(n.created_at), "dd MMM yyyy · HH:mm")}</span>
+                                {n.source === "voice" && <span className="text-[10px] border border-border rounded px-1 text-muted-foreground">voice</span>}
+                              </div>
+                              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{n.content}</p>
+                            </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                              <button onClick={() => pinNote.mutate({ id: n.id, pinned: n.pinned })}
+                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title={n.pinned?"Unpin":"Pin"}>
+                                <Pin className={cn("w-3 h-3", n.pinned && "fill-primary text-primary")}/>
+                              </button>
+                              <button onClick={() => { setEditingNoteId(n.id); setEditContent(n.content); }}
+                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Edit">
+                                <Pencil className="w-3 h-3"/>
+                              </button>
+                              <button onClick={() => setDeletingNoteId(n.id)}
+                                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
+                                <Trash2 className="w-3 h-3"/>
+                              </button>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                  {filtered.length > 5 && (
+                    <button onClick={() => setShowAllNotes(v => !v)}
+                      className="w-full text-xs text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 py-1 transition-colors">
+                      <ChevronDown className={`w-3 h-3 transition-transform ${showAllNotes ? "rotate-180" : ""}`}/>
+                      {showAllNotes ? "Show less" : `Show ${filtered.length - 5} more notes`}
+                    </button>
+                  )}
+                  {filtered.length === 0 && noteSearch && (
+                    <p className="text-xs text-muted-foreground text-center py-4">No notes matching "{noteSearch}"</p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
         {notes.length === 0 && (
           <div className="mt-4 flex flex-col items-center justify-center py-8 text-center border border-dashed border-border rounded-lg">
             <MessageSquare className="w-8 h-8 text-muted-foreground/30 mb-2"/>
             <p className="text-sm text-muted-foreground">No notes yet — add the first one above</p>
-            <p className="text-xs text-muted-foreground opacity-50 mt-1">Query key: contact-notes-{contact.id?.slice(0,8)}</p>
           </div>
         )}
       </section>

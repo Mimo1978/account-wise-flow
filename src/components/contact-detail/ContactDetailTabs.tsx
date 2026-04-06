@@ -9,10 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogPortal, DialogOverlay, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, Link2 } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, Link2, CalendarIcon } from "lucide-react";
+import { format, formatDistanceToNow, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import type { DateRange } from "react-day-picker";
 
 interface Props { contact: any; embedded?: boolean; }
 
@@ -271,9 +274,20 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
   const [editContent, setEditContent] = useState("");
   const [deletingNoteId, setDeletingNoteId] = useState<string|null>(null);
   const [noteSearch, setNoteSearch] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [aiSummary, setAiSummary] = useState("");
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [showAllNotes, setShowAllNotes] = useState(false);
+
+  // Get current user for ownership checks
+  const { data: currentUser } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user;
+    },
+    staleTime: 60_000,
+  });
 
   const saveNote = useMutation({
     mutationFn: async () => {
@@ -446,20 +460,50 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
               </div>
             )}
 
-            {/* Search */}
+            {/* Search + Date Range */}
             {notes.length > 5 && (
-              <div className="relative mb-3">
-                <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
-                <Input placeholder="Search notes by content or date..." value={noteSearch} onChange={e => setNoteSearch(e.target.value)} className="pl-8 h-8 text-xs"/>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
+                  <Input placeholder="Search notes..." value={noteSearch} onChange={e => setNoteSearch(e.target.value)} className="pl-8 h-8 text-xs"/>
+                </div>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={cn("h-8 text-xs gap-1.5 shrink-0", dateRange?.from && "border-primary text-primary")}>
+                      <CalendarIcon className="w-3.5 h-3.5"/>
+                      {dateRange?.from ? (
+                        dateRange.to ? `${format(dateRange.from, "dd/MM")} – ${format(dateRange.to, "dd/MM")}` : format(dateRange.from, "dd MMM yyyy")
+                      ) : "Date range"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 z-[10002]" align="end">
+                    <Calendar mode="range" selected={dateRange} onSelect={setDateRange} numberOfMonths={1} initialFocus className="pointer-events-auto"/>
+                    {dateRange?.from && (
+                      <div className="border-t p-2 flex justify-end">
+                        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setDateRange(undefined)}>Clear</Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
             )}
 
             {/* Notes list */}
             {(() => {
               const filtered = notes.filter((n: any) => {
-                if (!noteSearch) return true;
-                const q = noteSearch.toLowerCase();
-                return n.content.toLowerCase().includes(q) || format(new Date(n.created_at), "dd MMM yyyy").toLowerCase().includes(q);
+                // Text search
+                if (noteSearch) {
+                  const q = noteSearch.toLowerCase();
+                  if (!n.content.toLowerCase().includes(q) && !format(new Date(n.created_at), "dd MMM yyyy").toLowerCase().includes(q)) return false;
+                }
+                // Date range filter
+                if (dateRange?.from) {
+                  const noteDate = new Date(n.created_at);
+                  const start = startOfDay(dateRange.from);
+                  const end = dateRange.to ? endOfDay(dateRange.to) : endOfDay(dateRange.from);
+                  if (!isWithinInterval(noteDate, { start, end })) return false;
+                }
+                return true;
               });
               const visible = showAllNotes ? filtered : filtered.slice(0, 5);
               return (
@@ -473,7 +517,7 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
                             <Textarea value={editContent} onChange={e => setEditContent(e.target.value)}
                               className="min-h-[80px] text-sm resize-none" autoFocus/>
                             <div className="flex gap-2">
-                              <Button size="sm" className="h-7 text-xs gap-1" disabled={!editContent.trim() || editNote.isPending}
+                              <Button size="sm" className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!editContent.trim() || editNote.isPending}
                                 onClick={() => editNote.mutate({ id: n.id, content: editContent })}>
                                 <Check className="w-3 h-3"/> Save
                               </Button>
@@ -511,19 +555,23 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
                               </div>
                               <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{n.content}</p>
                             </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                            <div className="flex items-center gap-1 shrink-0">
                               <button onClick={() => pinNote.mutate({ id: n.id, pinned: n.pinned })}
-                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title={n.pinned?"Unpin":"Pin"}>
-                                <Pin className={cn("w-3 h-3", n.pinned && "fill-primary text-primary")}/>
+                                className={cn("p-1.5 rounded-md transition-colors", n.pinned ? "bg-amber-100 text-amber-600 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-400" : "bg-muted/60 text-muted-foreground hover:bg-amber-100 hover:text-amber-600")} title={n.pinned?"Unpin":"Pin"}>
+                                <Pin className={cn("w-3.5 h-3.5", n.pinned && "fill-current")}/>
                               </button>
-                              <button onClick={() => { setEditingNoteId(n.id); setEditContent(n.content); }}
-                                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Edit">
-                                <Pencil className="w-3 h-3"/>
-                              </button>
-                              <button onClick={() => setDeletingNoteId(n.id)}
-                                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
-                                <Trash2 className="w-3 h-3"/>
-                              </button>
+                              {currentUser?.id === n.owner_id && (
+                                <button onClick={() => { setEditingNoteId(n.id); setEditContent(n.content); }}
+                                  className="p-1.5 rounded-md bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors" title="Edit">
+                                  <Pencil className="w-3.5 h-3.5"/>
+                                </button>
+                              )}
+                              {currentUser?.id === n.owner_id && (
+                                <button onClick={() => setDeletingNoteId(n.id)}
+                                  className="p-1.5 rounded-md bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 transition-colors" title="Delete">
+                                  <Trash2 className="w-3.5 h-3.5"/>
+                                </button>
+                              )}
                             </div>
                           </div>
                         )}

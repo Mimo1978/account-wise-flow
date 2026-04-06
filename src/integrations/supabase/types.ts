@@ -633,6 +633,7 @@ export type Database = {
           id: string
           is_deleted: boolean | null
           owner_id: string | null
+          pinned: boolean
           tags: string[] | null
           team_id: string | null
           title: string | null
@@ -648,6 +649,7 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           owner_id?: string | null
+          pinned?: boolean
           tags?: string[] | null
           team_id?: string | null
           title?: string | null
@@ -663,6 +665,7 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           owner_id?: string | null
+          pinned?: boolean
           tags?: string[] | null
           team_id?: string | null
           title?: string | null

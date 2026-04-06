@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { DateRange } from "react-day-picker";
 import type { Talent, TalentExperience } from "@/lib/types";
+import type { TalentHeaderStatusKey } from "@/lib/talent-status";
 
 /* ─── Status Hot Buttons ─── */
 const CANDIDATE_STATUSES = [
@@ -318,8 +319,8 @@ interface CandidateSidebarPanelProps {
   canDelete: boolean;
   currentUserId: string | null;
   workspaceId: string | null;
-  activeStatus: string;
-  onStatusChange: (status: string) => void;
+  activeStatus: TalentHeaderStatusKey;
+  onStatusChange: (status: TalentHeaderStatusKey) => Promise<void> | void;
 }
 
 export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUserId, workspaceId, activeStatus, onStatusChange }: CandidateSidebarPanelProps) {
@@ -340,23 +341,6 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
     queryFn: async () => { const { data: { user } } = await supabase.auth.getUser(); return user; },
     staleTime: 60_000,
   });
-
-  const updateStatus = async (statusKey: string) => {
-    onStatusChange(statusKey);
-    let availabilityVal = "available";
-    let statusVal = "active";
-    if (statusKey === "on_assignment") { availabilityVal = "deployed"; }
-    else if (statusKey === "not_available") { availabilityVal = "deployed"; statusVal = "on-hold"; }
-    else if (statusKey === "newly_added") { statusVal = "new"; }
-    else if (statusKey === "interviewing") { availabilityVal = "interviewing"; }
-    else if (statusKey === "placed") { availabilityVal = "deployed"; }
-
-    await supabase.from("candidates").update({
-      availability_status: availabilityVal, status: statusVal, updated_at: new Date().toISOString(),
-    }).eq("id", candidate.id);
-    qc.invalidateQueries({ queryKey: ["candidates"] });
-    toast.success(`Status: ${getStatusLabel(statusKey)}`);
-  };
 
   // Notes
   const { data: notes = [], refetch: refetchNotes } = useQuery({
@@ -462,8 +446,7 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
     qc.invalidateQueries({ queryKey: ["browse-all-projects"] });
     toast.success("Project linked — deal created");
     // Offer status change
-    onStatusChange("interviewing");
-    updateStatus("interviewing");
+    await onStatusChange("interviewing");
   };
 
   const getAuthor = (n: any) => {
@@ -481,7 +464,7 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Status</p>
           <div className="flex flex-wrap gap-1.5">
             {CANDIDATE_STATUSES.map(s => (
-              <button key={s.key} onClick={() => updateStatus(s.key)}
+              <button key={s.key} onClick={() => void onStatusChange(s.key)}
                 className={cn(
                   "px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all",
                   activeStatus === s.key ? s.color + " ring-2 ring-offset-1 ring-offset-background shadow-sm" : "bg-muted text-muted-foreground hover:opacity-80"

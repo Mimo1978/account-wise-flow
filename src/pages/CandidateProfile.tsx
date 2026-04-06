@@ -73,6 +73,11 @@ import { SMSComposeModal } from "@/components/communications/SMSComposeModal";
 import { ScheduleCallbackPopover } from "@/components/outreach/ScheduleCallbackPopover";
 import type { OutreachTarget } from "@/hooks/use-outreach";
 import { Bot } from "lucide-react";
+import {
+  getCandidateUpdateFromHeaderStatus,
+  getHeaderStatusFromTalent,
+  type TalentHeaderStatusKey,
+} from "@/lib/talent-status";
 
 const HEADER_STATUSES = [
   { key: "open_to_work", label: "Open to Work", color: "bg-emerald-500 hover:bg-emerald-600 text-white" },
@@ -160,7 +165,7 @@ export default function CandidateProfile() {
   const [smsOpen, setSmsOpen] = useState(false);
   const [callbackOpen, setCallbackOpen] = useState(false);
   const [addNoteOpen, setAddNoteOpen] = useState(false);
-  const [headerActiveStatus, setHeaderActiveStatus] = useState("newly_added");
+  const [headerActiveStatus, setHeaderActiveStatus] = useState<TalentHeaderStatusKey>("newly_added");
   const queryClient = useQueryClient();
 
   // Auto-expand CV section when navigating from table Docs indicator
@@ -178,18 +183,9 @@ export default function CandidateProfile() {
     return candidates.find((c) => c.id === candidateId) || null;
   }, [candidates, candidateId]);
 
-  // Sync header status from candidate data — only on initial load
-  const headerStatusInitRef = useRef(false);
   useEffect(() => {
-    if (!candidate || headerStatusInitRef.current) return;
-    headerStatusInitRef.current = true;
-    const s = candidate.availability === "deployed" && candidate.status === "on-hold" ? "not_available"
-      : candidate.availability === "deployed" ? "on_assignment"
-      : candidate.availability === "interviewing" ? "interviewing"
-      : candidate.status === "new" ? "newly_added"
-      : "open_to_work";
-    setHeaderActiveStatus(s);
-  }, [candidate]);
+    setHeaderActiveStatus(getHeaderStatusFromTalent(candidate));
+  }, [candidate?.id, candidate?.availability, candidate?.status]);
 
   const toggleSection = (section: string) => {
     const newSet = new Set(expandedSections);
@@ -247,6 +243,26 @@ export default function CandidateProfile() {
   const experience = candidate.experience || getMockExperience(candidate.id);
   const aiOverview = candidate.aiOverview || `${candidate.name} is a ${seniorityLabels[candidate.seniority]?.toLowerCase() || candidate.seniority}-level ${candidate.roleType} with expertise in ${candidate.skills.slice(0, 3).join(", ")}. Currently ${availabilityLabels[candidate.availability].toLowerCase()} for new opportunities.`;
 
+  const handleStatusUpdate = async (statusKey: TalentHeaderStatusKey) => {
+    const previousStatus = headerActiveStatus;
+    setHeaderActiveStatus(statusKey);
+
+    const { availability_status, status } = getCandidateUpdateFromHeaderStatus(statusKey);
+    const { error } = await supabase
+      .from("candidates")
+      .update({ availability_status, status, updated_at: new Date().toISOString() })
+      .eq("id", candidate.id);
+
+    if (error) {
+      setHeaderActiveStatus(previousStatus);
+      toast.error(error.message || "Failed to update status");
+      return;
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["candidates"] });
+    toast.success(`Status: ${HEADER_STATUSES.find((s) => s.key === statusKey)?.label || statusKey}`);
+  };
+
   const getDataQualityBadge = () => {
     if (candidate.dataQuality === "parsed") {
       return (
@@ -289,21 +305,7 @@ export default function CandidateProfile() {
                 {HEADER_STATUSES.map(s => {
                   const isActive = headerActiveStatus === s.key;
                   return (
-                    <button key={s.key} onClick={async () => {
-                      setHeaderActiveStatus(s.key);
-                      let availabilityVal = "available";
-                      let statusVal = "active";
-                      if (s.key === "on_assignment") { availabilityVal = "deployed"; }
-                      else if (s.key === "not_available") { availabilityVal = "deployed"; statusVal = "on-hold"; }
-                      else if (s.key === "newly_added") { statusVal = "new"; }
-                      else if (s.key === "interviewing") { availabilityVal = "interviewing"; }
-                      else if (s.key === "placed") { availabilityVal = "deployed"; }
-                      await supabase.from('candidates')
-                        .update({ availability_status: availabilityVal, status: statusVal, updated_at: new Date().toISOString() })
-                        .eq('id', candidate.id);
-                      queryClient.invalidateQueries({ queryKey: ['candidates'] });
-                      toast.success(`Status: ${s.label}`);
-                    }}
+                    <button key={s.key} onClick={() => void handleStatusUpdate(s.key)}
                       className={cn(
                         "px-2.5 py-1 rounded-full text-[10px] font-semibold transition-all",
                         isActive ? s.color + " ring-2 ring-offset-1 ring-offset-background shadow-sm" : "bg-muted text-muted-foreground hover:opacity-80"
@@ -531,9 +533,7 @@ export default function CandidateProfile() {
               currentUserId={userId}
               workspaceId={currentWorkspace?.id || null}
               activeStatus={headerActiveStatus}
-              onStatusChange={(s) => {
-                setHeaderActiveStatus(s);
-              }}
+              onStatusChange={handleStatusUpdate}
             />
           </div>
 

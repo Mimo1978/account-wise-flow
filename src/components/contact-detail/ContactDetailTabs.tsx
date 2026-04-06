@@ -307,6 +307,7 @@ export function ContactDetailTabs({ contact }: Props) {
           <div className="mt-4 flex flex-col items-center justify-center py-8 text-center border border-dashed border-border rounded-lg">
             <MessageSquare className="w-8 h-8 text-muted-foreground/30 mb-2"/>
             <p className="text-sm text-muted-foreground">No notes yet — add the first one above</p>
+            <p className="text-xs text-muted-foreground opacity-50 mt-1">Query key: contact-notes-{contact.id?.slice(0,8)}</p>
           </div>
         )}
       </section>

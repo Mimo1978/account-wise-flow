@@ -194,7 +194,14 @@ export function ContactDetailTabs({ contact }: Props) {
   const qc = useQueryClient();
   const [showDealLink, setShowDealLink] = useState(false);
   const [showProjectLink, setShowProjectLink] = useState(false);
-  const [note, setNote] = useState("");
+  const [editingNoteId, setEditingNoteId] = useState<string|null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [deletingNoteId, setDeletingNoteId] = useState<string|null>(null);
+  const [noteSearch, setNoteSearch] = useState("");
+  const [aiSummary, setAiSummary] = useState("");
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [showAllNotes, setShowAllNotes] = useState(false);
+
 
   const saveNote = useMutation({
     mutationFn: async () => {

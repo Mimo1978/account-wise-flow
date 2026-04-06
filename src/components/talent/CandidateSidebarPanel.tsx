@@ -116,21 +116,19 @@ function NoteComposer({ candidateId, currentUserId, workspaceId, onSaved }: {
           <span className="text-[10px] text-destructive font-medium">Recording</span>
         </div>
       )}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <Button size="sm" variant={isRecording ? "destructive" : "outline"} className="gap-1 h-7 text-[10px] px-2" onClick={toggleVoice}>
-            {isRecording ? <><Square className="w-3 h-3"/>Stop</> : <><Mic className="w-3 h-3"/>Dictate</>}
-          </Button>
-          <Select value={visibility} onValueChange={v => setVisibility(v as any)}>
-            <SelectTrigger className="h-7 w-20 text-[10px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="public"><span className="flex items-center gap-1 text-[10px]"><Globe className="w-3 h-3"/>Public</span></SelectItem>
-              <SelectItem value="team"><span className="flex items-center gap-1 text-[10px]"><Users className="w-3 h-3"/>Team</span></SelectItem>
-              <SelectItem value="private"><span className="flex items-center gap-1 text-[10px]"><Lock className="w-3 h-3"/>Private</span></SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button size="sm" className="h-7 text-[10px] px-3 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!note.trim() || saving} onClick={save}>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Button size="sm" variant={isRecording ? "destructive" : "outline"} className="gap-1 h-7 text-[10px] px-2" onClick={toggleVoice}>
+          {isRecording ? <><Square className="w-3 h-3"/>Stop</> : <><Mic className="w-3 h-3"/>Dictate</>}
+        </Button>
+        <Select value={visibility} onValueChange={v => setVisibility(v as any)}>
+          <SelectTrigger className="h-7 w-[70px] text-[10px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="public"><span className="flex items-center gap-1 text-[10px]"><Globe className="w-3 h-3"/>Public</span></SelectItem>
+            <SelectItem value="team"><span className="flex items-center gap-1 text-[10px]"><Users className="w-3 h-3"/>Team</span></SelectItem>
+            <SelectItem value="private"><span className="flex items-center gap-1 text-[10px]"><Lock className="w-3 h-3"/>Private</span></SelectItem>
+          </SelectContent>
+        </Select>
+        <Button size="sm" className="h-7 text-[10px] px-3 bg-emerald-600 hover:bg-emerald-700 text-white ml-auto" disabled={!note.trim() || saving} onClick={save}>
           {saving ? <Loader2 className="w-3 h-3 animate-spin"/> : "Save note"}
         </Button>
       </div>

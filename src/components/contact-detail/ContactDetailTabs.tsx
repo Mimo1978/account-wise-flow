@@ -431,13 +431,12 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
 
   // Resolve the crm_contacts id for this canonical contact (needed for FK constraints)
   const resolveCrmContactId = async (): Promise<string | null> => {
+    // Use cached value if available
+    if (crmContactId) return crmContactId;
     // Try to find existing crm_contacts record by email match
     if (contact.email) {
       const { data: existing } = await supabase.from("crm_contacts")
-        .select("id")
-        .eq("email", contact.email)
-        .limit(1)
-        .maybeSingle();
+        .select("id").eq("email", contact.email).limit(1).maybeSingle();
       if (existing) return existing.id;
     }
     // Try name match as fallback
@@ -446,11 +445,7 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
     const lastName = nameParts.slice(1).join(" ") || "";
     if (firstName && lastName) {
       const { data: byName } = await supabase.from("crm_contacts")
-        .select("id")
-        .ilike("first_name", firstName)
-        .ilike("last_name", lastName)
-        .limit(1)
-        .maybeSingle();
+        .select("id").ilike("first_name", firstName).ilike("last_name", lastName).limit(1).maybeSingle();
       if (byName) return byName.id;
     }
     // Create a new crm_contacts record
@@ -463,9 +458,9 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
         job_title: contact.title || null,
         company_id: null,
       } as any)
-      .select("id")
-      .single();
+      .select("id").single();
     if (createErr) { toast.error("Failed to resolve CRM contact: " + createErr.message); return null; }
+    qc.invalidateQueries({ queryKey: ["crm-contact-resolve", contact.id] });
     return newContact?.id || null;
   };
 

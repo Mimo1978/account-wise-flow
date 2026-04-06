@@ -24,7 +24,7 @@ import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { DateRange } from "react-day-picker";
-import type { Talent, TalentExperience } from "@/lib/types";
+import type { Talent } from "@/lib/types";
 import type { TalentHeaderStatusKey } from "@/lib/talent-status";
 
 /* ─── Status Hot Buttons ─── */

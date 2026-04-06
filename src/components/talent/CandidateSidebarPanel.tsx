@@ -254,61 +254,6 @@ function BrowseProjectsModal({ open, onOpenChange, onLink, linkedProjectIds }: {
   );
 }
 
-/* ─── Experience Box ─── */
-function ExperienceBox({ experience }: { experience: TalentExperience[] }) {
-  const [expanded, setExpanded] = useState(true);
-  const formatDate = (d: string) => {
-    try { return format(new Date(d + "-01"), "MMM yyyy"); } catch { return d; }
-  };
-  return (
-    <Card>
-      <Collapsible open={expanded} onOpenChange={setExpanded}>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="pb-2 pt-3 cursor-pointer hover:bg-muted/50 transition-colors">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Briefcase className="w-3.5 h-3.5 text-indigo-500"/>
-                Experience
-                {experience.length > 0 && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">{experience.length}</span>}
-              </CardTitle>
-              {expanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground"/> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground"/>}
-            </div>
-          </CardHeader>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <CardContent className="pt-0">
-            {experience.length === 0 ? (
-              <div className="flex flex-col items-center py-3 text-center border border-dashed border-border rounded-lg">
-                <Briefcase className="w-5 h-5 text-muted-foreground/30 mb-1"/>
-                <p className="text-[10px] text-muted-foreground">No experience data</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {experience.map((exp, idx) => (
-                  <div key={exp.id || idx} className="relative pl-4">
-                    {idx !== experience.length - 1 && (
-                      <div className="absolute left-[5px] top-5 bottom-0 w-0.5 bg-border"/>
-                    )}
-                    <div className="absolute left-0 top-1.5 w-2.5 h-2.5 rounded-full border-2 border-primary bg-background z-10"/>
-                    <div>
-                      <p className="text-xs font-medium">{exp.title}</p>
-                      <p className="text-[10px] text-muted-foreground">{exp.company}</p>
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-                        <Clock className="w-2.5 h-2.5"/>
-                        <span>{formatDate(exp.startDate)} – {exp.current ? "Present" : exp.endDate ? formatDate(exp.endDate) : "—"}</span>
-                      </div>
-                      {exp.description && <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">{exp.description}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </CollapsibleContent>
-      </Collapsible>
-    </Card>
-  );
-}
 
 /* ═══════════════════════════════════════════════
    Main Sidebar Panel

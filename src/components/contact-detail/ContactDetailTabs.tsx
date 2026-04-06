@@ -222,7 +222,7 @@ export function ContactDetailTabs({ contact }: Props) {
     queryKey: ["contact-notes", contact.id],
     queryFn: async () => {
       const { data } = await supabase.from("notes")
-        .select("*, profiles(first_name, last_name)")
+        .select("*")
         .eq("entity_type", "contact").eq("entity_id", contact.id)
         .order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(100);
       return data || [];

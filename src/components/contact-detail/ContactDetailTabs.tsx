@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MessageSquare, Briefcase, FolderOpen, FileText, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Plus, Clock } from "lucide-react";
+import { MessageSquare, Briefcase, FolderOpen, FileText, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Plus, Clock, Trash2, Pencil, X, Check, Sparkles, ChevronDown } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";

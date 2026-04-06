@@ -9,10 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogPortal, DialogOverlay, DialogClose } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, Link2, CalendarDays } from "lucide-react";
-import { format, formatDistanceToNow, isWithinInterval, startOfDay, endOfDay, parseISO } from "date-fns";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin, Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, Link2 } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -276,8 +274,6 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
   const [aiSummary, setAiSummary] = useState("");
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [showAllNotes, setShowAllNotes] = useState(false);
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const saveNote = useMutation({
     mutationFn: async () => {
@@ -450,44 +446,20 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
               </div>
             )}
 
-            {/* Search + Date Range */}
-            <div className="flex items-center gap-2 mb-3">
-              <div className="relative flex-1">
+            {/* Search */}
+            {notes.length > 5 && (
+              <div className="relative mb-3">
                 <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
-                <Input placeholder="Search notes by content..." value={noteSearch} onChange={e => setNoteSearch(e.target.value)} className="pl-8 h-8 text-xs"/>
+                <Input placeholder="Search notes by content or date..." value={noteSearch} onChange={e => setNoteSearch(e.target.value)} className="pl-8 h-8 text-xs"/>
               </div>
-              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={cn("h-8 text-xs gap-1.5 shrink-0", (dateRange.from || dateRange.to) && "border-primary text-primary")}>
-                    <CalendarDays className="w-3 h-3"/>
-                    {dateRange.from ? (dateRange.to ? `${format(dateRange.from, "dd MMM")} – ${format(dateRange.to, "dd MMM")}` : format(dateRange.from, "dd MMM yyyy")) : "Date filter"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-[10002]" align="end">
-                  <Calendar mode="range" selected={dateRange.from ? { from: dateRange.from, to: dateRange.to } : undefined}
-                    onSelect={(range) => { setDateRange({ from: range?.from, to: range?.to }); if (range?.to) setDatePickerOpen(false); }}
-                    numberOfMonths={1} initialFocus className="pointer-events-auto"/>
-                  {(dateRange.from || dateRange.to) && (
-                    <div className="border-t border-border p-2">
-                      <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => { setDateRange({}); setDatePickerOpen(false); }}>
-                        Clear date filter
-                      </Button>
-                    </div>
-                  )}
-                </PopoverContent>
-              </Popover>
-            </div>
+            )}
 
             {/* Notes list */}
             {(() => {
               const filtered = notes.filter((n: any) => {
-                const matchesText = !noteSearch || n.content.toLowerCase().includes(noteSearch.toLowerCase());
-                const noteDate = new Date(n.created_at);
-                const matchesDate = !dateRange.from || isWithinInterval(noteDate, {
-                  start: startOfDay(dateRange.from),
-                  end: endOfDay(dateRange.to || dateRange.from),
-                });
-                return matchesText && matchesDate;
+                if (!noteSearch) return true;
+                const q = noteSearch.toLowerCase();
+                return n.content.toLowerCase().includes(q) || format(new Date(n.created_at), "dd MMM yyyy").toLowerCase().includes(q);
               });
               const visible = showAllNotes ? filtered : filtered.slice(0, 5);
               return (
@@ -539,7 +511,7 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
                               </div>
                               <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{n.content}</p>
                             </div>
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                               <button onClick={() => pinNote.mutate({ id: n.id, pinned: n.pinned })}
                                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title={n.pinned?"Unpin":"Pin"}>
                                 <Pin className={cn("w-3 h-3", n.pinned && "fill-primary text-primary")}/>

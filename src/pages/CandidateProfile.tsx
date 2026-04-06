@@ -527,6 +527,10 @@ export default function CandidateProfile() {
               canDelete={isAdmin || isManager}
               currentUserId={userId}
               workspaceId={currentWorkspace?.id || null}
+              activeStatus={headerActiveStatus}
+              onStatusChange={(s) => {
+                setHeaderActiveStatus(s);
+              }}
             />
           </div>
 

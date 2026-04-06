@@ -342,7 +342,7 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
   });
 
   const updateStatus = async (statusKey: string) => {
-    setActiveStatus(statusKey);
+    onStatusChange(statusKey);
     let availabilityVal = "available";
     let statusVal = "active";
     if (statusKey === "on_assignment") { availabilityVal = "deployed"; }
@@ -462,7 +462,7 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
     qc.invalidateQueries({ queryKey: ["browse-all-projects"] });
     toast.success("Project linked — deal created");
     // Offer status change
-    setActiveStatus("interviewing");
+    onStatusChange("interviewing");
     updateStatus("interviewing");
   };
 

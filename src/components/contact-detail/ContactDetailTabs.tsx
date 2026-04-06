@@ -266,6 +266,58 @@ export function ContactDetailTabs({ contact }: Props) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] }),
   });
 
+  const editNote = useMutation({
+    mutationFn: async ({ id, content }: { id: string; content: string }) => {
+      const { error } = await supabase.from("notes").update({ content: content.trim() }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contact-notes", contact.id], refetchType: "active" });
+      setEditingNoteId(null);
+      setEditContent("");
+      toast.success("Note updated");
+    },
+    onError: () => toast.error("Failed to update note"),
+  });
+
+  const deleteNote = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("notes").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["contact-notes", contact.id], refetchType: "active" });
+      setDeletingNoteId(null);
+      toast.success("Note deleted");
+    },
+    onError: () => toast.error("Failed to delete note"),
+  });
+
+  const generateSummary = async () => {
+    if (notes.length === 0) return;
+    setSummaryLoading(true);
+    try {
+      const noteText = notes.map((n: any) => `- ${n.content}`).join("\n");
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-notes-summary`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ noteText }),
+      });
+      if (!response.ok) throw new Error("Failed");
+      const data = await response.json();
+      setAiSummary(data.summary || "Could not generate summary.");
+    } catch {
+      toast.error("AI summary failed");
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
+
+
   const searchDeals = async (q: string) => {
     const { data } = await supabase.from("crm_deals")
       .select("id, title, value, currency, stage, crm_companies(name)")

@@ -146,6 +146,15 @@ export default function CandidateProfile() {
   // Get search result if user arrived from Boolean search
   const searchResult = candidateId ? searchContext.getSearchResult(candidateId) : null;
 
+  // Sync header status from candidate data
+  useEffect(() => {
+    if (!candidate) return;
+    const s = candidate.availability === "deployed" ? "on_assignment"
+      : candidate.availability === "interviewing" ? "interviewing"
+      : candidate.status === "new" ? "newly_added"
+      : "open_to_work";
+    setHeaderActiveStatus(s);
+  }, [candidate]);
 
   // Check if we should auto-expand CV section (from Docs column click)
   const autoExpandSection = searchParams.get("section");

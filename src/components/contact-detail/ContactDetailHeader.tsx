@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
 import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBanner";
 import { useDeletionPermission } from "@/hooks/use-deletion";
+import { EditContactModal } from "./EditContactModal";
 
 interface Props {
   contact: any;
@@ -14,6 +15,7 @@ export function ContactDetailHeader({ contact }: Props) {
   const navigate = useNavigate();
   const location = useLocation();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const perm = useDeletionPermission();
 
   return (

@@ -57,10 +57,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { CandidateNotesSection } from "@/components/talent/CandidateNotesSection";
-import { CandidateInterviewsSection } from "@/components/talent/CandidateInterviewsSection";
-import { CandidateOpportunitiesSection } from "@/components/talent/CandidateOpportunitiesSection";
 import { CandidateOverviewEditor } from "@/components/talent/CandidateOverviewEditor";
+import { CandidateSidebarPanel } from "@/components/talent/CandidateSidebarPanel";
 
 import { SearchMatchSection } from "@/components/talent/SearchMatchSection";
 import { CVExportModal } from "@/components/cvexport";

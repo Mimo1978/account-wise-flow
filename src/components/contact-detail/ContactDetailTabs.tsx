@@ -211,7 +211,7 @@ export function ContactDetailTabs({ contact }: Props) {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] });
+      qc.invalidateQueries({ queryKey: ["contact-notes", contact.id], refetchType: "active" });
       setNote("");
       toast.success("Note saved");
     },

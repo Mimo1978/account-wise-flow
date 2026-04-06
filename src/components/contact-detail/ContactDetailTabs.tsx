@@ -36,7 +36,7 @@ function NoteComposer({ contactId, onSaved, note, setNote, saveNote }: { contact
         if (event.results[i].isFinal) final += t + " ";
         else interim += t;
       }
-      if (final) { setContent(prev => (prev + " " + final).trim()); }
+      if (final) { setNote(note + " " + final); }
       setLiveTranscript(interim);
     };
     r.onerror = () => { setIsRecording(false); setLiveTranscript(""); };
@@ -295,7 +295,7 @@ export function ContactDetailTabs({ contact }: Props) {
             {notes.length > 0 && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">{notes.length}</span>}
           </h2>
         </div>
-        <NoteComposer contactId={contact.id} onSaved={() => qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] })}/>
+        <NoteComposer contactId={contact.id} onSaved={() => qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] })} note={note} setNote={setNote} saveNote={saveNote}/>
         {notes.length > 0 && (
           <div className="space-y-2 mt-4">
             {notes.map((note: any) => (

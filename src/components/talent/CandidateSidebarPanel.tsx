@@ -746,14 +746,103 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
         </CardContent>
       </Card>
 
-      {/* ── EXPERIENCE ── */}
-      <ExperienceBox experience={candidate.experience || []} />
+      {/* ── OUTREACH CAMPAIGNS ── */}
+      <Card>
+        <CardHeader className="pb-2 pt-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Megaphone className="w-3.5 h-3.5 text-orange-500"/>
+              Outreach
+              {linkedCampaigns.length > 0 && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">{linkedCampaigns.length}</span>}
+            </CardTitle>
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 px-2" onClick={() => setShowCampaignBrowser(true)}>
+                <Link2 className="w-3 h-3"/> Link
+              </Button>
+              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 px-2" onClick={() => setShowCreateCampaign(true)}>
+                <Plus className="w-3 h-3"/> New
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {linkedCampaigns.length === 0 ? (
+            <div className="flex flex-col items-center py-3 text-center border border-dashed border-border rounded-lg">
+              <Megaphone className="w-5 h-5 text-muted-foreground/30 mb-1"/>
+              <p className="text-[10px] text-muted-foreground mb-1.5">No campaigns linked</p>
+              <div className="flex gap-1">
+                <Button size="sm" variant="outline" className="text-[10px] gap-1 h-6 px-2" onClick={() => setShowCampaignBrowser(true)}>
+                  <Link2 className="w-3 h-3"/> Browse & link
+                </Button>
+                <Button size="sm" variant="outline" className="text-[10px] gap-1 h-6 px-2" onClick={() => setShowCreateCampaign(true)}>
+                  <Plus className="w-3 h-3"/> Create new
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              {linkedCampaigns.map((c: any) => (
+                <div key={c.id} className="p-2 rounded-lg border border-border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
+                  onClick={() => navigate(`/outreach`)}>
+                  <p className="text-xs font-medium truncate">{c.name}</p>
+                  <div className="flex items-center justify-between mt-0.5">
+                    <Badge variant="outline" className="text-[8px] capitalize h-4">{c.channel}</Badge>
+                    <Badge className={cn("text-[8px] h-4 border-0",
+                      c.status === "active" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                        : c.status === "draft" ? "bg-muted text-muted-foreground"
+                        : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                    )}>{c.status}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Modals */}
       <BrowseDealsModal open={showDealBrowser} onOpenChange={setShowDealBrowser}
         onLink={linkDeal} linkedDealIds={deals.map((d: any) => d.id)} />
       <BrowseProjectsModal open={showProjectBrowser} onOpenChange={setShowProjectBrowser}
         onLink={linkProject} linkedProjectIds={projects.map((p: any) => p.id)} />
+
+      {/* Browse Campaigns Modal */}
+      <Dialog open={showCampaignBrowser} onOpenChange={setShowCampaignBrowser}>
+        <DialogPortal>
+          <DialogOverlay className="z-[10000]" />
+          <div className="fixed left-[50%] top-[50%] z-[10001] w-full max-w-2xl translate-x-[-50%] translate-y-[-50%] max-h-[80vh] flex flex-col gap-4 border bg-background p-6 shadow-lg sm:rounded-lg">
+            <DialogHeader><DialogTitle className="flex items-center gap-2 text-base"><Megaphone className="w-4 h-4 text-primary"/>Browse & Link Campaigns</DialogTitle></DialogHeader>
+            <ScrollArea className="flex-1 min-h-0">
+              {allCampaigns.length === 0 ? <p className="text-sm text-muted-foreground text-center py-12">No campaigns found</p> : (
+                <div className="space-y-1.5 pr-3">{allCampaigns.map((c: any) => {
+                  const isLinked = linkedCampaigns.some((lc: any) => lc.id === c.id);
+                  return (
+                    <div key={c.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-accent/30 transition-colors">
+                      <div className="flex-1 min-w-0 mr-3">
+                        <p className="text-sm font-medium truncate">{c.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge variant="outline" className="text-[10px] capitalize h-5">{c.channel}</Badge>
+                          <Badge variant="outline" className="text-[10px] capitalize h-5">{c.status}</Badge>
+                        </div>
+                      </div>
+                      {isLinked ? <Badge className="text-[10px] bg-primary/15 text-primary border-0">Linked</Badge> : (
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 shrink-0"
+                          onClick={async () => { await addCandidateToCampaign(c.id, c.name); }}>
+                          <Link2 className="w-3 h-3"/>Link
+                        </Button>
+                      )}
+                    </div>
+                  );
+                })}</div>
+              )}
+            </ScrollArea>
+            <Button variant="ghost" size="icon" onClick={() => setShowCampaignBrowser(false)} className="absolute right-4 top-4 h-7 w-7 rounded-full hover:bg-accent"><X className="h-4 w-4"/></Button>
+          </div>
+        </DialogPortal>
+      </Dialog>
+
+      {/* Create Campaign Modal */}
+      <CreateCampaignModal open={showCreateCampaign} onOpenChange={setShowCreateCampaign} onCreated={handleCampaignCreated} />
     </div>
   );
 }

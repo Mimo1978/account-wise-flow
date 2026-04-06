@@ -160,7 +160,7 @@ export default function CandidateProfile() {
   const [smsOpen, setSmsOpen] = useState(false);
   const [callbackOpen, setCallbackOpen] = useState(false);
   const [addNoteOpen, setAddNoteOpen] = useState(false);
-  const [headerActiveStatus, setHeaderActiveStatus] = useState("open_to_work");
+  const [headerActiveStatus, setHeaderActiveStatus] = useState("newly_added");
   const queryClient = useQueryClient();
 
   // Auto-expand CV section when navigating from table Docs indicator
@@ -309,12 +309,6 @@ export default function CandidateProfile() {
                     </button>
                   );
                 })}
-                {getDataQualityBadge()}
-                {candidate.rate && (
-                  <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/30">
-                    {candidate.rate}
-                  </Badge>
-                )}
               </div>
             </div>
           </div>
@@ -533,6 +527,10 @@ export default function CandidateProfile() {
               canDelete={isAdmin || isManager}
               currentUserId={userId}
               workspaceId={currentWorkspace?.id || null}
+              activeStatus={headerActiveStatus}
+              onStatusChange={(s) => {
+                setHeaderActiveStatus(s);
+              }}
             />
           </div>
 

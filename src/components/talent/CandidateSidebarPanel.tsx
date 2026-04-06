@@ -318,9 +318,11 @@ interface CandidateSidebarPanelProps {
   canDelete: boolean;
   currentUserId: string | null;
   workspaceId: string | null;
+  activeStatus: string;
+  onStatusChange: (status: string) => void;
 }
 
-export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUserId, workspaceId }: CandidateSidebarPanelProps) {
+export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUserId, workspaceId, activeStatus, onStatusChange }: CandidateSidebarPanelProps) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [showDealBrowser, setShowDealBrowser] = useState(false);
@@ -339,16 +341,8 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
     staleTime: 60_000,
   });
 
-  // Current availability status from DB
-  const currentStatus = candidate.availability === "deployed" ? "on_assignment"
-    : candidate.availability === "interviewing" ? "interviewing"
-    : candidate.status === "new" ? "newly_added"
-    : "open_to_work";
-
-  const [activeStatus, setActiveStatus] = useState(currentStatus);
-
   const updateStatus = async (statusKey: string) => {
-    setActiveStatus(statusKey);
+    onStatusChange(statusKey);
     let availabilityVal = "available";
     let statusVal = "active";
     if (statusKey === "on_assignment") { availabilityVal = "deployed"; }
@@ -468,7 +462,7 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
     qc.invalidateQueries({ queryKey: ["browse-all-projects"] });
     toast.success("Project linked — deal created");
     // Offer status change
-    setActiveStatus("interviewing");
+    onStatusChange("interviewing");
     updateStatus("interviewing");
   };
 

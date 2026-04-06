@@ -735,6 +735,8 @@ const Canvas = () => {
           isExpanded={isExpanded}
           onExpandToggle={() => setIsExpanded(!isExpanded)}
           onUnsavedChanges={setHasUnsavedChanges}
+          originPath="/canvas"
+          originLabel="Back to Canvas"
         />
       )}
 

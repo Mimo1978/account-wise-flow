@@ -326,26 +326,52 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
     },
   });
 
-  const { data: deals = [], refetch: refetchDeals } = useQuery({
-    queryKey: ["contact-deals", contact.id],
+  // Resolve canonical contact -> crm_contacts id for FK-based queries
+  const { data: crmContactId } = useQuery({
+    queryKey: ["crm-contact-resolve", contact.id, contact.email, contact.name],
     queryFn: async () => {
+      if (contact.email) {
+        const { data } = await supabase.from("crm_contacts")
+          .select("id").eq("email", contact.email).limit(1).maybeSingle();
+        if (data) return data.id;
+      }
+      const nameParts = (contact.name || "").trim().split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      if (firstName && lastName) {
+        const { data } = await supabase.from("crm_contacts")
+          .select("id").ilike("first_name", firstName).ilike("last_name", lastName).limit(1).maybeSingle();
+        if (data) return data.id;
+      }
+      return null;
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: deals = [], refetch: refetchDeals } = useQuery({
+    queryKey: ["contact-deals", contact.id, crmContactId],
+    queryFn: async () => {
+      if (!crmContactId) return [];
       const { data } = await supabase.from("crm_deals")
         .select("id, title, stage, value, currency, status, contact_id, crm_companies(name)")
-        .or(`contact_id.eq.${contact.id}`)
+        .eq("contact_id", crmContactId)
         .is("deleted_at", null).order("created_at", { ascending: false });
       return data || [];
     },
+    enabled: !!crmContactId,
   });
 
   const { data: projects = [], refetch: refetchProjects } = useQuery({
-    queryKey: ["contact-projects", contact.id],
+    queryKey: ["contact-projects", contact.id, crmContactId],
     queryFn: async () => {
+      if (!crmContactId) return [];
       const { data } = await supabase.from("engagements")
         .select("id, name, engagement_type, stage, health, company_id")
-        .or(`contact_id.eq.${contact.id}`)
+        .eq("contact_id", crmContactId)
         .order("created_at", { ascending: false });
       return data || [];
     },
+    enabled: !!crmContactId,
   });
 
   const pinNote = useMutation({

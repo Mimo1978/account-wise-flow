@@ -450,13 +450,33 @@ export function ContactDetailTabs({ contact, embedded = false }: Props) {
               </div>
             )}
 
-            {/* Search */}
-            {notes.length > 5 && (
-              <div className="relative mb-3">
+            {/* Search + Date Range */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-muted-foreground"/>
-                <Input placeholder="Search notes by content or date..." value={noteSearch} onChange={e => setNoteSearch(e.target.value)} className="pl-8 h-8 text-xs"/>
+                <Input placeholder="Search notes by content..." value={noteSearch} onChange={e => setNoteSearch(e.target.value)} className="pl-8 h-8 text-xs"/>
               </div>
-            )}
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={cn("h-8 text-xs gap-1.5 shrink-0", (dateRange.from || dateRange.to) && "border-primary text-primary")}>
+                    <CalendarDays className="w-3 h-3"/>
+                    {dateRange.from ? (dateRange.to ? `${format(dateRange.from, "dd MMM")} – ${format(dateRange.to, "dd MMM")}` : format(dateRange.from, "dd MMM yyyy")) : "Date filter"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-[10002]" align="end">
+                  <Calendar mode="range" selected={dateRange.from ? { from: dateRange.from, to: dateRange.to } : undefined}
+                    onSelect={(range) => { setDateRange({ from: range?.from, to: range?.to }); if (range?.to) setDatePickerOpen(false); }}
+                    numberOfMonths={1} initialFocus className="pointer-events-auto"/>
+                  {(dateRange.from || dateRange.to) && (
+                    <div className="border-t border-border p-2">
+                      <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => { setDateRange({}); setDatePickerOpen(false); }}>
+                        Clear date filter
+                      </Button>
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+            </div>
 
             {/* Notes list */}
             {(() => {

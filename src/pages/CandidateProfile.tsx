@@ -142,7 +142,7 @@ export default function CandidateProfile() {
   const autoExpandSection = searchParams.get("section");
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(["overview", "skills", "experience", "notes", "interviews", "opportunities", ...(searchResult ? ["search-match"] : [])])
+    new Set(["overview", "skills", "experience", ...(searchResult ? ["search-match"] : [])])
   );
   const [showExportModal, setShowExportModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);

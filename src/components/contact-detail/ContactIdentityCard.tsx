@@ -191,11 +191,9 @@ export function ContactIdentityCard({ contact }: Props) {
         </div>
         <Button variant="outline" size="sm" className="w-full justify-start gap-2"
           onClick={() => {
-            const tab = document.querySelector('[value="notes"]') as HTMLElement;
+            const tab = document.querySelector('[data-value="notes"]') as HTMLElement;
             tab?.click();
-            setTimeout(() => {
-              document.getElementById("note-composer")?.focus();
-            }, 150);
+            setTimeout(() => document.getElementById("note-composer")?.focus(), 120);
           }}
         >
           <MessageSquare className="h-4 w-4" /> Add Note

@@ -13,23 +13,14 @@ import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-interface Props {
-  contact: any;
-}
+interface Props { contact: any; }
 
 const PIPELINE_STAGES = ["lead", "qualified", "proposal", "negotiation", "won"];
-const PIPELINE_LABELS: Record<string, string> = {
-  lead: "Lead",
-  qualified: "Qualified",
-  proposal: "Proposal",
-  negotiation: "Negotiation",
-  won: "Won",
-};
+const PIPELINE_LABELS: Record<string, string> = { lead: "Lead", qualified: "Qualified", proposal: "Proposal", negotiation: "Negotiation", won: "Won" };
 
 function PipelineChevron({ currentStage }: { currentStage: string }) {
   const normalizedStage = currentStage?.toLowerCase().replace("closed_", "") || "";
   const activeIndex = PIPELINE_STAGES.indexOf(normalizedStage);
-
   return (
     <div className="flex items-center gap-0.5 mt-2">
       {PIPELINE_STAGES.map((stage, i) => {
@@ -42,7 +33,7 @@ function PipelineChevron({ currentStage }: { currentStage: string }) {
               relative flex-1 h-6 flex items-center justify-center text-[10px] font-medium
               ${i === 0 ? "rounded-l-md" : ""} 
               ${i === PIPELINE_STAGES.length - 1 ? "rounded-r-md" : ""}
-              ${isLost ? "bg-red-500/20 text-red-400" : isActive ? "bg-[#378ADD]/20 text-[#378ADD]" : "bg-muted/50 text-muted-foreground/60"}
+              ${isLost ? "bg-red-500/20 text-red-400" : isActive ? "bg-primary/20 text-primary" : "bg-muted/50 text-muted-foreground/60"}
               transition-colors
             `}
           >
@@ -54,71 +45,261 @@ function PipelineChevron({ currentStage }: { currentStage: string }) {
   );
 }
 
-export function ContactDetailTabs({ contact }: Props) {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-  const [newNote, setNewNote] = useState("");
-  const [noteVisibility, setNoteVisibility] = useState<"public" | "team" | "private">("team");
+function EmptyState({ icon: Icon, text, actionLabel, onAction }: { icon: any; text: string; actionLabel?: string; onAction?: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 text-center">
+      <Icon className="h-8 w-8 text-muted-foreground/30 mb-2" />
+      <p className="text-sm text-muted-foreground">{text}</p>
+      {actionLabel && <Button variant="link" size="sm" className="mt-1 text-xs" onClick={onAction}>{actionLabel}</Button>}
+    </div>
+  );
+}
+
+function NoteComposer({ contactId, onSaved }: { contactId: string; onSaved: () => void }) {
+  const [content, setContent] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "team" | "private">("team");
   const [isRecording, setIsRecording] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState("");
+  const [liveTranscript, setLiveTranscript] = useState("");
+  const [saving, setSaving] = useState(false);
   const recognitionRef = useRef<any>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) return;
-    recognitionRef.current = new SR();
-    recognitionRef.current.continuous = true;
-    recognitionRef.current.interimResults = true;
-    recognitionRef.current.onresult = (event: any) => {
+    const r = new SR();
+    r.continuous = true;
+    r.interimResults = true;
+    r.onresult = (event: any) => {
+      let interim = "";
       let final = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) final += event.results[i][0].transcript + " ";
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) final += t + " ";
+        else interim += t;
       }
-      if (final) setVoiceTranscript(prev => prev + final);
+      if (final) {
+        setContent(prev => (prev + " " + final).trim());
+        setLiveTranscript(interim);
+      } else {
+        setLiveTranscript(interim);
+      }
     };
-    recognitionRef.current.onerror = () => { setIsRecording(false); toast.error("Voice error — try again"); };
-    return () => recognitionRef.current?.stop();
+    r.onerror = () => { setIsRecording(false); setLiveTranscript(""); toast.error("Voice error — try again"); };
+    r.onend = () => { setIsRecording(false); setLiveTranscript(""); };
+    recognitionRef.current = r;
+    return () => r.stop();
   }, []);
 
-  const startVoice = () => {
-    if (!recognitionRef.current) { toast.error("Voice not supported in this browser"); return; }
-    setVoiceTranscript("");
-    setIsRecording(true);
-    recognitionRef.current.start();
+  const toggleVoice = () => {
+    if (!recognitionRef.current) { toast.error("Voice not supported — use Chrome or Edge"); return; }
+    if (isRecording) {
+      recognitionRef.current.stop();
+      setIsRecording(false);
+      setLiveTranscript("");
+    } else {
+      setIsRecording(true);
+      setLiveTranscript("");
+      recognitionRef.current.start();
+      textareaRef.current?.focus();
+    }
   };
 
-  const stopVoice = () => {
-    recognitionRef.current?.stop();
-    setIsRecording(false);
-    if (voiceTranscript.trim()) setNewNote(prev => (prev + " " + voiceTranscript).trim());
-    setVoiceTranscript("");
-  };
-
-  const addNote = useMutation({
-    mutationFn: async () => {
-      const content = newNote.trim();
-      if (!content) throw new Error("empty");
+  const save = async () => {
+    const trimmed = content.trim();
+    if (!trimmed) { toast.error("Note cannot be empty"); return; }
+    setSaving(true);
+    try {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.from("notes").insert({
         entity_type: "contact",
-        entity_id: contact.id,
-        content,
-        visibility: noteVisibility,
+        entity_id: contactId,
+        content: trimmed,
+        visibility,
         owner_id: user?.id || null,
         pinned: false,
         source: "ui",
       });
       if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] });
-      setNewNote("");
+      setContent("");
+      setLiveTranscript("");
+      onSaved();
       toast.success("Note saved");
-    },
-    onError: (e: any) => {
-      if (e.message !== "empty") toast.error("Failed to save note");
+    } catch {
+      toast.error("Failed to save note");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+      <div className="relative">
+        <Textarea
+          ref={textareaRef}
+          id="note-composer"
+          placeholder="Write a note about this contact..."
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          className="min-h-[88px] text-sm resize-none pr-3"
+          onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) save(); }}
+        />
+        {isRecording && liveTranscript && (
+          <div className="absolute bottom-2 left-3 right-3 pointer-events-none">
+            <p className="text-xs text-primary/70 italic truncate">{liveTranscript}</p>
+          </div>
+        )}
+      </div>
+
+      {isRecording && (
+        <div className="flex items-center gap-2 px-1">
+          <div className="flex items-end gap-0.5 h-5">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="w-1 bg-red-500 rounded-full animate-pulse" style={{ height: `${Math.random() * 16 + 4}px`, animationDelay: `${i * 80}ms` }} />
+            ))}
+          </div>
+          <span className="text-xs text-red-500 font-medium">Recording — speak now</span>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant={isRecording ? "destructive" : "outline"} className="gap-1.5 h-8 text-xs" onClick={toggleVoice}>
+            {isRecording ? <><Square className="w-3 h-3" /> Stop</> : <><Mic className="w-3 h-3" /> Dictate</>}
+          </Button>
+          <Select value={visibility} onValueChange={v => setVisibility(v as any)}>
+            <SelectTrigger className="h-8 w-28 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="public"><span className="flex items-center gap-1.5 text-xs"><Globe className="w-3 h-3" /> Public</span></SelectItem>
+              <SelectItem value="team"><span className="flex items-center gap-1.5 text-xs"><Users className="w-3 h-3" /> Team</span></SelectItem>
+              <SelectItem value="private"><span className="flex items-center gap-1.5 text-xs"><Lock className="w-3 h-3" /> Private</span></SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button size="sm" className="h-8 text-xs px-4" disabled={!content.trim() || saving} onClick={save}>
+          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save note"}
+        </Button>
+      </div>
+      <p className="text-[10px] text-muted-foreground px-0.5">Tip: ⌘+Enter to save quickly</p>
+    </div>
+  );
+}
+
+function NotesList({ notes, onPin }: { notes: any[]; onPin: (id: string, pinned: boolean) => void }) {
+  if (notes.length === 0) return (
+    <div className="flex flex-col items-center justify-center py-10 text-center">
+      <MessageSquare className="h-8 w-8 text-muted-foreground/40 mb-2" />
+      <p className="text-sm text-muted-foreground">No notes yet — add the first one above</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-2">
+      {notes.map((note: any) => {
+        const p = note.profiles;
+        const initials = p ? `${(p.first_name || "")[0] || ""}${(p.last_name || "")[0] || ""}`.toUpperCase() || "?" : "?";
+        const authorName = p ? `${p.first_name || ""} ${p.last_name || ""}`.trim() || "Unknown" : "Unknown";
+        const visIcon = note.visibility === "public" ? <Globe className="w-3 h-3" /> : note.visibility === "private" ? <Lock className="w-3 h-3" /> : <Users className="w-3 h-3" />;
+        return (
+          <div key={note.id} className={cn("rounded-lg border bg-card p-3 transition-colors", note.pinned && "border-primary/30 bg-primary/5")}>
+            <div className="flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-[11px] font-semibold text-primary shrink-0 mt-0.5">
+                {initials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="text-xs font-medium text-foreground">{authorName}</span>
+                  <span className="text-xs text-muted-foreground">{format(new Date(note.created_at), "dd MMM yyyy · HH:mm")}</span>
+                  <span className="text-xs text-muted-foreground" title={formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}>
+                    ({formatDistanceToNow(new Date(note.created_at), { addSuffix: true })})
+                  </span>
+                  <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">{visIcon}</span>
+                  {note.source === "voice" && <Badge variant="outline" className="text-[10px] h-4 px-1.5">voice</Badge>}
+                  {note.pinned && <Badge variant="outline" className="text-[10px] h-4 px-1.5 border-primary/40 text-primary">pinned</Badge>}
+                </div>
+                <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{note.content}</p>
+              </div>
+              <button onClick={() => onPin(note.id, note.pinned)} className="shrink-0 text-muted-foreground hover:text-primary transition-colors mt-0.5 p-0.5" title={note.pinned ? "Unpin" : "Pin to top"}>
+                <Pin className={cn("w-3.5 h-3.5", note.pinned && "fill-primary text-primary")} />
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function ContactDetailTabs({ contact }: Props) {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const { data: deals = [] } = useQuery({
+    queryKey: ["contact-deals", contact.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("crm_deals").select("id, title, stage, value, currency, status, company_id, crm_companies(name)").eq("contact_id", contact.id).is("deleted_at", null).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
     },
   });
+
+  const { data: notes = [], refetch: refetchNotes } = useQuery({
+    queryKey: ["contact-notes", contact.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("notes").select("*, profiles(first_name, last_name)").eq("entity_type", "contact").eq("entity_id", contact.id).order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(100);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: timeline = [] } = useQuery({
+    queryKey: ["contact-timeline", contact.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("audit_log").select("*").eq("entity_id", contact.id).order("changed_at", { ascending: false }).limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: documents = [] } = useQuery({
+    queryKey: ["contact-documents", contact.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("crm_documents" as any).select("*").eq("contact_id", contact.id).order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: directProjects = [] } = useQuery({
+    queryKey: ["contact-direct-projects", contact.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("engagements").select("id, name, engagement_type, stage, health").eq("contact_id", contact.id).order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []).map((p: any) => ({ ...p, _source: "primary" as const }));
+    },
+  });
+
+  const dealIds = deals.map((d: any) => d.id);
+  const { data: dealProjects = [] } = useQuery({
+    queryKey: ["contact-deal-projects", dealIds],
+    queryFn: async () => {
+      if (dealIds.length === 0) return [];
+      const { data, error } = await supabase.from("crm_projects").select("*").in("deal_id", dealIds).is("deleted_at", null).order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []).map((p: any) => ({ ...p, _source: "deal" as const }));
+    },
+    enabled: dealIds.length > 0,
+  });
+
+  const allProjects = (() => {
+    const seen = new Set<string>();
+    const combined: any[] = [];
+    for (const p of directProjects) { if (!seen.has(p.id)) { seen.add(p.id); combined.push(p); } }
+    for (const p of dealProjects) { if (!seen.has(p.id)) { seen.add(p.id); combined.push(p); } }
+    return combined;
+  })();
 
   const pinNote = useMutation({
     mutationFn: async ({ id, pinned }: { id: string; pinned: boolean }) => {
@@ -128,392 +309,91 @@ export function ContactDetailTabs({ contact }: Props) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] }),
   });
 
-  // Deals linked to this contact
-  const { data: deals = [] } = useQuery({
-    queryKey: ["contact-deals", contact.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("crm_deals")
-        .select("id, title, stage, value, currency, status, company_id, crm_companies(name)")
-        .eq("contact_id", contact.id)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Notes for this contact
-  const { data: notes = [] } = useQuery({
-    queryKey: ["contact-notes", contact.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("notes")
-        .select("*, profiles(first_name, last_name)")
-        .eq("entity_type", "contact")
-        .eq("entity_id", contact.id)
-        .order("pinned", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const { data: timeline = [] } = useQuery({
-    queryKey: ["contact-timeline", contact.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("audit_log")
-        .select("*")
-        .eq("entity_id", contact.id)
-        .order("changed_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Documents linked to this contact
-  const { data: documents = [] } = useQuery({
-    queryKey: ["contact-documents", contact.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("crm_documents" as any)
-        .select("*")
-        .eq("contact_id", contact.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  // Direct project assignments (engagements where contact_id = this contact)
-  const { data: directProjects = [] } = useQuery({
-    queryKey: ["contact-direct-projects", contact.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("engagements")
-        .select("id, name, engagement_type, stage, health")
-        .eq("contact_id", contact.id)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data || []).map((p: any) => ({ ...p, _source: "primary" as const }));
-    },
-  });
-
-  // Projects linked via deals
-  const dealIds = deals.map((d: any) => d.id);
-  const { data: dealProjects = [] } = useQuery({
-    queryKey: ["contact-deal-projects", dealIds],
-    queryFn: async () => {
-      if (dealIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from("crm_projects")
-        .select("*")
-        .in("deal_id", dealIds)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data || []).map((p: any) => ({ ...p, _source: "deal" as const }));
-    },
-    enabled: dealIds.length > 0,
-  });
-
-  // Combine projects, deduplicating by id
-  const allProjects = (() => {
-    const seen = new Set<string>();
-    const combined: any[] = [];
-    for (const p of directProjects) {
-      if (!seen.has(p.id)) { seen.add(p.id); combined.push(p); }
-    }
-    for (const p of dealProjects) {
-      if (!seen.has(p.id)) { seen.add(p.id); combined.push(p); }
-    }
-    return combined;
-  })();
+  const focusNoteComposer = () => {
+    const tab = document.querySelector('[data-value="notes"]') as HTMLElement;
+    tab?.click();
+    setTimeout(() => document.getElementById("note-composer")?.focus(), 100);
+  };
 
   return (
-    <Tabs defaultValue="overview">
+    <Tabs defaultValue="notes">
       <TabsList className="bg-card border border-border">
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        <TabsTrigger value="notes">
-          Notes {notes.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">{notes.length}</span>}
+        <TabsTrigger value="notes" data-value="notes">
+          Notes {notes.length > 0 && <span className="ml-1.5 text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded-full font-medium">{notes.length}</span>}
         </TabsTrigger>
+        <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="timeline">Timeline</TabsTrigger>
         <TabsTrigger value="deals">Deals</TabsTrigger>
         <TabsTrigger value="projects">Projects</TabsTrigger>
         <TabsTrigger value="documents">Documents</TabsTrigger>
       </TabsList>
 
+      {/* NOTES TAB — first and default */}
+      <TabsContent value="notes" className="mt-4 space-y-4">
+        <NoteComposer contactId={contact.id} onSaved={() => qc.invalidateQueries({ queryKey: ["contact-notes", contact.id] })} />
+        <NotesList notes={notes} onPin={(id, pinned) => pinNote.mutate({ id, pinned })} />
+      </TabsContent>
+
       {/* OVERVIEW TAB */}
       <TabsContent value="overview" className="space-y-4 mt-4">
-        {/* Connected Deals */}
         <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Briefcase className="h-4 w-4 text-[#378ADD]" />
-              Connected Deals
-            </CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Briefcase className="h-4 w-4 text-primary" />Connected Deals</CardTitle></CardHeader>
           <CardContent>
-            {deals.length === 0 ? (
-              <EmptyState
-                icon={Briefcase}
-                text="No deals linked"
-                actionLabel="+ Link Deal"
-                onAction={() => navigate("/crm/deals")}
-              />
-            ) : (
+            {deals.length === 0 ? <EmptyState icon={Briefcase} text="No deals linked" actionLabel="+ Link Deal" onAction={() => navigate("/crm/deals")} /> : (
               <div className="space-y-2">
                 {deals.slice(0, 3).map((deal: any) => (
-                  <button
-                    key={deal.id}
-                    onClick={() => navigate(`/crm/deals/${deal.id}`)}
-                    className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{deal.title}</p>
-                      <p className="text-xs text-muted-foreground">{deal.crm_companies?.name || "—"}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">
-                        {deal.currency} {Number(deal.value).toLocaleString()}
-                      </span>
-                    </div>
+                  <button key={deal.id} onClick={() => navigate(`/crm/deals/${deal.id}`)} className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left">
+                    <div><p className="text-sm font-medium">{deal.title}</p><p className="text-xs text-muted-foreground">{deal.crm_companies?.name || "—"}</p></div>
+                    <div className="flex items-center gap-2"><span className="text-sm font-medium">{deal.currency} {Number(deal.value).toLocaleString()}</span></div>
                   </button>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* Connected Projects */}
         <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <FolderOpen className="h-4 w-4 text-emerald-400" />
-              Connected Projects
-            </CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><FolderOpen className="h-4 w-4 text-emerald-500" />Connected Projects</CardTitle></CardHeader>
           <CardContent>
-            {allProjects.length === 0 ? (
-              <EmptyState icon={FolderOpen} text="No projects linked" />
-            ) : (
+            {allProjects.length === 0 ? <EmptyState icon={FolderOpen} text="No projects linked" /> : (
               <div className="space-y-2">
                 {allProjects.slice(0, 3).map((project: any) => (
-                  <button
-                    key={project.id}
-                    onClick={() => navigate(`/projects/${project.id}`)}
-                    className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{project.name}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px]">
-                        {project._source === "primary" ? "Primary contact" : "Deal contact"}
-                      </Badge>
-                      <Badge variant="outline" className="text-xs">{project.status || project.stage}</Badge>
-                    </div>
+                  <button key={project.id} onClick={() => navigate(`/projects/${project.id}`)} className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left">
+                    <div><p className="text-sm font-medium">{project.name}</p></div>
+                    <Badge variant="outline" className="text-xs">{project.status || project.stage}</Badge>
                   </button>
                 ))}
               </div>
             )}
           </CardContent>
         </Card>
-
-        {/* Recent Notes */}
         <Card className="bg-card border-border">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-amber-400" />
-              Recent Notes
-            </CardTitle>
-            {notes.length > 3 && (
-              <button
-                className="text-xs text-[#378ADD] hover:underline"
-                onClick={() => {
-                  const tab = document.querySelector('[value="notes"]') as HTMLElement;
-                  tab?.click();
-                }}
-              >
-                View all ({notes.length})
-              </button>
-            )}
+            <CardTitle className="text-sm flex items-center gap-2"><MessageSquare className="h-4 w-4 text-amber-500" />Recent Notes</CardTitle>
+            {notes.length > 0 && <button className="text-xs text-primary hover:underline" onClick={focusNoteComposer}>View all in Notes tab →</button>}
           </CardHeader>
           <CardContent>
-            {/* Compact composer */}
-            <div className="space-y-2 mb-3">
-              <Textarea
-                placeholder="Write a note…"
-                value={newNote}
-                onChange={(e) => setNewNote(e.target.value)}
-                className="min-h-[80px] text-sm"
-              />
-              {isRecording && voiceTranscript && (
-                <p className="text-xs text-muted-foreground italic px-1">Recording: {voiceTranscript}</p>
-              )}
-              <div className="flex items-center justify-between">
-                <Button
-                  size="sm"
-                  variant={isRecording ? "destructive" : "outline"}
-                  className="gap-1.5 h-8 text-xs"
-                  onClick={isRecording ? stopVoice : startVoice}
-                >
-                  {isRecording ? <><Square className="w-3 h-3" /> Stop</> : <><Mic className="w-3 h-3" /> Dictate</>}
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={!newNote.trim() || addNote.isPending}
-                  onClick={() => addNote.mutate()}
-                >
-                  {addNote.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save note"}
-                </Button>
-              </div>
-            </div>
-            {notes.length === 0 ? (
-              <EmptyState
-                icon={MessageSquare}
-                text="No notes yet"
-                actionLabel="+ Add Note"
-                onAction={() => {
-                  const tab = document.querySelector('[value="notes"]') as HTMLElement;
-                  tab?.click();
-                  setTimeout(() => document.getElementById("note-composer")?.focus(), 150);
-                }}
-              />
-            ) : (
+            {notes.length === 0 ? <EmptyState icon={MessageSquare} text="No notes yet" actionLabel="+ Add Note" onAction={focusNoteComposer} /> : (
               <div className="space-y-2">
                 {notes.slice(0, 3).map((note: any) => {
-                  const author = note.profiles;
-                  const noteInitials = author
-                    ? `${(author.first_name || "")[0] || ""}${(author.last_name || "")[0] || ""}`.toUpperCase() || "?"
-                    : "?";
-                  const authorName = author
-                    ? `${author.first_name || ""} ${author.last_name || ""}`.trim() || "Unknown"
-                    : "Unknown";
+                  const p = note.profiles;
+                  const initials = p ? `${(p.first_name || "")[0] || ""}${(p.last_name || "")[0] || ""}`.toUpperCase() || "?" : "?";
                   return (
-                    <div key={note.id} className={cn("p-3 rounded-lg border border-border bg-background/50", note.pinned && "border-primary/40")}>
-                      <div className="flex items-start gap-2.5">
-                        <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0 mt-0.5">
-                          {noteInitials}
-                        </div>
+                    <div key={note.id} className="p-3 rounded-lg border border-border bg-background/50">
+                      <div className="flex items-start gap-2">
+                        <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">{initials}</div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-xs font-medium text-foreground">{authorName}</span>
-                            <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
-                            {note.pinned && <Badge variant="outline" className="text-[10px] h-4 px-1 border-primary/40 text-primary">pinned</Badge>}
-                          </div>
                           <p className="text-sm text-foreground line-clamp-2">{note.content}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(note.created_at), "dd MMM yyyy · HH:mm")}</p>
                         </div>
                       </div>
                     </div>
                   );
                 })}
+                <button className="w-full text-xs text-primary hover:underline text-center pt-1" onClick={focusNoteComposer}>See all {notes.length} notes →</button>
               </div>
             )}
           </CardContent>
         </Card>
-      </TabsContent>
-
-      {/* NOTES TAB */}
-      <TabsContent value="notes" className="mt-4 space-y-4">
-        {/* Composer */}
-        <Card className="bg-card border-border">
-          <CardContent className="pt-4 space-y-3">
-            <Textarea
-              id="note-composer"
-              placeholder="Write a note about this contact..."
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              className="min-h-[96px] text-sm resize-none"
-            />
-            {isRecording && voiceTranscript && (
-              <p className="text-xs text-muted-foreground italic px-1">Recording: {voiceTranscript}</p>
-            )}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant={isRecording ? "destructive" : "outline"}
-                  className="gap-1.5 h-8 text-xs"
-                  onClick={isRecording ? stopVoice : startVoice}
-                >
-                  {isRecording ? <><Square className="w-3 h-3" /> Stop</> : <><Mic className="w-3 h-3" /> Voice</>}
-                </Button>
-                <Select value={noteVisibility} onValueChange={(v) => setNoteVisibility(v as any)}>
-                  <SelectTrigger className="h-8 w-28 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="public"><span className="flex items-center gap-1.5 text-xs"><Globe className="w-3 h-3" /> Public</span></SelectItem>
-                    <SelectItem value="team"><span className="flex items-center gap-1.5 text-xs"><Users className="w-3 h-3" /> Team</span></SelectItem>
-                    <SelectItem value="private"><span className="flex items-center gap-1.5 text-xs"><Lock className="w-3 h-3" /> Private</span></SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                size="sm"
-                className="h-8 text-xs px-4"
-                disabled={!newNote.trim() || addNote.isPending}
-                onClick={() => addNote.mutate()}
-              >
-                {addNote.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save note"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Notes list */}
-        {notes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <MessageSquare className="h-8 w-8 text-muted-foreground/40 mb-2" />
-            <p className="text-sm text-muted-foreground">No notes yet. Add the first one above.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {notes.map((note: any) => {
-              const author = note.profiles;
-              const initials = author
-                ? `${(author.first_name || "")[0] || ""}${(author.last_name || "")[0] || ""}`.toUpperCase() || "?"
-                : "?";
-              const authorName = author
-                ? `${author.first_name || ""} ${author.last_name || ""}`.trim() || "Unknown"
-                : "Unknown";
-              const visIcon = note.visibility === "public" ? <Globe className="w-3 h-3" /> : note.visibility === "private" ? <Lock className="w-3 h-3" /> : <Users className="w-3 h-3" />;
-              return (
-                <Card key={note.id} className={cn("bg-card border-border", note.pinned && "border-primary/40")}>
-                  <CardContent className="pt-3 pb-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary shrink-0 mt-0.5">
-                        {initials}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="text-xs font-medium text-foreground">{authorName}</span>
-                          <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(note.created_at), { addSuffix: true })}</span>
-                          <span className="text-xs text-muted-foreground" title={format(new Date(note.created_at), "dd MMM yyyy HH:mm")}>{format(new Date(note.created_at), "dd MMM yyyy")}</span>
-                          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">{visIcon} {note.visibility}</span>
-                          {note.source === "voice" && <Badge variant="outline" className="text-[10px] h-4 px-1">voice</Badge>}
-                          {note.pinned && <Badge variant="outline" className="text-[10px] h-4 px-1 border-primary/40 text-primary">pinned</Badge>}
-                        </div>
-                        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{note.content}</p>
-                      </div>
-                      <button
-                        onClick={() => pinNote.mutate({ id: note.id, pinned: note.pinned })}
-                        className="shrink-0 text-muted-foreground hover:text-primary transition-colors mt-0.5"
-                        title={note.pinned ? "Unpin" : "Pin"}
-                      >
-                        <Pin className={cn("w-3.5 h-3.5", note.pinned && "fill-primary text-primary")} />
-                      </button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
       </TabsContent>
 
       {/* TIMELINE TAB */}
@@ -521,91 +401,40 @@ export function ContactDetailTabs({ contact }: Props) {
         <Card className="bg-card border-border">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm">Activity Timeline</CardTitle>
-            <Button variant="outline" size="sm">
-              <Plus className="h-4 w-4 mr-1" /> Log Activity
-            </Button>
+            <Button variant="outline" size="sm"><Plus className="h-4 w-4 mr-1" /> Log Activity</Button>
           </CardHeader>
           <CardContent>
-            {timeline.length === 0 && notes.length === 0 ? (
-              <EmptyState icon={Clock} text="No activity yet. Add a note to get started." actionLabel="+ Add Note" />
-            ) : (
-              <div className="space-y-0">
-                {[
-                  ...notes.map((n: any) => ({
-                    id: n.id,
-                    type: "note" as const,
-                    date: n.created_at,
-                    content: n.content,
-                  })),
-                  ...timeline.map((t: any) => ({
-                    id: t.id,
-                    type: "audit" as const,
-                    date: t.changed_at,
-                    content: `${t.action} on ${t.entity_type}`,
-                    diff: t.diff,
-                  })),
-                ]
-                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map((item) => (
-                    <div key={item.id} className="flex gap-3 py-3 border-l-2 border-border pl-4 ml-2">
-                      <div className="shrink-0 mt-0.5">
-                        {item.type === "note" ? (
-                          <MessageSquare className="h-4 w-4 text-amber-400" />
-                        ) : (
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm text-foreground line-clamp-2">{item.content}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {format(new Date(item.date), "dd MMM yyyy HH:mm")}
-                        </p>
-                      </div>
+            {timeline.length === 0 && notes.length === 0 ? <EmptyState icon={Clock} text="No activity yet." /> : (
+              <div className="space-y-1">
+                {[...notes.map((n: any) => ({ type: "note", date: n.created_at, content: n.content, id: n.id })),
+                  ...timeline.map((t: any) => ({ type: "audit", date: t.changed_at, content: `${t.action} on ${t.entity_type}`, id: t.id }))
+                ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(item => (
+                  <div key={item.id} className="flex gap-3 py-2 border-b border-border/40 last:border-0">
+                    <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
+                      {item.type === "note" ? <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" /> : <Clock className="w-3.5 h-3.5 text-muted-foreground" />}
                     </div>
-                  ))}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground line-clamp-2">{item.content}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(item.date), "dd MMM yyyy · HH:mm")}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
       </TabsContent>
 
-      {/* DEALS TAB — with pipeline chevrons */}
+      {/* DEALS TAB */}
       <TabsContent value="deals" className="mt-4">
         <Card className="bg-card border-border">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Linked Deals</CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-1" /> Link Existing Deal
-              </Button>
-              <Button variant="outline" size="sm">
-                <Plus className="h-4 w-4 mr-1" /> Create New Deal
-              </Button>
-            </div>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Deals</CardTitle></CardHeader>
           <CardContent>
-            {deals.length === 0 ? (
-              <EmptyState icon={Briefcase} text="No deals linked to this contact" actionLabel="+ Link Deal" />
-            ) : (
+            {deals.length === 0 ? <EmptyState icon={Briefcase} text="No deals linked to this contact" actionLabel="+ Link Deal" onAction={() => navigate("/crm/deals")} /> : (
               <div className="space-y-3">
                 {deals.map((deal: any) => (
-                  <button
-                    key={deal.id}
-                    onClick={() => navigate(`/crm/deals/${deal.id}`)}
-                    className="w-full p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{deal.title}</p>
-                        <p className="text-xs text-muted-foreground">{deal.crm_companies?.name || "—"}</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium">
-                          {deal.currency} {Number(deal.value).toLocaleString()}
-                        </span>
-                        <Badge variant="outline" className="text-xs">{deal.status}</Badge>
-                      </div>
-                    </div>
+                  <button key={deal.id} onClick={() => navigate(`/crm/deals/${deal.id}`)} className="w-full p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left space-y-1">
+                    <div className="flex items-center justify-between"><p className="text-sm font-medium">{deal.title}</p><span className="text-sm font-semibold">{deal.currency} {Number(deal.value).toLocaleString()}</span></div>
                     <PipelineChevron currentStage={deal.stage} />
                   </button>
                 ))}
@@ -615,36 +444,17 @@ export function ContactDetailTabs({ contact }: Props) {
         </Card>
       </TabsContent>
 
-      {/* PROJECTS TAB — combined direct + via deals */}
+      {/* PROJECTS TAB */}
       <TabsContent value="projects" className="mt-4">
         <Card className="bg-card border-border">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Connected Projects</CardTitle>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Projects</CardTitle></CardHeader>
           <CardContent>
-            {allProjects.length === 0 ? (
-              <EmptyState icon={FolderOpen} text="No projects connected" />
-            ) : (
+            {allProjects.length === 0 ? <EmptyState icon={FolderOpen} text="No projects connected" /> : (
               <div className="space-y-2">
                 {allProjects.map((project: any) => (
-                  <button
-                    key={project.id}
-                    onClick={() => navigate(`/projects/${project.id}`)}
-                    className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left"
-                  >
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{project.name}</p>
-                      {project.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-1">{project.description}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px]">
-                        {project._source === "primary" ? "Primary contact" : "Deal contact"}
-                      </Badge>
-                      {project.project_type && <Badge variant="outline" className="text-xs">{project.project_type}</Badge>}
-                      <Badge variant="outline" className="text-xs">{project.status || project.stage}</Badge>
-                    </div>
+                  <button key={project.id} onClick={() => navigate(`/projects/${project.id}`)} className="w-full flex items-center justify-between p-3 rounded-lg border border-border bg-background/50 hover:bg-accent/50 transition-colors text-left">
+                    <div><p className="text-sm font-medium">{project.name}</p></div>
+                    <div className="flex items-center gap-2"><Badge variant="outline" className="text-[10px]">{project._source === "primary" ? "Primary contact" : "Deal contact"}</Badge><Badge variant="outline" className="text-xs">{project.status || project.stage}</Badge></div>
                   </button>
                 ))}
               </div>
@@ -656,32 +466,15 @@ export function ContactDetailTabs({ contact }: Props) {
       {/* DOCUMENTS TAB */}
       <TabsContent value="documents" className="mt-4">
         <Card className="bg-card border-border">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Documents</CardTitle>
-            <Button variant="outline" size="sm">
-              <Plus className="h-4 w-4 mr-1" /> Upload Document
-            </Button>
-          </CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">Documents</CardTitle></CardHeader>
           <CardContent>
-            {documents.length === 0 ? (
-              <EmptyState icon={FileText} text="No documents linked to this contact" actionLabel="+ Upload Document" />
-            ) : (
+            {documents.length === 0 ? <EmptyState icon={FileText} text="No documents linked to this contact" actionLabel="+ Upload Document" /> : (
               <div className="space-y-2">
                 {documents.map((doc: any) => (
-                  <div key={doc.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-background/50">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{doc.name}</p>
-                        <p className="text-xs text-muted-foreground">{doc.type}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {doc.status && <Badge variant="outline" className="text-xs">{doc.status}</Badge>}
-                      <span className="text-xs text-muted-foreground">
-                        {doc.created_at && format(new Date(doc.created_at), "dd MMM yyyy")}
-                      </span>
-                    </div>
+                  <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-background/50">
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{doc.title}</p><p className="text-xs text-muted-foreground">{doc.type} · {format(new Date(doc.created_at), "dd MMM yyyy")}</p></div>
+                    <Badge variant="outline" className="text-xs">{doc.status}</Badge>
                   </div>
                 ))}
               </div>
@@ -690,29 +483,5 @@ export function ContactDetailTabs({ contact }: Props) {
         </Card>
       </TabsContent>
     </Tabs>
-  );
-}
-
-function EmptyState({
-  icon: Icon,
-  text,
-  actionLabel,
-  onAction,
-}: {
-  icon: any;
-  text: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center py-8 text-center">
-      <Icon className="h-8 w-8 text-muted-foreground/50 mb-2" />
-      <p className="text-sm text-muted-foreground">{text}</p>
-      {actionLabel && (
-        <Button variant="outline" size="sm" className="mt-3" onClick={onAction}>
-          {actionLabel}
-        </Button>
-      )}
-    </div>
   );
 }

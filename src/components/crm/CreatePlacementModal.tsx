@@ -55,7 +55,9 @@ export function CreatePlacementModal({ open, onOpenChange, deal }: Props) {
         invoice_frequency: form.invoice_frequency,
       });
       if (error) throw error;
+      await supabase.from("crm_deals").update({ stage: "placed" } as any).eq("id", deal.id);
       qc.invalidateQueries({ queryKey: ["placements-home"] });
+      qc.invalidateQueries({ queryKey: ["crm_deals"] });
       toast.success("Placement created");
       onOpenChange(false);
     } catch {

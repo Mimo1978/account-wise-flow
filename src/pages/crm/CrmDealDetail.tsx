@@ -592,26 +592,50 @@ export default function CrmDealDetail() {
                 </div>
               </CardContent>
             </Card>
-          ) : d.stage === "won" && !d.engagement_id ? (
-            <Card className="border-green-500/30">
+          ) : null}
+          {d.stage === "won" && (
+            <Card className="border-amber-500/40 bg-amber-500/5">
               <CardContent className="py-4">
-                <p className="text-sm text-muted-foreground mb-2">This deal is Won — create a delivery project to begin work</p>
-                <div className="flex gap-2">
-                  <Button size="sm" className="gap-1.5 bg-green-600 hover:bg-green-500 text-white">
-                    <Briefcase className="w-3 h-3" /> Create Delivery Project
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
-                    onClick={() => setPlacementOpen(true)}
-                  >
-                    <Users className="w-3 h-3" /> Convert to Placement
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-amber-400">Deal Won — what happens next?</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Convert this deal into a placement to start tracking timesheets and invoices, or create a delivery project for consulting work.</p>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <Button
+                      size="sm"
+                      className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium"
+                      onClick={() => setPlacementOpen(true)}
+                    >
+                      <Users className="w-3.5 h-3.5" /> Convert to Placement
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5">
+                      <Briefcase className="w-3.5 h-3.5" /> Create Delivery Project
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {d.stage === "placed" && (
+            <Card className="border-amber-500/40 bg-amber-500/5">
+              <CardContent className="py-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                    <Users className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-amber-400">Active Placement</p>
+                    <p className="text-xs text-muted-foreground">This deal has been converted to a placement. Track timesheets and invoices in Active Placements.</p>
+                  </div>
+                  <Button size="sm" variant="outline" className="gap-1.5 border-amber-500/30 text-amber-400 shrink-0"
+                    onClick={() => navigate('/home')}>
+                    View Placements →
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          ) : null}
+          )}
 
           {/* ── Dates & Info ── */}
           <Card>

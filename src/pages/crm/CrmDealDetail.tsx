@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PipelineChevron as SharedPipelineChevron } from "@/components/pipeline/PipelineChevron";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -489,6 +489,24 @@ export default function CrmDealDetail() {
             </CardContent>
           </Card>
 
+          {/* ── Candidate Section ── */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2 border-b border-border pb-2">
+                <User className="w-4 h-4" /> Candidate
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Search your talent database to link the placed candidate to this deal.</p>
+                <CandidateSearchInline
+                  dealId={deal.id}
+                  onLinked={() => queryClient.invalidateQueries({ queryKey: ["crm_deals", deal.id] })}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* ── Project Section ── */}
           <Card>
             <CardHeader className="pb-2">
@@ -593,45 +611,37 @@ export default function CrmDealDetail() {
               </CardContent>
             </Card>
           ) : null}
-          {d.stage === "won" && (
+          {(d.stage === "won" || d.stage === "placed") && (
             <Card className="border-amber-500/40 bg-amber-500/5">
               <CardContent className="py-4">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-amber-400">Deal Won — what happens next?</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Convert this deal into a placement to start tracking timesheets and invoices, or create a delivery project for consulting work.</p>
+                    <p className="text-sm font-semibold text-amber-400">
+                      {d.stage === "placed" ? "✓ Placement Active" : "Deal Won — next steps"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {d.stage === "placed"
+                        ? "This deal has been converted to a placement. Log timesheets and generate invoices from the Active Placements section."
+                        : "Convert to a placement to track timesheets and invoices, or create a delivery project for consulting work."}
+                    </p>
                   </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      size="sm"
-                      className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium"
-                      onClick={() => setPlacementOpen(true)}
-                    >
-                      <Users className="w-3.5 h-3.5" /> Convert to Placement
+                  {d.stage === "won" && (
+                    <div className="flex gap-2 flex-wrap">
+                      <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium"
+                        onClick={() => setPlacementOpen(true)}>
+                        <Users className="w-3.5 h-3.5" /> Convert to Placement
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1.5">
+                        <Briefcase className="w-3.5 h-3.5" /> Create Delivery Project
+                      </Button>
+                    </div>
+                  )}
+                  {d.stage === "placed" && (
+                    <Button size="sm" variant="outline" className="gap-1.5 border-amber-500/30 text-amber-400"
+                      onClick={() => navigate("/home")}>
+                      View Active Placements →
                     </Button>
-                    <Button size="sm" variant="outline" className="gap-1.5">
-                      <Briefcase className="w-3.5 h-3.5" /> Create Delivery Project
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {d.stage === "placed" && (
-            <Card className="border-amber-500/40 bg-amber-500/5">
-              <CardContent className="py-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                    <Users className="w-4 h-4 text-amber-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-amber-400">Active Placement</p>
-                    <p className="text-xs text-muted-foreground">This deal has been converted to a placement. Track timesheets and invoices in Active Placements.</p>
-                  </div>
-                  <Button size="sm" variant="outline" className="gap-1.5 border-amber-500/30 text-amber-400 shrink-0"
-                    onClick={() => navigate('/home')}>
-                    View Placements →
-                  </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -830,5 +840,50 @@ function QuickAddContactFooter({ companyName, onOpen }: { companyName?: string |
       <Plus className="w-3 h-3 inline mr-1" />
       Add new contact{companyName ? ` to ${companyName}` : ""}
     </button>
+  );
+}
+
+function CandidateSearchInline({ dealId, onLinked }: { dealId: string; onLinked: () => void }) {
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [linked, setLinked] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!search.trim()) { setResults([]); return; }
+    const t = setTimeout(async () => {
+      setLoading(true);
+      const { data } = await supabase.from("candidates" as any).select("id, name, current_title").ilike("name", `%${search}%`).limit(8);
+      setResults(data || []);
+      setLoading(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  if (linked) {
+    return (
+      <div className="flex items-center justify-between p-2 rounded-lg border border-border bg-muted/30">
+        <div>
+          <p className="text-sm font-medium">{linked.name}</p>
+          <p className="text-xs text-muted-foreground">{linked.current_title || "—"}</p>
+        </div>
+        <Button size="sm" variant="ghost" className="text-xs" onClick={() => setLinked(null)}>Change</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Input placeholder="Search candidates..." value={search} onChange={e => setSearch(e.target.value)} className="h-8 text-xs" />
+      {loading && <p className="text-xs text-muted-foreground px-1">Searching...</p>}
+      {results.map(c => (
+        <button key={c.id} onClick={() => setLinked(c)}
+          className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-muted border border-border flex items-center justify-between">
+          <span className="font-medium">{c.name}</span>
+          <span className="text-muted-foreground">{c.current_title || "—"}</span>
+        </button>
+      ))}
+      {search && !loading && results.length === 0 && <p className="text-xs text-muted-foreground px-1">No candidates found</p>}
+    </div>
   );
 }

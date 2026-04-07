@@ -461,6 +461,7 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
     await addCandidateToCampaign(campaignId, campaign?.name || "New Campaign");
   };
 
+  const getAuthor = (n: any) => {
     const p = n.profiles;
     const initials = p ? `${(p.first_name||"")[0]||""}${(p.last_name||"")[0]||""}`.toUpperCase()||"?" : "?";
     const name = p ? `${p.first_name||""} ${p.last_name||""}`.trim()||"You" : "You";

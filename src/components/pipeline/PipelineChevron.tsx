@@ -10,6 +10,7 @@ export const PIPELINE_STAGES = [
   { key: 'proposal',    label: 'PROPOSAL',    color: '#E8A020' },
   { key: 'negotiation', label: 'NEGOTIATION', color: '#E86820' },
   { key: 'won',         label: 'WON',         color: '#2EAA6E' },
+  { key: 'placed',      label: 'PLACED',      color: '#F59E0B' },
   { key: 'lost',        label: 'LOST',        color: '#E84040' },
 ] as const;
 

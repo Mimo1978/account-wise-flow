@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 
 /* ─── Pipeline stages ─── */
 const STAGES = ["lead", "qualified", "proposal", "negotiation", "won"] as const;
-const STAGE_LABELS: Record<string, string> = { lead: "Lead", qualified: "Qualified", proposal: "Proposal", negotiation: "Negotiation", won: "Won", lost: "Lost" };
+const STAGE_LABELS: Record<string, string> = { lead: "Lead", qualified: "Qualified", proposal: "Proposal", negotiation: "Negotiation", won: "Won", placed: "Placed", lost: "Lost" };
 const STAGE_COLORS: Record<string, string> = {
   lead: "bg-blue-500", qualified: "bg-purple-500", proposal: "bg-amber-500",
   negotiation: "bg-orange-500", won: "bg-green-500", lost: "bg-red-500",
@@ -275,7 +275,7 @@ export default function CrmDealDetail() {
   // Next stage
   const nextStageIdx = currentStageIdx + 1;
   const nextStage = nextStageIdx < STAGES.length ? STAGES[nextStageIdx] : null;
-  const isTerminal = d.stage === "won" || d.stage === "lost";
+  const isTerminal = d.stage === "won" || d.stage === "lost" || d.stage === "placed";
 
   return (
     <div className="space-y-6 p-6">

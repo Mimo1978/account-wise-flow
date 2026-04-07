@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -350,11 +351,12 @@ export default function CandidateProfile() {
         </div>
       </div>
 
-      {/* Main Content — two-column: fixed sidebar + CV viewer */}
+      {/* Main Content — two-column: resizable sidebar + CV viewer */}
       <div className="flex-1 overflow-hidden">
-        <div className="h-full flex">
-          {/* LEFT COLUMN — 320px sidebar with its own scroll */}
-          <div className="w-80 flex-shrink-0 h-full overflow-y-auto border-r border-border p-4 lg:p-6 space-y-4">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
+          {/* LEFT COLUMN — resizable sidebar with its own scroll */}
+          <ResizablePanel defaultSize={25} minSize={15} maxSize={50} className="h-full">
+          <div className="h-full overflow-y-auto border-r border-border p-4 lg:p-6 space-y-4">
             {/* Contact Card */}
             <Card>
               <CardHeader className="pb-3">
@@ -480,9 +482,13 @@ export default function CandidateProfile() {
               onStatusChange={handleStatusUpdate}
             />
           </div>
+          </ResizablePanel>
+
+          <ResizableHandle withHandle />
 
           {/* RIGHT COLUMN — CV viewer panel, fills remaining space */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'hsl(var(--card))' }}>
+          <ResizablePanel defaultSize={75} minSize={40}>
+          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', height: '100%', background: 'hsl(var(--card))' }}>
             {/* Toolbar — fixed, never scrolls */}
             <div style={{ flexShrink: 0, padding: '10px 20px', borderBottom: '1px solid hsl(var(--border))', background: 'hsl(var(--muted))', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '13px', color: 'hsl(var(--muted-foreground))' }}>
@@ -574,7 +580,8 @@ export default function CandidateProfile() {
               )}
             </div>
           </div>
-        </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </div>
 
       {/* CV Export Modal */}

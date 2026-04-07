@@ -123,13 +123,8 @@ const seniorityLabels: Record<string, string> = {
   junior: "Junior",
 };
 
-// Mock experience for demo
-const getMockExperience = (talentId: string): TalentExperience[] => {
-  return [
-    { id: "e1", company: "Previous Company", title: "Senior Role", startDate: "2021-01", current: true, description: "Current position." },
-    { id: "e2", company: "Earlier Company", title: "Mid-Level Role", startDate: "2018-06", endDate: "2020-12", description: "Previous experience." },
-  ];
-};
+
+
 
 export default function CandidateProfile() {
   const { candidateId } = useParams<{ candidateId: string }>();

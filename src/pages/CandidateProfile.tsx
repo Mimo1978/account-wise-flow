@@ -6,7 +6,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 
 import { useSearchContext } from "@/contexts/SearchContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { Talent, TalentAvailability, TalentStatus, TalentExperience } from "@/lib/types";
+import { Talent, TalentAvailability, TalentStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -151,7 +151,7 @@ export default function CandidateProfile() {
   const autoExpandSection = searchParams.get("section");
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(["overview", "skills", "experience", ...(searchResult ? ["search-match"] : [])])
+    new Set(["overview", "skills", ...(searchResult ? ["search-match"] : [])])
   );
   const [showExportModal, setShowExportModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -235,7 +235,7 @@ export default function CandidateProfile() {
     );
   }
 
-  const experience = candidate.experience || getMockExperience(candidate.id);
+  
   const aiOverview = candidate.aiOverview || `${candidate.name} is a ${seniorityLabels[candidate.seniority]?.toLowerCase() || candidate.seniority}-level ${candidate.roleType} with expertise in ${candidate.skills.slice(0, 3).join(", ")}. Currently ${availabilityLabels[candidate.availability].toLowerCase()} for new opportunities.`;
 
   const handleStatusUpdate = async (statusKey: TalentHeaderStatusKey) => {

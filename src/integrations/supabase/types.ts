@@ -5441,6 +5441,87 @@ export type Database = {
           },
         ]
       }
+      placement_invoices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          invoice_id: string | null
+          notes: string | null
+          paid_at: string | null
+          period_end: string
+          period_start: string
+          placement_id: string
+          rate_per_day: number
+          sent_at: string | null
+          status: string
+          subtotal: number
+          total: number
+          total_days: number
+          updated_at: string
+          vat_amount: number
+          vat_rate: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          period_end: string
+          period_start: string
+          placement_id: string
+          rate_per_day?: number
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+          total_days?: number
+          updated_at?: string
+          vat_amount?: number
+          vat_rate?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          invoice_id?: string | null
+          notes?: string | null
+          paid_at?: string | null
+          period_end?: string
+          period_start?: string
+          placement_id?: string
+          rate_per_day?: number
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+          total_days?: number
+          updated_at?: string
+          vat_amount?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "placement_invoices_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placement_invoices_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       placements: {
         Row: {
           billing_contact_email: string | null

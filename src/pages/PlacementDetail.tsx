@@ -256,14 +256,8 @@ export default function PlacementDetail() {
           <WeeklyTimesheet placementId={placement.id} ratePerDay={placement.rate_per_day || 0} currency={placement.currency || "GBP"} />
         </TabsContent>
 
-        <TabsContent value="invoices">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-              <p className="text-sm font-medium">Invoices coming in next build</p>
-              <p className="text-xs text-muted-foreground mt-1">Generate monthly invoices from approved timesheet entries</p>
-            </CardContent>
-          </Card>
+        <TabsContent value="invoices" className="mt-4">
+          <PlacementInvoices placement={placement} />
         </TabsContent>
 
         <TabsContent value="details">

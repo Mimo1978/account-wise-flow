@@ -472,58 +472,7 @@ export default function CandidateProfile() {
               </div>
             </CollapsibleSection>
 
-            {/* Experience */}
-            <CollapsibleSection
-              id="experience"
-              title="Experience"
-              icon={<Briefcase className="h-4 w-4" />}
-              badge={experience.length.toString()}
-              expanded={expandedSections.has("experience")}
-              onToggle={() => toggleSection("experience")}
-            >
-              <div className="space-y-4">
-                {experience.map((exp, idx) => (
-                  <div key={exp.id} className="relative">
-                    {idx !== experience.length - 1 && (
-                      <div className="absolute left-[11px] top-8 bottom-0 w-0.5 bg-border" />
-                    )}
-                    <div className="flex gap-4">
-                      <div className="relative z-10">
-                        <div className={cn(
-                          "h-6 w-6 rounded-full border-2 flex items-center justify-center",
-                          exp.current
-                            ? "bg-primary border-primary"
-                            : "bg-background border-muted-foreground/30"
-                        )}>
-                          {exp.current && (
-                            <div className="h-2 w-2 rounded-full bg-primary-foreground" />
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex-1 pb-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="font-medium text-sm">{exp.title}</h4>
-                            <p className="text-sm text-muted-foreground">{exp.company}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              {formatDate(exp.startDate)} - {exp.current ? "Present" : formatDate(exp.endDate!)}
-                            </span>
-                          </div>
-                        </div>
-                        {exp.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {exp.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CollapsibleSection>
+
 
             {/* ── Notes, Deals, Projects Panel ── */}
             <CandidateSidebarPanel

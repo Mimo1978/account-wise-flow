@@ -6,7 +6,7 @@ import { usePermissions } from "@/hooks/use-permissions";
 
 import { useSearchContext } from "@/contexts/SearchContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { Talent, TalentAvailability, TalentStatus, TalentExperience } from "@/lib/types";
+import { Talent, TalentAvailability, TalentStatus } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,13 +123,8 @@ const seniorityLabels: Record<string, string> = {
   junior: "Junior",
 };
 
-// Mock experience for demo
-const getMockExperience = (talentId: string): TalentExperience[] => {
-  return [
-    { id: "e1", company: "Previous Company", title: "Senior Role", startDate: "2021-01", current: true, description: "Current position." },
-    { id: "e2", company: "Earlier Company", title: "Mid-Level Role", startDate: "2018-06", endDate: "2020-12", description: "Previous experience." },
-  ];
-};
+
+
 
 export default function CandidateProfile() {
   const { candidateId } = useParams<{ candidateId: string }>();
@@ -156,7 +151,7 @@ export default function CandidateProfile() {
   const autoExpandSection = searchParams.get("section");
 
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(["overview", "skills", "experience", ...(searchResult ? ["search-match"] : [])])
+    new Set(["overview", "skills", ...(searchResult ? ["search-match"] : [])])
   );
   const [showExportModal, setShowExportModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -240,7 +235,7 @@ export default function CandidateProfile() {
     );
   }
 
-  const experience = candidate.experience || getMockExperience(candidate.id);
+  
   const aiOverview = candidate.aiOverview || `${candidate.name} is a ${seniorityLabels[candidate.seniority]?.toLowerCase() || candidate.seniority}-level ${candidate.roleType} with expertise in ${candidate.skills.slice(0, 3).join(", ")}. Currently ${availabilityLabels[candidate.availability].toLowerCase()} for new opportunities.`;
 
   const handleStatusUpdate = async (statusKey: TalentHeaderStatusKey) => {
@@ -472,58 +467,7 @@ export default function CandidateProfile() {
               </div>
             </CollapsibleSection>
 
-            {/* Experience */}
-            <CollapsibleSection
-              id="experience"
-              title="Experience"
-              icon={<Briefcase className="h-4 w-4" />}
-              badge={experience.length.toString()}
-              expanded={expandedSections.has("experience")}
-              onToggle={() => toggleSection("experience")}
-            >
-              <div className="space-y-4">
-                {experience.map((exp, idx) => (
-                  <div key={exp.id} className="relative">
-                    {idx !== experience.length - 1 && (
-                      <div className="absolute left-[11px] top-8 bottom-0 w-0.5 bg-border" />
-                    )}
-                    <div className="flex gap-4">
-                      <div className="relative z-10">
-                        <div className={cn(
-                          "h-6 w-6 rounded-full border-2 flex items-center justify-center",
-                          exp.current
-                            ? "bg-primary border-primary"
-                            : "bg-background border-muted-foreground/30"
-                        )}>
-                          {exp.current && (
-                            <div className="h-2 w-2 rounded-full bg-primary-foreground" />
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex-1 pb-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h4 className="font-medium text-sm">{exp.title}</h4>
-                            <p className="text-sm text-muted-foreground">{exp.company}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              {formatDate(exp.startDate)} - {exp.current ? "Present" : formatDate(exp.endDate!)}
-                            </span>
-                          </div>
-                        </div>
-                        {exp.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {exp.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CollapsibleSection>
+
 
             {/* ── Notes, Deals, Projects Panel ── */}
             <CandidateSidebarPanel

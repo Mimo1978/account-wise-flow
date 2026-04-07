@@ -161,6 +161,132 @@ function WeeklyTimesheet({ placementId, ratePerDay, currency }: { placementId: s
   );
 }
 
+function PlacementInvoices({ placement }: { placement: any }) {
+  const qc = useQueryClient();
+  const [generating, setGenerating] = useState(false);
+
+  const { data: invoices = [], refetch } = useQuery({
+    queryKey: ["placement-invoices", placement.id],
+    queryFn: async () => {
+      const { data } = await (supabase.from as any)("placement_invoices")
+        .select("*")
+        .eq("placement_id", placement.id)
+        .order("period_start", { ascending: false });
+      return data || [];
+    },
+  });
+
+  const { data: approvedEntries = [] } = useQuery({
+    queryKey: ["approved-entries", placement.id],
+    queryFn: async () => {
+      const { data } = await (supabase.from as any)("time_entries")
+        .select("*")
+        .eq("placement_id", placement.id)
+        .eq("status", "approved");
+      return data || [];
+    },
+  });
+
+  const uninvoicedDays = approvedEntries.reduce((s: number, e: any) => s + (e.days || 0), 0);
+  const uninvoicedAmount = uninvoicedDays * (placement.rate_per_day || 0);
+
+  const generateInvoice = async () => {
+    if (uninvoicedDays === 0) { toast.error("No approved days to invoice"); return; }
+    setGenerating(true);
+    try {
+      const dates = approvedEntries.map((e: any) => e.work_date).sort();
+      const subtotal = uninvoicedAmount;
+      const vatAmount = subtotal * ((placement.vat_rate || 0) / 100);
+      const { error } = await (supabase.from as any)("placement_invoices").insert({
+        placement_id: placement.id,
+        period_start: dates[0],
+        period_end: dates[dates.length - 1],
+        total_days: uninvoicedDays,
+        rate_per_day: placement.rate_per_day || 0,
+        subtotal,
+        vat_rate: placement.vat_rate || 0,
+        vat_amount: vatAmount,
+        total: subtotal + vatAmount,
+        currency: placement.currency,
+        status: "draft",
+      });
+      if (error) throw error;
+      await (supabase.from as any)("time_entries")
+        .update({ status: "invoiced" })
+        .eq("placement_id", placement.id)
+        .eq("status", "approved");
+      refetch();
+      qc.invalidateQueries({ queryKey: ["approved-entries", placement.id] });
+      qc.invalidateQueries({ queryKey: ["time-entries", placement.id] });
+      toast.success("Invoice generated");
+    } catch { toast.error("Failed to generate invoice"); }
+    finally { setGenerating(false); }
+  };
+
+  const markSent = async (id: string) => {
+    await (supabase.from as any)("placement_invoices").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", id);
+    refetch(); toast.success("Marked as sent");
+  };
+
+  const markPaid = async (id: string) => {
+    await (supabase.from as any)("placement_invoices").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", id);
+    refetch(); toast.success("Marked as paid");
+  };
+
+  return (
+    <div className="space-y-4">
+      {uninvoicedDays > 0 && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-sm font-semibold text-amber-400">{uninvoicedDays} approved days ready to invoice</p>
+                <p className="text-xs text-muted-foreground">{placement.currency} {uninvoicedAmount.toLocaleString()} at {placement.currency} {placement.rate_per_day}/day</p>
+              </div>
+              <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium"
+                disabled={generating} onClick={generateInvoice}>
+                {generating ? "Generating..." : "Generate Invoice"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {invoices.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-muted-foreground">
+          <FileText className="w-8 h-8 mx-auto mb-3 opacity-40" />
+          <p className="font-medium">No invoices yet</p>
+          <p className="text-sm mt-1">Approve timesheet days then generate your first invoice</p>
+        </CardContent></Card>
+      ) : (
+        <div className="space-y-2">
+          {invoices.map((inv: any) => (
+            <Card key={inv.id}>
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">{format(new Date(inv.period_start), "dd MMM")} – {format(new Date(inv.period_end), "dd MMM yyyy")}</p>
+                    <p className="text-xs text-muted-foreground">{inv.total_days} days × {inv.currency} {inv.rate_per_day}/day</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg font-bold">{inv.currency} {Number(inv.total).toLocaleString()}</span>
+                    <Badge variant="outline" className={`capitalize ${
+                      inv.status === "paid" ? "text-green-500 border-green-500/30" :
+                      inv.status === "sent" ? "text-blue-400 border-blue-400/30" :
+                      "text-muted-foreground"
+                    }`}>{inv.status}</Badge>
+                    {inv.status === "draft" && <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => markSent(inv.id)}>Mark sent</Button>}
+                    {inv.status === "sent" && <Button size="sm" variant="outline" className="h-7 text-xs text-green-500 border-green-500/30" onClick={() => markPaid(inv.id)}>Mark paid</Button>}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PlacementDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -256,14 +382,8 @@ export default function PlacementDetail() {
           <WeeklyTimesheet placementId={placement.id} ratePerDay={placement.rate_per_day || 0} currency={placement.currency || "GBP"} />
         </TabsContent>
 
-        <TabsContent value="invoices">
-          <Card>
-            <CardContent className="py-12 text-center">
-              <FileText className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-              <p className="text-sm font-medium">Invoices coming in next build</p>
-              <p className="text-xs text-muted-foreground mt-1">Generate monthly invoices from approved timesheet entries</p>
-            </CardContent>
-          </Card>
+        <TabsContent value="invoices" className="mt-4">
+          <PlacementInvoices placement={placement} />
         </TabsContent>
 
         <TabsContent value="details">

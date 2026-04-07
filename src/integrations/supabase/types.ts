@@ -6257,6 +6257,59 @@ export type Database = {
         }
         Relationships: []
       }
+      time_entries: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          days: number
+          description: string | null
+          id: string
+          logged_by: string | null
+          placement_id: string
+          status: string
+          updated_at: string
+          week_start: string
+          work_date: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          days?: number
+          description?: string | null
+          id?: string
+          logged_by?: string | null
+          placement_id: string
+          status?: string
+          updated_at?: string
+          week_start: string
+          work_date: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          days?: number
+          description?: string | null
+          id?: string
+          logged_by?: string | null
+          placement_id?: string
+          status?: string
+          updated_at?: string
+          week_start?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "time_entries_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: false
+            referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

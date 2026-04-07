@@ -432,14 +432,15 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
 
   const addCandidateToCampaign = async (campaignId: string, campaignName: string) => {
     const db = supabase as any;
+    const currentCompany = candidate.experience?.find((item) => item.current)?.company || candidate.experience?.[0]?.company || null;
     const { data: existing } = await db.from("outreach_targets")
       .select("id").eq("campaign_id", campaignId).eq("candidate_id", candidate.id).maybeSingle();
     if (existing) { toast.info("Candidate already in this campaign"); refetchCampaigns(); return; }
     const { error } = await db.from("outreach_targets").insert({
       campaign_id: campaignId, candidate_id: candidate.id, entity_type: "candidate",
       entity_name: candidate.name, entity_email: candidate.email || null,
-      entity_phone: candidate.phone || null, entity_title: candidate.currentTitle || null,
-      entity_company: candidate.currentCompany || null, workspace_id: workspaceId,
+      entity_phone: candidate.phone || null, entity_title: candidate.roleType || null,
+      entity_company: currentCompany, workspace_id: workspaceId,
       state: "queued", priority: 5, added_by: currentUserId,
     });
     if (error) { toast.error("Failed to add candidate: " + error.message); return; }
@@ -461,6 +462,7 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
     await addCandidateToCampaign(campaignId, campaign?.name || "New Campaign");
   };
 
+  const getAuthor = (n: any) => {
     const p = n.profiles;
     const initials = p ? `${(p.first_name||"")[0]||""}${(p.last_name||"")[0]||""}`.toUpperCase()||"?" : "?";
     const name = p ? `${p.first_name||""} ${p.last_name||""}`.trim()||"You" : "You";

@@ -369,6 +369,21 @@ const HomeCommandCenter = () => {
     enabled: !!currentWorkspace?.id,
   });
 
+  // ── Active Placements ──
+  const { data: activePlacements = [] } = useQuery({
+    queryKey: ['active-placements', currentWorkspace?.id],
+    queryFn: async () => {
+      if (!currentWorkspace?.id) return [];
+      const { data } = await (supabase.from as any)('placements')
+        .select('*, candidates(name), companies(name)')
+        .eq('workspace_id', currentWorkspace.id)
+        .eq('status', 'active')
+        .order('start_date', { ascending: false });
+      return data || [];
+    },
+    enabled: !!currentWorkspace?.id,
+  });
+
   // ── Computed values ──
   const activeCount = engagements.filter((e) => e.stage === 'active').length;
   const activeDeals = deals.filter((d) => d.stage !== 'won' && d.stage !== 'lost');
@@ -654,6 +669,62 @@ const HomeCommandCenter = () => {
             <DiarySection workspaceId={currentWorkspace?.id} userId={user?.id} />
           </SectionCard>
         </div>
+
+        {/* ═══ ROW 4b — ACTIVE PLACEMENTS ═══ */}
+        <SectionCard title="Active Placements" icon={Users} borderColor="#F59E0B"
+          jarvisSection="active-placements" jarvisId="home-active-placements">
+          {activePlacements.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: DARK.border }}>
+                <Users className="w-6 h-6" style={{ color: DARK.textSecondary }} />
+              </div>
+              <p className="text-sm font-medium" style={{ color: DARK.text }}>No active placements</p>
+              <p className="text-xs mt-1 mb-4" style={{ color: DARK.textSecondary }}>
+                When you convert a Won deal to a placement it will appear here with timesheet and invoice tracking.
+              </p>
+              <button
+                onClick={() => navigate("/crm/deals")}
+                className="text-xs px-3 py-1.5 rounded-md border transition-colors"
+                style={{ borderColor: '#F59E0B', color: '#F59E0B' }}
+              >
+                Go to Deals →
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto -mx-6">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${DARK.border}` }}>
+                    {['Candidate', 'Company', 'Role', 'Start', 'Rate', 'Status'].map(h => (
+                      <th key={h} className="text-left px-4 py-3 text-xs font-medium uppercase tracking-wider" style={{ color: DARK.textSecondary }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {activePlacements.map((p: any) => (
+                    <tr key={p.id} className="transition-colors cursor-pointer"
+                      style={{ borderBottom: `1px solid ${DARK.border}` }}
+                      onMouseEnter={e => (e.currentTarget.style.background = DARK.hover)}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      onClick={() => navigate(`/placements/${p.id}`)}>
+                      <td className="px-4 py-3 font-medium" style={{ color: DARK.text }}>{p.candidates?.name || '—'}</td>
+                      <td className="px-4 py-3" style={{ color: DARK.textSecondary }}>{p.companies?.name || '—'}</td>
+                      <td className="px-4 py-3" style={{ color: DARK.textSecondary }}>{p.role_title || '—'}</td>
+                      <td className="px-4 py-3" style={{ color: DARK.textSecondary }}>{p.start_date ? format(new Date(p.start_date), 'dd MMM yyyy') : '—'}</td>
+                      <td className="px-4 py-3" style={{ color: DARK.textSecondary }}>{p.currency} {p.rate_per_day}/day</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize"
+                          style={{ background: '#F59E0B20', color: '#F59E0B' }}>
+                          {p.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </SectionCard>
 
         {/* ═══ ROW 5 — ACTIVE PROJECTS ═══ */}
         <SectionCard title="Active Projects" icon={Briefcase} borderColor="#22C55E"

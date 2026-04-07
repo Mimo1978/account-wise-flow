@@ -24,7 +24,7 @@ import { toast } from "@/hooks/use-toast";
 import { useConfirmation } from "@/contexts/ConfirmationContext";
 import {
   Pencil, ArrowLeft, Loader2, ExternalLink, Upload, Send, CheckCircle, FileText, Download, Plus,
-  ChevronLeft, Trash2, AlertTriangle, ArrowRight, Briefcase, User, FolderOpen, Search, Building2,
+  ChevronLeft, Trash2, AlertTriangle, ArrowRight, Briefcase, User, Users, FolderOpen, Search, Building2,
   ChevronRight, XCircle,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -51,6 +51,7 @@ export default function CrmDealDetail() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [placementOpen, setPlacementOpen] = useState(false);
   const perm = useDeletionPermission();
   const { showConfirmation } = useConfirmation();
 
@@ -595,9 +596,19 @@ export default function CrmDealDetail() {
             <Card className="border-green-500/30">
               <CardContent className="py-4">
                 <p className="text-sm text-muted-foreground mb-2">This deal is Won — create a delivery project to begin work</p>
-                <Button size="sm" className="gap-1.5 bg-green-600 hover:bg-green-500 text-white">
-                  <Briefcase className="w-3 h-3" /> Create Delivery Project
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" className="gap-1.5 bg-green-600 hover:bg-green-500 text-white">
+                    <Briefcase className="w-3 h-3" /> Create Delivery Project
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                    onClick={() => setPlacementOpen(true)}
+                  >
+                    <Users className="w-3 h-3" /> Convert to Placement
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ) : null}

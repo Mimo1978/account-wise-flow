@@ -5441,6 +5441,137 @@ export type Database = {
           },
         ]
       }
+      placements: {
+        Row: {
+          billing_contact_email: string | null
+          candidate_id: string | null
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          deal_id: string | null
+          end_date: string | null
+          engagement_id: string | null
+          fee_percentage: number | null
+          id: string
+          invoice_frequency: string | null
+          job_id: string | null
+          notes: string | null
+          placement_fee: number | null
+          placement_type: string
+          po_number: string | null
+          rate_per_day: number | null
+          salary: number | null
+          start_date: string
+          status: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          billing_contact_email?: string | null
+          candidate_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deal_id?: string | null
+          end_date?: string | null
+          engagement_id?: string | null
+          fee_percentage?: number | null
+          id?: string
+          invoice_frequency?: string | null
+          job_id?: string | null
+          notes?: string | null
+          placement_fee?: number | null
+          placement_type?: string
+          po_number?: string | null
+          rate_per_day?: number | null
+          salary?: number | null
+          start_date: string
+          status?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          billing_contact_email?: string | null
+          candidate_id?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          deal_id?: string | null
+          end_date?: string | null
+          engagement_id?: string | null
+          fee_percentage?: number | null
+          id?: string
+          invoice_frequency?: string | null
+          job_id?: string | null
+          notes?: string | null
+          placement_fee?: number | null
+          placement_type?: string
+          po_number?: string | null
+          rate_per_day?: number | null
+          salary?: number | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "placements_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_engagement_id_fkey"
+            columns: ["engagement_id"]
+            isOneToOne: false
+            referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_specs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "placements_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

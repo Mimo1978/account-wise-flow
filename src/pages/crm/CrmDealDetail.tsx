@@ -51,6 +51,7 @@ export default function CrmDealDetail() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [placementOpen, setPlacementOpen] = useState(false);
   const perm = useDeletionPermission();
   const { showConfirmation } = useConfirmation();
 

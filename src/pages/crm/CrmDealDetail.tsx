@@ -842,3 +842,48 @@ function QuickAddContactFooter({ companyName, onOpen }: { companyName?: string |
     </button>
   );
 }
+
+function CandidateSearchInline({ dealId, onLinked }: { dealId: string; onLinked: () => void }) {
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [linked, setLinked] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!search.trim()) { setResults([]); return; }
+    const t = setTimeout(async () => {
+      setLoading(true);
+      const { data } = await supabase.from("candidates" as any).select("id, name, current_title").ilike("name", `%${search}%`).limit(8);
+      setResults(data || []);
+      setLoading(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  if (linked) {
+    return (
+      <div className="flex items-center justify-between p-2 rounded-lg border border-border bg-muted/30">
+        <div>
+          <p className="text-sm font-medium">{linked.name}</p>
+          <p className="text-xs text-muted-foreground">{linked.current_title || "—"}</p>
+        </div>
+        <Button size="sm" variant="ghost" className="text-xs" onClick={() => setLinked(null)}>Change</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <Input placeholder="Search candidates..." value={search} onChange={e => setSearch(e.target.value)} className="h-8 text-xs" />
+      {loading && <p className="text-xs text-muted-foreground px-1">Searching...</p>}
+      {results.map(c => (
+        <button key={c.id} onClick={() => setLinked(c)}
+          className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-muted border border-border flex items-center justify-between">
+          <span className="font-medium">{c.name}</span>
+          <span className="text-muted-foreground">{c.current_title || "—"}</span>
+        </button>
+      ))}
+      {search && !loading && results.length === 0 && <p className="text-xs text-muted-foreground px-1">No candidates found</p>}
+    </div>
+  );
+}

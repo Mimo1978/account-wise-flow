@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PipelineChevron as SharedPipelineChevron } from "@/components/pipeline/PipelineChevron";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -489,6 +489,24 @@ export default function CrmDealDetail() {
             </CardContent>
           </Card>
 
+          {/* ── Candidate Section ── */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium flex items-center gap-2 border-b border-border pb-2">
+                <User className="w-4 h-4" /> Candidate
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">Search your talent database to link the placed candidate to this deal.</p>
+                <CandidateSearchInline
+                  dealId={deal.id}
+                  onLinked={() => queryClient.invalidateQueries({ queryKey: ["crm_deals", deal.id] })}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* ── Project Section ── */}
           <Card>
             <CardHeader className="pb-2">
@@ -593,45 +611,37 @@ export default function CrmDealDetail() {
               </CardContent>
             </Card>
           ) : null}
-          {d.stage === "won" && (
+          {(d.stage === "won" || d.stage === "placed") && (
             <Card className="border-amber-500/40 bg-amber-500/5">
               <CardContent className="py-4">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-amber-400">Deal Won — what happens next?</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Convert this deal into a placement to start tracking timesheets and invoices, or create a delivery project for consulting work.</p>
+                    <p className="text-sm font-semibold text-amber-400">
+                      {d.stage === "placed" ? "✓ Placement Active" : "Deal Won — next steps"}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {d.stage === "placed"
+                        ? "This deal has been converted to a placement. Log timesheets and generate invoices from the Active Placements section."
+                        : "Convert to a placement to track timesheets and invoices, or create a delivery project for consulting work."}
+                    </p>
                   </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <Button
-                      size="sm"
-                      className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium"
-                      onClick={() => setPlacementOpen(true)}
-                    >
-                      <Users className="w-3.5 h-3.5" /> Convert to Placement
+                  {d.stage === "won" && (
+                    <div className="flex gap-2 flex-wrap">
+                      <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium"
+                        onClick={() => setPlacementOpen(true)}>
+                        <Users className="w-3.5 h-3.5" /> Convert to Placement
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1.5">
+                        <Briefcase className="w-3.5 h-3.5" /> Create Delivery Project
+                      </Button>
+                    </div>
+                  )}
+                  {d.stage === "placed" && (
+                    <Button size="sm" variant="outline" className="gap-1.5 border-amber-500/30 text-amber-400"
+                      onClick={() => navigate("/home")}>
+                      View Active Placements →
                     </Button>
-                    <Button size="sm" variant="outline" className="gap-1.5">
-                      <Briefcase className="w-3.5 h-3.5" /> Create Delivery Project
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {d.stage === "placed" && (
-            <Card className="border-amber-500/40 bg-amber-500/5">
-              <CardContent className="py-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                    <Users className="w-4 h-4 text-amber-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-amber-400">Active Placement</p>
-                    <p className="text-xs text-muted-foreground">This deal has been converted to a placement. Track timesheets and invoices in Active Placements.</p>
-                  </div>
-                  <Button size="sm" variant="outline" className="gap-1.5 border-amber-500/30 text-amber-400 shrink-0"
-                    onClick={() => navigate('/home')}>
-                    View Placements →
-                  </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

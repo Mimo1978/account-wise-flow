@@ -1,95 +1,76 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   deal: any;
+  onCreated?: () => void;
 }
 
-export function CreatePlacementModal({ open, onOpenChange, deal }: Props) {
+export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Props) {
   const { currentWorkspace } = useWorkspace();
-  const qc = useQueryClient();
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
-    placement_type: "contractor",
+    placement_type: (deal as any)?.deal_type === "permanent" ? "permanent" : (deal as any)?.deal_type === "consulting" ? "consulting" : "contractor",
     start_date: deal?.start_date || "",
     end_date: deal?.end_date || "",
-    rate_per_day: deal?.value ? String(deal.value) : "",
+    rate_per_day: (deal as any)?.day_rate ? String((deal as any).day_rate) : "",
     placement_fee: "",
     currency: deal?.currency || "GBP",
-    billing_contact_email: "",
+    billing_contact_email: (deal as any)?.billing_email || "",
     po_number: "",
     invoice_frequency: "monthly",
+    salary: (deal as any)?.salary ? String((deal as any).salary) : "",
+    fee_percentage: (deal as any)?.fee_percentage ? String((deal as any).fee_percentage) : "20",
   });
 
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  const feeAmount = form.placement_type === "permanent" && form.salary && form.fee_percentage
+    ? Math.round(Number(form.salary) * Number(form.fee_percentage) / 100)
+    : null;
+
   const save = async () => {
-    if (!currentWorkspace?.id || !form.start_date) {
-      toast.error("Start date is required");
-      return;
-    }
-    setLoading(true);
+    if (!form.start_date) { toast({ title: "Start date is required", variant: "destructive" }); return; }
+    if (!currentWorkspace?.id) return;
+    setSaving(true);
     try {
-      const { error } = await supabase.from("placements" as any).insert({
+      const { data: placement, error } = await (supabase.from as any)("placements").insert({
         workspace_id: currentWorkspace.id,
         company_id: deal?.company_id || null,
         contact_id: deal?.contact_id || null,
         deal_id: deal?.id || null,
+        candidate_id: (deal as any)?.candidate_id || null,
         placement_type: form.placement_type,
         status: "active",
         start_date: form.start_date,
         end_date: form.end_date || null,
-        rate_per_day: form.placement_type === "contractor" ? Number(form.rate_per_day) : null,
-        placement_fee: form.placement_type === "permanent" ? Number(form.placement_fee) : null,
+        rate_per_day: form.placement_type === "contractor" ? Number(form.rate_per_day) || null : null,
+        placement_fee: form.placement_type === "permanent" ? (feeAmount || Number(form.placement_fee) || null) : null,
         currency: form.currency,
         billing_contact_email: form.billing_contact_email || null,
         po_number: form.po_number || null,
         invoice_frequency: form.invoice_frequency,
-      });
+      }).select().single();
+
       if (error) throw error;
 
-      if (form.placement_type === "contractor" && form.rate_per_day) {
-        const { data: newPlacement } = await (supabase.from as any)("placements")
-          .select("id")
-          .eq("deal_id", deal?.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .single();
+      await supabase.from("crm_deals").update({ stage: "placed" } as any).eq("id", deal.id);
 
-        if (newPlacement?.id) {
-          await (supabase.from as any)("placement_invoices").insert({
-            placement_id: newPlacement.id,
-            period_start: form.start_date,
-            period_end: form.end_date || form.start_date,
-            total_days: 0,
-            rate_per_day: Number(form.rate_per_day),
-            subtotal: 0,
-            vat_rate: 0,
-            vat_amount: 0,
-            total: 0,
-            currency: form.currency,
-            status: "draft",
-          });
-        }
-      }
-
-      await supabase.from("crm_deals").update({ stage: "placed" } as any).eq("id", deal?.id);
-      qc.invalidateQueries({ queryKey: ["crm_deals"] });
-      qc.invalidateQueries({ queryKey: ["placements-home", currentWorkspace?.id] });
-      toast.success("Placement created");
-      onOpenChange(false);
-    } catch {
-      toast.error("Failed to create placement");
+      toast({ title: "Placement created", description: "Deal moved to Placed stage." });
+      onCreated?.();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -97,73 +78,67 @@ export function CreatePlacementModal({ open, onOpenChange, deal }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Convert to Placement</DialogTitle>
+          <DialogTitle>Convert to placement</DialogTitle>
         </DialogHeader>
-
         <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label>Placement type</Label>
-            <Select value={form.placement_type} onValueChange={v => setForm(f => ({ ...f, placement_type: v }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="contractor">Contractor — day rate + timesheet</SelectItem>
-                <SelectItem value="permanent">Permanent — one-off fee</SelectItem>
-                <SelectItem value="consulting">Consulting — retainer / day rate</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { value: "contractor", label: "Contractor", sub: "Day rate · timesheet" },
+              { value: "permanent", label: "Permanent", sub: "One-off fee" },
+              { value: "consulting", label: "Consulting", sub: "Retainer / SOW" },
+            ].map(t => (
+              <button key={t.value} type="button" onClick={() => set("placement_type", t.value)}
+                className={`rounded-lg border-2 p-2 text-center transition-all text-xs ${
+                  form.placement_type === t.value
+                    ? "border-amber-500 bg-amber-50 dark:bg-amber-950/30 font-medium"
+                    : "border-border text-muted-foreground"
+                }`}>
+                <p className="font-medium">{t.label}</p>
+                <p className="text-[10px]">{t.sub}</p>
+              </button>
+            ))}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Start date</Label>
-              <Input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>End date {form.placement_type === "permanent" ? "(optional)" : ""}</Label>
-              <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
-            </div>
+            <div><Label className="text-xs">Start date *</Label><Input type="date" value={form.start_date} onChange={e => set("start_date", e.target.value)} className="mt-1 h-8 text-xs" /></div>
+            <div><Label className="text-xs">End date</Label><Input type="date" value={form.end_date} onChange={e => set("end_date", e.target.value)} className="mt-1 h-8 text-xs" /></div>
           </div>
 
           {form.placement_type === "contractor" && (
-            <div className="space-y-1.5">
-              <Label>Day rate ({form.currency})</Label>
-              <Input type="number" value={form.rate_per_day} onChange={e => setForm(f => ({ ...f, rate_per_day: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">Day rate ({form.currency})</Label><Input type="number" value={form.rate_per_day} onChange={e => set("rate_per_day", e.target.value)} placeholder="650" className="mt-1 h-8 text-xs" /></div>
+              <div>
+                <Label className="text-xs">Invoice frequency</Label>
+                <Select value={form.invoice_frequency} onValueChange={v => set("invoice_frequency", v)}>
+                  <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
+
           {form.placement_type === "permanent" && (
-            <div className="space-y-1.5">
-              <Label>Placement fee ({form.currency})</Label>
-              <Input type="number" value={form.placement_fee} onChange={e => setForm(f => ({ ...f, placement_fee: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs">Annual salary ({form.currency})</Label><Input type="number" value={form.salary} onChange={e => set("salary", e.target.value)} placeholder="75000" className="mt-1 h-8 text-xs" /></div>
+              <div>
+                <Label className="text-xs">Fee % {feeAmount ? <span className="text-muted-foreground">→ £{feeAmount.toLocaleString()}</span> : ""}</Label>
+                <Input type="number" value={form.fee_percentage} onChange={e => set("fee_percentage", e.target.value)} className="mt-1 h-8 text-xs" />
+              </div>
             </div>
           )}
-          {form.placement_type === "contractor" && (
-            <div className="space-y-1.5">
-              <Label>Invoice frequency</Label>
-              <Select value={form.invoice_frequency} onValueChange={v => setForm(f => ({ ...f, invoice_frequency: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <Label>Billing contact email (accounts team)</Label>
-            <Input type="email" placeholder="accounts@client.com" value={form.billing_contact_email} onChange={e => setForm(f => ({ ...f, billing_contact_email: e.target.value }))} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>PO number (optional)</Label>
-            <Input value={form.po_number} onChange={e => setForm(f => ({ ...f, po_number: e.target.value }))} />
-          </div>
-        </div>
 
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={save} disabled={loading}>
-            {loading ? "Creating..." : "Create Placement"}
-          </Button>
+          <div><Label className="text-xs">Billing contact email</Label><Input type="email" value={form.billing_contact_email} onChange={e => set("billing_contact_email", e.target.value)} placeholder="accounts@client.com" className="mt-1 h-8 text-xs" /></div>
+          <div><Label className="text-xs">PO number (optional)</Label><Input value={form.po_number} onChange={e => set("po_number", e.target.value)} placeholder="PO-12345" className="mt-1 h-8 text-xs" /></div>
         </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={save} disabled={saving}>
+            {saving ? "Creating…" : "Create placement"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

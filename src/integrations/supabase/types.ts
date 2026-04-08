@@ -5642,7 +5642,7 @@ export type Database = {
             foreignKeyName: "placements_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
-            referencedRelation: "deals"
+            referencedRelation: "crm_deals"
             referencedColumns: ["id"]
           },
           {

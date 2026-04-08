@@ -55,9 +55,35 @@ export function CreatePlacementModal({ open, onOpenChange, deal }: Props) {
         invoice_frequency: form.invoice_frequency,
       });
       if (error) throw error;
-      await supabase.from("crm_deals").update({ stage: "placed" } as any).eq("id", deal.id);
-      qc.invalidateQueries({ queryKey: ["placements-home"] });
+
+      if (form.placement_type === "contractor" && form.rate_per_day) {
+        const { data: newPlacement } = await (supabase.from as any)("placements")
+          .select("id")
+          .eq("deal_id", deal?.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single();
+
+        if (newPlacement?.id) {
+          await (supabase.from as any)("placement_invoices").insert({
+            placement_id: newPlacement.id,
+            period_start: form.start_date,
+            period_end: form.end_date || form.start_date,
+            total_days: 0,
+            rate_per_day: Number(form.rate_per_day),
+            subtotal: 0,
+            vat_rate: 0,
+            vat_amount: 0,
+            total: 0,
+            currency: form.currency,
+            status: "draft",
+          });
+        }
+      }
+
+      await supabase.from("crm_deals").update({ stage: "placed" } as any).eq("id", deal?.id);
       qc.invalidateQueries({ queryKey: ["crm_deals"] });
+      qc.invalidateQueries({ queryKey: ["placements-home", currentWorkspace?.id] });
       toast.success("Placement created");
       onOpenChange(false);
     } catch {

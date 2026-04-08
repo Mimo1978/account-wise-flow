@@ -25,7 +25,7 @@ import { useConfirmation } from "@/contexts/ConfirmationContext";
 import {
   Pencil, ArrowLeft, Loader2, ExternalLink, Upload, Send, CheckCircle, FileText, Download, Plus,
   ChevronLeft, Trash2, AlertTriangle, ArrowRight, Briefcase, User, Users, FolderOpen, Search, Building2,
-  ChevronRight, XCircle,
+  ChevronRight, XCircle, Clock,
 } from "lucide-react";
 import { format } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -612,37 +612,59 @@ export default function CrmDealDetail() {
               </CardContent>
             </Card>
           ) : null}
-          {(d.stage === "won" || d.stage === "placed") && (
+          {d.stage === "won" && (
             <Card className="border-amber-500/40 bg-amber-500/5">
               <CardContent className="py-4">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-amber-400">
-                      {d.stage === "placed" ? "✓ Placement Active" : "Deal Won — next steps"}
-                    </p>
+                    <p className="text-sm font-semibold text-amber-400">Deal Won — next steps</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {d.stage === "placed"
-                        ? "This deal has been converted to a placement. Log timesheets and generate invoices from the Active Placements section."
-                        : "Convert to a placement to track timesheets and invoices, or create a delivery project for consulting work."}
+                      Convert to a placement to track timesheets and invoices, or create a delivery project for consulting work.
                     </p>
                   </div>
-                  {d.stage === "won" && (
+                  <div className="flex gap-2 flex-wrap">
+                    <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium"
+                      onClick={() => setPlacementOpen(true)}>
+                      <Users className="w-3.5 h-3.5" /> Convert to Placement
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-1.5">
+                      <Briefcase className="w-3.5 h-3.5" /> Create Delivery Project
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {d.stage === "placed" && (
+            <Card className="border-amber-500/40 bg-amber-500/5">
+              <CardContent className="py-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                    <Users className="w-5 h-5 text-amber-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-amber-400 mb-0.5">✓ Active Placement</p>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      This deal has been converted to a placement. A draft invoice has been created — log timesheet days then approve and send it.
+                    </p>
                     <div className="flex gap-2 flex-wrap">
-                      <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium"
-                        onClick={() => setPlacementOpen(true)}>
-                        <Users className="w-3.5 h-3.5" /> Convert to Placement
+                      <Button
+                        size="sm"
+                        className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium text-xs h-7"
+                        onClick={() => navigate("/home")}
+                      >
+                        <Clock className="w-3 h-3" /> Log Timesheet
                       </Button>
-                      <Button size="sm" variant="outline" className="gap-1.5">
-                        <Briefcase className="w-3.5 h-3.5" /> Create Delivery Project
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5 border-amber-500/30 text-amber-400 text-xs h-7"
+                        onClick={() => navigate("/accounts")}
+                      >
+                        <FileText className="w-3 h-3" /> View Invoice
                       </Button>
                     </div>
-                  )}
-                  {d.stage === "placed" && (
-                    <Button size="sm" variant="outline" className="gap-1.5 border-amber-500/30 text-amber-400"
-                      onClick={() => navigate("/home")}>
-                      View Active Placements →
-                    </Button>
-                  )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -5628,14 +5628,14 @@ export type Database = {
             foreignKeyName: "placements_company_id_fkey"
             columns: ["company_id"]
             isOneToOne: false
-            referencedRelation: "companies"
+            referencedRelation: "crm_companies"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "placements_contact_id_fkey"
             columns: ["contact_id"]
             isOneToOne: false
-            referencedRelation: "contacts"
+            referencedRelation: "crm_contacts"
             referencedColumns: ["id"]
           },
           {

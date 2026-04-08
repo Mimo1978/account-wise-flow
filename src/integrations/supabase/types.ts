@@ -1659,12 +1659,15 @@ export type Database = {
       }
       crm_deals: {
         Row: {
+          billing_email: string | null
           candidate_id: string | null
           company_id: string | null
           contact_id: string | null
           created_at: string
           created_by: string
           currency: string
+          day_rate: number | null
+          deal_type: string | null
           deleted_at: string | null
           deleted_by: string | null
           deletion_reason: string | null
@@ -1672,6 +1675,7 @@ export type Database = {
           end_date: string | null
           engagement_id: string | null
           expected_close_date: string | null
+          fee_percentage: number | null
           id: string
           next_step: string | null
           next_step_due: string | null
@@ -1681,6 +1685,7 @@ export type Database = {
           payment_terms: string | null
           probability: number | null
           project_id: string | null
+          salary: number | null
           signed_date: string | null
           source: string | null
           stage: string
@@ -1692,12 +1697,15 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          billing_email?: string | null
           candidate_id?: string | null
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
           created_by?: string
           currency?: string
+          day_rate?: number | null
+          deal_type?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_reason?: string | null
@@ -1705,6 +1713,7 @@ export type Database = {
           end_date?: string | null
           engagement_id?: string | null
           expected_close_date?: string | null
+          fee_percentage?: number | null
           id?: string
           next_step?: string | null
           next_step_due?: string | null
@@ -1714,6 +1723,7 @@ export type Database = {
           payment_terms?: string | null
           probability?: number | null
           project_id?: string | null
+          salary?: number | null
           signed_date?: string | null
           source?: string | null
           stage?: string
@@ -1725,12 +1735,15 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          billing_email?: string | null
           candidate_id?: string | null
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
           created_by?: string
           currency?: string
+          day_rate?: number | null
+          deal_type?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           deletion_reason?: string | null
@@ -1738,6 +1751,7 @@ export type Database = {
           end_date?: string | null
           engagement_id?: string | null
           expected_close_date?: string | null
+          fee_percentage?: number | null
           id?: string
           next_step?: string | null
           next_step_due?: string | null
@@ -1747,6 +1761,7 @@ export type Database = {
           payment_terms?: string | null
           probability?: number | null
           project_id?: string | null
+          salary?: number | null
           signed_date?: string | null
           source?: string | null
           stage?: string

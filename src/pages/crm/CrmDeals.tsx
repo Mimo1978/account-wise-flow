@@ -260,7 +260,18 @@ export default function CrmDealsPage() {
                             </span>
                           ) : "—"}
                         </TableCell>
-                        <TableCell><Badge className={cn("text-xs capitalize", STAGE_BADGE[stage] || "bg-muted")}>{stage}</Badge></TableCell>
+                        <TableCell>
+                          <Badge className={cn("text-xs capitalize", STAGE_BADGE[stage] || "bg-muted")}>{stage}</Badge>
+                          {(d as any).deal_type && (
+                            <span className={cn("ml-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                              (d as any).deal_type === 'contractor' && "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300",
+                              (d as any).deal_type === 'permanent' && "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
+                              (d as any).deal_type === 'consulting' && "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
+                            )}>
+                              {(d as any).deal_type === 'contractor' ? 'Contr.' : (d as any).deal_type === 'permanent' ? 'Perm' : 'Consult.'}
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell className="font-semibold">{currencySymbol(d.currency)}{d.value.toLocaleString()}</TableCell>
                         <TableCell>{(d as any).crm_contacts ? `${(d as any).crm_contacts.first_name} ${(d as any).crm_contacts.last_name}` : "—"}</TableCell>
                         <TableCell>{daysOpen}d</TableCell>

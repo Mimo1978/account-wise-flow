@@ -46,6 +46,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   deal?: CrmDeal | null;
+  defaultValues?: Partial<CrmDeal>;
 }
 
 const empty = {

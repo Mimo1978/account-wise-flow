@@ -1437,7 +1437,7 @@ const ProjectDetail = () => {
   const hiringManagerLabel = engagement.engagement_type === 'recruitment' ? 'Hiring Manager' : 'Key Stakeholder';
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-auto">
+    <div className="h-full overflow-y-auto overflow-x-auto bg-background">
       <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">

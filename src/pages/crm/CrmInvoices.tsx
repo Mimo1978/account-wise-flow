@@ -52,8 +52,8 @@ export default function CrmInvoicesPage() {
   );
 
   return (
-    <div className="h-full overflow-y-auto overflow-x-auto">
-    <div className="space-y-6 p-6">
+    <div className="h-full overflow-y-auto overflow-x-auto bg-background">
+    <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileText className="h-6 w-6 text-primary" />

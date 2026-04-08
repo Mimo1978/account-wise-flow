@@ -13,6 +13,7 @@ import { useCrmDeal, DEAL_STATUS_LABELS, DEAL_STATUS_COLORS } from "@/hooks/use-
 import { useCrmDocuments, useUpdateCrmDocument, getSignedDocumentUrl, DOC_TYPE_LABELS, DOC_STATUS_LABELS, DOC_STATUS_COLORS } from "@/hooks/use-crm-documents";
 import { useCrmInvoices, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS, getDisplayStatus } from "@/hooks/use-crm-invoices";
 import { AddEditDealPanel } from "@/components/crm/AddEditDealPanel";
+import { CreatePlacementModal } from "@/components/crm/CreatePlacementModal";
 import { CrmDocumentUploadModal } from "@/components/crm/CrmDocumentUploadModal";
 import { CreateCrmInvoicePanel } from "@/components/crm/CreateCrmInvoicePanel";
 import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
@@ -628,66 +629,32 @@ export default function CrmDealDetail() {
                   <div>
                     <p className="text-sm font-semibold text-amber-400">Deal won — what next?</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {(deal as any).deal_type === "permanent"
-                        ? "Raise the one-off placement fee invoice."
-                        : (deal as any).deal_type === "consulting"
-                        ? "Link a delivery project and set up a billing plan."
-                        : "Convert to a contractor placement to start logging timesheets and generating invoices."}
+                      Convert to a placement to start logging timesheets and generating invoices.
                     </p>
                   </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {(deal as any).deal_type !== "consulting" && (
-                      <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium text-xs"
-                        onClick={() => setPlacementOpen(true)}>
-                        <Users className="w-3.5 h-3.5" />
-                        {(deal as any).deal_type === "permanent" ? "Raise placement invoice" : "Convert to placement"}
-                      </Button>
-                    )}
-                    {((deal as any).deal_type === "consulting" || !(deal as any).deal_type) && (
-                      <Button size="sm" variant="outline" className="gap-1.5 text-xs"
-                        onClick={() => setQuickProjectOpen(true)}>
-                        <Briefcase className="w-3.5 h-3.5" /> Link delivery project
-                      </Button>
-                    )}
+                  <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium text-xs"
+                    onClick={() => setPlacementOpen(true)}>
+                    <Users className="w-3.5 h-3.5" /> Convert to placement
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : d.stage === "placed" ? (
+            <Card className="border-green-500/30 bg-green-500/5">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-green-400">✓ Active placement</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Log timesheets and generate invoices from the Home page Active Placements section.</p>
                   </div>
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs"
+                    onClick={() => navigate("/home")}>
+                    View placements →
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           ) : null}
-          {d.stage === "placed" && (
-            <Card className="border-amber-500/40 bg-amber-500/5">
-              <CardContent className="py-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                    <Users className="w-5 h-5 text-amber-400" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-amber-400 mb-0.5">✓ Active Placement</p>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      This deal has been converted to a placement. A draft invoice has been created — log timesheet days then approve and send it.
-                    </p>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button
-                        size="sm"
-                        className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium text-xs h-7"
-                        onClick={() => navigate("/home")}
-                      >
-                        <Clock className="w-3 h-3" /> Log Timesheet
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="gap-1.5 border-amber-500/30 text-amber-400 text-xs h-7"
-                        onClick={() => navigate("/accounts")}
-                      >
-                        <FileText className="w-3 h-3" /> View Invoice
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* ── Dates & Info ── */}
           <Card>
@@ -832,6 +799,17 @@ export default function CrmDealDetail() {
         recordId={deal.id}
         recordName={deal.title}
         onDeleted={() => navigate("/crm/deals")}
+      />
+      <CreatePlacementModal
+        open={placementOpen}
+        onOpenChange={(v) => {
+          setPlacementOpen(v);
+          if (!v) {
+            queryClient.invalidateQueries({ queryKey: ["crm-deal", id] });
+            queryClient.invalidateQueries({ queryKey: ["placements-home"] });
+          }
+        }}
+        deal={deal}
       />
     </div>
     </div>

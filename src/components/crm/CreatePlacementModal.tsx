@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ interface Props {
 export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Props) {
   const { currentWorkspace } = useWorkspace();
   const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [form, setForm] = useState({
     placement_type: (deal as any)?.deal_type === "permanent" ? "permanent" : (deal as any)?.deal_type === "consulting" ? "consulting" : "contractor",
     start_date: deal?.start_date || "",
@@ -38,11 +39,71 @@ export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Pr
     ? Math.round(Number(form.salary) * Number(form.fee_percentage) / 100)
     : null;
 
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js";
+    script.async = true;
+    document.head.appendChild(script);
+    return () => { document.head.removeChild(script); };
+  }, []);
+
+  const celebrate = () => {
+    const duration = 2500;
+    const colors = ["#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#F472B6"];
+    const end = Date.now() + duration;
+    const frame = () => {
+      if (typeof (window as any).confetti !== "undefined") {
+        (window as any).confetti({
+          particleCount: 6,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors,
+        });
+        (window as any).confetti({
+          particleCount: 6,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors,
+        });
+      }
+      if (Date.now() < end) requestAnimationFrame(frame);
+    };
+    frame();
+    try {
+      const ctx = new AudioContext();
+      const notes = [523, 659, 784, 1047];
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        osc.type = "sine";
+        gain.gain.setValueAtTime(0.15, ctx.currentTime + i * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.12 + 0.3);
+        osc.start(ctx.currentTime + i * 0.12);
+        osc.stop(ctx.currentTime + i * 0.12 + 0.3);
+      });
+    } catch {}
+  };
+
   const save = async () => {
     if (!form.start_date) { toast({ title: "Start date is required", variant: "destructive" }); return; }
     if (!currentWorkspace?.id) return;
     setSaving(true);
     try {
+      const { data: existing } = await (supabase.from as any)("placements")
+        .select("id")
+        .eq("deal_id", deal.id)
+        .eq("status", "active")
+        .maybeSingle();
+      if (existing) {
+        toast({ title: "Already placed", description: "This deal already has an active placement. Check the Home page Active Placements section.", variant: "destructive" });
+        return;
+      }
+
       const { data: placement, error } = await (supabase.from as any)("placements").insert({
         workspace_id: currentWorkspace.id,
         company_id: deal?.company_id || null,
@@ -65,8 +126,13 @@ export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Pr
 
       await supabase.from("crm_deals").update({ stage: "placed" } as any).eq("id", deal.id);
 
-      toast({ title: "Placement created", description: "Deal moved to Placed stage." });
-      onCreated?.();
+      celebrate();
+      setSuccess(true);
+      setTimeout(() => {
+        onCreated?.();
+        onOpenChange(false);
+        setSuccess(false);
+      }, 3000);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -76,7 +142,15 @@ export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Pr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg relative overflow-hidden">
+        {success && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm animate-in fade-in duration-300">
+            <p className="text-5xl mb-3">🎉</p>
+            <p className="text-xl font-bold">Placement created!</p>
+            <p className="text-sm text-muted-foreground mt-1">Deal moved to Placed stage.</p>
+            <p className="text-xs text-muted-foreground mt-3">Closing in a moment…</p>
+          </div>
+        )}
         <DialogHeader>
           <DialogTitle>Convert to placement</DialogTitle>
         </DialogHeader>

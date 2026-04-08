@@ -291,6 +291,15 @@ export default function CrmDealDetail() {
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-foreground">{deal.title}</h1>
             <Badge variant="secondary" className={DEAL_STATUS_COLORS[deal.status]}>{DEAL_STATUS_LABELS[deal.status]}</Badge>
+            {(deal as any).deal_type && (
+              <Badge variant="outline" className={cn("text-xs capitalize",
+                (deal as any).deal_type === 'contractor' && "border-amber-500/30 text-amber-600",
+                (deal as any).deal_type === 'permanent' && "border-violet-500/30 text-violet-600",
+                (deal as any).deal_type === 'consulting' && "border-blue-500/30 text-blue-600",
+              )}>
+                {(deal as any).deal_type}
+              </Badge>
+            )}
             <span className="text-lg font-semibold text-foreground">{currencySymbol}{deal.value.toLocaleString()}</span>
           </div>
           {companyName && (

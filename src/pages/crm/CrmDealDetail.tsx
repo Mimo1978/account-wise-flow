@@ -278,8 +278,8 @@ export default function CrmDealDetail() {
   const isTerminal = d.stage === "won" || d.stage === "lost" || d.stage === "placed";
 
   return (
-    <div className="h-full overflow-y-auto">
-    <div className="space-y-6 p-6">
+    <div className="h-full overflow-y-auto overflow-x-auto bg-background">
+    <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={() => navigate(-1)}

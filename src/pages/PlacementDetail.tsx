@@ -311,8 +311,8 @@ export default function PlacementDetail() {
   const daysLeft = placement.end_date ? Math.ceil((new Date(placement.end_date).getTime() - Date.now()) / 86400000) : null;
 
   return (
-    <div className="h-full overflow-y-auto">
-    <div className="space-y-6 p-6">
+    <div className="h-full overflow-y-auto overflow-x-auto bg-background">
+    <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
       <div className="flex items-center gap-4">
         <div>
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">

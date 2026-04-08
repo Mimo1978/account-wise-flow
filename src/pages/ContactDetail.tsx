@@ -58,8 +58,9 @@ export default function ContactDetail() {
   }
 
   return (
+    <div className="h-full overflow-y-auto overflow-x-auto bg-background">
     <div className={cn(
-      "h-full overflow-y-auto space-y-4 p-6 transition-all duration-300",
+      "container mx-auto px-6 py-8 max-w-7xl space-y-6 transition-all duration-300",
       isCompact && "max-w-2xl ml-auto"
     )}>
       <div className="flex items-center justify-between">

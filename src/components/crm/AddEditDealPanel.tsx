@@ -92,6 +92,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
   useEffect(() => {
     if (deal) {
       setForm({
+        deal_type: (deal as any).deal_type || "contractor",
         title: deal.title || "",
         company_id: deal.company_id || "",
         contact_id: deal.contact_id || "",
@@ -113,6 +114,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
       setProbManual(false);
     } else if (fromOpportunity) {
       setForm({
+        deal_type: "contractor",
         title: fromOpportunity.title,
         company_id: fromOpportunity.company_id || "",
         contact_id: "",
@@ -134,6 +136,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
       setProbManual(false);
     } else if (defaultValues) {
       setForm({
+        deal_type: "contractor",
         title: defaultValues.title || "",
         company_id: defaultValues.company_id || "",
         contact_id: "", opportunity_id: "", value: "",
@@ -144,6 +147,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
       setProbManual(false);
     } else {
       setForm({
+        deal_type: "contractor",
         title: "", company_id: "", contact_id: "", opportunity_id: "", value: "",
         currency: "GBP", stage: "lead", probability: "10",
         signed_date: "", start_date: "", end_date: "", expected_close_date: "",

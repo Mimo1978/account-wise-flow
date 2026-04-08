@@ -193,7 +193,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal }: Props) {
               <Label className="text-xs font-medium">Company *</Label>
               <div className="mt-1">
                 <QuickCreateSelect table="crm_companies" value={form.company_id}
-                  onSelect={(id: string) => setForm(f => ({ ...f, company_id: id, contact_id: "" }))}
+                  onChange={(id: string) => setForm(f => ({ ...f, company_id: id, contact_id: "" }))}
                   label="" placeholder="Search companies…" quickCreateFields={COMPANY_QUICK_FIELDS}
                   quickCreateHint="Complete company details in Companies later." error={errors.company_id} />
               </div>
@@ -202,7 +202,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal }: Props) {
               <Label className="text-xs font-medium">Contact (hiring manager)</Label>
               <div className="mt-1">
                 <QuickCreateSelect table="crm_contacts" value={form.contact_id}
-                  onSelect={(id: string) => setForm(f => ({ ...f, contact_id: id }))}
+                  onChange={(id: string) => setForm(f => ({ ...f, contact_id: id }))}
                   companyId={form.company_id || undefined}
                   label="" placeholder="Search contacts…" quickCreateFields={CONTACT_QUICK_FIELDS}
                   quickCreateHint="Full details in Contacts." />

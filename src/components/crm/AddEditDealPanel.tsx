@@ -85,6 +85,11 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
     notes: "",
     project_id: "",
     source: "",
+    day_rate: "",
+    salary: "",
+    fee_percentage: "20",
+    billing_email: "",
+    candidate_id: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [probManual, setProbManual] = useState(false);
@@ -110,6 +115,11 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
         notes: deal.notes || "",
         project_id: deal.project_id || "",
         source: (deal as any).source || "",
+        day_rate: String((deal as any).day_rate ?? ""),
+        salary: String((deal as any).salary ?? ""),
+        fee_percentage: String((deal as any).fee_percentage ?? "20"),
+        billing_email: (deal as any).billing_email || "",
+        candidate_id: (deal as any).candidate_id || "",
       });
       setProbManual(false);
     } else if (fromOpportunity) {
@@ -132,6 +142,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
         notes: "",
         project_id: "",
         source: "",
+        day_rate: "", salary: "", fee_percentage: "20", billing_email: "", candidate_id: "",
       });
       setProbManual(false);
     } else if (defaultValues) {
@@ -143,6 +154,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
         currency: "GBP", stage: "lead", probability: "10",
         signed_date: "", start_date: "", end_date: "", expected_close_date: "",
         payment_terms: "", status: "active", notes: "", project_id: "", source: "",
+        day_rate: "", salary: "", fee_percentage: "20", billing_email: "", candidate_id: "",
       });
       setProbManual(false);
     } else {
@@ -152,6 +164,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
         currency: "GBP", stage: "lead", probability: "10",
         signed_date: "", start_date: "", end_date: "", expected_close_date: "",
         payment_terms: "", status: "active", notes: "", project_id: "", source: "",
+        day_rate: "", salary: "", fee_percentage: "20", billing_email: "", candidate_id: "",
       });
       setProbManual(false);
     }
@@ -195,6 +208,10 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
       project_id: form.project_id || null,
       source: form.source || null,
       deal_type: form.deal_type,
+      day_rate: form.day_rate ? parseFloat(form.day_rate) : null,
+      salary: form.salary ? parseFloat(form.salary) : null,
+      fee_percentage: form.fee_percentage ? parseFloat(form.fee_percentage) : null,
+      billing_email: form.billing_email || null,
     };
     try {
       if (isEdit && deal) {
@@ -241,6 +258,11 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
                   ))}
                 </div>
               </div>
+              <div className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                {form.deal_type === "contractor" && "Log weekly timesheets after placement. Monthly invoices generate automatically from approved days × day rate."}
+                {form.deal_type === "permanent" && "One invoice raised on placement. Enter salary and fee % — the invoice amount calculates automatically."}
+                {form.deal_type === "consulting" && "Links to a delivery project with a billing plan. Fixed retainer or day rate invoiced on schedule."}
+              </div>
 
               <div>
                 <Label>Title *</Label>
@@ -270,6 +292,46 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
                 quickCreateFields={CONTACT_QUICK_FIELDS}
                 quickCreateHint="Full contact details can be added in Contacts."
               />
+
+              {(form.deal_type === "contractor" || form.deal_type === "permanent") && (
+                <div>
+                  <Label>Candidate</Label>
+                  <Input placeholder="Candidate ID or name" value={form.candidate_id} onChange={e => setForm(f => ({ ...f, candidate_id: e.target.value }))} />
+                </div>
+              )}
+
+              {form.deal_type === "contractor" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Day rate (GBP)</Label>
+                    <Input type="number" min="0" step="1" value={form.day_rate} onChange={e => setForm(f => ({ ...f, day_rate: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Billing email</Label>
+                    <Input type="email" placeholder="accounts@client.com" value={form.billing_email} onChange={e => setForm(f => ({ ...f, billing_email: e.target.value }))} />
+                  </div>
+                </div>
+              )}
+
+              {form.deal_type === "permanent" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Annual salary (GBP)</Label>
+                    <Input type="number" min="0" step="1000" value={form.salary} onChange={e => setForm(f => ({ ...f, salary: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label className="flex items-center gap-1.5">
+                      <span>Fee %</span>
+                      {form.salary && form.fee_percentage && (
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          → £{Math.round(Number(form.salary) * Number(form.fee_percentage) / 100).toLocaleString()}
+                        </span>
+                      )}
+                    </Label>
+                    <Input type="number" min="0" max="100" step="0.5" value={form.fee_percentage} onChange={e => setForm(f => ({ ...f, fee_percentage: e.target.value }))} />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Right column */}

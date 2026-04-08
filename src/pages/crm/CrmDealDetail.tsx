@@ -621,43 +621,39 @@ export default function CrmDealDetail() {
               </CardContent>
             </Card>
           ) : null}
-          {d.stage === "won" && (
-            <Card className="border-green-500/30 bg-green-500/5">
+          {d.stage === "won" ? (
+            <Card className="border-amber-500/30 bg-amber-500/5">
               <CardContent className="py-4">
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div>
-                    <p className="text-sm font-semibold text-green-400">Deal won — what happens next?</p>
+                    <p className="text-sm font-semibold text-amber-400">Deal won — what next?</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {(deal as any).deal_type === 'contractor' && 'Convert to a contractor placement to start logging timesheets and generating invoices.'}
-                      {(deal as any).deal_type === 'permanent' && 'Raise the placement fee invoice — calculated from salary × fee %.'}
-                      {(deal as any).deal_type === 'consulting' && 'Link or create a delivery project to set up your billing plan and SOW.'}
-                      {!(deal as any).deal_type && 'Convert to a placement or create a delivery project to begin work.'}
+                      {(deal as any).deal_type === "permanent"
+                        ? "Raise the one-off placement fee invoice."
+                        : (deal as any).deal_type === "consulting"
+                        ? "Link a delivery project and set up a billing plan."
+                        : "Convert to a contractor placement to start logging timesheets and generating invoices."}
                     </p>
                   </div>
                   <div className="flex gap-2 flex-wrap">
-                    {((deal as any).deal_type === 'contractor' || !(deal as any).deal_type) && (
+                    {(deal as any).deal_type !== "consulting" && (
                       <Button size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium text-xs"
                         onClick={() => setPlacementOpen(true)}>
-                        <Users className="w-3.5 h-3.5" /> Convert to placement
+                        <Users className="w-3.5 h-3.5" />
+                        {(deal as any).deal_type === "permanent" ? "Raise placement invoice" : "Convert to placement"}
                       </Button>
                     )}
-                    {(deal as any).deal_type === 'permanent' && (
-                      <Button size="sm" className="gap-1.5 bg-violet-600 hover:bg-violet-500 text-white text-xs"
-                        onClick={() => setPlacementOpen(true)}>
-                        <FileText className="w-3.5 h-3.5" /> Raise placement invoice
-                      </Button>
-                    )}
-                    {((deal as any).deal_type === 'consulting' || !(deal as any).deal_type) && (
+                    {((deal as any).deal_type === "consulting" || !(deal as any).deal_type) && (
                       <Button size="sm" variant="outline" className="gap-1.5 text-xs"
                         onClick={() => setQuickProjectOpen(true)}>
-                        <Briefcase className="w-3.5 h-3.5" /> Create delivery project
+                        <Briefcase className="w-3.5 h-3.5" /> Link delivery project
                       </Button>
                     )}
                   </div>
                 </div>
               </CardContent>
             </Card>
-          )}
+          ) : null}
           {d.stage === "placed" && (
             <Card className="border-amber-500/40 bg-amber-500/5">
               <CardContent className="py-4">

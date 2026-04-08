@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Calendar, Clock, FileText, Users, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const TYPE_COLORS: Record<string, string> = {
   contractor: "bg-amber-500/20 text-amber-400 border-amber-500/30",
@@ -17,138 +18,110 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 function WeeklyTimesheet({ placementId, ratePerDay, currency }: { placementId: string; ratePerDay: number; currency: string }) {
-  const qc = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
+  const qc = useQueryClient();
 
   const weekStart = useMemo(() => {
-    const now = new Date();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - ((now.getDay() + 6) % 7) + weekOffset * 7);
-    monday.setHours(0, 0, 0, 0);
-    return monday;
+    const d = new Date();
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + weekOffset * 7);
+    d.setHours(0, 0, 0, 0);
+    return d;
   }, [weekOffset]);
 
-  const weekDays = useMemo(() => {
-    return Array.from({ length: 5 }, (_, i) => {
-      const d = new Date(weekStart);
-      d.setDate(weekStart.getDate() + i);
-      return d;
-    });
-  }, [weekStart]);
+  const days = useMemo(() => Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    return d;
+  }), [weekStart]);
+
+  const weekStr = weekStart.toISOString().split("T")[0];
 
   const { data: entries = [], refetch } = useQuery({
-    queryKey: ["time-entries", placementId, weekStart.toISOString()],
+    queryKey: ["time-entries", placementId, weekStr],
     queryFn: async () => {
-      const { data } = await (supabase.from as any)("time_entries")
-        .select("*")
-        .eq("placement_id", placementId)
-        .eq("week_start", weekStart.toISOString().split("T")[0]);
+      const { data } = await (supabase.from as any)("time_entries").select("*")
+        .eq("placement_id", placementId).eq("week_start", weekStr);
       return data || [];
     },
   });
 
+  const getEntry = (dateStr: string) => entries.find((e: any) => e.work_date === dateStr);
   const totalDays = entries.reduce((s: number, e: any) => s + (e.days || 0), 0);
+  const totalValue = totalDays * ratePerDay;
 
-  const toggleDay = async (date: Date, currentDays: number) => {
+  const toggle = async (date: Date) => {
     const dateStr = date.toISOString().split("T")[0];
-    const weekStr = weekStart.toISOString().split("T")[0];
-    const existing = entries.find((e: any) => e.work_date === dateStr);
-
-    let nextDays = 0;
-    if (currentDays === 0) nextDays = 1;
-    else if (currentDays === 1) nextDays = 0.5;
-    else nextDays = 0;
-
+    const existing = getEntry(dateStr);
+    const current = existing?.days || 0;
+    const next = current === 0 ? 1 : current === 1 ? 0.5 : 0;
     if (existing) {
-      if (nextDays === 0) {
-        await (supabase.from as any)("time_entries").delete().eq("id", existing.id);
-      } else {
-        await (supabase.from as any)("time_entries").update({ days: nextDays }).eq("id", existing.id);
-      }
-    } else if (nextDays > 0) {
+      if (next === 0) await (supabase.from as any)("time_entries").delete().eq("id", existing.id);
+      else await (supabase.from as any)("time_entries").update({ days: next }).eq("id", existing.id);
+    } else if (next > 0) {
       await (supabase.from as any)("time_entries").insert({
-        placement_id: placementId,
-        work_date: dateStr,
-        week_start: weekStr,
-        days: nextDays,
-        status: "draft",
+        placement_id: placementId, work_date: dateStr, week_start: weekStr, days: next, status: "draft"
       });
     }
     refetch();
-    qc.invalidateQueries({ queryKey: ["time-entries", placementId] });
   };
 
-  const submitWeek = async () => {
+  const submit = async () => {
     const ids = entries.filter((e: any) => e.status === "draft").map((e: any) => e.id);
-    if (ids.length === 0) { toast.error("No draft entries to submit"); return; }
+    if (!ids.length) { toast.error("No draft entries"); return; }
     await (supabase.from as any)("time_entries").update({ status: "submitted" }).in("id", ids);
-    refetch();
-    toast.success("Week submitted for approval");
+    refetch(); toast.success("Week submitted for approval");
   };
 
-  const approveWeek = async () => {
+  const approve = async () => {
     const ids = entries.filter((e: any) => e.status === "submitted").map((e: any) => e.id);
-    if (ids.length === 0) { toast.error("No submitted entries to approve"); return; }
+    if (!ids.length) { toast.error("No submitted entries"); return; }
     await (supabase.from as any)("time_entries").update({ status: "approved", approved_at: new Date().toISOString() }).in("id", ids);
-    refetch();
-    toast.success("Week approved");
+    refetch(); qc.invalidateQueries({ queryKey: ["approved-entries", placementId] });
+    toast.success("Week approved — ready to invoice");
   };
 
-  const allSubmitted = entries.length > 0 && entries.every((e: any) => e.status !== "draft");
-  const anySubmitted = entries.some((e: any) => e.status === "submitted");
+  const hasDraft = entries.some((e: any) => e.status === "draft");
+  const hasSubmitted = entries.some((e: any) => e.status === "submitted");
   const allApproved = entries.length > 0 && entries.every((e: any) => e.status === "approved");
 
   return (
     <Card>
       <CardContent className="py-4">
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset(w => w - 1)}>‹</Button>
-            <span className="text-sm font-medium min-w-[140px] text-center">
-              Week of {format(weekStart, "dd MMM yyyy")}
-            </span>
+            <span className="text-sm font-medium min-w-[140px] text-center">Week of {format(weekStart, "dd MMM yyyy")}</span>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setWeekOffset(w => w + 1)}>›</Button>
-            {weekOffset !== 0 && <Button variant="link" size="sm" className="text-xs" onClick={() => setWeekOffset(0)}>This week</Button>}
+            {weekOffset !== 0 && <Button variant="link" size="sm" className="text-xs" onClick={() => setWeekOffset(0)}>Today</Button>}
           </div>
-
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">{totalDays} day{totalDays !== 1 ? "s" : ""} · {currency} {(totalDays * ratePerDay).toLocaleString()}</span>
-            {!allSubmitted && totalDays > 0 && (
-              <Button size="sm" onClick={submitWeek}>Submit week</Button>
-            )}
-            {anySubmitted && !allApproved && (
-              <Button size="sm" variant="outline" onClick={approveWeek}>Approve</Button>
-            )}
+            {totalDays > 0 && <span className="text-sm text-muted-foreground">{totalDays}d · {currency} {totalValue.toLocaleString()}</span>}
+            {hasDraft && totalDays > 0 && <Button size="sm" onClick={submit}>Submit week</Button>}
+            {hasSubmitted && <Button size="sm" variant="outline" onClick={approve}>Approve</Button>}
             {allApproved && <Badge variant="outline" className="border-green-500/30 text-green-400">✓ Approved</Badge>}
           </div>
         </div>
       </CardContent>
       <CardContent className="pt-0 pb-4">
         <div className="grid grid-cols-5 gap-2">
-          {weekDays.map(day => {
+          {days.map(day => {
             const dateStr = day.toISOString().split("T")[0];
-            const entry = entries.find((e: any) => e.work_date === dateStr);
-            const days = entry?.days || 0;
-            const status = entry?.status || "none";
-            const isApproved = status === "approved";
+            const entry = getEntry(dateStr);
+            const d = entry?.days || 0;
+            const locked = entry?.status === "approved" || entry?.status === "invoiced";
             return (
-              <button
-                key={dateStr}
-                onClick={() => !isApproved && toggleDay(day, days)}
-                disabled={isApproved}
-                className={`rounded-xl border-2 p-3 text-center transition-all ${
-                  days === 1 ? "border-green-500 bg-green-500/10" :
-                  days === 0.5 ? "border-amber-500 bg-amber-500/10" :
-                  "border-border bg-card hover:border-primary/40"
-                } ${isApproved ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
+              <button key={dateStr} disabled={locked} onClick={() => toggle(day)}
+                className={cn("rounded-xl border-2 p-3 text-center transition-all",
+                  d === 1 ? "border-green-500 bg-green-500/10" : d === 0.5 ? "border-amber-500 bg-amber-500/10" : "border-border bg-card hover:border-primary/40",
+                  locked && "opacity-50 cursor-not-allowed")}>
                 <p className="text-xs text-muted-foreground">{format(day, "EEE")}</p>
                 <p className="text-lg font-bold">{format(day, "d")}</p>
-                <p className={`text-xs font-medium mt-1 ${days === 1 ? "text-green-400" : days === 0.5 ? "text-amber-400" : "text-muted-foreground"}`}>
-                  {days === 1 ? "Full" : days === 0.5 ? "Half" : "—"}
+                <p className={cn("text-xs font-medium mt-1", d === 1 ? "text-green-400" : d === 0.5 ? "text-amber-400" : "text-muted-foreground")}>
+                  {d === 1 ? "Full" : d === 0.5 ? "Half" : "—"}
                 </p>
-                {status !== "none" && (
-                  <p className={`text-[10px] mt-1 ${status === "approved" ? "text-green-400" : status === "submitted" ? "text-blue-400" : "text-muted-foreground"}`}>
-                    {status}
+                {entry?.status && entry.status !== "draft" && (
+                  <p className={cn("text-[10px] mt-1", entry.status === "approved" ? "text-green-400" : entry.status === "submitted" ? "text-blue-400" : "text-muted-foreground")}>
+                    {entry.status}
                   </p>
                 )}
               </button>

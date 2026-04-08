@@ -3,186 +3,114 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { QuickCreateSelect, COMPANY_QUICK_FIELDS, CONTACT_QUICK_FIELDS } from "@/components/shared/QuickCreateSelect";
-import { useCreateCrmDeal, useUpdateCrmDeal, PAYMENT_TERMS } from "@/hooks/use-crm-deals";
-import { useUpdateCrmOpportunity } from "@/hooks/use-crm-opportunities";
-import { useCrmOpportunities } from "@/hooks/use-crm-opportunities";
+import { useCreateCrmDeal, useUpdateCrmDeal } from "@/hooks/use-crm-deals";
 import { defaultProbabilityForStage } from "@/lib/deal-utils";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import type { CrmDeal } from "@/types/crm";
 import { cn } from "@/lib/utils";
 
-const CURRENCIES = ["GBP", "USD", "EUR"];
-const SOURCES = [
-  { value: "inbound", label: "Inbound — they came to us" },
-  { value: "outbound", label: "Outbound — we reached out" },
-  { value: "referral", label: "Referral — introduced by someone" },
-  { value: "existing_client", label: "Existing client — repeat/expansion" },
-  { value: "event", label: "Event — met at an event" },
-  { value: "other", label: "Other" },
-];
-const STATUSES = ["active", "complete", "cancelled"];
-const STAGES = [
-  { value: "lead", label: "Lead", color: "bg-blue-500" },
-  { value: "qualified", label: "Qualified", color: "bg-purple-500" },
-  { value: "proposal", label: "Proposal", color: "bg-amber-500" },
-  { value: "negotiation", label: "Negotiation", color: "bg-orange-500" },
-  { value: "won", label: "Won", color: "bg-green-500" },
-  { value: "lost", label: "Lost", color: "bg-red-500" },
-];
+type DealType = "contractor" | "permanent" | "consulting";
 
-const DEAL_TYPES = [
-  { value: "contractor", label: "Contractor", sub: "Day rate · timesheet · monthly invoice", activeClass: "border-amber-500 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200" },
-  { value: "permanent", label: "Permanent", sub: "One-off placement fee", activeClass: "border-violet-500 bg-violet-50 text-violet-900 dark:bg-violet-950/30 dark:text-violet-200" },
-  { value: "consulting", label: "Consulting", sub: "Retainer · project · SOW", activeClass: "border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-950/30 dark:text-blue-200" },
+const DEAL_TYPES: { value: DealType; label: string; sub: string; active: string; ctx: string; ctxText: string }[] = [
+  {
+    value: "contractor",
+    label: "Contractor",
+    sub: "Day rate · timesheet · invoice",
+    active: "border-amber-500 bg-amber-50 dark:bg-amber-950/30",
+    ctx: "bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200",
+    ctxText: "Log weekly timesheets after placement. Monthly invoices generate automatically from approved days × day rate.",
+  },
+  {
+    value: "permanent",
+    label: "Permanent",
+    sub: "One-off placement fee",
+    active: "border-violet-500 bg-violet-50 dark:bg-violet-950/30",
+    ctx: "bg-violet-50 border-violet-200 text-violet-900 dark:bg-violet-950/30 dark:border-violet-800 dark:text-violet-200",
+    ctxText: "One invoice raised on placement. Enter salary and fee % — the invoice amount calculates automatically.",
+  },
+  {
+    value: "consulting",
+    label: "Consulting",
+    sub: "Retainer · project · SOW",
+    active: "border-blue-500 bg-blue-50 dark:bg-blue-950/30",
+    ctx: "bg-blue-50 border-blue-200 text-blue-900 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-200",
+    ctxText: "Links to a delivery project. Set up a billing plan on the project for recurring invoices or milestones.",
+  },
 ];
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   deal?: CrmDeal | null;
-  fromOpportunity?: {
-    id: string;
-    title: string;
-    company_id: string | null;
-    value: number;
-    currency: string;
-  } | null;
-  defaultValues?: {
-    title?: string;
-    company_id?: string | null;
-    engagement_id?: string | null;
-  } | null;
+  defaultValues?: Partial<CrmDeal>;
 }
 
-export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, defaultValues }: Props) {
+const empty = {
+  deal_type: "contractor" as DealType,
+  title: "", company_id: "", contact_id: "",
+  candidate_id: "", candidate_name: "",
+  day_rate: "", start_date: "", end_date: "", billing_email: "",
+  salary: "", fee_percentage: "20",
+  value: "", expected_close_date: "",
+};
+
+export function AddEditDealPanel({ open, onOpenChange, deal }: Props) {
   const isEdit = !!deal;
   const createMut = useCreateCrmDeal();
   const updateMut = useUpdateCrmDeal();
-  const updateOpp = useUpdateCrmOpportunity();
-  const { data: opps = [] } = useCrmOpportunities();
-
-  
-
-  const [form, setForm] = useState({
-    deal_type: "contractor",
-    title: "",
-    company_id: "",
-    contact_id: "",
-    opportunity_id: "",
-    value: "",
-    currency: "GBP",
-    stage: "lead",
-    probability: "10",
-    signed_date: "",
-    start_date: "",
-    end_date: "",
-    expected_close_date: "",
-    payment_terms: "",
-    status: "active",
-    notes: "",
-    project_id: "",
-    source: "",
-    day_rate: "",
-    salary: "",
-    fee_percentage: "20",
-    billing_email: "",
-    candidate_id: "",
-  });
+  const [form, setForm] = useState({ ...empty });
+  const [candidateResults, setCandidateResults] = useState<any[]>([]);
+  const [candidateSearch, setCandidateSearch] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [probManual, setProbManual] = useState(false);
+
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   useEffect(() => {
     if (deal) {
       setForm({
-        deal_type: (deal as any).deal_type || "contractor",
+        deal_type: ((deal as any).deal_type as DealType) || "contractor",
         title: deal.title || "",
         company_id: deal.company_id || "",
         contact_id: deal.contact_id || "",
-        opportunity_id: deal.opportunity_id || "",
-        value: String(deal.value ?? ""),
-        currency: deal.currency || "GBP",
-        stage: deal.stage || "lead",
-        probability: String(deal.probability ?? defaultProbabilityForStage(deal.stage || "lead")),
-        signed_date: deal.signed_date || "",
+        candidate_id: (deal as any).candidate_id || "",
+        candidate_name: "",
+        day_rate: (deal as any).day_rate ? String((deal as any).day_rate) : "",
         start_date: deal.start_date || "",
         end_date: deal.end_date || "",
-        expected_close_date: deal.expected_close_date || "",
-        payment_terms: deal.payment_terms || "",
-        status: deal.status || "active",
-        notes: deal.notes || "",
-        project_id: deal.project_id || "",
-        source: (deal as any).source || "",
-        day_rate: String((deal as any).day_rate ?? ""),
-        salary: String((deal as any).salary ?? ""),
-        fee_percentage: String((deal as any).fee_percentage ?? "20"),
         billing_email: (deal as any).billing_email || "",
-        candidate_id: (deal as any).candidate_id || "",
+        salary: (deal as any).salary ? String((deal as any).salary) : "",
+        fee_percentage: (deal as any).fee_percentage ? String((deal as any).fee_percentage) : "20",
+        value: String(deal.value ?? ""),
+        expected_close_date: deal.expected_close_date || "",
       });
-      setProbManual(false);
-    } else if (fromOpportunity) {
-      setForm({
-        deal_type: "contractor",
-        title: fromOpportunity.title,
-        company_id: fromOpportunity.company_id || "",
-        contact_id: "",
-        opportunity_id: fromOpportunity.id,
-        value: String(fromOpportunity.value),
-        currency: fromOpportunity.currency,
-        stage: "lead",
-        probability: "10",
-        signed_date: new Date().toISOString().split("T")[0],
-        start_date: "",
-        end_date: "",
-        expected_close_date: "",
-        payment_terms: "",
-        status: "active",
-        notes: "",
-        project_id: "",
-        source: "",
-        day_rate: "", salary: "", fee_percentage: "20", billing_email: "", candidate_id: "",
-      });
-      setProbManual(false);
-    } else if (defaultValues) {
-      setForm({
-        deal_type: "contractor",
-        title: defaultValues.title || "",
-        company_id: defaultValues.company_id || "",
-        contact_id: "", opportunity_id: "", value: "",
-        currency: "GBP", stage: "lead", probability: "10",
-        signed_date: "", start_date: "", end_date: "", expected_close_date: "",
-        payment_terms: "", status: "active", notes: "", project_id: "", source: "",
-        day_rate: "", salary: "", fee_percentage: "20", billing_email: "", candidate_id: "",
-      });
-      setProbManual(false);
     } else {
-      setForm({
-        deal_type: "contractor",
-        title: "", company_id: "", contact_id: "", opportunity_id: "", value: "",
-        currency: "GBP", stage: "lead", probability: "10",
-        signed_date: "", start_date: "", end_date: "", expected_close_date: "",
-        payment_terms: "", status: "active", notes: "", project_id: "", source: "",
-        day_rate: "", salary: "", fee_percentage: "20", billing_email: "", candidate_id: "",
-      });
-      setProbManual(false);
+      setForm({ ...empty });
+      setCandidateSearch("");
+      setCandidateResults([]);
     }
-  }, [deal, fromOpportunity, defaultValues, open]);
+  }, [deal, open]);
 
-  const handleStageChange = (stage: string) => {
-    setForm(f => ({
-      ...f,
-      stage,
-      probability: probManual ? f.probability : String(defaultProbabilityForStage(stage)),
-    }));
-  };
+  useEffect(() => {
+    if (!candidateSearch.trim()) { setCandidateResults([]); return; }
+    const t = setTimeout(async () => {
+      const { data } = await supabase.from("candidates" as any).select("id, name, current_title").ilike("name", `%${candidateSearch}%`).limit(8);
+      setCandidateResults(data || []);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [candidateSearch]);
+
+  const feeAmount = form.deal_type === "permanent" && form.salary && form.fee_percentage
+    ? Math.round(Number(form.salary) * Number(form.fee_percentage) / 100)
+    : null;
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.title.trim()) e.title = "Title is required";
+    if (!form.title.trim()) e.title = "Deal name is required";
     if (!form.company_id) e.company_id = "Company is required";
-    if (!form.value || isNaN(Number(form.value))) e.value = "Valid value is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -193,25 +121,20 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
       title: form.title,
       company_id: form.company_id || null,
       contact_id: form.contact_id || null,
-      opportunity_id: form.opportunity_id || null,
-      value: parseFloat(form.value),
-      currency: form.currency,
-      stage: form.stage,
-      probability: parseInt(form.probability) || 0,
-      signed_date: form.signed_date || null,
+      stage: "lead",
+      probability: defaultProbabilityForStage("lead"),
+      deal_type: form.deal_type,
+      candidate_id: form.candidate_id || null,
+      day_rate: form.day_rate ? parseFloat(form.day_rate) : null,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
-      expected_close_date: form.expected_close_date || null,
-      payment_terms: form.payment_terms || null,
-      status: form.status,
-      notes: form.notes || null,
-      project_id: form.project_id || null,
-      source: form.source || null,
-      deal_type: form.deal_type,
-      day_rate: form.day_rate ? parseFloat(form.day_rate) : null,
+      billing_email: form.billing_email || null,
       salary: form.salary ? parseFloat(form.salary) : null,
       fee_percentage: form.fee_percentage ? parseFloat(form.fee_percentage) : null,
-      billing_email: form.billing_email || null,
+      value: feeAmount || (form.value ? parseFloat(form.value) : 0),
+      expected_close_date: form.expected_close_date || null,
+      currency: "GBP",
+      status: "active",
     };
     try {
       if (isEdit && deal) {
@@ -219,9 +142,6 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
         toast({ title: "Deal updated" });
       } else {
         await createMut.mutateAsync(payload);
-        if (form.opportunity_id) {
-          try { await updateOpp.mutateAsync({ id: form.opportunity_id, stage: "closed_won", probability: 100 }); } catch { /* ignore */ }
-        }
         toast({ title: "Deal created" });
       }
       onOpenChange(false);
@@ -230,240 +150,140 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
     }
   };
 
+  const cfg = DEAL_TYPES.find(t => t.value === form.deal_type)!;
   const isPending = createMut.isPending || updateMut.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[70vw] max-h-[80vh] overflow-y-auto p-0">
-        <DialogHeader className="px-6 pt-6 pb-0">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Deal" : "Create Deal"}</DialogTitle>
-          <DialogDescription className="sr-only">{isEdit ? "Edit deal details" : "Create a new deal"}</DialogDescription>
+          <DialogDescription>
+            {isEdit ? "Update deal details" : "Pick a type — the form shows only what you need"}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="px-6 py-4 space-y-5">
-          {/* Two-column layout */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-            {/* Left column */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs font-medium">Deal type</Label>
-                <div className="grid grid-cols-3 gap-2">
-                  {DEAL_TYPES.map(t => (
-                    <button key={t.value} type="button"
-                      onClick={() => setForm(f => ({ ...f, deal_type: t.value }))}
-                      className={cn("rounded-lg border-2 p-2.5 text-center transition-all", form.deal_type === t.value ? t.activeClass : "border-border hover:border-border/80 text-muted-foreground")}>
-                      <div className="text-xs font-medium">{t.label}</div>
-                      <div className="text-[10px] mt-0.5 opacity-70">{t.sub}</div>
-                    </button>
-                  ))}
-                </div>
+        <div className="space-y-4 py-2">
+          {!isEdit && (
+            <>
+              <div className="grid grid-cols-3 gap-2">
+                {DEAL_TYPES.map(t => (
+                  <button key={t.value} type="button" onClick={() => set("deal_type", t.value)}
+                    className={cn("rounded-lg border-2 p-2.5 text-center transition-all",
+                      form.deal_type === t.value ? t.active : "border-border text-muted-foreground hover:border-muted-foreground/40")}>
+                    <div className="text-sm font-semibold">{t.label}</div>
+                    <div className="text-[10px] mt-0.5 opacity-70">{t.sub}</div>
+                  </button>
+                ))}
               </div>
-              <div className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
-                {form.deal_type === "contractor" && "Log weekly timesheets after placement. Monthly invoices generate automatically from approved days × day rate."}
-                {form.deal_type === "permanent" && "One invoice raised on placement. Enter salary and fee % — the invoice amount calculates automatically."}
-                {form.deal_type === "consulting" && "Links to a delivery project with a billing plan. Fixed retainer or day rate invoiced on schedule."}
-              </div>
-
-              <div>
-                <Label>Title *</Label>
-                <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-                {errors.title && <p className="text-xs text-destructive mt-1">{errors.title}</p>}
-              </div>
-
-              <QuickCreateSelect
-                table="crm_companies"
-                value={form.company_id || null}
-                onChange={(id) => setForm(f => ({ ...f, company_id: id, contact_id: "" }))}
-                label="Company"
-                required
-                placeholder="Search companies…"
-                quickCreateFields={COMPANY_QUICK_FIELDS}
-                quickCreateHint="You can complete all company details in the Companies tab later."
-                error={errors.company_id}
-              />
-
-              <QuickCreateSelect
-                table="crm_contacts"
-                value={form.contact_id || null}
-                onChange={(id) => setForm(f => ({ ...f, contact_id: id }))}
-                companyId={form.company_id || undefined}
-                label="Key Contact (optional)"
-                placeholder="Search contacts…"
-                quickCreateFields={CONTACT_QUICK_FIELDS}
-                quickCreateHint="Full contact details can be added in Contacts."
-              />
-
-              {(form.deal_type === "contractor" || form.deal_type === "permanent") && (
-                <div>
-                  <Label>Candidate</Label>
-                  <Input placeholder="Candidate ID or name" value={form.candidate_id} onChange={e => setForm(f => ({ ...f, candidate_id: e.target.value }))} />
-                </div>
-              )}
-
-              {form.deal_type === "contractor" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Day rate (GBP)</Label>
-                    <Input type="number" min="0" step="1" value={form.day_rate} onChange={e => setForm(f => ({ ...f, day_rate: e.target.value }))} />
-                  </div>
-                  <div>
-                    <Label>Billing email</Label>
-                    <Input type="email" placeholder="accounts@client.com" value={form.billing_email} onChange={e => setForm(f => ({ ...f, billing_email: e.target.value }))} />
-                  </div>
-                </div>
-              )}
-
-              {form.deal_type === "permanent" && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Annual salary (GBP)</Label>
-                    <Input type="number" min="0" step="1000" value={form.salary} onChange={e => setForm(f => ({ ...f, salary: e.target.value }))} />
-                  </div>
-                  <div>
-                    <Label className="flex items-center gap-1.5">
-                      <span>Fee %</span>
-                      {form.salary && form.fee_percentage && (
-                        <span className="text-[10px] text-muted-foreground font-normal">
-                          → £{Math.round(Number(form.salary) * Number(form.fee_percentage) / 100).toLocaleString()}
-                        </span>
-                      )}
-                    </Label>
-                    <Input type="number" min="0" max="100" step="0.5" value={form.fee_percentage} onChange={e => setForm(f => ({ ...f, fee_percentage: e.target.value }))} />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Right column */}
-            <div className="space-y-4">
-              <div>
-                <Label>Stage</Label>
-                <Select value={form.stage} onValueChange={handleStageChange}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent className="bg-popover z-[9999]">
-                    {STAGES.map(s => (
-                      <SelectItem key={s.value} value={s.value}>
-                        <span className="flex items-center gap-2">
-                          <span className={cn("w-2.5 h-2.5 rounded-full", s.color)} />
-                          {s.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Value *</Label>
-                  <Input type="number" min="0" step="0.01" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} />
-                  {errors.value && <p className="text-xs text-destructive mt-1">{errors.value}</p>}
-                </div>
-                <div>
-                  <Label>Currency</Label>
-                  <Select value={form.currency} onValueChange={v => setForm(f => ({ ...f, currency: v }))}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-popover z-[9999]">
-                      {CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label>Probability (%)</Label>
-                <div className="flex items-center gap-2">
-                  <Input type="number" min="0" max="100" value={form.probability}
-                    onChange={e => { setForm(f => ({ ...f, probability: e.target.value })); setProbManual(true); }}
-                    className="w-24"
-                  />
-                  <span className="text-xs text-muted-foreground">%</span>
-                  {probManual && (
-                    <button className="text-xs text-primary hover:underline"
-                      onClick={() => { setForm(f => ({ ...f, probability: String(defaultProbabilityForStage(f.stage)) })); setProbManual(false); }}>
-                      Reset to default
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Full width rows */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <Label>Expected Close</Label>
-              <Input type="date" value={form.expected_close_date} onChange={e => setForm(f => ({ ...f, expected_close_date: e.target.value }))} />
-            </div>
-            <div>
-              <Label>Signed Date</Label>
-              <Input type="date" value={form.signed_date} onChange={e => setForm(f => ({ ...f, signed_date: e.target.value }))} />
-            </div>
-            <div>
-              <Label>Start Date</Label>
-              <Input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} />
-            </div>
-            <div>
-              <Label>End Date</Label>
-              <Input type="date" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Payment Terms</Label>
-              <Select value={form.payment_terms || "_none"} onValueChange={v => setForm(f => ({ ...f, payment_terms: v === "_none" ? "" : v }))}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent className="bg-popover z-[9999]">
-                  <SelectItem value="_none">None</SelectItem>
-                  {PAYMENT_TERMS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-popover z-[9999]">
-                  {STATUSES.map(s => <SelectItem key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Source</Label>
-              <Select value={form.source || "_none"} onValueChange={v => setForm(f => ({ ...f, source: v === "_none" ? "" : v }))}>
-                <SelectTrigger><SelectValue placeholder="How did this come in?" /></SelectTrigger>
-                <SelectContent className="bg-popover z-[9999]">
-                  <SelectItem value="_none">Not specified</SelectItem>
-                  {SOURCES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Linked Opportunity</Label>
-              <Select value={form.opportunity_id || "_none"} onValueChange={v => setForm(f => ({ ...f, opportunity_id: v === "_none" ? "" : v }))}>
-                <SelectTrigger><SelectValue placeholder="Select opportunity" /></SelectTrigger>
-                <SelectContent className="bg-popover z-[9999]">
-                  <SelectItem value="_none">None</SelectItem>
-                  {opps.map(o => <SelectItem key={o.id} value={o.id}>{o.title}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
+              <p className={cn("text-xs rounded-md border px-3 py-2", cfg.ctx)}>{cfg.ctxText}</p>
+            </>
+          )}
 
           <div>
-            <Label>Notes</Label>
-            <Textarea rows={4} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+            <Label className="text-xs font-medium">Deal name *</Label>
+            <Input value={form.title} onChange={e => set("title", e.target.value)}
+              placeholder={form.deal_type === "contractor" ? "e.g. Richie McKern — Iseg contract" : form.deal_type === "permanent" ? "e.g. Senior Dev — Iseg perm" : "e.g. Q2 Consulting — Acme"}
+              className="mt-1 h-9 text-sm" />
+            {errors.title && <p className="text-xs text-destructive mt-1">{errors.title}</p>}
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs font-medium">Company *</Label>
+              <div className="mt-1">
+                <QuickCreateSelect table="crm_companies" value={form.company_id}
+                  onChange={(id: string) => setForm(f => ({ ...f, company_id: id, contact_id: "" }))}
+                  label="" placeholder="Search companies…" quickCreateFields={COMPANY_QUICK_FIELDS}
+                  quickCreateHint="Complete company details in Companies later." error={errors.company_id} />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs font-medium">Contact (hiring manager)</Label>
+              <div className="mt-1">
+                <QuickCreateSelect table="crm_contacts" value={form.contact_id}
+                  onChange={(id: string) => setForm(f => ({ ...f, contact_id: id }))}
+                  companyId={form.company_id || undefined}
+                  label="" placeholder="Search contacts…" quickCreateFields={CONTACT_QUICK_FIELDS}
+                  quickCreateHint="Full details in Contacts." />
+              </div>
+            </div>
+          </div>
+
+          {(form.deal_type === "contractor" || form.deal_type === "permanent") && (
+            <div>
+              <Label className="text-xs font-medium">Candidate</Label>
+              {form.candidate_id ? (
+                <div className="mt-1 flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                  <span className="flex-1">{form.candidate_name}</span>
+                  <button type="button" onClick={() => setForm(f => ({ ...f, candidate_id: "", candidate_name: "" }))}
+                    className="text-xs text-muted-foreground hover:text-foreground">✕</button>
+                </div>
+              ) : (
+                <div className="relative mt-1">
+                  <Input value={candidateSearch} onChange={e => setCandidateSearch(e.target.value)}
+                    placeholder="Search talent database…" className="h-9 text-sm" />
+                  {candidateResults.length > 0 && (
+                    <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg max-h-48 overflow-y-auto">
+                      {candidateResults.map((c: any) => (
+                        <button key={c.id} type="button"
+                          onClick={() => { setForm(f => ({ ...f, candidate_id: c.id, candidate_name: c.name })); setCandidateSearch(""); setCandidateResults([]); }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex justify-between items-center">
+                          <span>{c.name}</span>
+                          <span className="text-xs text-muted-foreground">{c.current_title || "—"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {form.deal_type === "contractor" && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-medium">Day rate (GBP)</Label>
+                  <Input type="number" value={form.day_rate} onChange={e => set("day_rate", e.target.value)} placeholder="650" className="mt-1 h-9 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs font-medium">Billing email (accounts)</Label>
+                  <Input value={form.billing_email} onChange={e => set("billing_email", e.target.value)} placeholder="accounts@client.com" className="mt-1 h-9 text-sm" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-xs font-medium">Start date</Label><Input type="date" value={form.start_date} onChange={e => set("start_date", e.target.value)} className="mt-1 h-9 text-sm" /></div>
+                <div><Label className="text-xs font-medium">End date</Label><Input type="date" value={form.end_date} onChange={e => set("end_date", e.target.value)} className="mt-1 h-9 text-sm" /></div>
+              </div>
+            </>
+          )}
+
+          {form.deal_type === "permanent" && (
+            <div className="grid grid-cols-3 gap-3">
+              <div><Label className="text-xs font-medium">Annual salary (GBP)</Label><Input type="number" value={form.salary} onChange={e => set("salary", e.target.value)} placeholder="75000" className="mt-1 h-9 text-sm" /></div>
+              <div>
+                <Label className="text-xs font-medium">
+                  Fee %{feeAmount ? <span className="text-muted-foreground ml-1">→ £{feeAmount.toLocaleString()}</span> : ""}
+                </Label>
+                <Input type="number" value={form.fee_percentage} onChange={e => set("fee_percentage", e.target.value)} className="mt-1 h-9 text-sm" />
+              </div>
+              <div><Label className="text-xs font-medium">Start date</Label><Input type="date" value={form.start_date} onChange={e => set("start_date", e.target.value)} className="mt-1 h-9 text-sm" /></div>
+            </div>
+          )}
+
+          {form.deal_type === "consulting" && (
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-xs font-medium">Deal value (GBP)</Label><Input type="number" value={form.value} onChange={e => set("value", e.target.value)} placeholder="50000" className="mt-1 h-9 text-sm" /></div>
+              <div><Label className="text-xs font-medium">Expected close</Label><Input type="date" value={form.expected_close_date} onChange={e => set("expected_close_date", e.target.value)} className="mt-1 h-9 text-sm" /></div>
+            </div>
+          )}
         </div>
 
-        <DialogFooter className="px-6 pb-6 pt-0">
+        <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSave} disabled={isPending}>
-            {isPending ? "Saving…" : isEdit ? "Update" : "Create Deal"}
+            {isPending ? "Saving…" : isEdit ? "Update deal" : `Create ${form.deal_type} deal`}
           </Button>
         </DialogFooter>
       </DialogContent>

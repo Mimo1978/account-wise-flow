@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { CreateEngagementModal } from '@/components/home/CreateEngagementModal';
 import { CreateSowModal } from '@/components/home/CreateSowModal';
 import { CreateInvoiceModal } from '@/components/home/CreateInvoiceModal';
-import { CreateDealModal } from '@/components/home/CreateDealModal';
+import { AddEditDealPanel } from '@/components/crm/AddEditDealPanel';
 import { SowDetailSheet } from '@/components/home/SowDetailSheet';
 import { ReportBuilderPanel, type ReportType } from '@/components/home/ReportBuilderPanel';
 import { useJarvisNavigation } from '@/hooks/use-jarvis-navigation';
@@ -845,7 +845,7 @@ const HomeCommandCenter = () => {
           prefillName={convertDeal ? `${convertDeal.name} — Delivery` : undefined} prefillValue={convertDeal?.value} />
         <CreateSowModal open={sowOpen} onOpenChange={setSowOpen} />
         <CreateInvoiceModal open={invoiceOpen} onOpenChange={setInvoiceOpen} />
-        <CreateDealModal open={dealOpen} onOpenChange={setDealOpen} />
+        <AddEditDealPanel open={dealOpen} onOpenChange={setDealOpen} />
         <SowDetailSheet sow={selectedSow} open={sowSheetOpen} onOpenChange={setSowSheetOpen} />
         <ReportBuilderPanel open={reportOpen} onOpenChange={setReportOpen} preselectedType={reportPreselect} autoDownload={reportAutoDownload} />
 

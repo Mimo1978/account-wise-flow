@@ -33,6 +33,12 @@ const STAGES = [
   { value: "lost", label: "Lost", color: "bg-red-500" },
 ];
 
+const DEAL_TYPES = [
+  { value: "contractor", label: "Contractor", sub: "Day rate · timesheet · monthly invoice", activeClass: "border-amber-500 bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200" },
+  { value: "permanent", label: "Permanent", sub: "One-off placement fee", activeClass: "border-violet-500 bg-violet-50 text-violet-900 dark:bg-violet-950/30 dark:text-violet-200" },
+  { value: "consulting", label: "Consulting", sub: "Retainer · project · SOW", activeClass: "border-blue-500 bg-blue-50 text-blue-900 dark:bg-blue-950/30 dark:text-blue-200" },
+];
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,6 +67,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
   
 
   const [form, setForm] = useState({
+    deal_type: "contractor",
     title: "",
     company_id: "",
     contact_id: "",
@@ -183,6 +190,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
       notes: form.notes || null,
       project_id: form.project_id || null,
       source: form.source || null,
+      deal_type: form.deal_type,
     };
     try {
       if (isEdit && deal) {
@@ -216,6 +224,20 @@ export function AddEditDealPanel({ open, onOpenChange, deal, fromOpportunity, de
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             {/* Left column */}
             <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium">Deal type</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {DEAL_TYPES.map(t => (
+                    <button key={t.value} type="button"
+                      onClick={() => setForm(f => ({ ...f, deal_type: t.value }))}
+                      className={cn("rounded-lg border-2 p-2.5 text-center transition-all", form.deal_type === t.value ? t.activeClass : "border-border hover:border-border/80 text-muted-foreground")}>
+                      <div className="text-xs font-medium">{t.label}</div>
+                      <div className="text-[10px] mt-0.5 opacity-70">{t.sub}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <Label>Title *</Label>
                 <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />

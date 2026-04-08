@@ -278,6 +278,7 @@ export default function CrmDealDetail() {
   const isTerminal = d.stage === "won" || d.stage === "lost" || d.stage === "placed";
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -791,6 +792,7 @@ export default function CrmDealDetail() {
         recordName={deal.title}
         onDeleted={() => navigate("/crm/deals")}
       />
+    </div>
     </div>
   );
 }

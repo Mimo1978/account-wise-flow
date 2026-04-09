@@ -273,6 +273,9 @@ const JobDetail = () => {
   const [showCompanySearch, setShowCompanySearch] = useState(false);
   const [companySearch, setCompanySearch] = useState('');
 
+  // Generate spec
+  const [generatingSpec, setGeneratingSpec] = useState(false);
+
   // Deal creation prompt state
   const [showDealPrompt, setShowDealPrompt] = useState(false);
   const [linkedProjectId, setLinkedProjectId] = useState<string | null>(null);
@@ -337,6 +340,35 @@ const JobDetail = () => {
     }
     setShowCompanySearch(false);
   }, [job, queryClient]);
+
+  const handleGenerateSpec = async () => {
+    if (!job) return;
+    setGeneratingSpec(true);
+    const j = job as any;
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-job-spec', {
+        body: {
+          title: j.title || 'Not specified',
+          companyName: j.company_name || 'Not specified',
+          type: j.type || 'permanent',
+          location: j.location || 'Not specified',
+          salaryRange: j.salary_range || 'Competitive',
+          description: j.description || '',
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const spec = data?.spec || '';
+      await supabase.from('jobs').update({ description: spec } as any).eq('id', job.id);
+      queryClient.invalidateQueries({ queryKey: ['jobs', job.id] });
+      toast.success('Job spec generated and saved');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to generate spec');
+    } finally {
+      setGeneratingSpec(false);
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -426,8 +458,8 @@ const JobDetail = () => {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" data-jarvis-id="job-generate-spec-button">
-            <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Spec
+          <Button variant="outline" size="sm" onClick={handleGenerateSpec} disabled={generatingSpec} data-jarvis-id="job-generate-spec-button">
+            <Sparkles className="w-3.5 h-3.5 mr-1.5" /> {generatingSpec ? "Generating..." : "Generate Spec"}
           </Button>
           <Button variant="outline" size="sm" onClick={openShortlistBuilder} data-jarvis-id="job-run-shortlist-button">
             <Users className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist

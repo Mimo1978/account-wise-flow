@@ -1361,7 +1361,7 @@ function ProjectJobsTab({ engagementId }: { engagementId: string }) {
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{job.location || '—'}</td>
                     <td className="px-4 py-3 text-right">
-                      <Button variant="ghost" size="sm" className="gap-1 text-xs h-7">
+                      <Button variant="ghost" size="sm" className="gap-1 text-xs h-7" onClick={() => navigate(`/jobs/${job.id}`)}>
                         View <ExternalLink className="w-3 h-3" />
                       </Button>
                     </td>

@@ -458,8 +458,8 @@ const JobDetail = () => {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <Button variant="outline" size="sm" data-jarvis-id="job-generate-spec-button">
-            <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Generate Spec
+          <Button variant="outline" size="sm" onClick={handleGenerateSpec} disabled={generatingSpec} data-jarvis-id="job-generate-spec-button">
+            <Sparkles className="w-3.5 h-3.5 mr-1.5" /> {generatingSpec ? "Generating..." : "Generate Spec"}
           </Button>
           <Button variant="outline" size="sm" onClick={openShortlistBuilder} data-jarvis-id="job-run-shortlist-button">
             <Users className="w-3.5 h-3.5 mr-1.5" /> Run Shortlist

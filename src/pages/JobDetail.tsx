@@ -273,6 +273,9 @@ const JobDetail = () => {
   const [showCompanySearch, setShowCompanySearch] = useState(false);
   const [companySearch, setCompanySearch] = useState('');
 
+  // Generate spec
+  const [generatingSpec, setGeneratingSpec] = useState(false);
+
   // Deal creation prompt state
   const [showDealPrompt, setShowDealPrompt] = useState(false);
   const [linkedProjectId, setLinkedProjectId] = useState<string | null>(null);

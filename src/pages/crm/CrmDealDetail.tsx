@@ -304,8 +304,8 @@ export default function CrmDealDetail() {
             <span className="text-lg font-semibold text-foreground">{currencySymbol}{deal.value.toLocaleString()}</span>
           </div>
           {companyName && (
-            <span className="text-sm text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/companies/${deal.crm_companies!.id}`)}>
-              {companyName} <ExternalLink className="inline h-3 w-3" />
+            <span className="text-sm text-muted-foreground">
+              {companyName}
             </span>
           )}
         </div>
@@ -377,8 +377,8 @@ export default function CrmDealDetail() {
             <CardContent>
               {d.company_id && deal.crm_companies ? (
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/companies/${deal.crm_companies!.id}`)}>
-                    {deal.crm_companies.name} <ExternalLink className="inline h-3 w-3" />
+                  <span className="text-sm font-medium text-foreground">
+                    {deal.crm_companies.name}
                   </span>
                   <Popover open={companyPopoverOpen} onOpenChange={(v) => { setCompanyPopoverOpen(v); setCompanySearch(""); }}>
                     <PopoverTrigger asChild>

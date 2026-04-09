@@ -142,7 +142,7 @@ export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Pr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col relative overflow-hidden">
+      <DialogContent className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] w-full max-w-md max-h-[85vh] overflow-y-auto">
         {success && (
           <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm animate-in fade-in duration-300">
             <p className="text-5xl mb-3">🎉</p>

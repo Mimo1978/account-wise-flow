@@ -339,6 +339,7 @@ const JobDetail = () => {
       toast.success('Company assigned');
     }
     setShowCompanySearch(false);
+  }, [job, queryClient]);
 
   const handleGenerateSpec = async () => {
     if (!job) return;
@@ -367,7 +368,6 @@ const JobDetail = () => {
       setGeneratingSpec(false);
     }
   };
-  }, [job, queryClient]);
 
 
   if (isLoading) {

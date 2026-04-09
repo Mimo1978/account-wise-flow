@@ -366,6 +366,7 @@ const JobDetail = () => {
       setGeneratingSpec(false);
     }
   };
+  }, [job, queryClient]);
 
 
   if (isLoading) {

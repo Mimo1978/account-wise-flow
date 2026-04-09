@@ -142,7 +142,7 @@ export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Pr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg relative overflow-hidden">
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col relative overflow-hidden">
         {success && (
           <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm animate-in fade-in duration-300">
             <p className="text-5xl mb-3">🎉</p>
@@ -154,7 +154,7 @@ export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Pr
         <DialogHeader>
           <DialogTitle>Convert to placement</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 min-h-0 overflow-y-auto pr-1">
           <div className="grid grid-cols-3 gap-2">
             {[
               { value: "contractor", label: "Contractor", sub: "Day rate · timesheet" },

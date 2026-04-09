@@ -343,15 +343,16 @@ const JobDetail = () => {
   const handleGenerateSpec = async () => {
     if (!job) return;
     setGeneratingSpec(true);
+    const j = job as any;
     try {
       const { data, error } = await supabase.functions.invoke('generate-job-spec', {
         body: {
-          title: job.title || 'Not specified',
-          companyName: job.company_name || 'Not specified',
-          type: job.type || 'permanent',
-          location: job.location || 'Not specified',
-          salaryRange: job.salary_range || 'Competitive',
-          description: job.description || '',
+          title: j.title || 'Not specified',
+          companyName: j.company_name || 'Not specified',
+          type: j.type || 'permanent',
+          location: j.location || 'Not specified',
+          salaryRange: j.salary_range || 'Competitive',
+          description: j.description || '',
         },
       });
       if (error) throw error;

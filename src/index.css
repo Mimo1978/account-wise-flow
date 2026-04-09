@@ -576,3 +576,17 @@ thead > tr {
   --text-secondary: hsl(var(--muted-foreground));
   --hover-bg: hsl(var(--muted));
 }
+
+[data-radix-dialog-content] {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 9999 !important;
+}
+
+[data-radix-dialog-overlay] {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9998 !important;
+}

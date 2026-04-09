@@ -339,7 +339,34 @@ const JobDetail = () => {
       toast.success('Company assigned');
     }
     setShowCompanySearch(false);
-  }, [job, queryClient]);
+
+  const handleGenerateSpec = async () => {
+    if (!job) return;
+    setGeneratingSpec(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-job-spec', {
+        body: {
+          title: job.title || 'Not specified',
+          companyName: job.company_name || 'Not specified',
+          type: job.type || 'permanent',
+          location: job.location || 'Not specified',
+          salaryRange: job.salary_range || 'Competitive',
+          description: job.description || '',
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const spec = data?.spec || '';
+      await supabase.from('jobs').update({ description: spec } as any).eq('id', job.id);
+      queryClient.invalidateQueries({ queryKey: ['jobs', job.id] });
+      toast.success('Job spec generated and saved');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to generate spec');
+    } finally {
+      setGeneratingSpec(false);
+    }
+  };
+
 
   if (isLoading) {
     return (

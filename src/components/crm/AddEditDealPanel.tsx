@@ -137,6 +137,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal }: Props) {
       expected_close_date: form.expected_close_date || null,
       currency: "GBP",
       status: "active",
+      workspace_id: currentWorkspace?.id || null,
     };
     try {
       if (isEdit && deal) {

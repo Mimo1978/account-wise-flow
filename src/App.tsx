@@ -64,18 +64,14 @@ import AdminSmsGuide from "./pages/admin/AdminSmsGuide";
 import AdminAiCallingGuide from "./pages/admin/AdminAiCallingGuide";
 import AdminIntegrations from "./pages/admin/AdminIntegrations";
 import AccountsBillingHub from "./pages/AccountsBillingHub";
-import CrmContacts from "./pages/crm/CrmContacts";
-import CrmContactDetail from "./pages/crm/CrmContactDetail";
 import CrmOpportunityDetail from "./pages/crm/CrmOpportunityDetail";
 import CrmDeals from "./pages/crm/CrmDeals";
 import CrmDealDetail from "./pages/crm/CrmDealDetail";
-import CrmDocuments from "./pages/crm/CrmDocuments";
 import CrmInvoices from "./pages/crm/CrmInvoices";
 import CrmInvoiceDetail from "./pages/crm/CrmInvoiceDetail";
 import IntegrationsSettings from "./pages/settings/IntegrationsSettings";
 import EmailTemplatesSettings from "./pages/settings/EmailTemplatesSettings";
 import Dashboard from "./pages/Dashboard";
-import Reports from "./pages/Reports";
 import PlacementDetail from "./pages/PlacementDetail";
 import { Loader2 } from "lucide-react";
 import { JarvisFloatingButton } from "@/components/jarvis/JarvisChat";
@@ -165,7 +161,7 @@ const App = () => {
             {/* PROTECTED ROUTES */}
             <Route path="/home" element={<ProtectedRoute><ProductLayout><HomeCommandCenter /></ProductLayout></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><ProductLayout><Dashboard /></ProductLayout></ProtectedRoute>} />
-            <Route path="/reports" element={<ProtectedRoute><ProductLayout><Reports /></ProductLayout></ProtectedRoute>} />
+            
             <Route path="/workspace" element={<ProtectedRoute><WorkspaceSelector /></ProtectedRoute>} />
             <Route path="/demo-workspace" element={<ProtectedRoute><ProductLayout><DemoWorkspace /></ProductLayout></ProtectedRoute>} />
             <Route path="/canvas" element={<ProtectedRoute><ProductLayout><Canvas /></ProductLayout></ProtectedRoute>} />
@@ -191,15 +187,14 @@ const App = () => {
             <Route path="/profile" element={<ProtectedRoute><ProductLayout><UserProfile /></ProductLayout></ProtectedRoute>} />
 
             {/* CRM MODULE ROUTES */}
-            <Route path="/crm/contacts" element={<ProtectedRoute><ProductLayout><CrmContacts /></ProductLayout></ProtectedRoute>} />
-            <Route path="/crm/contacts/:id" element={<ProtectedRoute><ProductLayout><CrmContactDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/opportunities/:id" element={<ProtectedRoute><ProductLayout><CrmOpportunityDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/deals" element={<ProtectedRoute><ProductLayout><CrmDeals /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/deals/:id" element={<ProtectedRoute><ProductLayout><CrmDealDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/placements/:id" element={<ProtectedRoute><ProductLayout><PlacementDetail /></ProductLayout></ProtectedRoute>} />
-            <Route path="/crm/documents" element={<ProtectedRoute><ProductLayout><CrmDocuments /></ProductLayout></ProtectedRoute>} />
-            <Route path="/crm/invoices" element={<ProtectedRoute><ProductLayout><CrmInvoices /></ProductLayout></ProtectedRoute>} />
-            <Route path="/crm/invoices/:id" element={<ProtectedRoute><ProductLayout><CrmInvoiceDetail /></ProductLayout></ProtectedRoute>} />
+            <Route path="/crm/projects" element={<Navigate to="/projects" replace />} />
+            <Route path="/crm/projects/:id" element={<Navigate to="/projects" replace />} />
+            <Route path="/crm/invoices" element={<Navigate to="/accounts" replace />} />
+            <Route path="/crm/invoices/:id" element={<Navigate to="/accounts" replace />} />
 
             {/* SETTINGS ROUTES */}
             <Route path="/settings/integrations" element={<ProtectedRoute><ProductLayout><IntegrationsSettings /></ProductLayout></ProtectedRoute>} />

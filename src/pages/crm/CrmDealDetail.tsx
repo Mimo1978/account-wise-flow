@@ -345,6 +345,8 @@ export default function CrmDealDetail() {
   const nextStage = nextStageIdx < STAGES.length ? STAGES[nextStageIdx] : null;
   const isTerminal = d.stage === "won" || d.stage === "lost" || d.stage === "placed";
 
+  const dealType = (deal as any).deal_type || null;
+
   return (
     <div className="h-full overflow-y-auto overflow-x-auto bg-background">
     <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
@@ -359,22 +361,24 @@ export default function CrmDealDetail() {
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-foreground">{deal.title}</h1>
             <Badge variant="secondary" className={DEAL_STATUS_COLORS[deal.status]}>{DEAL_STATUS_LABELS[deal.status]}</Badge>
-            {(deal as any).deal_type && (
+            {dealType && (
               <Badge variant="outline" className={cn("text-xs capitalize",
-                (deal as any).deal_type === 'contractor' && "border-amber-500/30 text-amber-600",
-                (deal as any).deal_type === 'permanent' && "border-violet-500/30 text-violet-600",
-                (deal as any).deal_type === 'consulting' && "border-blue-500/30 text-blue-600",
+                dealType === 'contractor' && "border-amber-500/30 text-amber-600",
+                dealType === 'permanent' && "border-violet-500/30 text-violet-600",
+                dealType === 'consulting' && "border-blue-500/30 text-blue-600",
               )}>
-                {(deal as any).deal_type}
+                {dealType}
               </Badge>
             )}
             <span className="text-lg font-semibold text-foreground">{currencySymbol}{deal.value.toLocaleString()}</span>
           </div>
-          {companyName && (
-            <span className="text-sm text-muted-foreground">
-              {companyName}
+          <div className="flex items-center gap-3 text-sm text-muted-foreground mt-0.5">
+            {companyName && <span>{companyName}</span>}
+            <span className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              Added {format(new Date(deal.created_at), "dd MMM yyyy 'at' HH:mm")}
             </span>
-          )}
+          </div>
         </div>
         <div className="flex gap-2">
           {perm.canSeeDeleteOption && (

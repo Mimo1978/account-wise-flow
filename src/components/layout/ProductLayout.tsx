@@ -28,6 +28,12 @@ import {
   Sun,
   Receipt,
   ChevronDown,
+  TrendingUp,
+  FolderKanban,
+  Network,
+  UserCheck,
+  ClipboardList,
+  UserCog,
 } from 'lucide-react';
 import { NAV_COLOURS, getNavColour } from '@/lib/nav-colours';
 import { useTheme } from 'next-themes';
@@ -96,23 +102,23 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const showAdminNav = !permLoading && (isAdmin || isManager);
 
   const navItems = [
-    { path: '/home', label: 'Home', icon: Home, jarvisId: 'nav-home' },
-    { path: '/projects', label: 'Projects', icon: Briefcase, jarvisId: 'nav-projects' },
-    { path: '/canvas', label: 'Canvas', icon: LayoutDashboard, jarvisId: 'nav-canvas' },
-    { path: '/companies', label: 'Companies', icon: Building2, jarvisId: 'nav-companies' },
-    { path: '/crm/deals', label: 'Deals', icon: Database, jarvisId: 'nav-deals' },
-    { path: '/placements', label: 'Placements', icon: Users, jarvisId: 'nav-placements' },
-    { path: '/documents', label: 'Documents', icon: FileText, jarvisId: 'nav-documents' },
-    { path: '/accounts', label: 'Accounts', icon: Receipt, jarvisId: 'nav-accounts' },
-    { path: '/contacts', label: 'Contacts', icon: Users, jarvisId: 'nav-contacts' },
-    { path: '/talent', label: 'Talent', icon: Database, jarvisId: 'nav-talent' },
+    { path: '/home',        label: 'Home',       icon: Home,          jarvisId: 'nav-home' },
+    { path: '/crm/deals',   label: 'Pipeline',   icon: TrendingUp,    jarvisId: 'nav-deals' },
+    { path: '/placements',  label: 'Placements', icon: UserCog,       jarvisId: 'nav-placements' },
+    { path: '/companies',   label: 'Companies',  icon: Building2,     jarvisId: 'nav-companies' },
+    { path: '/contacts',    label: 'Contacts',   icon: Users,         jarvisId: 'nav-contacts' },
+    { path: '/talent',      label: 'Talent',     icon: UserCheck,     jarvisId: 'nav-talent' },
+    { path: '/accounts',    label: 'Accounts',   icon: Receipt,       jarvisId: 'nav-accounts' },
+    { path: '/projects',    label: 'Delivery',   icon: FolderKanban,  jarvisId: 'nav-projects' },
+    { path: '/documents',   label: 'Documents',  icon: FileText,      jarvisId: 'nav-documents' },
   ];
 
   // These collapse into "More" dropdown below 1280px
   const overflowNavItems = [
-    { path: '/jobs', label: 'Jobs', icon: BookOpen, jarvisId: 'nav-jobs', badge: true },
-    { path: '/outreach', label: 'Outreach', icon: Megaphone, jarvisId: 'nav-outreach' },
-    { path: '/insights', label: 'Analytics', icon: BarChart3, jarvisId: 'nav-analytics' },
+    { path: '/jobs',      label: 'Jobs',      icon: ClipboardList, jarvisId: 'nav-jobs', badge: true },
+    { path: '/outreach',  label: 'Outreach',  icon: Megaphone,     jarvisId: 'nav-outreach' },
+    { path: '/canvas',    label: 'Org Chart', icon: Network,       jarvisId: 'nav-canvas' },
+    { path: '/insights',  label: 'Analytics', icon: BarChart3,     jarvisId: 'nav-analytics' },
   ];
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');

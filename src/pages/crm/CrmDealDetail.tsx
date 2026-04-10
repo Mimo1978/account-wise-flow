@@ -197,10 +197,37 @@ export default function CrmDealDetail() {
   };
 
   const handleStageChange = async (newStage: string) => {
-    const { error } = await supabase.from("crm_deals").update({ stage: newStage } as any).eq("id", deal.id);
+    // If moving BACK from "placed", deactivate the associated placement
+    if (d.stage === "placed" && newStage !== "placed") {
+      const { error: plError } = await (supabase.from as any)("placements")
+        .update({ status: "cancelled" })
+        .eq("deal_id", deal.id)
+        .eq("status", "active");
+      if (plError) {
+        toast({ title: "Error", description: "Failed to deactivate placement: " + plError.message, variant: "destructive" });
+        return;
+      }
+    }
+
+    // If moving back from "won", reset status from "won" back to "active"
+    const updates: any = { stage: newStage };
+    if (d.stage === "won" && newStage !== "won" && newStage !== "placed") {
+      updates.status = "active";
+    }
+
+    const { error } = await supabase.from("crm_deals").update(updates).eq("id", deal.id);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    showConfirmation({ type: 'success', title: 'Stage updated', message: `Deal moved to ${STAGE_LABELS[newStage]}.` });
+
+    const movedBack = STAGES.indexOf(newStage as any) < STAGES.indexOf(d.stage as any);
+    showConfirmation({
+      type: 'success',
+      title: movedBack ? 'Stage reversed' : 'Stage updated',
+      message: movedBack && d.stage === "placed"
+        ? `Deal moved back to ${STAGE_LABELS[newStage]}. Placement has been deactivated.`
+        : `Deal moved to ${STAGE_LABELS[newStage]}.`,
+    });
     invalidateDealQueries();
+    queryClient.invalidateQueries({ queryKey: ["deal-placement", id] });
     setStageConfirm(null);
   };
 

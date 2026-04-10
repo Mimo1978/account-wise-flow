@@ -102,23 +102,23 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
   const showAdminNav = !permLoading && (isAdmin || isManager);
 
   const navItems = [
-    { path: '/home',        label: 'Home',       icon: Home,          jarvisId: 'nav-home' },
-    { path: '/crm/deals',   label: 'Pipeline',   icon: TrendingUp,    jarvisId: 'nav-deals' },
-    { path: '/placements',  label: 'Placements', icon: UserCog,       jarvisId: 'nav-placements' },
-    { path: '/companies',   label: 'Companies',  icon: Building2,     jarvisId: 'nav-companies' },
-    { path: '/contacts',    label: 'Contacts',   icon: Users,         jarvisId: 'nav-contacts' },
-    { path: '/talent',      label: 'Talent',     icon: UserCheck,     jarvisId: 'nav-talent' },
-    { path: '/accounts',    label: 'Accounts',   icon: Receipt,       jarvisId: 'nav-accounts' },
-    { path: '/projects',    label: 'Delivery',   icon: FolderKanban,  jarvisId: 'nav-projects' },
-    { path: '/documents',   label: 'Documents',  icon: FileText,      jarvisId: 'nav-documents' },
+    { path: '/home',       label: 'Home',       icon: Home,          jarvisId: 'nav-home' },
+    { path: '/companies',  label: 'Companies',  icon: Building2,     jarvisId: 'nav-companies' },
+    { path: '/contacts',   label: 'Contacts',   icon: Users,         jarvisId: 'nav-contacts' },
+    { path: '/crm/deals',  label: 'Pipeline',   icon: TrendingUp,    jarvisId: 'nav-deals' },
+    { path: '/placements', label: 'Placements', icon: UserCog,       jarvisId: 'nav-placements' },
+    { path: '/accounts',   label: 'Accounts',   icon: Receipt,       jarvisId: 'nav-accounts' },
+    { path: '/talent',     label: 'Talent',     icon: UserCheck,     jarvisId: 'nav-talent' },
+    { path: '/jobs',       label: 'Jobs',       icon: ClipboardList, jarvisId: 'nav-jobs', badge: true },
+    { path: '/outreach',   label: 'Outreach',   icon: Megaphone,     jarvisId: 'nav-outreach' },
   ];
 
   // These collapse into "More" dropdown below 1280px
   const overflowNavItems = [
-    { path: '/jobs',      label: 'Jobs',      icon: ClipboardList, jarvisId: 'nav-jobs', badge: true },
-    { path: '/outreach',  label: 'Outreach',  icon: Megaphone,     jarvisId: 'nav-outreach' },
-    { path: '/canvas',    label: 'Org Chart', icon: Network,       jarvisId: 'nav-canvas' },
-    { path: '/insights',  label: 'Analytics', icon: BarChart3,     jarvisId: 'nav-analytics' },
+    { path: '/projects',  label: 'Delivery',   icon: FolderKanban, jarvisId: 'nav-projects' },
+    { path: '/documents', label: 'Documents',  icon: FileText,     jarvisId: 'nav-documents' },
+    { path: '/insights',  label: 'Analytics',  icon: BarChart3,    jarvisId: 'nav-analytics' },
+    { path: '/canvas',    label: 'Org Chart',  icon: Network,      jarvisId: 'nav-canvas' },
   ];
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
@@ -271,7 +271,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                           <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, backgroundColor: dc, opacity: act ? 1 : 0.7 }} />
                           <item.icon className="w-4 h-4" />
                           {item.label}
-                          {item.badge && item.path === '/jobs' && newAppCount > 0 && (
+                          {'badge' in item && item.badge && item.path === '/jobs' && newAppCount > 0 && (
                             <span className="ml-auto min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
                               {newAppCount > 99 ? '99+' : newAppCount}
                             </span>

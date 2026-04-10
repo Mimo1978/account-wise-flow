@@ -49,6 +49,7 @@ export default function CrmDealDetail() {
   const { data: invoices = [] } = useCrmInvoices({ deal_id: id });
   const updateDoc = useUpdateCrmDocument();
   const [editOpen, setEditOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -394,7 +395,7 @@ export default function CrmDealDetail() {
 
       <DeletionRequestBanner recordType="crm_deals" recordId={deal.id} />
 
-      <Tabs defaultValue="overview">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="documents">Documents ({docs.length})</TabsTrigger>

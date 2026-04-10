@@ -375,7 +375,7 @@ const HomeCommandCenter = () => {
     queryFn: async () => {
       if (!currentWorkspace?.id) return [];
       const { data } = await (supabase.from as any)('placements')
-        .select('*, candidates(name), companies(name)')
+        .select('*, candidates(name), crm_deals(title, crm_companies(name))')
         .eq('workspace_id', currentWorkspace.id)
         .eq('status', 'active')
         .order('start_date', { ascending: false });
@@ -708,7 +708,7 @@ const HomeCommandCenter = () => {
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                       onClick={() => navigate(`/placements/${p.id}`)}>
                       <td className="px-4 py-3 font-medium" style={{ color: DARK.text }}>{p.candidates?.name || '—'}</td>
-                      <td className="px-4 py-3" style={{ color: DARK.textSecondary }}>{p.companies?.name || '—'}</td>
+                      <td className="px-4 py-3" style={{ color: DARK.textSecondary }}>{p.crm_deals?.crm_companies?.name || '—'}</td>
                       <td className="px-4 py-3" style={{ color: DARK.textSecondary }}>{p.role_title || '—'}</td>
                       <td className="px-4 py-3" style={{ color: DARK.textSecondary }}>{p.start_date ? format(new Date(p.start_date), 'dd MMM yyyy') : '—'}</td>
                       <td className="px-4 py-3" style={{ color: DARK.textSecondary }}>{p.currency} {p.rate_per_day}/day</td>

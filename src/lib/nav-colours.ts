@@ -4,7 +4,7 @@ export const NAV_COLOURS: Record<string, string> = {
   '/projects': '#38bdf8',
   '/canvas': '#a78bfa',
   '/companies': '#34d399',
-  '/crm/deals': '#fb923c',
+  '/crm/deals': '#F97316',
   '/placements': '#F59E0B',
   '/documents': '#fbbf24',
   '/accounts': '#22d3ee',

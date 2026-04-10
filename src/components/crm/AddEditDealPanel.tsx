@@ -61,6 +61,7 @@ const empty = {
 
 export function AddEditDealPanel({ open, onOpenChange, deal }: Props) {
   const isEdit = !!deal;
+  const { currentWorkspace } = useWorkspace();
   const createMut = useCreateCrmDeal();
   const updateMut = useUpdateCrmDeal();
   const [form, setForm] = useState({ ...empty });

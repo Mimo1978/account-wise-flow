@@ -138,7 +138,7 @@ const ProjectsList = () => {
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              <Badge variant="secondary" className="text-xs capitalize">{eng.engagement_type.replace('_', ' ')}</Badge>
+                              <Badge variant="secondary" className={`text-xs capitalize border ${TYPE_COLORS[eng.engagement_type] ?? 'bg-muted text-muted-foreground border-border'}`}>{eng.engagement_type.replace('_', ' ')}</Badge>
                             </td>
                             <td className="px-4 py-3">
                               <Badge variant="outline" className="text-xs">{STAGE_LABELS[eng.stage] ?? eng.stage}</Badge>

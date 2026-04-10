@@ -1528,6 +1528,7 @@ const ProjectDetail = () => {
   const defaultTab = searchParams.get('tab') || 'overview';
   const { currentWorkspace } = useWorkspace();
   const { data: engagement, isLoading } = useEngagement(id, currentWorkspace?.id);
+  const updateMutation = useUpdateEngagement();
 
   // Fetch SOWs & invoices for this engagement
   const { data: allSows = [] } = useSows(currentWorkspace?.id);

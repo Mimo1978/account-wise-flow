@@ -83,7 +83,11 @@ export function useUpdateCrmDeal() {
       if (error) throw error;
       return data as unknown as CrmDeal;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["crm_deals"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["crm_deals"] });
+      qc.invalidateQueries({ queryKey: ["deals"] });
+      qc.invalidateQueries({ queryKey: ["all-crm-deals"] });
+    },
   });
 }
 

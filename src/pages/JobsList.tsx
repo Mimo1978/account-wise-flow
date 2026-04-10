@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useJobs, useJobCounts, useCreateJob } from '@/hooks/use-jobs';
 import { Plus, Briefcase, Search, ExternalLink, AlertTriangle, Filter } from 'lucide-react';
@@ -36,6 +38,10 @@ const JobsList = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showUnlinked, setShowUnlinked] = useState(searchParams.get('filter') === 'unlinked');
+  const [newJobOpen, setNewJobOpen] = useState(false);
+  const [newJobTitle, setNewJobTitle] = useState("");
+  const [newJobType, setNewJobType] = useState("permanent");
+  const [newJobCompanyId, setNewJobCompanyId] = useState("");
 
   // Fetch all job-project links with project names and deal values
   const { data: jobLinks = [] } = useQuery({
@@ -102,9 +108,31 @@ const JobsList = () => {
     });
   }, [jobs, statusFilter, typeFilter, search, showUnlinked, projectByJobId]);
 
-  const handleCreate = () => {
-    createJob.mutate({ title: 'Untitled Job' }, {
-      onSuccess: (data: any) => navigate(`/jobs/${data.id}`),
+  const { data: companiesForJob = [] } = useQuery({
+    queryKey: ["companies-for-job"],
+    queryFn: async () => {
+      const { data } = await supabase.from("crm_companies" as any).select("id, name").order("name").limit(100);
+      return data || [];
+    },
+  });
+
+  const handleCreate = () => setNewJobOpen(true);
+
+  const handleConfirmCreate = () => {
+    if (!newJobTitle.trim()) return;
+    createJob.mutate({
+      title: newJobTitle.trim(),
+      job_type: newJobType,
+      company_id: newJobCompanyId || undefined,
+      status: "draft",
+    }, {
+      onSuccess: (data: any) => {
+        navigate(`/jobs/${data.id}`);
+        setNewJobOpen(false);
+        setNewJobTitle("");
+        setNewJobType("permanent");
+        setNewJobCompanyId("");
+      },
     });
   };
 
@@ -269,6 +297,64 @@ const JobsList = () => {
             </div>
           )}
         </SectionCard>
+
+        <Dialog open={newJobOpen} onOpenChange={setNewJobOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>New job</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div>
+                <Label htmlFor="new-job-title">Job title *</Label>
+                <Input
+                  id="new-job-title"
+                  value={newJobTitle}
+                  onChange={e => setNewJobTitle(e.target.value)}
+                  placeholder="e.g. Senior SAS Developer"
+                  className="mt-1 h-9 text-sm"
+                  autoFocus
+                  onKeyDown={e => e.key === "Enter" && newJobTitle.trim() && handleConfirmCreate()}
+                />
+              </div>
+
+              <div>
+                <Label>Job type</Label>
+                <Select value={newJobType} onValueChange={setNewJobType}>
+                  <SelectTrigger className="mt-1 h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="permanent">Permanent</SelectItem>
+                    <SelectItem value="contract">Contract</SelectItem>
+                    <SelectItem value="interim">Interim</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Company (optional)</Label>
+                <Select value={newJobCompanyId} onValueChange={setNewJobCompanyId}>
+                  <SelectTrigger className="mt-1 h-9">
+                    <SelectValue placeholder="Select company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {companiesForJob.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setNewJobOpen(false)}>Cancel</Button>
+              <Button onClick={handleConfirmCreate} disabled={!newJobTitle.trim() || createJob.isPending}>
+                {createJob.isPending ? "Creating..." : "Create job"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

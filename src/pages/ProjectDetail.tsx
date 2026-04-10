@@ -284,9 +284,12 @@ function InlineContactPicker({
     enabled: !!contactId,
   });
 
+  // Resolve the CRM company ID for contact lookups
+  const { data: crmCompanyId } = useCrmCompanyId(companyId);
+
   // All contacts for the assigned company
   const { data: companyContacts = [] } = useCompanyContacts(companyId);
-  const { data: searchResults = [] } = useContactSearch(searchTerm, searching && searchTerm.length > 1, companyId);
+  const { data: searchResults = [] } = useContactSearch(searchTerm, searching && searchTerm.length > 1, companyId, crmCompanyId);
 
   // Filter company contacts by search term for the browse list
   const filteredCompanyContacts = companyContacts.filter(c => {

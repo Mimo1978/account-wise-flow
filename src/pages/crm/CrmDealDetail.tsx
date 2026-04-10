@@ -555,22 +555,19 @@ export default function CrmDealDetail() {
             </CardContent>
           </Card>
 
-          {/* ── Company Section ── */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium flex items-center gap-2 border-b border-border pb-2">
-                <Building2 className="w-4 h-4" /> Company
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {d.company_id && deal.crm_companies ? (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">
-                    {deal.crm_companies.name}
-                  </span>
+          {/* ── Company / Contact / Project — 3-column accent frames ── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Company */}
+            <div className="rounded-xl overflow-hidden bg-card border" style={{ borderLeft: '4px solid #3B82F6' }}>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-blue-500" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Company</h3>
+                </div>
+                {d.company_id && deal.crm_companies && (
                   <Popover open={companyPopoverOpen} onOpenChange={(v) => { setCompanyPopoverOpen(v); setCompanySearch(""); }}>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-xs text-primary">Change</Button>
+                      <Button variant="ghost" size="sm" className="text-xs text-primary h-6 px-2">Change</Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72 p-2 bg-popover z-[9999]" align="end">
                       <Input placeholder="Search companies..." value={companySearch} onChange={e => setCompanySearch(e.target.value)} className="h-8 text-xs mb-2" autoFocus />
@@ -585,51 +582,50 @@ export default function CrmDealDetail() {
                       </div>
                     </PopoverContent>
                   </Popover>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium border", BADGE_SEVERITY_STYLES.red)}>
-                    <AlertTriangle className="w-3 h-3" /> No company assigned
-                  </span>
-                  <Popover open={companyPopoverOpen} onOpenChange={(v) => { setCompanyPopoverOpen(v); setCompanySearch(""); }}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" size="sm" className="text-xs gap-1"><Building2 className="w-3 h-3" /> Assign Company</Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-72 p-2 bg-popover z-[9999]" align="start">
-                      <Input placeholder="Search companies..." value={companySearch} onChange={e => setCompanySearch(e.target.value)} className="h-8 text-xs mb-2" autoFocus />
-                      <div className="max-h-60 overflow-y-auto space-y-0.5">
-                        {availableCompanies.map(c => (
-                          <button key={c.id} onClick={() => handleAssignCompany(c.id)}
-                            className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-muted truncate">
-                            {c.name}{c.industry ? ` · ${c.industry}` : ""}
-                          </button>
-                        ))}
-                        {availableCompanies.length === 0 && <p className="text-xs text-muted-foreground px-2 py-1">No companies found</p>}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ── Contact Section ── */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium flex items-center gap-2 border-b border-border pb-2">
-                <User className="w-4 h-4" /> Contact
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {d.contact_id && currentContact ? (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-sm font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/contacts/${currentContact.id}`)}>{currentContact.first_name} {currentContact.last_name}</span>
-                    {currentContact.job_title && <p className="text-xs text-muted-foreground">{currentContact.job_title}</p>}
+                )}
+              </div>
+              <div className="px-4 pb-4">
+                {d.company_id && deal.crm_companies ? (
+                  <p className="text-sm font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => navigate(`/crm/companies/${d.company_id}`)}>{deal.crm_companies.name}</p>
+                ) : (
+                  <div className="space-y-2">
+                    <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium border", BADGE_SEVERITY_STYLES.red)}>
+                      <AlertTriangle className="w-3 h-3" /> Not assigned
+                    </span>
+                    <Popover open={companyPopoverOpen} onOpenChange={(v) => { setCompanyPopoverOpen(v); setCompanySearch(""); }}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className="text-xs gap-1 w-full"><Building2 className="w-3 h-3" /> Assign</Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-72 p-2 bg-popover z-[9999]" align="start">
+                        <Input placeholder="Search companies..." value={companySearch} onChange={e => setCompanySearch(e.target.value)} className="h-8 text-xs mb-2" autoFocus />
+                        <div className="max-h-60 overflow-y-auto space-y-0.5">
+                          {availableCompanies.map(c => (
+                            <button key={c.id} onClick={() => handleAssignCompany(c.id)}
+                              className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-muted truncate">
+                              {c.name}{c.industry ? ` · ${c.industry}` : ""}
+                            </button>
+                          ))}
+                          {availableCompanies.length === 0 && <p className="text-xs text-muted-foreground px-2 py-1">No companies found</p>}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                   </div>
+                )}
+              </div>
+            </div>
+
+            {/* Contact */}
+            <div className="rounded-xl overflow-hidden bg-card border" style={{ borderLeft: '4px solid #8B5CF6' }}>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-violet-500" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contact</h3>
+                </div>
+                {d.contact_id && currentContact && (
                   <Popover open={contactPopoverOpen} onOpenChange={(v) => { setContactPopoverOpen(v); setContactSearch(""); }}>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-xs text-primary">Change</Button>
+                      <Button variant="ghost" size="sm" className="text-xs text-primary h-6 px-2">Change</Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-80 p-2 bg-popover z-[9999]" align="end">
                       <Input placeholder="Search contacts..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} className="h-8 text-xs mb-2" autoFocus />
@@ -637,94 +633,51 @@ export default function CrmDealDetail() {
                       <QuickAddContactFooter companyName={companyName} onOpen={() => { setContactPopoverOpen(false); setQuickContactOpen(true); }} />
                     </PopoverContent>
                   </Popover>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {!d.company_id && (
-                    <p className="text-xs text-muted-foreground italic">Assign a company first to see their contacts</p>
-                  )}
-                  <div className="flex items-center gap-3">
+                )}
+              </div>
+              <div className="px-4 pb-4">
+                {d.contact_id && currentContact ? (
+                  <div>
+                    <p className="text-sm font-medium text-primary cursor-pointer hover:underline"
+                      onClick={() => navigate(`/crm/contacts/${currentContact.id}`)}>{currentContact.first_name} {currentContact.last_name}</p>
+                    {currentContact.job_title && <p className="text-xs text-muted-foreground">{currentContact.job_title}</p>}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
                     {(() => {
                       const sev = getContactBadgeSeverity(d.stage || "lead");
                       return (
                         <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium border", BADGE_SEVERITY_STYLES[sev])}>
-                          {sev === "grey" ? "ℹ" : <AlertTriangle className="w-3 h-3" />} No contact assigned
+                          {sev === "grey" ? "ℹ" : <AlertTriangle className="w-3 h-3" />} Not assigned
                         </span>
                       );
                     })()}
                     <Popover open={contactPopoverOpen} onOpenChange={(v) => { setContactPopoverOpen(v); setContactSearch(""); }}>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="text-xs gap-1"><User className="w-3 h-3" /> Assign Contact</Button>
+                        <Button variant="outline" size="sm" className="text-xs gap-1 w-full"><User className="w-3 h-3" /> Assign</Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-80 p-2 bg-popover z-[9999]" align="start">
-                        {!d.company_id && (
-                          <p className="text-xs text-amber-500 mb-2 px-1">Tip: assign a company first to filter contacts automatically. Or search all contacts below:</p>
-                        )}
                         <Input placeholder="Search contacts..." value={contactSearch} onChange={e => setContactSearch(e.target.value)} className="h-8 text-xs mb-2" autoFocus />
                         <ContactSearchResults companyContacts={companyFiltered} otherContacts={otherContacts} companyName={companyName} onSelect={handleAssignContact} />
                         <QuickAddContactFooter companyName={companyName} onOpen={() => { setContactPopoverOpen(false); setQuickContactOpen(true); }} />
                       </PopoverContent>
                     </Popover>
                   </div>
-                </div>
-              )}
-
-              {/* Quick-add contact form */}
-              {quickContactOpen && (
-                <div className="mt-3 border border-border rounded-lg p-3 bg-muted/30 space-y-2">
-                  <p className="text-xs font-semibold">Quick add contact{companyName ? ` to ${companyName}` : ""}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="First name *" value={quickContactForm.first_name} onChange={e => setQuickContactForm(f => ({ ...f, first_name: e.target.value }))} className="h-8 text-xs" />
-                    <Input placeholder="Last name *" value={quickContactForm.last_name} onChange={e => setQuickContactForm(f => ({ ...f, last_name: e.target.value }))} className="h-8 text-xs" />
-                  </div>
-                  <Input placeholder="Job title" value={quickContactForm.job_title} onChange={e => setQuickContactForm(f => ({ ...f, job_title: e.target.value }))} className="h-8 text-xs" />
-                  <Input placeholder="Email" value={quickContactForm.email} onChange={e => setQuickContactForm(f => ({ ...f, email: e.target.value }))} className="h-8 text-xs" />
-                  <div className="flex gap-2 justify-end">
-                    <Button size="sm" variant="ghost" onClick={() => setQuickContactOpen(false)}>Cancel</Button>
-                    <Button size="sm" onClick={handleQuickAddContact}>Add</Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ── Candidate Section ── */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium flex items-center gap-2 border-b border-border pb-2">
-                <User className="w-4 h-4" /> Candidate
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">Search your talent database to link the placed candidate to this deal.</p>
-                <CandidateSearchInline
-                  dealId={deal.id}
-                  onLinked={() => queryClient.invalidateQueries({ queryKey: ["crm_deals", deal.id] })}
-                />
+                )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* ── Project Section ── */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium flex items-center gap-2 border-b border-border pb-2">
-                <FolderOpen className="w-4 h-4" /> Project
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {d.project_id && currentProject ? (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/projects/${currentProject.id}`)}>
-                      {currentProject.name}
-                    </p>
-                    {currentProject.workflow_stage && <p className="text-xs text-muted-foreground">Stage: {currentProject.workflow_stage}</p>}
-                  </div>
+            {/* Project */}
+            <div className="rounded-xl overflow-hidden bg-card border" style={{ borderLeft: '4px solid #F59E0B' }}>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4 text-amber-500" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Project</h3>
+                </div>
+                {d.project_id && currentProject && (
                   <Popover open={projectPopoverOpen} onOpenChange={(v) => { setProjectPopoverOpen(v); setProjectSearch(""); }}>
                     <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-xs text-primary">Change</Button>
+                      <Button variant="ghost" size="sm" className="text-xs text-primary h-6 px-2">Change</Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-72 p-2 bg-popover z-[9999]" align="end">
                       <Input placeholder="Search projects..." value={projectSearch} onChange={e => setProjectSearch(e.target.value)} className="h-8 text-xs mb-2" autoFocus />
@@ -737,62 +690,92 @@ export default function CrmDealDetail() {
                       </div>
                     </PopoverContent>
                   </Popover>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3 flex-wrap">
+                )}
+              </div>
+              <div className="px-4 pb-4">
+                {d.project_id && currentProject ? (
+                  <div>
+                    <p className="text-sm font-medium text-primary cursor-pointer hover:underline"
+                      onClick={() => navigate(`/crm/projects/${currentProject.id}`)}>{currentProject.name}</p>
+                    {currentProject.workflow_stage && <p className="text-xs text-muted-foreground">Stage: {currentProject.workflow_stage}</p>}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
                     {(() => {
                       const sev = getProjectBadgeSeverity(d.stage || "lead");
                       return (
                         <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium border", BADGE_SEVERITY_STYLES[sev])}>
-                          {sev === "grey" ? "ℹ" : sev === "red" ? <AlertTriangle className="w-3 h-3" /> : "!"} No project linked
+                          {sev === "grey" ? "ℹ" : sev === "red" ? <AlertTriangle className="w-3 h-3" /> : "!"} Not linked
                         </span>
                       );
                     })()}
-                    <Popover open={projectPopoverOpen} onOpenChange={(v) => { setProjectPopoverOpen(v); setProjectSearch(""); }}>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className="text-xs gap-1"><FolderOpen className="w-3 h-3" /> Link Project</Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-72 p-2 bg-popover z-[9999]" align="start">
-                        <Input placeholder="Search projects..." value={projectSearch} onChange={e => setProjectSearch(e.target.value)} className="h-8 text-xs mb-2" autoFocus />
-                        <div className="max-h-60 overflow-y-auto space-y-0.5">
-                          {availableProjects.map(p => (
-                            <button key={p.id} onClick={() => handleLinkProject(p.id)}
-                              className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-muted truncate">{p.name}</button>
-                          ))}
-                          {availableProjects.length === 0 && <p className="text-xs text-muted-foreground px-2 py-1">No projects found</p>}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => { setQuickProjectForm({ name: deal.title, project_type: "consulting" }); setQuickProjectOpen(true); }}>
-                      <Plus className="w-3 h-3" /> Create New Project
-                    </Button>
-                  </div>
-
-                  {/* Quick-create project form */}
-                  {quickProjectOpen && (
-                    <div className="border border-border rounded-lg p-3 bg-muted/30 space-y-2">
-                      <p className="text-xs font-semibold">Create new project</p>
-                      <Input placeholder="Project name *" value={quickProjectForm.name} onChange={e => setQuickProjectForm(f => ({ ...f, name: e.target.value }))} className="h-8 text-xs" />
-                      <div>
-                        <Label className="text-xs">Type</Label>
-                        <div className="flex gap-1 mt-1">
-                          {["consulting", "recruitment", "managed"].map(t => (
-                            <Button key={t} size="sm" variant={quickProjectForm.project_type === t ? "default" : "outline"} className="text-xs capitalize h-7"
-                              onClick={() => setQuickProjectForm(f => ({ ...f, project_type: t }))}>{t}</Button>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex gap-2 justify-end">
-                        <Button size="sm" variant="ghost" onClick={() => setQuickProjectOpen(false)}>Cancel</Button>
-                        <Button size="sm" onClick={handleQuickCreateProject}>Create & Link</Button>
-                      </div>
+                    <div className="flex gap-1">
+                      <Popover open={projectPopoverOpen} onOpenChange={(v) => { setProjectPopoverOpen(v); setProjectSearch(""); }}>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className="text-xs gap-1 flex-1"><FolderOpen className="w-3 h-3" /> Link</Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 p-2 bg-popover z-[9999]" align="start">
+                          <Input placeholder="Search projects..." value={projectSearch} onChange={e => setProjectSearch(e.target.value)} className="h-8 text-xs mb-2" autoFocus />
+                          <div className="max-h-60 overflow-y-auto space-y-0.5">
+                            {availableProjects.map(p => (
+                              <button key={p.id} onClick={() => handleLinkProject(p.id)}
+                                className="w-full text-left px-2 py-1.5 text-xs rounded hover:bg-muted truncate">{p.name}</button>
+                            ))}
+                            {availableProjects.length === 0 && <p className="text-xs text-muted-foreground px-2 py-1">No projects found</p>}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => { setQuickProjectForm({ name: deal.title, project_type: "consulting" }); setQuickProjectOpen(true); }}>
+                        <Plus className="w-3 h-3" /> New
+                      </Button>
                     </div>
-                  )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Quick-add contact form (rendered outside the grid) */}
+          {quickContactOpen && (
+            <Card>
+              <CardContent className="py-3 space-y-2">
+                <p className="text-xs font-semibold">Quick add contact{companyName ? ` to ${companyName}` : ""}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input placeholder="First name *" value={quickContactForm.first_name} onChange={e => setQuickContactForm(f => ({ ...f, first_name: e.target.value }))} className="h-8 text-xs" />
+                  <Input placeholder="Last name *" value={quickContactForm.last_name} onChange={e => setQuickContactForm(f => ({ ...f, last_name: e.target.value }))} className="h-8 text-xs" />
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                <Input placeholder="Job title" value={quickContactForm.job_title} onChange={e => setQuickContactForm(f => ({ ...f, job_title: e.target.value }))} className="h-8 text-xs" />
+                <Input placeholder="Email" value={quickContactForm.email} onChange={e => setQuickContactForm(f => ({ ...f, email: e.target.value }))} className="h-8 text-xs" />
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setQuickContactOpen(false)}>Cancel</Button>
+                  <Button size="sm" onClick={handleQuickAddContact}>Add</Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Quick-create project form (rendered outside the grid) */}
+          {quickProjectOpen && (
+            <Card>
+              <CardContent className="py-3 space-y-2">
+                <p className="text-xs font-semibold">Create new project</p>
+                <Input placeholder="Project name *" value={quickProjectForm.name} onChange={e => setQuickProjectForm(f => ({ ...f, name: e.target.value }))} className="h-8 text-xs" />
+                <div>
+                  <Label className="text-xs">Type</Label>
+                  <div className="flex gap-1 mt-1">
+                    {["consulting", "recruitment", "managed"].map(t => (
+                      <Button key={t} size="sm" variant={quickProjectForm.project_type === t ? "default" : "outline"} className="text-xs capitalize h-7"
+                        onClick={() => setQuickProjectForm(f => ({ ...f, project_type: t }))}>{t}</Button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button size="sm" variant="ghost" onClick={() => setQuickProjectOpen(false)}>Cancel</Button>
+                  <Button size="sm" onClick={handleQuickCreateProject}>Create & Link</Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* ── Engagement / Delivery ── */}
           {d.engagement_id && engagement ? (

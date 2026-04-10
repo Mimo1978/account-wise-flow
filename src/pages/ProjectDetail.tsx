@@ -141,19 +141,68 @@ function useCompanySearch(workspaceId: string | undefined, open: boolean) {
   });
 }
 
+/* ─── Resolve CRM company ID from canonical company ID ─── */
+function useCrmCompanyId(companyId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['crm-company-id-for', companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      // Find the crm_companies record linked to this canonical company
+      const { data } = await supabase
+        .from('crm_companies' as any)
+        .select('id')
+        .eq('source_company_id', companyId)
+        .limit(1)
+        .maybeSingle();
+      return (data as any)?.id as string | null;
+    },
+    enabled: !!companyId,
+  });
+}
+
 /* ─── Company Contacts Hook (all contacts for a company) ─── */
 function useCompanyContacts(companyId: string | null | undefined) {
+  const { data: crmCompanyId } = useCrmCompanyId(companyId);
+
   return useQuery({
-    queryKey: ['company-contacts-list', companyId],
+    queryKey: ['company-contacts-list', companyId, crmCompanyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data } = await supabase
-        .from('crm_contacts')
-        .select('id, first_name, last_name, job_title')
+      type ContactRow = { id: string; first_name: string; last_name: string; job_title: string | null };
+      const seen = new Set<string>();
+      const results: ContactRow[] = [];
+
+      // 1) Query crm_contacts using the resolved CRM company ID
+      if (crmCompanyId) {
+        const { data } = await supabase
+          .from('crm_contacts')
+          .select('id, first_name, last_name, job_title')
+          .eq('company_id', crmCompanyId)
+          .is('deleted_at', null)
+          .order('last_name');
+        for (const c of (data || []) as ContactRow[]) {
+          if (!seen.has(c.id)) { seen.add(c.id); results.push(c); }
+        }
+      }
+
+      // 2) Also query canonical contacts table using the canonical company ID
+      const { data: nativeData } = await supabase
+        .from('contacts')
+        .select('id, name, title')
         .eq('company_id', companyId)
         .is('deleted_at', null)
-        .order('last_name');
-      return (data || []) as { id: string; first_name: string; last_name: string; job_title: string | null }[];
+        .order('name');
+      for (const c of (nativeData || []) as { id: string; name: string; title: string | null }[]) {
+        if (!seen.has(c.id)) {
+          const parts = c.name.split(' ');
+          const first_name = parts[0] || '';
+          const last_name = parts.slice(1).join(' ') || '';
+          seen.add(c.id);
+          results.push({ id: c.id, first_name, last_name, job_title: c.title });
+        }
+      }
+
+      return results;
     },
     enabled: !!companyId,
   });

@@ -209,17 +209,18 @@ function useCompanyContacts(companyId: string | null | undefined) {
 }
 
 /* ─── Contact Search Hook ─── */
-function useContactSearch(searchTerm: string, enabled: boolean, companyId?: string | null) {
+function useContactSearch(searchTerm: string, enabled: boolean, companyId?: string | null, crmCompanyId?: string | null) {
   return useQuery({
-    queryKey: ['crm-contacts-search', searchTerm, companyId],
+    queryKey: ['crm-contacts-search', searchTerm, companyId, crmCompanyId],
     queryFn: async () => {
       if (!searchTerm.trim()) return [];
       let results: { id: string; first_name: string; last_name: string; job_title: string | null; fromCompany?: boolean }[] = [];
-      if (companyId) {
+      // Search CRM contacts at this company using the resolved CRM company ID
+      if (crmCompanyId) {
         const { data } = await supabase
           .from('crm_contacts')
           .select('id, first_name, last_name, job_title')
-          .eq('company_id', companyId)
+          .eq('company_id', crmCompanyId)
           .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
           .is('deleted_at', null)
           .limit(8);

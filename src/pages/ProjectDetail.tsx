@@ -102,11 +102,22 @@ const CAMPAIGN_STATUS_BADGE: Record<string, string> = {
 };
 
 const TYPES = [
-  { value: 'consulting', label: 'Consulting' },
   { value: 'recruitment', label: 'Recruitment' },
+  { value: 'contractor', label: 'Contractor' },
+  { value: 'permanent', label: 'Permanent' },
+  { value: 'consulting', label: 'Consulting' },
   { value: 'managed_service', label: 'Managed Service' },
   { value: 'other', label: 'Other' },
 ];
+
+const TYPE_COLORS: Record<string, string> = {
+  recruitment: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  contractor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  permanent: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  consulting: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  managed_service: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  other: 'bg-muted text-muted-foreground border-border',
+};
 
 const STAGES = [
   { value: 'pipeline', label: 'Pipeline' },
@@ -1517,6 +1528,7 @@ const ProjectDetail = () => {
   const defaultTab = searchParams.get('tab') || 'overview';
   const { currentWorkspace } = useWorkspace();
   const { data: engagement, isLoading } = useEngagement(id, currentWorkspace?.id);
+  const updateMutation = useUpdateEngagement();
 
   // Fetch SOWs & invoices for this engagement
   const { data: allSows = [] } = useSows(currentWorkspace?.id);
@@ -1578,7 +1590,26 @@ const ProjectDetail = () => {
           <PageBackButton fallback="/projects" />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">{engagement.name}</h1>
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary" className="text-xs capitalize">{engagement.engagement_type.replace('_', ' ')}</Badge>
+            <Select
+              value={engagement.engagement_type}
+              onValueChange={async (val) => {
+                try {
+                  await updateMutation.mutateAsync({ id: engagement.id, engagement_type: val });
+                  toast.success(`Project type changed to ${TYPES.find(t => t.value === val)?.label ?? val}`);
+                } catch (err: any) {
+                  toast.error(err.message || 'Failed to update type');
+                }
+              }}
+            >
+              <SelectTrigger className={`h-6 w-auto gap-1 px-2 text-xs font-medium rounded-md border ${TYPE_COLORS[engagement.engagement_type] ?? TYPE_COLORS.other}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPES.map(t => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Badge variant="outline" className="text-xs">{STAGE_LABELS[engagement.stage] ?? engagement.stage}</Badge>
             <span className={`inline-block w-2.5 h-2.5 rounded-full ${HEALTH_COLORS[engagement.health]?.split(' ')[0] ?? 'bg-muted'}`} />
             {engagement.companies?.name ? (

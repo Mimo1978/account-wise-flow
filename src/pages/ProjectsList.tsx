@@ -25,6 +25,14 @@ const HEALTH_COLORS: Record<string, string> = {
   red: 'bg-destructive',
 };
 
+const TYPE_COLORS: Record<string, string> = {
+  recruitment: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  contractor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  permanent: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  consulting: 'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  managed_service: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  other: 'bg-muted text-muted-foreground border-border',
+};
 const ProjectsList = () => {
   const navigate = useNavigate();
   const { currentWorkspace } = useWorkspace();
@@ -138,7 +146,7 @@ const ProjectsList = () => {
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              <Badge variant="secondary" className="text-xs capitalize">{eng.engagement_type.replace('_', ' ')}</Badge>
+                              <Badge variant="secondary" className={`text-xs capitalize border ${TYPE_COLORS[eng.engagement_type] ?? 'bg-muted text-muted-foreground border-border'}`}>{eng.engagement_type.replace('_', ' ')}</Badge>
                             </td>
                             <td className="px-4 py-3">
                               <Badge variant="outline" className="text-xs">{STAGE_LABELS[eng.stage] ?? eng.stage}</Badge>

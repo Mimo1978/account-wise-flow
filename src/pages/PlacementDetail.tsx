@@ -368,7 +368,7 @@ export default function PlacementDetail() {
                 <div><p className="text-muted-foreground">Billing email</p><p className="font-medium">{placement.billing_contact_email || "—"}</p></div>
                 <div><p className="text-muted-foreground">PO number</p><p className="font-medium">{placement.po_number || "—"}</p></div>
                 <div><p className="text-muted-foreground">Currency</p><p className="font-medium">{placement.currency}</p></div>
-                {placement.deals && <div><p className="text-muted-foreground">Linked deal</p><p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/deals/${placement.deal_id}`)}>{placement.deals.title}</p></div>}
+                {placement.crm_deals && <div><p className="text-muted-foreground">Linked deal</p><p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/deals/${placement.deal_id}`)}>{placement.crm_deals.title}</p></div>}
               </div>
             </CardContent>
           </Card>

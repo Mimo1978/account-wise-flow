@@ -428,16 +428,130 @@ export default function CrmDealDetail() {
             </CardContent>
           </Card>
 
-          {/* ── Financial Summary ── */}
+          {/* ── Deal Type & Key Dates ── */}
+          <Card>
+            <CardContent className="py-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Deal Details</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground text-xs">Type</span>
+                  <p className="font-medium mt-0.5">
+                    {dealType ? (
+                      <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize",
+                        dealType === 'contractor' && "bg-amber-500/20 text-amber-600",
+                        dealType === 'permanent' && "bg-violet-500/20 text-violet-600",
+                        dealType === 'consulting' && "bg-blue-500/20 text-blue-600",
+                      )}>{dealType}</span>
+                    ) : <span className="text-muted-foreground">—</span>}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Date Added</span>
+                  <p className="font-medium mt-0.5">{format(new Date(deal.created_at), "dd MMM yyyy")}</p>
+                  <p className="text-[10px] text-muted-foreground">{format(new Date(deal.created_at), "HH:mm")}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Start Date</span>
+                  <p className="font-medium mt-0.5">{deal.start_date ? format(new Date(deal.start_date), "dd MMM yyyy") : "—"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">End Date</span>
+                  <p className="font-medium mt-0.5">{deal.end_date ? format(new Date(deal.end_date), "dd MMM yyyy") : "—"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Expected Close</span>
+                  <p className="font-medium mt-0.5">{deal.expected_close_date ? format(new Date(deal.expected_close_date), "dd MMM yyyy") : "—"}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs">Signed Date</span>
+                  <p className="font-medium mt-0.5">{deal.signed_date ? format(new Date(deal.signed_date), "dd MMM yyyy") : "—"}</p>
+                </div>
+              </div>
+              {(deal.payment_terms || deal.notes) && (
+                <div className="grid grid-cols-2 gap-4 mt-4 pt-3 border-t border-border text-sm">
+                  {deal.payment_terms && <div><span className="text-muted-foreground text-xs">Payment Terms</span><p className="font-medium mt-0.5">{deal.payment_terms}</p></div>}
+                  {deal.notes && <div className="col-span-2"><span className="text-muted-foreground text-xs">Notes</span><p className="mt-0.5 whitespace-pre-wrap text-sm">{deal.notes}</p></div>}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ── Financial Summary — type-aware ── */}
           <Card>
             <CardContent className="py-4">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Financial Summary</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div><span className="text-muted-foreground">Deal Value</span><p className="text-lg font-bold">{currencySymbol}{deal.value.toLocaleString()}</p></div>
-                <div><span className="text-muted-foreground">Probability</span><p className="text-lg font-bold">{d.probability ?? 0}%</p></div>
-                <div><span className="text-muted-foreground">Weighted Value</span><p className="text-lg font-bold">{currencySymbol}{Math.round(deal.value * (d.probability ?? 0) / 100).toLocaleString()}</p></div>
-                <div><span className="text-muted-foreground">Invoiced</span><p className="text-lg font-bold">{currencySymbol}{invoices.reduce((s, inv) => s + (inv.total || 0), 0).toLocaleString()}</p></div>
-              </div>
+              {dealType === 'contractor' ? (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground text-xs">Charge Rate (client)</span>
+                    <p className="text-lg font-bold">{d.day_rate ? `${currencySymbol}${d.day_rate}/day` : "—"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Pay Rate (worker)</span>
+                    <p className="text-lg font-bold">{dealPlacement?.buy_rate ? `${currencySymbol}${dealPlacement.buy_rate}/day` : "—"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Margin</span>
+                    <p className="text-lg font-bold text-green-500">
+                      {d.day_rate && dealPlacement?.buy_rate
+                        ? `${Math.round((d.day_rate - dealPlacement.buy_rate) / d.day_rate * 100)}%`
+                        : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Confidence</span>
+                    <p className="text-lg font-bold">{d.probability ?? 0}%</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Weighted Value</span>
+                    <p className="text-lg font-bold">{currencySymbol}{Math.round(deal.value * (d.probability ?? 0) / 100).toLocaleString()}</p>
+                  </div>
+                </div>
+              ) : dealType === 'permanent' ? (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground text-xs">Annual Salary</span>
+                    <p className="text-lg font-bold">{d.salary ? `${currencySymbol}${Number(d.salary).toLocaleString()}` : "—"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Fee %</span>
+                    <p className="text-lg font-bold">{d.fee_percentage != null ? `${d.fee_percentage}%` : "20%"}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Placement Fee</span>
+                    <p className="text-lg font-bold text-green-500">
+                      {d.salary ? `${currencySymbol}${Math.round(d.salary * (d.fee_percentage ?? 20) / 100).toLocaleString()}` : "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Confidence</span>
+                    <p className="text-lg font-bold">{d.probability ?? 0}%</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Weighted Value</span>
+                    <p className="text-lg font-bold">{currencySymbol}{Math.round(deal.value * (d.probability ?? 0) / 100).toLocaleString()}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground text-xs">Deal Value</span>
+                    <p className="text-lg font-bold">{currencySymbol}{deal.value.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Confidence</span>
+                    <p className="text-lg font-bold">{d.probability ?? 0}%</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Weighted Value</span>
+                    <p className="text-lg font-bold">{currencySymbol}{Math.round(deal.value * (d.probability ?? 0) / 100).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground text-xs">Invoiced</span>
+                    <p className="text-lg font-bold">{currencySymbol}{invoices.reduce((s, inv) => s + (inv.total || 0), 0).toLocaleString()}</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -727,7 +841,7 @@ export default function CrmDealDetail() {
                         {dealPlacement?.candidates?.name || "Active Placement"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {dealPlacement?.candidates?.current_title || (deal as any).deal_type || "Contractor"}
+                        {dealPlacement?.candidates?.current_title || dealType || "Contractor"}
                       </p>
                     </div>
                   </div>
@@ -804,29 +918,17 @@ export default function CrmDealDetail() {
             </Card>
           ) : null}
 
-          {/* ── Dates & Info ── */}
-          <Card>
-            <CardContent className="py-6 space-y-4 text-sm">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div><span className="text-muted-foreground">Signed Date</span><p className="font-medium">{deal.signed_date ? format(new Date(deal.signed_date), "dd MMM yyyy") : "—"}</p></div>
-                <div><span className="text-muted-foreground">Start Date</span><p className="font-medium">{deal.start_date ? format(new Date(deal.start_date), "dd MMM yyyy") : "—"}</p></div>
-                <div><span className="text-muted-foreground">End Date</span><p className="font-medium">{deal.end_date ? format(new Date(deal.end_date), "dd MMM yyyy") : "—"}</p></div>
-                <div><span className="text-muted-foreground">Payment Terms</span><p className="font-medium">{deal.payment_terms || "—"}</p></div>
-                <div><span className="text-muted-foreground">Currency</span><p className="font-medium">{deal.currency}</p></div>
-              </div>
-              {deal.crm_opportunities && (
-                <div>
-                  <span className="text-muted-foreground">Linked Opportunity</span>
-                  <p className="font-medium text-primary cursor-pointer hover:underline" onClick={() => navigate(`/crm/opportunities/${deal.crm_opportunities!.id}`)}>
-                    {deal.crm_opportunities.title}
-                  </p>
-                </div>
-              )}
-              {deal.notes && (
-                <div><span className="text-muted-foreground">Notes</span><p className="mt-1 whitespace-pre-wrap">{deal.notes}</p></div>
-              )}
-            </CardContent>
-          </Card>
+          {/* ── Linked Opportunity ── */}
+          {deal.crm_opportunities && (
+            <Card>
+              <CardContent className="py-4">
+                <span className="text-muted-foreground text-xs">Linked Opportunity</span>
+                <p className="font-medium text-primary cursor-pointer hover:underline text-sm mt-0.5" onClick={() => navigate(`/crm/opportunities/${deal.crm_opportunities!.id}`)}>
+                  {deal.crm_opportunities.title}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* ── Documents Tab (unchanged) ── */}

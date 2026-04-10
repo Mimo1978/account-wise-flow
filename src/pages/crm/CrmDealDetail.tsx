@@ -49,6 +49,7 @@ export default function CrmDealDetail() {
   const { data: invoices = [] } = useCrmInvoices({ deal_id: id });
   const updateDoc = useUpdateCrmDocument();
   const [editOpen, setEditOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
   const [uploadOpen, setUploadOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -394,7 +395,7 @@ export default function CrmDealDetail() {
 
       <DeletionRequestBanner recordType="crm_deals" recordId={deal.id} />
 
-      <Tabs defaultValue="overview">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="documents">Documents ({docs.length})</TabsTrigger>
@@ -428,7 +429,98 @@ export default function CrmDealDetail() {
             </CardContent>
           </Card>
 
-          {/* ── Deal Type & Key Dates ── */}
+          {/* ── Active Placement Card (shown when placed) ── */}
+          {d.stage === "placed" && (
+            <Card className="border-amber-500/30 overflow-hidden">
+              <div className="h-1 bg-amber-500 w-full" />
+              <CardContent className="py-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                      <Users className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {dealPlacement?.candidates?.name || "Active Placement"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {dealPlacement?.candidates?.current_title || dealType || "Contractor"}
+                      </p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" className="gap-1.5 text-xs"
+                    onClick={() => setActiveTab("placements")}>
+                    View placement <ArrowRight className="w-3 h-3" />
+                  </Button>
+                </div>
+                {dealPlacement && (
+                  <div className="grid grid-cols-4 gap-3 pt-2 border-t border-border">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Charge rate</p>
+                      <p className="text-sm font-semibold">
+                        {dealPlacement.charge_rate || dealPlacement.rate_per_day
+                          ? `${dealPlacement.currency} ${(dealPlacement.charge_rate || dealPlacement.rate_per_day)}/day`
+                          : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Pay rate</p>
+                      <p className="text-sm font-semibold">
+                        {dealPlacement.buy_rate ? `${dealPlacement.currency} ${dealPlacement.buy_rate}/day` : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Margin</p>
+                      <p className="text-sm font-semibold text-green-500">
+                        {dealPlacement.charge_rate && dealPlacement.buy_rate
+                          ? `${Math.round((dealPlacement.charge_rate - dealPlacement.buy_rate) / dealPlacement.charge_rate * 100)}%`
+                          : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Days left</p>
+                      <p className={`text-sm font-semibold ${dealPlacement.end_date && Math.ceil((new Date(dealPlacement.end_date).getTime() - Date.now()) / 86400000) < 30 ? "text-amber-500" : ""}`}>
+                        {dealPlacement.end_date
+                          ? `${Math.max(0, Math.ceil((new Date(dealPlacement.end_date).getTime() - Date.now()) / 86400000))}d`
+                          : "Open"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {dealPlacement && (
+                  <div className="flex items-center justify-between pt-2 border-t border-border">
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-muted-foreground">Timesheet:</span>
+                      <span className={`font-medium ${
+                        !latestTimeEntry ? "text-muted-foreground" :
+                        latestTimeEntry.status === "approved" ? "text-green-500" :
+                        latestTimeEntry.status === "submitted" ? "text-blue-400" :
+                        "text-amber-500"
+                      }`}>
+                        {!latestTimeEntry ? "None logged" :
+                         latestTimeEntry.status === "approved" ? "✓ Approved" :
+                         latestTimeEntry.status === "submitted" ? "Submitted — awaiting approval" :
+                         "Draft — not submitted"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-muted-foreground">Start:</span>
+                      <span className="font-medium">
+                        {dealPlacement.start_date ? format(new Date(dealPlacement.start_date), "dd MMM yyyy") : "—"}
+                      </span>
+                      {dealPlacement.end_date && (
+                        <>
+                          <span className="text-muted-foreground">End:</span>
+                          <span className="font-medium">{format(new Date(dealPlacement.end_date), "dd MMM yyyy")}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardContent className="py-4">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Deal Details</p>
@@ -808,95 +900,6 @@ export default function CrmDealDetail() {
                     <Users className="w-3.5 h-3.5" /> Convert to placement
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
-          ) : d.stage === "placed" ? (
-            <Card className="border-amber-500/30 overflow-hidden">
-              <div className="h-1 bg-amber-500 w-full" />
-              <CardContent className="py-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
-                      <Users className="w-4 h-4 text-amber-500" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">
-                        {dealPlacement?.candidates?.name || "Active Placement"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {dealPlacement?.candidates?.current_title || dealType || "Contractor"}
-                      </p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" className="gap-1.5 text-xs"
-                    onClick={() => dealPlacement ? navigate(`/placements/${dealPlacement.id}`) : navigate("/home")}>
-                    View placement <ArrowRight className="w-3 h-3" />
-                  </Button>
-                </div>
-                {dealPlacement && (
-                  <div className="grid grid-cols-4 gap-3 pt-2 border-t border-border">
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Charge rate</p>
-                      <p className="text-sm font-semibold">
-                        {dealPlacement.charge_rate || dealPlacement.rate_per_day
-                          ? `${dealPlacement.currency} ${(dealPlacement.charge_rate || dealPlacement.rate_per_day)}/day`
-                          : "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Pay rate</p>
-                      <p className="text-sm font-semibold">
-                        {dealPlacement.buy_rate ? `${dealPlacement.currency} ${dealPlacement.buy_rate}/day` : "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Margin</p>
-                      <p className="text-sm font-semibold text-green-500">
-                        {dealPlacement.charge_rate && dealPlacement.buy_rate
-                          ? `${Math.round((dealPlacement.charge_rate - dealPlacement.buy_rate) / dealPlacement.charge_rate * 100)}%`
-                          : "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Days left</p>
-                      <p className={`text-sm font-semibold ${dealPlacement.end_date && Math.ceil((new Date(dealPlacement.end_date).getTime() - Date.now()) / 86400000) < 30 ? "text-amber-500" : ""}`}>
-                        {dealPlacement.end_date
-                          ? `${Math.max(0, Math.ceil((new Date(dealPlacement.end_date).getTime() - Date.now()) / 86400000))}d`
-                          : "Open"}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {dealPlacement && (
-                  <div className="flex items-center justify-between pt-2 border-t border-border">
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className="text-muted-foreground">Timesheet:</span>
-                      <span className={`font-medium ${
-                        !latestTimeEntry ? "text-muted-foreground" :
-                        latestTimeEntry.status === "approved" ? "text-green-500" :
-                        latestTimeEntry.status === "submitted" ? "text-blue-400" :
-                        "text-amber-500"
-                      }`}>
-                        {!latestTimeEntry ? "None logged" :
-                         latestTimeEntry.status === "approved" ? "✓ Approved" :
-                         latestTimeEntry.status === "submitted" ? "Submitted — awaiting approval" :
-                         "Draft — not submitted"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs">
-                      <span className="text-muted-foreground">Start:</span>
-                      <span className="font-medium">
-                        {dealPlacement.start_date ? format(new Date(dealPlacement.start_date), "dd MMM yyyy") : "—"}
-                      </span>
-                      {dealPlacement.end_date && (
-                        <>
-                          <span className="text-muted-foreground">End:</span>
-                          <span className="font-medium">{format(new Date(dealPlacement.end_date), "dd MMM yyyy")}</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           ) : null}

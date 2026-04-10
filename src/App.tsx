@@ -73,6 +73,7 @@ import IntegrationsSettings from "./pages/settings/IntegrationsSettings";
 import EmailTemplatesSettings from "./pages/settings/EmailTemplatesSettings";
 import Dashboard from "./pages/Dashboard";
 import PlacementDetail from "./pages/PlacementDetail";
+import PlacementsList from "./pages/PlacementsList";
 import { Loader2 } from "lucide-react";
 import { JarvisFloatingButton } from "@/components/jarvis/JarvisChat";
 
@@ -190,6 +191,7 @@ const App = () => {
             <Route path="/crm/opportunities/:id" element={<ProtectedRoute><ProductLayout><CrmOpportunityDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/deals" element={<ProtectedRoute><ProductLayout><CrmDeals /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/deals/:id" element={<ProtectedRoute><ProductLayout><CrmDealDetail /></ProductLayout></ProtectedRoute>} />
+            <Route path="/placements" element={<ProtectedRoute><ProductLayout><PlacementsList /></ProductLayout></ProtectedRoute>} />
             <Route path="/placements/:id" element={<ProtectedRoute><ProductLayout><PlacementDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/projects" element={<Navigate to="/projects" replace />} />
             <Route path="/crm/projects/:id" element={<Navigate to="/projects" replace />} />

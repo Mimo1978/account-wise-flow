@@ -5540,7 +5540,9 @@ export type Database = {
       placements: {
         Row: {
           billing_contact_email: string | null
+          buy_rate: number | null
           candidate_id: string | null
+          charge_rate: number | null
           company_id: string | null
           contact_id: string | null
           created_at: string
@@ -5553,6 +5555,7 @@ export type Database = {
           id: string
           invoice_frequency: string | null
           job_id: string | null
+          margin_rate: number | null
           notes: string | null
           placement_fee: number | null
           placement_type: string
@@ -5566,7 +5569,9 @@ export type Database = {
         }
         Insert: {
           billing_contact_email?: string | null
+          buy_rate?: number | null
           candidate_id?: string | null
+          charge_rate?: number | null
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
@@ -5579,6 +5584,7 @@ export type Database = {
           id?: string
           invoice_frequency?: string | null
           job_id?: string | null
+          margin_rate?: number | null
           notes?: string | null
           placement_fee?: number | null
           placement_type?: string
@@ -5592,7 +5598,9 @@ export type Database = {
         }
         Update: {
           billing_contact_email?: string | null
+          buy_rate?: number | null
           candidate_id?: string | null
+          charge_rate?: number | null
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
@@ -5605,6 +5613,7 @@ export type Database = {
           id?: string
           invoice_frequency?: string | null
           job_id?: string | null
+          margin_rate?: number | null
           notes?: string | null
           placement_fee?: number | null
           placement_type?: string

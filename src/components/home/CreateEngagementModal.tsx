@@ -26,8 +26,10 @@ interface Props {
 }
 
 const TYPES = [
-  { value: 'consulting', label: 'Consulting' },
   { value: 'recruitment', label: 'Recruitment' },
+  { value: 'contractor', label: 'Contractor' },
+  { value: 'permanent', label: 'Permanent' },
+  { value: 'consulting', label: 'Consulting' },
   { value: 'managed_service', label: 'Managed Service' },
   { value: 'other', label: 'Other' },
 ];

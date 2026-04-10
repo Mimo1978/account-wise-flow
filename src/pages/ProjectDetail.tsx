@@ -141,36 +141,86 @@ function useCompanySearch(workspaceId: string | undefined, open: boolean) {
   });
 }
 
+/* ─── Resolve CRM company ID from canonical company ID ─── */
+function useCrmCompanyId(companyId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['crm-company-id-for', companyId],
+    queryFn: async () => {
+      if (!companyId) return null;
+      // Find the crm_companies record linked to this canonical company
+      const { data } = await supabase
+        .from('crm_companies' as any)
+        .select('id')
+        .eq('source_company_id', companyId)
+        .limit(1)
+        .maybeSingle();
+      return (data as any)?.id as string | null;
+    },
+    enabled: !!companyId,
+  });
+}
+
 /* ─── Company Contacts Hook (all contacts for a company) ─── */
 function useCompanyContacts(companyId: string | null | undefined) {
+  const { data: crmCompanyId } = useCrmCompanyId(companyId);
+
   return useQuery({
-    queryKey: ['company-contacts-list', companyId],
+    queryKey: ['company-contacts-list', companyId, crmCompanyId],
     queryFn: async () => {
       if (!companyId) return [];
-      const { data } = await supabase
-        .from('crm_contacts')
-        .select('id, first_name, last_name, job_title')
+      type ContactRow = { id: string; first_name: string; last_name: string; job_title: string | null };
+      const seen = new Set<string>();
+      const results: ContactRow[] = [];
+
+      // 1) Query crm_contacts using the resolved CRM company ID
+      if (crmCompanyId) {
+        const { data } = await supabase
+          .from('crm_contacts')
+          .select('id, first_name, last_name, job_title')
+          .eq('company_id', crmCompanyId)
+          .is('deleted_at', null)
+          .order('last_name');
+        for (const c of (data || []) as ContactRow[]) {
+          if (!seen.has(c.id)) { seen.add(c.id); results.push(c); }
+        }
+      }
+
+      // 2) Also query canonical contacts table using the canonical company ID
+      const { data: nativeData } = await supabase
+        .from('contacts')
+        .select('id, name, title')
         .eq('company_id', companyId)
         .is('deleted_at', null)
-        .order('last_name');
-      return (data || []) as { id: string; first_name: string; last_name: string; job_title: string | null }[];
+        .order('name');
+      for (const c of (nativeData || []) as { id: string; name: string; title: string | null }[]) {
+        if (!seen.has(c.id)) {
+          const parts = c.name.split(' ');
+          const first_name = parts[0] || '';
+          const last_name = parts.slice(1).join(' ') || '';
+          seen.add(c.id);
+          results.push({ id: c.id, first_name, last_name, job_title: c.title });
+        }
+      }
+
+      return results;
     },
     enabled: !!companyId,
   });
 }
 
 /* ─── Contact Search Hook ─── */
-function useContactSearch(searchTerm: string, enabled: boolean, companyId?: string | null) {
+function useContactSearch(searchTerm: string, enabled: boolean, companyId?: string | null, crmCompanyId?: string | null) {
   return useQuery({
-    queryKey: ['crm-contacts-search', searchTerm, companyId],
+    queryKey: ['crm-contacts-search', searchTerm, companyId, crmCompanyId],
     queryFn: async () => {
       if (!searchTerm.trim()) return [];
       let results: { id: string; first_name: string; last_name: string; job_title: string | null; fromCompany?: boolean }[] = [];
-      if (companyId) {
+      // Search CRM contacts at this company using the resolved CRM company ID
+      if (crmCompanyId) {
         const { data } = await supabase
           .from('crm_contacts')
           .select('id, first_name, last_name, job_title')
-          .eq('company_id', companyId)
+          .eq('company_id', crmCompanyId)
           .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
           .is('deleted_at', null)
           .limit(8);
@@ -234,9 +284,12 @@ function InlineContactPicker({
     enabled: !!contactId,
   });
 
+  // Resolve the CRM company ID for contact lookups
+  const { data: crmCompanyId } = useCrmCompanyId(companyId);
+
   // All contacts for the assigned company
   const { data: companyContacts = [] } = useCompanyContacts(companyId);
-  const { data: searchResults = [] } = useContactSearch(searchTerm, searching && searchTerm.length > 1, companyId);
+  const { data: searchResults = [] } = useContactSearch(searchTerm, searching && searchTerm.length > 1, companyId, crmCompanyId);
 
   // Filter company contacts by search term for the browse list
   const filteredCompanyContacts = companyContacts.filter(c => {
@@ -285,7 +338,7 @@ function InlineContactPicker({
           first_name: newFirst.trim(),
           last_name: newLast.trim(),
           job_title: newTitle.trim() || null,
-          company_id: companyId || null,
+          company_id: crmCompanyId || companyId || null,
         } as any)
         .select('id')
         .single();
@@ -528,18 +581,23 @@ function CompanyCard({ engagementId, companyId, companyName, workspaceId }: {
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: crmCompanyId } = useCrmCompanyId(companyId);
 
   // Count contacts for this company
   const { data: contactCount } = useQuery({
-    queryKey: ['company-contact-count', companyId],
+    queryKey: ['company-contact-count', companyId, crmCompanyId],
     queryFn: async () => {
       if (!companyId) return 0;
-      // Try both tables
-      const [nativeRes, crmRes] = await Promise.all([
-        supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('company_id', companyId).is('deleted_at', null),
-        supabase.from('crm_contacts').select('id', { count: 'exact', head: true }).eq('company_id', companyId).is('deleted_at', null),
-      ]);
-      return Math.max(nativeRes.count ?? 0, crmRes.count ?? 0);
+      const promises: Promise<{ count: number | null }>[] = [
+        supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('company_id', companyId).is('deleted_at', null) as any,
+      ];
+      if (crmCompanyId) {
+        promises.push(
+          supabase.from('crm_contacts').select('id', { count: 'exact', head: true }).eq('company_id', crmCompanyId).is('deleted_at', null) as any,
+        );
+      }
+      const results = await Promise.all(promises);
+      return Math.max(...results.map(r => r.count ?? 0));
     },
     enabled: !!companyId,
   });

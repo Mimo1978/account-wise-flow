@@ -1589,7 +1589,26 @@ const ProjectDetail = () => {
           <PageBackButton fallback="/projects" />
           <h1 className="text-2xl font-bold text-foreground tracking-tight">{engagement.name}</h1>
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary" className="text-xs capitalize">{engagement.engagement_type.replace('_', ' ')}</Badge>
+            <Select
+              value={engagement.engagement_type}
+              onValueChange={async (val) => {
+                try {
+                  await updateMutation.mutateAsync({ id: engagement.id, engagement_type: val });
+                  toast.success(`Project type changed to ${TYPES.find(t => t.value === val)?.label ?? val}`);
+                } catch (err: any) {
+                  toast.error(err.message || 'Failed to update type');
+                }
+              }}
+            >
+              <SelectTrigger className={`h-6 w-auto gap-1 px-2 text-xs font-medium rounded-md border ${TYPE_COLORS[engagement.engagement_type] ?? TYPE_COLORS.other}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPES.map(t => (
+                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Badge variant="outline" className="text-xs">{STAGE_LABELS[engagement.stage] ?? engagement.stage}</Badge>
             <span className={`inline-block w-2.5 h-2.5 rounded-full ${HEALTH_COLORS[engagement.health]?.split(' ')[0] ?? 'bg-muted'}`} />
             {engagement.companies?.name ? (

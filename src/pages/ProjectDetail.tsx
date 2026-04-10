@@ -1017,6 +1017,34 @@ function RecentActivitySection({
       if (contactId) entityIds.push(contactId);
       if (hiringManagerId && hiringManagerId !== contactId) entityIds.push(hiringManagerId);
 
+      // Resolve crm_contacts IDs to corresponding contacts IDs (notes are stored against contacts table)
+      const crmContactIds = [contactId, hiringManagerId].filter(Boolean) as string[];
+      let resolvedContactsIds: string[] = [...crmContactIds];
+      if (crmContactIds.length > 0) {
+        // Get names from crm_contacts
+        const { data: crmC } = await supabase
+          .from('crm_contacts')
+          .select('id, first_name, last_name')
+          .in('id', crmContactIds);
+        if (crmC && crmC.length > 0) {
+          // Find matching contacts records by name
+          const nameFilters = crmC.map((c: any) => {
+            const fullName = `${c.first_name} ${c.last_name}`.trim();
+            const reverseName = `${c.last_name}, ${c.first_name}`.trim();
+            return `name.eq.${fullName},name.eq.${reverseName}`;
+          }).join(',');
+          const { data: matchedContacts } = await supabase
+            .from('contacts')
+            .select('id, name')
+            .or(nameFilters);
+          if (matchedContacts) {
+            matchedContacts.forEach((mc: any) => {
+              if (!resolvedContactsIds.includes(mc.id)) resolvedContactsIds.push(mc.id);
+            });
+          }
+        }
+      }
+
       // 1. Audit log for project + linked contacts
       const { data: auditData } = await supabase
         .from('audit_log')
@@ -1025,14 +1053,13 @@ function RecentActivitySection({
         .order('changed_at', { ascending: false })
         .limit(50);
 
-      // 2. Notes on linked contacts
-      const contactIds = [contactId, hiringManagerId].filter(Boolean) as string[];
+      // 2. Notes on linked contacts (query both crm_contacts IDs and resolved contacts IDs)
       let notesData: any[] = [];
-      if (contactIds.length > 0) {
+      if (resolvedContactsIds.length > 0) {
         const { data } = await (supabase.from('notes') as any)
           .select('id, content, entity_id, owner_id, created_at')
           .eq('entity_type', 'contact')
-          .in('entity_id', contactIds)
+          .in('entity_id', resolvedContactsIds)
           .order('created_at', { ascending: false })
           .limit(20);
         notesData = data || [];

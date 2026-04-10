@@ -271,7 +271,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                           <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, backgroundColor: dc, opacity: act ? 1 : 0.7 }} />
                           <item.icon className="w-4 h-4" />
                           {item.label}
-                          {item.badge && item.path === '/jobs' && newAppCount > 0 && (
+                          {'badge' in item && item.badge && item.path === '/jobs' && newAppCount > 0 && (
                             <span className="ml-auto min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
                               {newAppCount > 99 ? '99+' : newAppCount}
                             </span>

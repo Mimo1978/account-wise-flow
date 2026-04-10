@@ -338,7 +338,7 @@ function InlineContactPicker({
           first_name: newFirst.trim(),
           last_name: newLast.trim(),
           job_title: newTitle.trim() || null,
-          company_id: companyId || null,
+          company_id: crmCompanyId || companyId || null,
         } as any)
         .select('id')
         .single();

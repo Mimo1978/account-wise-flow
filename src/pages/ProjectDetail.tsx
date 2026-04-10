@@ -1903,7 +1903,12 @@ const ProjectDetail = () => {
           </div>
 
           {/* Recent Activity */}
-          <RecentActivitySection engagementId={engagement.id} companyId={engagement.company_id} />
+          <RecentActivitySection
+            engagementId={engagement.id}
+            companyId={engagement.company_id}
+            contactId={engagement.contact_id}
+            hiringManagerId={engagement.hiring_manager_id}
+          />
         </TabsContent>
 
         {/* Contracts Tab */}

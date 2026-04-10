@@ -181,7 +181,7 @@ export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Pr
             <div><Label className="text-xs">End date</Label><Input type="date" value={form.end_date} onChange={e => set("end_date", e.target.value)} className="mt-1 h-8 text-xs" /></div>
           </div>
 
-          {form.placement_type === "contractor" && (
+          {form.placement_type === "contractor" && (<>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">Charge rate — client billed ({form.currency}/day)</Label>
@@ -209,7 +209,7 @@ export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Pr
                 </SelectContent>
               </Select>
             </div>
-          )}
+          </>)}
 
           {form.placement_type === "permanent" && (
             <div className="grid grid-cols-2 gap-3">

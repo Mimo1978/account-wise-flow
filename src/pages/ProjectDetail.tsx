@@ -1520,6 +1520,51 @@ function ProjectJobsTab({ engagementId }: { engagementId: string }) {
   );
 }
 
+/* ─── Inline Editable Value ─── */
+function InlineEditableValue({ value, currency, onSave }: { value: number; currency: string; onSave: (v: number) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value?.toString() || '0');
+  const cs = currency === 'GBP' ? '£' : currency === 'USD' ? '$' : '€';
+
+  if (!editing) {
+    return (
+      <p
+        className="text-lg font-semibold text-foreground cursor-pointer hover:text-primary transition-colors"
+        onClick={() => { setDraft(value?.toString() || '0'); setEditing(true); }}
+        title="Click to edit"
+      >
+        {value > 0 ? `${cs}${value.toLocaleString()}` : '—'}
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="text-sm text-muted-foreground">{cs}</span>
+      <Input
+        autoFocus
+        type="number"
+        className="h-7 text-xs w-28"
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={async () => {
+          const num = parseInt(draft) || 0;
+          if (num !== value) await onSave(num);
+          setEditing(false);
+        }}
+        onKeyDown={async (e) => {
+          if (e.key === 'Enter') {
+            const num = parseInt(draft) || 0;
+            if (num !== value) await onSave(num);
+            setEditing(false);
+          }
+          if (e.key === 'Escape') setEditing(false);
+        }}
+      />
+    </div>
+  );
+}
+
 /* ─── Main Component ─── */
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();

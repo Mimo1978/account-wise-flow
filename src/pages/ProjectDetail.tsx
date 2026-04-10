@@ -995,30 +995,196 @@ function EditEngagementModal({
 }
 
 /* ─── Recent Activity Section ─── */
-function RecentActivitySection({ engagementId, companyId }: { engagementId: string; companyId: string | null }) {
+function RecentActivitySection({
+  engagementId,
+  companyId,
+  contactId,
+  hiringManagerId,
+}: {
+  engagementId: string;
+  companyId: string | null;
+  contactId?: string | null;
+  hiringManagerId?: string | null;
+}) {
   const { data: activities = [], isLoading } = useQuery({
-    queryKey: ['project-activity', engagementId],
+    queryKey: ['project-activity', engagementId, contactId, hiringManagerId],
     queryFn: async () => {
+      type ActivityItem = { id: string; changed_at: string; summary: string; user_name: string | null; icon: string };
+      const items: ActivityItem[] = [];
+
+      // Collect all entity IDs to query audit_log for
+      const entityIds = [engagementId];
+      if (contactId) entityIds.push(contactId);
+      if (hiringManagerId && hiringManagerId !== contactId) entityIds.push(hiringManagerId);
+
+      // 1. Audit log for project + linked contacts
       const { data: auditData } = await supabase
         .from('audit_log')
         .select('*')
-        .eq('entity_id', engagementId)
+        .in('entity_id', entityIds)
         .order('changed_at', { ascending: false })
-        .limit(10);
+        .limit(50);
 
-      const items: { id: string; action: string; entity_type: string; changed_at: string; summary: string }[] = [];
-      if (auditData) {
-        auditData.forEach((a: any) => {
-          items.push({
-            id: a.id,
-            action: a.action,
-            entity_type: a.entity_type,
-            changed_at: a.changed_at,
-            summary: `${a.action} on ${a.entity_type}`,
-          });
+      // 2. Notes on linked contacts
+      const contactIds = [contactId, hiringManagerId].filter(Boolean) as string[];
+      let notesData: any[] = [];
+      if (contactIds.length > 0) {
+        const { data } = await (supabase.from('notes') as any)
+          .select('id, content, entity_id, owner_id, created_at')
+          .eq('entity_type', 'contact')
+          .in('entity_id', contactIds)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        notesData = data || [];
+      }
+
+      // 3. Invoices linked to this engagement
+      const { data: invoiceAudit } = await supabase
+        .from('audit_log')
+        .select('*')
+        .eq('entity_type', 'invoices')
+        .order('changed_at', { ascending: false })
+        .limit(20);
+
+      // 4. SOWs/commercial docs linked to engagement
+      const { data: sowAudit } = await supabase
+        .from('audit_log')
+        .select('*')
+        .eq('entity_type', 'commercial_documents')
+        .order('changed_at', { ascending: false })
+        .limit(20);
+
+      // Collect all user IDs for name resolution
+      const userIds = new Set<string>();
+      (auditData || []).forEach((a: any) => { if (a.changed_by) userIds.add(a.changed_by); });
+      notesData.forEach((n: any) => { if (n.owner_id) userIds.add(n.owner_id); });
+      (invoiceAudit || []).forEach((a: any) => { if (a.changed_by) userIds.add(a.changed_by); });
+      (sowAudit || []).forEach((a: any) => { if (a.changed_by) userIds.add(a.changed_by); });
+
+      // Resolve user names
+      const nameMap = new Map<string, string>();
+      if (userIds.size > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', Array.from(userIds));
+        (profiles || []).forEach((p: any) => {
+          nameMap.set(p.id, [p.first_name, p.last_name].filter(Boolean).join(' ') || 'User');
         });
       }
-      return items;
+
+      const userName = (uid: string | null) => (uid ? nameMap.get(uid) ?? 'System' : 'System');
+
+      // Format field changes from audit diff
+      const FIELD_LABELS: Record<string, string> = {
+        stage: 'Stage', health: 'Health', forecast_value: 'Forecast value',
+        start_date: 'Start date', end_date: 'End date', engagement_type: 'Project type',
+        name: 'Name', description: 'Description', company_id: 'Company',
+        contact_id: 'Primary contact', hiring_manager_id: 'Key stakeholder',
+        status: 'Status', workflow_stage: 'Workflow stage',
+      };
+
+      // Process audit log entries
+      (auditData || []).forEach((a: any) => {
+        const isProject = a.entity_id === engagementId;
+        const entityLabel = isProject ? 'project' : 'contact';
+        const diff = a.diff as any;
+        const fields = diff?.fields_changed as string[] | undefined;
+
+        if (a.action === 'create') {
+          items.push({
+            id: a.id,
+            changed_at: a.changed_at,
+            summary: isProject ? 'Project created' : 'Contact record created',
+            user_name: userName(a.changed_by),
+            icon: '🆕',
+          });
+        } else if (a.action === 'update' && fields) {
+          // Generate a line per meaningful field change
+          const meaningfulFields = fields.filter(f => FIELD_LABELS[f]);
+          if (meaningfulFields.length > 0) {
+            const changeDescs = meaningfulFields.map(f => {
+              const before = diff?.before?.[f];
+              const after = diff?.after?.[f];
+              const label = FIELD_LABELS[f];
+              if (after !== undefined && before !== undefined) {
+                return `${label} changed from "${before}" to "${after}"`;
+              }
+              if (after !== undefined) return `${label} set to "${after}"`;
+              return `${label} updated`;
+            });
+            items.push({
+              id: a.id,
+              changed_at: a.changed_at,
+              summary: `${entityLabel === 'project' ? 'Project' : 'Contact'}: ${changeDescs.join('; ')}`,
+              user_name: userName(a.changed_by),
+              icon: entityLabel === 'project' ? '📝' : '👤',
+            });
+          } else if (fields.length > 0) {
+            items.push({
+              id: a.id,
+              changed_at: a.changed_at,
+              summary: `${entityLabel === 'project' ? 'Project' : 'Contact'} updated (${fields.join(', ')})`,
+              user_name: userName(a.changed_by),
+              icon: '📝',
+            });
+          }
+        } else if (a.action === 'delete') {
+          items.push({
+            id: a.id,
+            changed_at: a.changed_at,
+            summary: `${entityLabel} record deleted`,
+            user_name: userName(a.changed_by),
+            icon: '🗑️',
+          });
+        }
+      });
+
+      // Process notes on linked contacts
+      notesData.forEach((n: any) => {
+        const preview = (n.content || '').substring(0, 80).replace(/\n/g, ' ');
+        const isHM = n.entity_id === hiringManagerId && n.entity_id !== contactId;
+        items.push({
+          id: `note-${n.id}`,
+          changed_at: n.created_at,
+          summary: `Note on ${isHM ? 'key stakeholder' : 'primary contact'}: "${preview}${(n.content || '').length > 80 ? '…' : ''}"`,
+          user_name: userName(n.owner_id),
+          icon: '💬',
+        });
+      });
+
+      // Process invoice audit entries (filter to this engagement via context)
+      (invoiceAudit || []).forEach((a: any) => {
+        const diff = a.diff as any;
+        const engId = diff?.after?.engagement_id || diff?.before?.engagement_id;
+        if (engId !== engagementId) return;
+        items.push({
+          id: `inv-${a.id}`,
+          changed_at: a.changed_at,
+          summary: `Invoice ${a.action === 'create' ? 'created' : a.action === 'update' ? 'updated' : 'deleted'}`,
+          user_name: userName(a.changed_by),
+          icon: '🧾',
+        });
+      });
+
+      // Process SOW audit entries
+      (sowAudit || []).forEach((a: any) => {
+        const diff = a.diff as any;
+        const engId = diff?.after?.engagement_id || diff?.before?.engagement_id;
+        const compId = diff?.after?.company_id || diff?.before?.company_id;
+        if (engId !== engagementId && compId !== companyId) return;
+        items.push({
+          id: `sow-${a.id}`,
+          changed_at: a.changed_at,
+          summary: `Contract ${a.action === 'create' ? 'created' : a.action === 'update' ? 'updated' : 'deleted'}`,
+          user_name: userName(a.changed_by),
+          icon: '📄',
+        });
+      });
+
+      // Sort by date descending, limit to 30
+      items.sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime());
+      return items.slice(0, 30);
     },
     enabled: !!engagementId,
   });
@@ -1030,7 +1196,7 @@ function RecentActivitySection({ engagementId, companyId }: { engagementId: stri
       <Card className="mt-4">
         <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Activity className="w-4 h-4" /> Recent Activity</CardTitle></CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">No activity logged yet. Changes to this project, contracts, invoices, and files will appear here.</p>
+          <p className="text-sm text-muted-foreground">No activity logged yet. Changes to this project, contacts, contracts, invoices, and files will appear here.</p>
         </CardContent>
       </Card>
     );
@@ -1040,13 +1206,17 @@ function RecentActivitySection({ engagementId, companyId }: { engagementId: stri
     <Card className="mt-4">
       <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Activity className="w-4 h-4" /> Recent Activity</CardTitle></CardHeader>
       <CardContent>
-        <div className="space-y-3">
+        <div className="space-y-2">
           {activities.map((a) => (
-            <div key={a.id} className="flex items-start gap-3 text-sm">
-              <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+            <div key={a.id} className="flex items-start gap-2.5 text-sm border-b border-border/30 pb-2 last:border-0">
+              <span className="text-xs mt-0.5 shrink-0">{a.icon}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-foreground capitalize">{a.summary}</p>
-                <p className="text-xs text-muted-foreground">{format(new Date(a.changed_at), 'dd MMM yyyy HH:mm')}</p>
+                <p className="text-foreground text-xs leading-snug">{a.summary}</p>
+              </div>
+              <div className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0 text-right">
+                <span>{a.user_name}</span>
+                <br />
+                <span>{format(new Date(a.changed_at), 'dd MMM yyyy HH:mm')}</span>
               </div>
             </div>
           ))}
@@ -1903,7 +2073,12 @@ const ProjectDetail = () => {
           </div>
 
           {/* Recent Activity */}
-          <RecentActivitySection engagementId={engagement.id} companyId={engagement.company_id} />
+          <RecentActivitySection
+            engagementId={engagement.id}
+            companyId={engagement.company_id}
+            contactId={engagement.contact_id}
+            hiringManagerId={engagement.hiring_manager_id}
+          />
         </TabsContent>
 
         {/* Contracts Tab */}

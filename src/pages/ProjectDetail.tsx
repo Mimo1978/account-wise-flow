@@ -1720,30 +1720,107 @@ const ProjectDetail = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+            {/* Stage */}
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Stage</CardTitle></CardHeader>
-              <CardContent><Badge variant="outline">{STAGE_LABELS[engagement.stage] ?? engagement.stage}</Badge></CardContent>
+              <CardContent>
+                <Select
+                  value={engagement.stage}
+                  onValueChange={async (val) => {
+                    try {
+                      await updateMutation.mutateAsync({ id: engagement.id, stage: val });
+                      toast.success(`Stage changed to ${STAGE_LABELS[val] ?? val}`);
+                    } catch (err: any) { toast.error(err.message || 'Failed'); }
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-full text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STAGES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </CardContent>
             </Card>
+
+            {/* Health */}
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Health</CardTitle></CardHeader>
+              <CardContent>
+                <Select
+                  value={engagement.health || 'green'}
+                  onValueChange={async (val) => {
+                    try {
+                      await updateMutation.mutateAsync({ id: engagement.id, health: val });
+                      toast.success(`Health set to ${val}`);
+                    } catch (err: any) { toast.error(err.message || 'Failed'); }
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-full text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${engagement.health === 'red' ? 'bg-red-500' : engagement.health === 'amber' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                      <span className="capitalize">{engagement.health || 'Green'}</span>
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="green"><div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />Green</div></SelectItem>
+                    <SelectItem value="amber"><div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-amber-500" />Amber</div></SelectItem>
+                    <SelectItem value="red"><div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-red-500" />Red</div></SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+
+            {/* Forecast Value */}
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Forecast Value</CardTitle></CardHeader>
               <CardContent>
-                <p className="text-lg font-semibold text-foreground">
-                  {engagement.forecast_value > 0 ? `${engagement.currency} ${engagement.forecast_value.toLocaleString()}` : '—'}
-                </p>
+                <InlineEditableValue
+                  value={engagement.forecast_value}
+                  currency={engagement.currency}
+                  onSave={async (val) => {
+                    await updateMutation.mutateAsync({ id: engagement.id, forecast_value: val });
+                    toast.success('Forecast value updated');
+                  }}
+                />
               </CardContent>
             </Card>
+
+            {/* Dates */}
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Dates</CardTitle></CardHeader>
-              <CardContent className="space-y-1">
-                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" />
-                  Start: {engagement.start_date ? format(new Date(engagement.start_date), 'dd MMM yyyy') : '—'}
-                </p>
-                <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5" />
-                  End: {engagement.end_date ? format(new Date(engagement.end_date), 'dd MMM yyyy') : '—'}
-                </p>
+              <CardContent className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-xs text-muted-foreground w-10 shrink-0">Start:</span>
+                  <Input
+                    type="date"
+                    className="h-7 text-xs flex-1"
+                    value={engagement.start_date || ''}
+                    onChange={async (e) => {
+                      try {
+                        await updateMutation.mutateAsync({ id: engagement.id, start_date: e.target.value || null });
+                        toast.success('Start date updated');
+                      } catch (err: any) { toast.error(err.message || 'Failed'); }
+                    }}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-xs text-muted-foreground w-10 shrink-0">End:</span>
+                  <Input
+                    type="date"
+                    className="h-7 text-xs flex-1"
+                    value={engagement.end_date || ''}
+                    onChange={async (e) => {
+                      try {
+                        await updateMutation.mutateAsync({ id: engagement.id, end_date: e.target.value || null });
+                        toast.success('End date updated');
+                      } catch (err: any) { toast.error(err.message || 'Failed'); }
+                    }}
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>

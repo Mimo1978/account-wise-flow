@@ -155,6 +155,34 @@ export default function CrmDealDetail() {
     enabled: !!d.engagement_id,
   });
 
+  const { data: dealPlacement } = useQuery({
+    queryKey: ["deal-placement", id],
+    queryFn: async () => {
+      const { data } = await (supabase.from as any)("placements")
+        .select("*, candidates(name, current_title, email)")
+        .eq("deal_id", id)
+        .eq("status", "active")
+        .maybeSingle();
+      return data || null;
+    },
+    enabled: !!id,
+  });
+
+  const { data: latestTimeEntry } = useQuery({
+    queryKey: ["deal-latest-timeentry", dealPlacement?.id],
+    queryFn: async () => {
+      if (!dealPlacement?.id) return null;
+      const { data } = await (supabase.from as any)("time_entries")
+        .select("*")
+        .eq("placement_id", dealPlacement.id)
+        .order("week_start", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data || null;
+    },
+    enabled: !!dealPlacement?.id,
+  });
+
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   if (!deal) return <div className="p-6 text-muted-foreground">Deal not found</div>;
 

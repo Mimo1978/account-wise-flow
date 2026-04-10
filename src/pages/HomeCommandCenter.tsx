@@ -296,6 +296,7 @@ const HomeCommandCenter = () => {
   const [reportOpen, setReportOpen] = useState(false);
   const [reportPreselect, setReportPreselect] = useState<ReportType | undefined>();
   const [reportAutoDownload, setReportAutoDownload] = useState(false);
+  const [pipelinePeriod, setPipelinePeriod] = useState<'month' | 'quarter' | 'all'>('quarter');
 
   const { data: engagements = [], isLoading: engLoading } = useEngagements(currentWorkspace?.id);
   const { data: sows = [] } = useSows(currentWorkspace?.id);
@@ -387,6 +388,16 @@ const HomeCommandCenter = () => {
   // ── Computed values ──
   const activeCount = engagements.filter((e) => e.stage === 'active').length;
   const activeDeals = deals.filter((d) => d.stage !== 'won' && d.stage !== 'lost');
+  const filteredByPeriodDeals = useMemo(() => {
+    if (pipelinePeriod === 'all') return deals;
+    const now = new Date();
+    const cutoff = pipelinePeriod === 'month'
+      ? new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      : new Date(now.getFullYear(), now.getMonth() + 3, 0);
+    return deals.filter(d =>
+      !d.expected_close_date || new Date(d.expected_close_date) <= cutoff || d.stage === 'won' || d.stage === 'placed'
+    );
+  }, [deals, pipelinePeriod]);
   const totalPipelineValue = activeDeals.reduce((s, d) => s + d.value, 0);
   const weightedPipelineValue = activeDeals.reduce((s, d) => s + Math.round(d.value * d.probability / 100), 0);
   const next30Forecast = useMemo(() => {
@@ -539,6 +550,14 @@ const HomeCommandCenter = () => {
           icon={TrendingUp} borderColor="#3B82F6" jarvisSection="pipeline-snapshot"
           headerRight={
             <div className="flex items-center gap-2">
+              <div className="flex rounded-md overflow-hidden border border-border text-xs">
+                {(['month', 'quarter', 'all'] as const).map(p => (
+                  <button key={p} onClick={() => setPipelinePeriod(p)}
+                    className={`px-2 py-1 transition-colors ${pipelinePeriod === p ? 'bg-blue-600 text-white' : 'text-muted-foreground hover:bg-muted'}`}>
+                    {p === 'month' ? 'Month' : p === 'quarter' ? 'Quarter' : 'All'}
+                  </button>
+                ))}
+              </div>
               <Link to="/crm/deals" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">View All Deals →</Link>
               <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-500 text-white" onClick={() => setDealOpen(true)}>
                 <Plus className="w-3.5 h-3.5" /> + New Deal
@@ -551,7 +570,7 @@ const HomeCommandCenter = () => {
             <div className="space-y-4">
               <SharedPipelineChevron
                 mode="filter"
-                deals={deals}
+                deals={filteredByPeriodDeals}
                 selectedStage={pipelineFilter}
                 onStageClick={(stage) => setPipelineFilter(stage)}
                 showCounts={true}
@@ -571,7 +590,11 @@ const HomeCommandCenter = () => {
               ) : (
                 <>
                   {(() => {
-                    const filteredDeals = pipelineFilter ? enrichedDeals.filter(d => (d.stage || 'lead') === pipelineFilter) : enrichedDeals;
+                    const enrichedFiltered = filteredByPeriodDeals.map(d => {
+                      const engName = d.engagement_id ? engagements.find((e: any) => e.id === d.engagement_id)?.name : null;
+                      return { ...d, engagements: engName ? { name: engName } : d.engagements ?? null };
+                    });
+                    const filteredDeals = pipelineFilter ? enrichedFiltered.filter(d => (d.stage || 'lead') === pipelineFilter) : enrichedFiltered;
                     if (filteredDeals.length === 0) return (
                       <div className="rounded-lg p-6 text-center" style={{ border: `1px dashed ${DARK.border}` }}>
                         <p className="text-sm" style={{ color: DARK.textSecondary }}>No deals in {DEAL_STAGE_LABELS[pipelineFilter!]}</p>

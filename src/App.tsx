@@ -73,6 +73,7 @@ import IntegrationsSettings from "./pages/settings/IntegrationsSettings";
 import EmailTemplatesSettings from "./pages/settings/EmailTemplatesSettings";
 import Dashboard from "./pages/Dashboard";
 import PlacementDetail from "./pages/PlacementDetail";
+import PlacementsList from "./pages/PlacementsList";
 import { Loader2 } from "lucide-react";
 import { JarvisFloatingButton } from "@/components/jarvis/JarvisChat";
 

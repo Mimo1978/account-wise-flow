@@ -269,7 +269,7 @@ export default function PlacementDetail() {
     queryFn: async () => {
       if (!id) return null;
       const { data, error } = await (supabase.from as any)("placements")
-        .select("*, candidates(name, current_title, email), companies(name), contacts(name), deals:deal_id(title)")
+        .select("*, candidates(name, current_title, email), companies(name), contacts(name), crm_deals!deal_id(title)")
         .eq("id", id)
         .single();
       if (error) throw error;

@@ -28,7 +28,7 @@ import {
   ChevronLeft, Trash2, AlertTriangle, ArrowRight, Briefcase, User, Users, FolderOpen, Search, Building2,
   ChevronRight, XCircle, Clock,
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
@@ -181,6 +181,18 @@ export default function CrmDealDetail() {
       return data || null;
     },
     enabled: !!dealPlacement?.id,
+  });
+
+  const { data: allPlacements = [] } = useQuery({
+    queryKey: ["deal-placements-tab", id],
+    queryFn: async () => {
+      const { data } = await (supabase.from as any)("placements")
+        .select("*, candidates(name, current_title, email)")
+        .eq("deal_id", id)
+        .order("start_date", { ascending: false });
+      return data || [];
+    },
+    enabled: !!id,
   });
 
   if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
@@ -384,6 +396,9 @@ export default function CrmDealDetail() {
           <TabsTrigger value="documents">Documents ({docs.length})</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="placements">
+            Placements {allPlacements.length > 0 && `(${allPlacements.length})`}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -915,6 +930,107 @@ export default function CrmDealDetail() {
         {/* ── Activity Tab (unchanged) ── */}
         <TabsContent value="activity">
           <Card><CardContent className="py-8 text-center text-muted-foreground">Activity log coming soon</CardContent></Card>
+        </TabsContent>
+
+        {/* ── Placements Tab ── */}
+        <TabsContent value="placements" className="mt-4">
+          {allPlacements.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center rounded-lg border border-dashed border-border">
+              <Users className="w-8 h-8 text-muted-foreground/40 mb-3" />
+              <p className="text-sm font-medium text-muted-foreground">No placements yet</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {d.stage === "won" || d.stage === "placed"
+                  ? "Click 'Convert to placement' above to create one"
+                  : "Win this deal first, then convert to a placement"}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Worker</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Start</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">End</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Charge</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Pay</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Margin</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Days left</th>
+                    <th className="text-left px-4 py-3 text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {allPlacements.map((p: any) => {
+                    const chargeRate = p.charge_rate || p.rate_per_day;
+                    const payRate = p.buy_rate;
+                    const margin = chargeRate && payRate && chargeRate > 0
+                      ? Math.round((chargeRate - payRate) / chargeRate * 100)
+                      : null;
+                    const daysLeft = p.end_date
+                      ? Math.ceil((new Date(p.end_date).getTime() - Date.now()) / 86400000)
+                      : null;
+                    const isEndingSoon = daysLeft !== null && daysLeft <= 30 && daysLeft > 0;
+                    const isOverdue = daysLeft !== null && daysLeft < 0;
+                    return (
+                      <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
+                        onClick={() => navigate(`/placements/${p.id}`)}>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-foreground">{p.candidates?.name || "Unknown"}</p>
+                          <p className="text-xs text-muted-foreground">{p.candidates?.current_title || "—"}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+                            p.placement_type === "contractor" ? "bg-amber-500/20 text-amber-600" :
+                            p.placement_type === "permanent" ? "bg-violet-500/20 text-violet-600" :
+                            "bg-blue-500/20 text-blue-600"
+                          }`}>{p.placement_type}</span>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs">
+                          {p.start_date ? format(new Date(p.start_date), "dd MMM yyyy") : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          {p.end_date ? (
+                            <span className={isEndingSoon ? "text-amber-500 font-medium" : isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"}>
+                              {format(new Date(p.end_date), "dd MMM yyyy")}
+                            </span>
+                          ) : <span className="text-muted-foreground">Open</span>}
+                        </td>
+                        <td className="px-4 py-3 font-medium">
+                          {chargeRate ? `${p.currency} ${chargeRate}/d` : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {payRate ? `${p.currency} ${payRate}/d` : "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          {margin !== null ? (
+                            <span className="text-green-600 font-semibold">{margin}%</span>
+                          ) : "—"}
+                        </td>
+                        <td className="px-4 py-3">
+                          {daysLeft === null ? <span className="text-muted-foreground">—</span> :
+                           isOverdue ? <span className="text-red-500 font-medium">Ended</span> :
+                           isEndingSoon ? <span className="text-amber-500 font-medium">{daysLeft}d ⚠</span> :
+                           <span className="text-muted-foreground">{daysLeft}d</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                            p.status === "active" ? "bg-green-500/20 text-green-600" :
+                            p.status === "completed" ? "bg-muted text-muted-foreground" :
+                            "bg-red-500/20 text-red-500"
+                          }`}>{p.status}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

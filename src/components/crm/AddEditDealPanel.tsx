@@ -10,6 +10,7 @@ import { defaultProbabilityForStage } from "@/lib/deal-utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import type { CrmDeal } from "@/types/crm";
 import { cn } from "@/lib/utils";
 

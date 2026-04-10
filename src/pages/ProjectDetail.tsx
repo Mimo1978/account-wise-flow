@@ -277,7 +277,8 @@ function InlineContactPicker({
         .from('crm_contacts')
         .select('id, first_name, last_name, job_title')
         .eq('id', contactId)
-        .single();
+        .limit(1)
+        .maybeSingle();
       if (error) return null;
       return data;
     },
@@ -299,7 +300,81 @@ function InlineContactPicker({
   });
 
   const assignContact = async (id: string) => {
-    const { error } = await supabase.from('engagements').update({ [fieldName]: id } as any).eq('id', engagementId);
+    let resolvedId = id;
+
+    const { data: existingCrmContact } = await supabase
+      .from('crm_contacts')
+      .select('id')
+      .eq('id', id)
+      .limit(1)
+      .maybeSingle();
+
+    if (!existingCrmContact) {
+      const { data: nativeContact } = await supabase
+        .from('contacts')
+        .select('id, name, email, phone, title')
+        .eq('id', id)
+        .limit(1)
+        .maybeSingle();
+
+      if (!nativeContact) {
+        toast.error('Contact no longer exists');
+        return;
+      }
+
+      const nameParts = (nativeContact.name || '').trim().split(/\s+/);
+      const firstName = nameParts[0] || nativeContact.name || 'Unknown';
+      const lastName = nameParts.slice(1).join(' ');
+
+      let crmId: string | null = null;
+
+      if (nativeContact.email) {
+        const { data: crmByEmail } = await supabase
+          .from('crm_contacts')
+          .select('id')
+          .eq('email', nativeContact.email)
+          .limit(1)
+          .maybeSingle();
+        crmId = crmByEmail?.id ?? null;
+      }
+
+      if (!crmId) {
+        const { data: crmByName } = await supabase
+          .from('crm_contacts')
+          .select('id')
+          .ilike('first_name', firstName)
+          .ilike('last_name', lastName)
+          .limit(1)
+          .maybeSingle();
+        crmId = crmByName?.id ?? null;
+      }
+
+      if (!crmId) {
+        const { data: createdCrmContact, error: createError } = await supabase
+          .from('crm_contacts')
+          .insert({
+            first_name: firstName,
+            last_name: lastName,
+            email: nativeContact.email || null,
+            phone: nativeContact.phone || null,
+            job_title: nativeContact.title || null,
+            company_id: crmCompanyId || null,
+          } as any)
+          .select('id')
+          .single();
+
+        if (createError || !createdCrmContact) {
+          toast.error('Failed to create CRM contact');
+          return;
+        }
+
+        crmId = createdCrmContact.id;
+      }
+
+      resolvedId = crmId;
+    }
+
+    const { error } = await supabase.from('engagements').update({ [fieldName]: resolvedId } as any).eq('id', engagementId);
     if (error) {
       toast.error('Failed to assign contact');
     } else {

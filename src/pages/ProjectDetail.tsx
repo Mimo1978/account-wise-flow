@@ -577,18 +577,23 @@ function CompanyCard({ engagementId, companyId, companyName, workspaceId }: {
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { data: crmCompanyId } = useCrmCompanyId(companyId);
 
   // Count contacts for this company
   const { data: contactCount } = useQuery({
-    queryKey: ['company-contact-count', companyId],
+    queryKey: ['company-contact-count', companyId, crmCompanyId],
     queryFn: async () => {
       if (!companyId) return 0;
-      // Try both tables
-      const [nativeRes, crmRes] = await Promise.all([
-        supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('company_id', companyId).is('deleted_at', null),
-        supabase.from('crm_contacts').select('id', { count: 'exact', head: true }).eq('company_id', companyId).is('deleted_at', null),
-      ]);
-      return Math.max(nativeRes.count ?? 0, crmRes.count ?? 0);
+      const promises: Promise<{ count: number | null }>[] = [
+        supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('company_id', companyId).is('deleted_at', null) as any,
+      ];
+      if (crmCompanyId) {
+        promises.push(
+          supabase.from('crm_contacts').select('id', { count: 'exact', head: true }).eq('company_id', crmCompanyId).is('deleted_at', null) as any,
+        );
+      }
+      const results = await Promise.all(promises);
+      return Math.max(...results.map(r => r.count ?? 0));
     },
     enabled: !!companyId,
   });

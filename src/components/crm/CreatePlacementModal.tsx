@@ -31,6 +31,7 @@ export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Pr
     invoice_frequency: "monthly",
     salary: (deal as any)?.salary ? String((deal as any).salary) : "",
     fee_percentage: (deal as any)?.fee_percentage ? String((deal as any).fee_percentage) : "20",
+    buy_rate: "",
   });
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -115,6 +116,8 @@ export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Pr
         start_date: form.start_date,
         end_date: form.end_date || null,
         rate_per_day: form.placement_type === "contractor" ? Number(form.rate_per_day) || null : null,
+        charge_rate: form.placement_type === "contractor" ? Number(form.rate_per_day) || null : null,
+        buy_rate: form.buy_rate ? Number(form.buy_rate) : null,
         placement_fee: form.placement_type === "permanent" ? (feeAmount || Number(form.placement_fee) || null) : null,
         currency: form.currency,
         billing_contact_email: form.billing_contact_email || null,
@@ -178,21 +181,35 @@ export function CreatePlacementModal({ open, onOpenChange, deal, onCreated }: Pr
             <div><Label className="text-xs">End date</Label><Input type="date" value={form.end_date} onChange={e => set("end_date", e.target.value)} className="mt-1 h-8 text-xs" /></div>
           </div>
 
-          {form.placement_type === "contractor" && (
+          {form.placement_type === "contractor" && (<>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label className="text-xs">Day rate ({form.currency})</Label><Input type="number" value={form.rate_per_day} onChange={e => set("rate_per_day", e.target.value)} placeholder="650" className="mt-1 h-8 text-xs" /></div>
               <div>
-                <Label className="text-xs">Invoice frequency</Label>
-                <Select value={form.invoice_frequency} onValueChange={v => set("invoice_frequency", v)}>
-                  <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="weekly">Weekly</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs">Charge rate — client billed ({form.currency}/day)</Label>
+                <Input type="number" value={form.rate_per_day} onChange={e => set("rate_per_day", e.target.value)} placeholder="650" className="mt-1 h-8 text-xs" />
+              </div>
+              <div>
+                <Label className="text-xs">
+                  Pay rate — contractor paid ({form.currency}/day)
+                  {form.rate_per_day && form.buy_rate && Number(form.rate_per_day) > 0 && (
+                    <span className="text-green-600 font-medium ml-2">
+                      {Math.round((Number(form.rate_per_day) - Number(form.buy_rate)) / Number(form.rate_per_day) * 100)}% margin
+                    </span>
+                  )}
+                </Label>
+                <Input type="number" value={form.buy_rate || ""} onChange={e => set("buy_rate", e.target.value)} placeholder="500" className="mt-1 h-8 text-xs" />
               </div>
             </div>
-          )}
+            <div>
+              <Label className="text-xs">Invoice frequency</Label>
+              <Select value={form.invoice_frequency} onValueChange={v => set("invoice_frequency", v)}>
+                <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </>)}
 
           {form.placement_type === "permanent" && (
             <div className="grid grid-cols-2 gap-3">

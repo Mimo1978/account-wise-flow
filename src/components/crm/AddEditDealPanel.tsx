@@ -10,6 +10,7 @@ import { defaultProbabilityForStage } from "@/lib/deal-utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import type { CrmDeal } from "@/types/crm";
 import { cn } from "@/lib/utils";
 
@@ -60,6 +61,7 @@ const empty = {
 
 export function AddEditDealPanel({ open, onOpenChange, deal }: Props) {
   const isEdit = !!deal;
+  const { currentWorkspace } = useWorkspace();
   const createMut = useCreateCrmDeal();
   const updateMut = useUpdateCrmDeal();
   const [form, setForm] = useState({ ...empty });
@@ -135,6 +137,7 @@ export function AddEditDealPanel({ open, onOpenChange, deal }: Props) {
       expected_close_date: form.expected_close_date || null,
       currency: "GBP",
       status: "active",
+      workspace_id: currentWorkspace?.id || null,
     };
     try {
       if (isEdit && deal) {

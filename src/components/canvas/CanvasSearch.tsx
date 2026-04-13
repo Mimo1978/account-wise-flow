@@ -17,12 +17,11 @@ interface CanvasSearchProps {
   userId?: string;
 }
 
-// Hard default (only used when there is NO saved position)
-// Requirement: start well below the ribbon, anchored to the canvas experience.
-const DEFAULT_LEFT = 16;
+// Approximate dimensions of the search bar
+const BAR_WIDTH = 560;
+const BAR_HEIGHT = 56;
+// Fixed vertical offset below the ribbon toolbar
 const DEFAULT_TOP = 141;
-const BAR_WIDTH = 560; // Approximate width of the search bar
-const BAR_HEIGHT = 56; // Approximate height of the search bar
 
 export const CanvasSearch = ({
   onSearch,
@@ -46,17 +45,13 @@ export const CanvasSearch = ({
     ? `canvasSearchBarHintShown:${workspaceId}:${userId}` 
     : 'canvasSearchBarHintShown:default';
 
-  // Calculate safe default position (ONLY when there's no saved position)
+  // Always center horizontally, fixed top position
   const getDefaultPosition = useCallback(() => {
     if (typeof window === 'undefined') {
-      return { x: DEFAULT_LEFT, y: DEFAULT_TOP };
+      return { x: 300, y: DEFAULT_TOP };
     }
-
-    // Hard requirement (no dynamic ribbon calculation):
-    // top: 140px; left: 24px; (with viewport clamping)
-    const x = Math.max(12, Math.min(window.innerWidth - BAR_WIDTH - 12, DEFAULT_LEFT));
-    const y = Math.max(12, Math.min(window.innerHeight - BAR_HEIGHT - 12, DEFAULT_TOP));
-
+    const x = Math.round((window.innerWidth - BAR_WIDTH) / 2);
+    const y = DEFAULT_TOP;
     return { x, y };
   }, []);
 

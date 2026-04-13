@@ -23,6 +23,28 @@ const BAR_HEIGHT = 56;
 // Fixed vertical offset below the ribbon toolbar
 const DEFAULT_TOP = 141;
 
+export const CanvasSearch = ({
+  onSearch,
+  onClear,
+  matchCount,
+  currentMatchIndex,
+  onNextMatch,
+  onPrevMatch,
+  onReset,
+  workspaceId,
+  userId,
+}: CanvasSearchProps) => {
+  const [query, setQuery] = useState("");
+  const [showHint, setShowHint] = useState(false);
+
+  // Generate storage keys
+  const storageKey = workspaceId && userId 
+    ? `canvasSearchBarPos_v4:${workspaceId}:${userId}` 
+    : 'canvasSearchBarPos_v4:default';
+  const hintShownKey = workspaceId && userId 
+    ? `canvasSearchBarHintShown:${workspaceId}:${userId}` 
+    : 'canvasSearchBarHintShown:default';
+
   // Always center horizontally, fixed top position
   const getDefaultPosition = useCallback(() => {
     if (typeof window === 'undefined') {

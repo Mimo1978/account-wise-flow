@@ -20,8 +20,8 @@ interface CanvasSearchProps {
 // Approximate dimensions of the search bar
 const BAR_WIDTH = 560;
 const BAR_HEIGHT = 56;
-// Fixed vertical offset below the ribbon toolbar
-const DEFAULT_TOP = 141;
+// Fixed position from the approved org chart layout
+const DEFAULT_TOP = 184;
 
 export const CanvasSearch = ({
   onSearch,
@@ -45,19 +45,19 @@ export const CanvasSearch = ({
     ? `canvasSearchBarHintShown:${workspaceId}:${userId}` 
     : 'canvasSearchBarHintShown:default';
 
-  // Always center horizontally, fixed top position
   const getDefaultPosition = useCallback(() => {
     if (typeof window === 'undefined') {
-      return { x: 300, y: DEFAULT_TOP };
+      return { x: 624, y: DEFAULT_TOP };
     }
-    const x = Math.round((window.innerWidth - BAR_WIDTH) / 2);
-    const y = DEFAULT_TOP;
-    return { x, y };
+
+    return {
+      x: Math.round((window.innerWidth - BAR_WIDTH) / 2),
+      y: DEFAULT_TOP,
+    };
   }, []);
 
   const { position, dragRef, dragHandleProps, isDragging, isPositioned, resetToDefault } = useDraggable({
     bounds: "viewport",
-    storageKey,
     getDefaultPosition,
   });
 

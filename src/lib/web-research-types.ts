@@ -51,6 +51,7 @@ export type WebResearchSourceType =
   | "conference_bio"
   | "blog_author"
   | "public_profile"
+  | "ai_analysis"
   | "unknown";
 
 // Individual source evidence
@@ -150,6 +151,7 @@ export const SOURCE_TYPE_LABELS: Record<WebResearchSourceType, string> = {
   conference_bio: "Conference Bio",
   blog_author: "Blog Author",
   public_profile: "Public Profile",
+  ai_analysis: "AI Analysis",
   unknown: "Unknown",
 };
 

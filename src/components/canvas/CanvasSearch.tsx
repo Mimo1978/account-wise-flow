@@ -20,8 +20,9 @@ interface CanvasSearchProps {
 // Approximate dimensions of the search bar
 const BAR_WIDTH = 560;
 const BAR_HEIGHT = 56;
-// Fixed position from the approved org chart layout
+// Fallback position from the approved org chart layout
 const DEFAULT_TOP = 184;
+const TOP_BANNER_GAP = 2;
 
 export const CanvasSearch = ({
   onSearch,
@@ -50,16 +51,31 @@ export const CanvasSearch = ({
       return { x: 624, y: DEFAULT_TOP };
     }
 
+    const toolbarRibbon = document.querySelector<HTMLElement>('[data-toolbar-ribbon]');
+    const anchoredTop = toolbarRibbon
+      ? Math.round(toolbarRibbon.getBoundingClientRect().bottom + TOP_BANNER_GAP)
+      : DEFAULT_TOP;
+
     return {
       x: Math.round((window.innerWidth - BAR_WIDTH) / 2),
-      y: DEFAULT_TOP,
+      y: anchoredTop,
     };
   }, []);
 
-  const { position, dragRef, dragHandleProps, isDragging, isPositioned, resetToDefault } = useDraggable({
+  const { position, setPosition, dragRef, dragHandleProps, isDragging, isPositioned, resetToDefault } = useDraggable({
     bounds: "viewport",
     getDefaultPosition,
   });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const frame = window.requestAnimationFrame(() => {
+      setPosition(getDefaultPosition());
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [getDefaultPosition, setPosition, workspaceId, userId]);
 
   // Check if we should show the hint animation (first time in this workspace)
   useEffect(() => {

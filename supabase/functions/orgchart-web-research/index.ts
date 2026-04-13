@@ -1,5 +1,4 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,15 +16,7 @@ interface WebResearchConfig {
     name: string;
     title: string;
   };
-}
-
-interface WebResearchSource {
-  url: string;
-  title: string;
-  sourceType: string;
-  publishedDate?: string;
-  excerpt?: string;
-  accessedAt: string;
+  existingContacts?: Array<{ name: string; title: string }>;
 }
 
 interface WebResearchPerson {
@@ -34,7 +25,14 @@ interface WebResearchPerson {
   title: string;
   department?: string;
   location?: string;
-  sources: WebResearchSource[];
+  sources: Array<{
+    url: string;
+    title: string;
+    sourceType: string;
+    publishedDate?: string;
+    excerpt?: string;
+    accessedAt: string;
+  }>;
   confidence: "high" | "medium" | "low";
   reportsTo?: string;
   reportsToConfidence?: "high" | "medium" | "low";
@@ -43,362 +41,226 @@ interface WebResearchPerson {
   placeholder: boolean;
 }
 
-interface WebResearchResult {
-  success: boolean;
-  companyName: string;
-  people: WebResearchPerson[];
-  stats: {
-    totalFound: number;
-    highConfidence: number;
-    mediumConfidence: number;
-    lowConfidence: number;
-    sourcesChecked: number;
-  };
-  warnings?: string[];
-  error?: string;
-  completedAt: string;
-}
-
-/**
- * Generate mock research results for UI testing.
- * 
- * In future, this will be replaced with actual web research
- * using connected providers (Perplexity, Firecrawl, etc.)
- */
-function generateMockResults(config: WebResearchConfig): WebResearchResult {
-  const now = new Date().toISOString();
-  const companyName = config.companyName;
-  
-  // Generate realistic mock data based on company name
-  const mockPeople: WebResearchPerson[] = [];
-  
-  // Always include executive team for any depth
-  const executives = [
-    {
-      name: "Sarah Chen",
-      title: "Chief Executive Officer",
-      department: "Executive",
-      confidence: "high" as const,
-      sources: [
-        {
-          url: `https://www.${companyName.toLowerCase().replace(/\s+/g, "")}.com/about/leadership`,
-          title: `${companyName} Leadership Team`,
-          sourceType: "company_website",
-          publishedDate: "2024-01-15",
-          excerpt: `Sarah Chen serves as Chief Executive Officer at ${companyName}...`,
-          accessedAt: now,
-        },
-        {
-          url: "https://www.businesswire.com/example-press-release",
-          title: `${companyName} Announces Strategic Expansion`,
-          sourceType: "press_release",
-          publishedDate: "2024-03-10",
-          excerpt: "CEO Sarah Chen commented on the company's growth strategy...",
-          accessedAt: now,
-        },
-      ],
-    },
-    {
-      name: "Michael Torres",
-      title: "Chief Financial Officer",
-      department: "Finance",
-      confidence: "high" as const,
-      reportsTo: "Sarah Chen",
-      reportsToConfidence: "high" as const,
-      sources: [
-        {
-          url: `https://www.${companyName.toLowerCase().replace(/\s+/g, "")}.com/about/leadership`,
-          title: `${companyName} Leadership Team`,
-          sourceType: "company_website",
-          publishedDate: "2024-01-15",
-          excerpt: `Michael Torres is the Chief Financial Officer...`,
-          accessedAt: now,
-        },
-      ],
-    },
-    {
-      name: "Dr. Emily Watson",
-      title: "Chief Technology Officer",
-      department: "Technology",
-      confidence: "high" as const,
-      reportsTo: "Sarah Chen",
-      reportsToConfidence: "high" as const,
-      sources: [
-        {
-          url: `https://www.${companyName.toLowerCase().replace(/\s+/g, "")}.com/about/leadership`,
-          title: `${companyName} Leadership Team`,
-          sourceType: "company_website",
-          publishedDate: "2024-01-15",
-          excerpt: `Dr. Emily Watson leads our technology organization...`,
-          accessedAt: now,
-        },
-        {
-          url: "https://techconference.example.com/speakers/emily-watson",
-          title: "Tech Summit 2024 Speaker Bio",
-          sourceType: "conference_bio",
-          publishedDate: "2024-06-01",
-          excerpt: `Dr. Emily Watson, CTO at ${companyName}, will present on...`,
-          accessedAt: now,
-        },
-      ],
-    },
-  ];
-
-  // Add executives
-  executives.forEach((exec, idx) => {
-    mockPeople.push({
-      id: crypto.randomUUID(),
-      name: exec.name,
-      title: exec.title,
-      department: exec.department,
-      location: config.regions?.[0] || "United Kingdom",
-      sources: exec.sources,
-      confidence: exec.confidence,
-      reportsTo: exec.reportsTo,
-      reportsToConfidence: exec.reportsToConfidence,
-      discoveredAt: now,
-      verified: false,
-      placeholder: true,
-    });
-  });
-
-  // Add VP level if depth includes +1
-  if (config.depth === "leadership_plus_1" || config.depth === "leadership_plus_2") {
-    const vpLevel = [
-      {
-        name: "James Harrison",
-        title: "VP of Engineering",
-        department: "Technology",
-        confidence: "medium" as const,
-        reportsTo: "Dr. Emily Watson",
-        sources: [
-          {
-            url: "https://www.linkedin.com/in/jamesharrison-example",
-            title: "LinkedIn Profile (Public)",
-            sourceType: "public_profile",
-            excerpt: "VP of Engineering at " + companyName,
-            accessedAt: now,
-          },
-        ],
-      },
-      {
-        name: "Lisa Park",
-        title: "VP of Sales",
-        department: "Sales",
-        confidence: "medium" as const,
-        reportsTo: "Sarah Chen",
-        sources: [
-          {
-            url: "https://news.example.com/industry-awards-2024",
-            title: "Industry Awards Ceremony 2024",
-            sourceType: "news_article",
-            publishedDate: "2024-02-20",
-            excerpt: `Lisa Park, VP of Sales at ${companyName}, was recognized...`,
-            accessedAt: now,
-          },
-        ],
-      },
-      {
-        name: "Robert Kim",
-        title: "Head of Finance",
-        department: "Finance",
-        confidence: "low" as const,
-        reportsTo: "Michael Torres",
-        sources: [
-          {
-            url: "https://blog.example.com/finance-trends-2024",
-            title: "Finance Trends Blog",
-            sourceType: "blog_author",
-            publishedDate: "2023-11-15",
-            excerpt: "Robert Kim, Head of Finance at " + companyName + "...",
-            accessedAt: now,
-          },
-        ],
-      },
-    ];
-
-    vpLevel.forEach((vp) => {
-      // Filter by focus areas if specified
-      if (config.focusAreas?.length > 0 && !config.focusAreas.includes("all")) {
-        const deptLower = vp.department?.toLowerCase() || "";
-        if (!config.focusAreas.some((area) => deptLower.includes(area.toLowerCase()))) {
-          return; // Skip this person
-        }
-      }
-
-      mockPeople.push({
-        id: crypto.randomUUID(),
-        name: vp.name,
-        title: vp.title,
-        department: vp.department,
-        location: config.regions?.[0] || "United Kingdom",
-        sources: vp.sources,
-        confidence: vp.confidence,
-        reportsTo: vp.reportsTo,
-        reportsToConfidence: "medium",
-        discoveredAt: now,
-        verified: false,
-        placeholder: true,
-      });
-    });
-  }
-
-  // Add Director level if depth includes +2
-  if (config.depth === "leadership_plus_2") {
-    const directorLevel = [
-      {
-        name: "Anna Schmidt",
-        title: "Director of Product",
-        department: "Technology",
-        confidence: "low" as const,
-        reportsTo: "Dr. Emily Watson",
-        sources: [
-          {
-            url: "https://productconf.example.com/speakers",
-            title: "ProductConf 2024",
-            sourceType: "conference_bio",
-            publishedDate: "2024-04-10",
-            excerpt: "Anna Schmidt is Director of Product at " + companyName,
-            accessedAt: now,
-          },
-        ],
-      },
-      {
-        name: "David Okonkwo",
-        title: "Director of Marketing",
-        department: "Marketing",
-        confidence: "low" as const,
-        reportsTo: "Sarah Chen",
-        sources: [
-          {
-            url: "https://marketingweek.example.com/article-12345",
-            title: "Marketing Week Feature",
-            sourceType: "news_article",
-            publishedDate: "2023-09-22",
-            excerpt: `${companyName}'s marketing efforts, led by David Okonkwo...`,
-            accessedAt: now,
-          },
-        ],
-      },
-    ];
-
-    directorLevel.forEach((dir) => {
-      if (config.focusAreas?.length > 0 && !config.focusAreas.includes("all")) {
-        const deptLower = dir.department?.toLowerCase() || "";
-        if (!config.focusAreas.some((area) => deptLower.includes(area.toLowerCase()))) {
-          return;
-        }
-      }
-
-      mockPeople.push({
-        id: crypto.randomUUID(),
-        name: dir.name,
-        title: dir.title,
-        department: dir.department,
-        location: config.regions?.[0] || "United Kingdom",
-        sources: dir.sources,
-        confidence: dir.confidence,
-        reportsTo: dir.reportsTo,
-        reportsToConfidence: "low",
-        discoveredAt: now,
-        verified: false,
-        placeholder: true,
-      });
-    });
-  }
-
-  // Calculate stats
-  const stats = {
-    totalFound: mockPeople.length,
-    highConfidence: mockPeople.filter((p) => p.confidence === "high").length,
-    mediumConfidence: mockPeople.filter((p) => p.confidence === "medium").length,
-    lowConfidence: mockPeople.filter((p) => p.confidence === "low").length,
-    sourcesChecked: 12, // Mock value
-  };
-
-  return {
-    success: true,
-    companyName,
-    people: mockPeople,
-    stats,
-    warnings: [
-      "Results are based on publicly available information only.",
-      "All contacts require manual verification before saving.",
-    ],
-    completedAt: now,
-  };
-}
-
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Verify authentication
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: "Authorization required" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Parse request
     const config = (await req.json()) as WebResearchConfig;
 
     if (!config.companyName) {
       return new Response(
         JSON.stringify({ error: "companyName is required" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[orgchart-web-research] Starting research for: ${config.companyName}`);
-    console.log(`[orgchart-web-research] Config:`, JSON.stringify(config));
+    console.log(`[orgchart-web-research] Starting AI research for: ${config.companyName}`);
 
-    // TODO: Check for connected providers and use them
-    // For now, return mock data for UI testing
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    const depthInstruction = {
+      leadership_only: "Only C-suite and board members (CEO, CFO, CTO, COO, CMO, etc.)",
+      leadership_plus_1: "C-suite plus VPs and department heads who report directly to them",
+      leadership_plus_2: "C-suite, VPs/department heads, and directors/senior managers below them",
+    }[config.depth] || "C-suite and direct reports";
+
+    const regionFocus = config.regions?.length > 0
+      ? `Focus on offices/operations in: ${config.regions.join(", ")}.`
+      : "";
+
+    const focusDepts = config.focusAreas?.length > 0 && !config.focusAreas.includes("all")
+      ? `Focus on these departments: ${config.focusAreas.join(", ")}.`
+      : "Cover all major departments.";
+
+    const seedInfo = config.seedPerson
+      ? `Known leader: ${config.seedPerson.name} (${config.seedPerson.title}). Build the hierarchy around them.`
+      : "";
+
+    const existingInfo = config.existingContacts?.length
+      ? `These people are ALREADY in the org chart (do NOT include them again): ${config.existingContacts.map(c => `${c.name} (${c.title})`).join(", ")}.`
+      : "";
+
+    const systemPrompt = `You are an expert corporate research analyst. Your task is to identify the leadership structure of a company based on your knowledge. Return ONLY people you are reasonably confident actually hold or recently held these positions. Do NOT fabricate names. If you don't know real people, return fewer results rather than making up names. For each person, indicate a confidence level and who they likely report to.`;
+
+    const userPrompt = `Research the leadership team of "${config.companyName}".
+
+Scope: ${depthInstruction}
+${regionFocus}
+${focusDepts}
+${seedInfo}
+${existingInfo}
+
+For each person found, provide:
+- name (full name)
+- title (exact job title)
+- department (e.g. Executive, Technology, Finance, Sales, Marketing, Operations, HR, Legal)
+- location (city/country if known)
+- confidence: "high" if widely reported, "medium" if mentioned in 1-2 sources, "low" if inferred
+- reportsTo: name of their likely direct manager
+- reportsToConfidence: confidence of the reporting relationship
+- sourceDescription: brief description of where this info comes from (e.g. "Company website leadership page", "Press release Q1 2024", "Industry conference bio")
+
+Return results as a JSON array. Only include real people you have knowledge about.`;
+
+    const toolSchema = {
+      type: "function" as const,
+      function: {
+        name: "return_leadership_data",
+        description: "Return the discovered leadership team members",
+        parameters: {
+          type: "object",
+          properties: {
+            people: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  title: { type: "string" },
+                  department: { type: "string" },
+                  location: { type: "string" },
+                  confidence: { type: "string", enum: ["high", "medium", "low"] },
+                  reportsTo: { type: "string" },
+                  reportsToConfidence: { type: "string", enum: ["high", "medium", "low"] },
+                  sourceDescription: { type: "string" },
+                },
+                required: ["name", "title", "confidence"],
+                additionalProperties: false,
+              },
+            },
+            companyNotes: {
+              type: "string",
+              description: "Any caveats about the data quality or company",
+            },
+          },
+          required: ["people"],
+          additionalProperties: false,
+        },
+      },
+    };
+
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        tools: [toolSchema],
+        tool_choice: { type: "function", function: { name: "return_leadership_data" } },
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const statusCode = aiResponse.status;
+      const errText = await aiResponse.text();
+      console.error(`[orgchart-web-research] AI gateway error ${statusCode}:`, errText);
+
+      if (statusCode === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment.", success: false, people: [], stats: { totalFound: 0, highConfidence: 0, mediumConfidence: 0, lowConfidence: 0, sourcesChecked: 0 }, companyName: config.companyName, completedAt: new Date().toISOString() }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (statusCode === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds in Settings > Workspace > Usage.", success: false, people: [], stats: { totalFound: 0, highConfidence: 0, mediumConfidence: 0, lowConfidence: 0, sourcesChecked: 0 }, companyName: config.companyName, completedAt: new Date().toISOString() }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw new Error(`AI gateway error: ${statusCode}`);
+    }
+
+    const aiData = await aiResponse.json();
+    const toolCall = aiData.choices?.[0]?.message?.tool_calls?.[0];
     
-    // Simulate some processing time
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (!toolCall?.function?.arguments) {
+      throw new Error("No structured response from AI");
+    }
 
-    const result = generateMockResults(config);
+    const parsed = JSON.parse(toolCall.function.arguments);
+    const aiPeople: any[] = parsed.people || [];
+    const now = new Date().toISOString();
 
-    console.log(`[orgchart-web-research] Found ${result.stats.totalFound} people`);
+    const people: WebResearchPerson[] = aiPeople.map((p: any) => ({
+      id: crypto.randomUUID(),
+      name: p.name || "Unknown",
+      title: p.title || "Unknown",
+      department: p.department || undefined,
+      location: p.location || undefined,
+      sources: [
+        {
+          url: `https://www.google.com/search?q="${encodeURIComponent(p.name)}"+"${encodeURIComponent(config.companyName)}"`,
+          title: p.sourceDescription || "AI Knowledge Base",
+          sourceType: "ai_analysis",
+          excerpt: `${p.name} identified as ${p.title} at ${config.companyName}`,
+          accessedAt: now,
+        },
+      ],
+      confidence: p.confidence || "low",
+      reportsTo: p.reportsTo || undefined,
+      reportsToConfidence: p.reportsToConfidence || undefined,
+      discoveredAt: now,
+      verified: false,
+      placeholder: true,
+    }));
 
-    return new Response(JSON.stringify(result), {
+    const stats = {
+      totalFound: people.length,
+      highConfidence: people.filter((p) => p.confidence === "high").length,
+      mediumConfidence: people.filter((p) => p.confidence === "medium").length,
+      lowConfidence: people.filter((p) => p.confidence === "low").length,
+      sourcesChecked: 1,
+    };
+
+    const warnings = [
+      "Results are based on AI analysis of publicly available information.",
+      "All contacts require manual verification before saving to your CRM.",
+    ];
+    if (parsed.companyNotes) {
+      warnings.push(parsed.companyNotes);
+    }
+
+    console.log(`[orgchart-web-research] Found ${people.length} people for ${config.companyName}`);
+
+    return new Response(JSON.stringify({
+      success: true,
+      companyName: config.companyName,
+      people,
+      stats,
+      warnings,
+      completedAt: now,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("[orgchart-web-research] Error:", error);
-    
     return new Response(
       JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
         people: [],
-        stats: {
-          totalFound: 0,
-          highConfidence: 0,
-          mediumConfidence: 0,
-          lowConfidence: 0,
-          sourcesChecked: 0,
-        },
+        stats: { totalFound: 0, highConfidence: 0, mediumConfidence: 0, lowConfidence: 0, sourcesChecked: 0 },
         companyName: "",
         completedAt: new Date().toISOString(),
       }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
 import { useBooleanSearch, BooleanSearchResult } from "@/hooks/use-boolean-search";
@@ -85,6 +87,10 @@ import {
   Download,
   Megaphone,
   Clock,
+  Sparkles,
+  X,
+  Trophy,
+  AlertTriangle,
 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
@@ -160,6 +166,8 @@ export default function TalentDatabase() {
   const [searchParams] = useSearchParams();
   const { currentWorkspace } = useWorkspace();
   const returnToCampaignId = searchParams.get("campaignId") ?? undefined;
+  const matchSpecId = searchParams.get("match");
+  const isMatchMode = !!matchSpecId;
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
   const [roleTypeFilter, setRoleTypeFilter] = useState<string>("all");
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
@@ -175,6 +183,38 @@ export default function TalentDatabase() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [snippetsPanelResult, setSnippetsPanelResult] = useState<BooleanSearchResult | null>(null);
   const [showAddCandidate, setShowAddCandidate] = useState(false);
+
+  // Match mode state
+  const { data: matchResults = [], isLoading: matchLoading } = useQuery({
+    queryKey: ["talent-match-results", matchSpecId],
+    queryFn: async () => {
+      if (!matchSpecId) return [];
+      const { data } = await supabase
+        .from("job_spec_matches" as any)
+        .select("*, candidate:candidates(id, current_title, current_company, location, headline)")
+        .eq("job_spec_id", matchSpecId)
+        .order("overall_score", { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!matchSpecId,
+  });
+
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+  const [revealData, setRevealData] = useState<Record<string, { name: string; email: string | null; phone: string | null }>>({});
+
+  const handleReveal = async (candidateId: string) => {
+    if (revealedIds.has(candidateId)) return;
+    const { data } = await supabase
+      .from("candidates")
+      .select("id, name, email, phone")
+      .eq("id", candidateId)
+      .single();
+    if (data) {
+      setRevealData(prev => ({ ...prev, [candidateId]: { name: data.name, email: data.email, phone: data.phone } }));
+      setRevealedIds(prev => new Set([...prev, candidateId]));
+    }
+  };
 
   // Boolean search hook
   const booleanSearch = useBooleanSearch({ debounceMs: 500 });

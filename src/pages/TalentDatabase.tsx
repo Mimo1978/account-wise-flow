@@ -1399,8 +1399,9 @@ export default function TalentDatabase() {
           </span>
         </div>
       </div>
+      </>)}
 
-      {/* Talent Profile Side Panel */}
+
       <TalentProfilePanel
         talent={selectedTalent}
         open={!!selectedTalent && !showCVViewer}

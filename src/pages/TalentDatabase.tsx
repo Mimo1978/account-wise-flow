@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useCandidates } from "@/hooks/use-candidates";
 import { useBooleanSearch, BooleanSearchResult } from "@/hooks/use-boolean-search";
@@ -85,6 +87,10 @@ import {
   Download,
   Megaphone,
   Clock,
+  Sparkles,
+  X,
+  Trophy,
+  AlertTriangle,
 } from "lucide-react";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
@@ -160,6 +166,8 @@ export default function TalentDatabase() {
   const [searchParams] = useSearchParams();
   const { currentWorkspace } = useWorkspace();
   const returnToCampaignId = searchParams.get("campaignId") ?? undefined;
+  const matchSpecId = searchParams.get("match");
+  const isMatchMode = !!matchSpecId;
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
   const [roleTypeFilter, setRoleTypeFilter] = useState<string>("all");
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
@@ -175,6 +183,38 @@ export default function TalentDatabase() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [snippetsPanelResult, setSnippetsPanelResult] = useState<BooleanSearchResult | null>(null);
   const [showAddCandidate, setShowAddCandidate] = useState(false);
+
+  // Match mode state
+  const { data: matchResults = [], isLoading: matchLoading } = useQuery({
+    queryKey: ["talent-match-results", matchSpecId],
+    queryFn: async () => {
+      if (!matchSpecId) return [];
+      const { data } = await supabase
+        .from("job_spec_matches" as any)
+        .select("*, candidate:candidates(id, current_title, current_company, location, headline)")
+        .eq("job_spec_id", matchSpecId)
+        .order("overall_score", { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!matchSpecId,
+  });
+
+  const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
+  const [revealData, setRevealData] = useState<Record<string, { name: string; email: string | null; phone: string | null }>>({});
+
+  const handleReveal = async (candidateId: string) => {
+    if (revealedIds.has(candidateId)) return;
+    const { data } = await supabase
+      .from("candidates")
+      .select("id, name, email, phone")
+      .eq("id", candidateId)
+      .single();
+    if (data) {
+      setRevealData(prev => ({ ...prev, [candidateId]: { name: data.name, email: data.email, phone: data.phone } }));
+      setRevealedIds(prev => new Set([...prev, candidateId]));
+    }
+  };
 
   // Boolean search hook
   const booleanSearch = useBooleanSearch({ debounceMs: 500 });
@@ -712,6 +752,32 @@ export default function TalentDatabase() {
 
   return (
     <div className="bg-background h-full overflow-y-auto overflow-x-auto">
+      {/* Match mode banner */}
+      {isMatchMode && (
+        <div className="border-b border-amber-500/30 bg-amber-500/5">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Jarvis match results — {matchLoading ? "scanning..." : `${matchResults.length} candidates ranked`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Profiles are anonymised. Tap Reveal to see a candidate's name and contact details.
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/talent")}>
+                <X className="h-4 w-4 mr-1" /> Exit match view
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Page Sub-header */}
       <div className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">
@@ -924,6 +990,119 @@ export default function TalentDatabase() {
         </div>
       </div>
 
+      {/* Match Results Section */}
+      {isMatchMode && (
+        <div className="container mx-auto px-4 py-4">
+          {matchLoading ? (
+            <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
+              <Sparkles className="h-5 w-5 animate-pulse text-amber-500" />
+              Jarvis is ranking your candidates...
+            </div>
+          ) : matchResults.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-lg font-medium text-foreground">No matches found</p>
+              <p className="text-sm text-muted-foreground mt-1">Try a broader search or add more candidates to your database</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {matchResults.map((match: any, idx: number) => {
+                const isRevealed = revealedIds.has(match.talent_id);
+                const revealed = revealData[match.talent_id];
+                const score = match.overall_score || 0;
+                const scoreColor = score >= 80 ? "text-green-600" : score >= 60 ? "text-amber-600" : "text-muted-foreground";
+                const scoreBg = score >= 80 ? "bg-green-500/10 border-green-500/30" : score >= 60 ? "bg-amber-500/10 border-amber-500/30" : "bg-muted/30 border-border";
+                const breakdown = match.score_breakdown || {};
+                const matchedSkills = breakdown.matched_skills || [];
+                const riskFlags = match.risk_flags || [];
+                const tenure = breakdown.tenure_analysis;
+
+                return (
+                  <div key={match.id || idx} className={cn("rounded-lg border p-4 transition-colors hover:bg-muted/30", scoreBg)}>
+                    <div className="flex items-center gap-4">
+                      {/* Rank + Score */}
+                      <div className="flex flex-col items-center gap-0.5 min-w-[60px]">
+                        <span className="text-xs text-muted-foreground">#{idx + 1}</span>
+                        <span className={cn("text-xl font-bold", scoreColor)}>{score}%</span>
+                        <span className="text-[10px] text-muted-foreground">match</span>
+                      </div>
+
+                      {/* Main info */}
+                      <div className="flex-1 min-w-0">
+                        {/* Identity — hidden or revealed */}
+                        <div className="mb-1">
+                          {isRevealed ? (
+                            <div>
+                              <p className="font-semibold text-foreground">{revealed.name}</p>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                {revealed.email && <span>{revealed.email}</span>}
+                                {revealed.phone && <span>{revealed.phone}</span>}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <div className="h-6 w-32 bg-muted rounded animate-pulse" />
+                              <span className="text-xs italic">Name hidden</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Role + Company */}
+                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-1.5">
+                          {match.candidate?.current_title && (
+                            <span className="font-medium text-foreground">{match.candidate.current_title}</span>
+                          )}
+                          {match.candidate?.current_company && (
+                            <span>· {match.candidate.current_company}</span>
+                          )}
+                          {match.candidate?.location && (
+                            <span>· {match.candidate.location}</span>
+                          )}
+                        </div>
+
+                        {/* Score breakdown */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {matchedSkills.slice(0, 4).map((skill: string) => (
+                            <Badge key={skill} variant="outline" className="text-[10px] bg-green-500/10 text-green-700 border-green-500/30">
+                              ✓ {skill.replace(" (partial)", "")}
+                            </Badge>
+                          ))}
+                          {tenure && (
+                            <Badge variant="outline" className="text-[10px] gap-0.5">
+                              <Clock className="h-2.5 w-2.5" />
+                              {Math.round((tenure.average_tenure_months || 0) / 12 * 10) / 10}yr avg tenure
+                            </Badge>
+                          )}
+                          {riskFlags.slice(0, 1).map((flag: string) => (
+                            <Badge key={flag} variant="outline" className="text-[10px] bg-red-500/10 text-red-600 border-red-500/30">
+                              <AlertTriangle className="h-2.5 w-2.5 mr-0.5" /> {flag}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-col gap-1.5 ml-2">
+                        {!isRevealed ? (
+                          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => handleReveal(match.talent_id)}>
+                            <Eye className="h-3.5 w-3.5" /> Reveal
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="default" className="gap-1.5" onClick={() => navigate(`/talent/${match.talent_id}`)}>
+                            View profile
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Only show normal talent table when NOT in match mode */}
+      {!isMatchMode && (<>
       {/* Search and Filters */}
       <div className="container mx-auto px-4 py-4">
         <div className="flex flex-wrap items-start gap-4 mb-4">
@@ -1220,8 +1399,9 @@ export default function TalentDatabase() {
           </span>
         </div>
       </div>
+      </>)}
 
-      {/* Talent Profile Side Panel */}
+
       <TalentProfilePanel
         talent={selectedTalent}
         open={!!selectedTalent && !showCVViewer}

@@ -18,8 +18,6 @@ interface JobSpec {
 
 interface Candidate {
   id: string;
-  name: string;
-  email: string | null;
   current_title: string | null;
   current_company: string | null;
   location: string | null;
@@ -197,9 +195,12 @@ Deno.serve(async (req) => {
     console.log(`Job spec: ${spec.title}, workspace: ${spec.workspace_id}`);
 
     // Fetch all candidates in workspace
+    // PII-safe query: name, email, phone deliberately excluded.
+    // AI scoring uses only experience, skills, and company data.
+    // PII is only retrieved after a human selects a candidate to reveal.
     const { data: candidates, error: candidatesError } = await supabase
       .from('candidates')
-      .select('id, name, email, current_title, current_company, location, headline, skills, experience, raw_cv_text')
+      .select('id, current_title, current_company, location, headline, skills, experience, raw_cv_text')
       .eq('tenant_id', spec.workspace_id);
 
     if (candidatesError) {
@@ -816,7 +817,7 @@ Deno.serve(async (req) => {
       .from('job_spec_matches')
       .select(`
         *,
-        candidate:candidates(id, name, email, current_title, current_company, location, headline)
+        candidate:candidates(id, current_title, current_company, location, headline)
       `)
       .eq('job_spec_id', jobSpecId)
       .order('overall_score', { ascending: false });

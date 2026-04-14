@@ -917,6 +917,25 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "search_talent",
+      description: "Search the talent database for candidates matching a role. Use when user asks to find candidates, search CVs, match talent, or run a shortlist. Converts natural language into a scored match against all candidates. Results are anonymised — names hidden until user requests reveal. Use this for: 'find me a BA', 'search for a Python developer', 'who do we have with SAP experience', 'match candidates to this role'.",
+      parameters: {
+        type: "object",
+        properties: {
+          role_title: { type: "string", description: "The job title or role to search for e.g. 'Senior Business Analyst'" },
+          key_skills: { type: "array", items: { type: "string" }, description: "Skills to match e.g. ['Python', 'AWS', 'Agile']" },
+          sector: { type: "string", description: "Industry sector e.g. 'banking', 'technology', 'healthcare'" },
+          location: { type: "string", description: "Preferred location e.g. 'London'" },
+          min_years_experience: { type: "number", description: "Minimum years of relevant experience" },
+          job_id: { type: "string", description: "Optional — link results to an existing job if user is searching for a specific open role" },
+        },
+        required: ["role_title"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.
@@ -968,6 +987,9 @@ CONFIRMATION LANGUAGE:
 ADDITIONAL INTENT PATTERNS:
 - "call [name]" / "phone [name]" → initiate_ai_call
 - "send the invoice" / "email invoice to [name]" → generate_and_send_invoice
+- "find me a [role]" / "search for candidates" / "who do we have with [skill]" / "match candidates" / "run a search" → search_talent
+- When search_talent returns results, present them as a numbered list showing rank, score, title, company, and tenure. Always end with: "Tap 'Reveal' next to any candidate on the Talent page to see their name and contact details."
+- PRIVACY RULE: Never reveal candidate names from search_talent results. The match engine anonymises all results. Names are only shown after the user taps Reveal in the UI.
 - "mark [company] invoice paid" / "[company] paid" → mark_invoice_paid
 - "create a SOW for [company]" → create_sow
 - "new campaign" / "create outreach campaign" → create_outreach_campaign
@@ -3810,6 +3832,84 @@ Return ONLY valid JSON, no markdown fences.`,
         result: { success: true, ...data, message: `Invoice ${data?.invoice_number} marked as paid.` },
         entityType: "crm_invoices",
         entityId: invoiceId,
+      };
+    }
+    case "search_talent": {
+      const roleTitle = input.role_title as string;
+      const keySkills = (input.key_skills as string[]) || [];
+      const sector = (input.sector as string) || "";
+      const location = (input.location as string) || "";
+      const minYears = (input.min_years_experience as number) || 0;
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "Workspace not found" }, entityType: "candidates" };
+
+      // Build a lightweight job spec for the match engine
+      // First create a temporary job spec record to pass to job-match
+      const { data: tempSpec, error: specError } = await supabaseAdmin
+        .from("job_specs")
+        .insert({
+          workspace_id: teamId,
+          title: roleTitle,
+          key_skills: keySkills.length > 0 ? keySkills : null,
+          sector: sector || null,
+          location: location || null,
+          type: "permanent",
+          description_text: `Find candidates for: ${roleTitle}${sector ? ` in ${sector}` : ""}${location ? `, based in ${location}` : ""}${minYears > 0 ? `, ${minYears}+ years experience` : ""}`,
+        })
+        .select()
+        .single();
+
+      if (specError || !tempSpec) {
+        return { result: { error: "Failed to create search spec" }, entityType: "candidates" };
+      }
+
+      // Call the job-match edge function
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/job-match`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ jobSpecId: tempSpec.id }),
+      });
+
+      const data = await res.json();
+
+      // Clean up the temporary spec
+      await supabaseAdmin.from("job_specs").delete().eq("id", tempSpec.id);
+
+      if (!res.ok || !data.success) {
+        return { result: { error: data.error || "Search failed" }, entityType: "candidates" };
+      }
+
+      const matches = (data.matches || []).slice(0, 10);
+      const topMatches = matches.map((m: any, i: number) => ({
+        rank: i + 1,
+        score: m.overall_score,
+        title: m.candidate?.current_title || "Unknown role",
+        company: m.candidate?.current_company || "Unknown company",
+        location: m.candidate?.location || "Unknown",
+        skills_matched: m.score_breakdown?.matched_skills?.slice(0, 4) || [],
+        tenure: m.score_breakdown?.tenure_analysis?.average_tenure_months
+          ? `${Math.round(m.score_breakdown.tenure_analysis.average_tenure_months / 12 * 10) / 10}yr avg tenure`
+          : null,
+        risk_flags: m.risk_flags || [],
+        candidate_id: m.talent_id,
+        // No name or email — PII hidden until user requests reveal
+      }));
+
+      return {
+        result: {
+          success: true,
+          total_found: data.matchCount,
+          top_matches: topMatches,
+          search_spec_id: tempSpec.id,
+          navigate_to: "/talent",
+          message: `Found ${data.matchCount} candidates. Showing top ${topMatches.length} ranked by fit. Names are hidden — I'll reveal them when you decide who to engage.`,
+        },
+        entityType: "candidates",
       };
     }
     default:

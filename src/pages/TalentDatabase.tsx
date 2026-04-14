@@ -752,6 +752,32 @@ export default function TalentDatabase() {
 
   return (
     <div className="bg-background h-full overflow-y-auto overflow-x-auto">
+      {/* Match mode banner */}
+      {isMatchMode && (
+        <div className="border-b border-amber-500/30 bg-amber-500/5">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Jarvis match results — {matchLoading ? "scanning..." : `${matchResults.length} candidates ranked`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Profiles are anonymised. Tap Reveal to see a candidate's name and contact details.
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/talent")}>
+                <X className="h-4 w-4 mr-1" /> Exit match view
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Page Sub-header */}
       <div className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4">

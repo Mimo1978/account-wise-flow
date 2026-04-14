@@ -1826,7 +1826,8 @@ async function executeTool(
   toolName: string,
   input: Record<string, unknown>,
   supabaseAdmin: ReturnType<typeof createClient>,
-  userId: string
+  userId: string,
+  authHeader: string
 ): Promise<{ result: unknown; entityType: string; entityId?: string }> {
   switch (toolName) {
     case "search_companies": {
@@ -3869,7 +3870,7 @@ Return ONLY valid JSON, no markdown fences.`,
       const res = await fetch(`${supabaseUrl}/functions/v1/job-match`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${serviceKey}`,
+          Authorization: authHeader,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ jobSpecId: tempSpec.id }),
@@ -3881,7 +3882,15 @@ Return ONLY valid JSON, no markdown fences.`,
       await supabaseAdmin.from("job_specs").delete().eq("id", tempSpec.id);
 
       if (!res.ok || !data.success) {
-        return { result: { error: data.error || "Search failed" }, entityType: "candidates" };
+        return {
+          result: {
+            success: false,
+            total_found: 0,
+            top_matches: [],
+            message: `I searched your talent database for "${roleTitle}" but couldn't complete the search. This usually means there are no parsed CVs in the system yet. To add candidates: go to Talent → Add Candidate, or import CVs using the Import button.`,
+          },
+          entityType: "candidates",
+        };
       }
 
       const matches = (data.matches || []).slice(0, 10);
@@ -3900,14 +3909,26 @@ Return ONLY valid JSON, no markdown fences.`,
         // No name or email — PII hidden until user requests reveal
       }));
 
+      if (data.matchCount === 0 || topMatches.length === 0) {
+        return {
+          result: {
+            success: true,
+            total_found: 0,
+            top_matches: [],
+            navigate_to: "/talent",
+            message: `I searched your talent database for "${roleTitle}" but found no matching candidates${keySkills.length > 0 ? ` with skills: ${keySkills.join(", ")}` : ""}. Your database currently has candidates but none match this criteria. Try broadening the search — fewer skills, or remove the sector filter. Or add new candidates via Talent → Add Candidate.`,
+          },
+          entityType: "candidates",
+        };
+      }
+
       return {
         result: {
           success: true,
           total_found: data.matchCount,
           top_matches: topMatches,
-          search_spec_id: tempSpec.id,
           navigate_to: `/talent?match=${tempSpec.id}`,
-          message: `Found ${data.matchCount} candidates. Showing top ${topMatches.length} ranked by fit. Names are hidden — I'll reveal them when you decide who to engage.`,
+          message: `Found ${data.matchCount} candidates matching "${roleTitle}". Showing the top ${topMatches.length} ranked by fit — company prestige, tenure stability, and skill coverage. I'm taking you to the Talent page now. Names are hidden — tap Reveal on the ones you want to engage.`,
         },
         entityType: "candidates",
       };
@@ -4070,7 +4091,8 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
           toolCall.function.name,
           toolInput,
           supabaseAdmin,
-          userId
+          userId,
+          authHeader!
         );
 
         const hasError = result && typeof result === "object" && "error" in (result as any);
@@ -4116,7 +4138,8 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
           toolCall.function.name,
           toolInput,
           supabaseAdmin,
-          userId
+          userId,
+          authHeader!
         );
 
         const hasError = result && typeof result === "object" && "error" in (result as any);
@@ -4340,7 +4363,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 
     // Build invalidation list for frontend cache
     const invalidateQueries: string[] = [];
-    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate", "book_diary_event", "cancel_diary_event", "reschedule_diary_event", "update_record", "delete_record", "create_candidate", "generate_and_send_invoice", "initiate_ai_call", "create_sow", "create_outreach_campaign", "add_to_outreach", "mark_invoice_paid"]);
+    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate", "book_diary_event", "cancel_diary_event", "reschedule_diary_event", "update_record", "delete_record", "create_candidate", "generate_and_send_invoice", "initiate_ai_call", "create_sow", "create_outreach_campaign", "add_to_outreach", "mark_invoice_paid", "search_talent"]);
     const entityQueryMap: Record<string, string[]> = {
       companies: ["companies", "canvas-companies", "crm_companies"],
       contacts: ["contacts", "company-contacts", "crm_contacts", "all-contacts"],

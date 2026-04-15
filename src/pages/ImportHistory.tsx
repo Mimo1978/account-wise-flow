@@ -78,7 +78,7 @@ export default function ImportHistory() {
       failedFiles: failedResult.count || 0,
     });
 
-    const currentActiveBatch = batchRows.find(b => b.status === "processing" || b.status === "queued");
+    const currentActiveBatch = batchRows.find(b => b.status === "processing" || b.status === "queued" || b.status === "paused");
 
     if (currentActiveBatch) {
       const { data: activeItems } = await supabase
@@ -99,6 +99,11 @@ export default function ImportHistory() {
         { started: 0, completed: 0, created: 0, failed: 0, processing: 0, queued: 0 }
       );
 
+      // Use batch-level success_count as fallback if item-level created is 0
+      if (stats.created === 0 && currentActiveBatch.success_count > 0) {
+        stats.created = currentActiveBatch.success_count;
+      }
+
       setActiveBatchStats(stats);
     } else {
       setActiveBatchStats({ started: 0, completed: 0, created: 0, failed: 0, processing: 0, queued: 0 });
@@ -113,7 +118,7 @@ export default function ImportHistory() {
   }, [fetchBatches]);
 
   useEffect(() => {
-    const hasActive = batches.some(b => b.status === "processing" || b.status === "queued");
+    const hasActive = batches.some(b => b.status === "processing" || b.status === "queued" || b.status === "paused");
     if (!hasActive) return;
     const interval = setInterval(fetchBatches, 3000);
     return () => clearInterval(interval);
@@ -184,7 +189,8 @@ export default function ImportHistory() {
   const activeBatch = batches.find(b => b.status === "processing" || b.status === "queued" || b.status === "paused");
   const isBatchProcessing = activeBatch?.status === "processing";
   const isBatchPaused = activeBatch?.status === "paused";
-  const activeProgressCount = activeBatchStats.started || activeBatch?.processed_files || 0;
+  const remainingFiles = activeBatch ? activeBatch.total_files - activeBatchStats.created - activeBatchStats.failed : 0;
+  const activeProgressCount = activeBatchStats.created + activeBatchStats.failed;
   const activeProgressPct = activeBatch
     ? Math.round((activeProgressCount / Math.max(activeBatch.total_files, 1)) * 100)
     : 0;
@@ -283,7 +289,9 @@ export default function ImportHistory() {
 
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">
-                        {activeProgressCount.toLocaleString()} of {activeBatch.total_files.toLocaleString()} files started
+                        {activeBatchStats.created > 0
+                          ? `${activeBatchStats.created.toLocaleString()} of ${activeBatch.total_files.toLocaleString()} imported — ${remainingFiles.toLocaleString()} remaining`
+                          : `${activeBatchStats.started.toLocaleString()} of ${activeBatch.total_files.toLocaleString()} files started`}
                       </span>
                       <span className="font-medium text-foreground">{activeProgressPct}%</span>
                     </div>
@@ -376,10 +384,12 @@ export default function ImportHistory() {
                   )}
 
                   <div className="flex items-center gap-4 text-sm mt-3 flex-wrap">
-                    <span className="text-green-600 font-medium">
-                      ✓ {activeBatchStats.created.toLocaleString()} candidates created
-                    </span>
-                    {!isBatchPaused && (
+                    {activeBatchStats.created > 0 && (
+                      <span className="text-green-600 font-medium">
+                        ✓ {activeBatchStats.created.toLocaleString()} candidates created
+                      </span>
+                    )}
+                    {!isBatchPaused && activeBatchStats.processing > 0 && (
                       <span className="text-foreground font-medium">
                         {activeBatchStats.processing.toLocaleString()} processing now
                       </span>
@@ -389,13 +399,11 @@ export default function ImportHistory() {
                         ✗ {activeBatchStats.failed.toLocaleString()} failed
                       </span>
                     )}
-                    <span className="text-muted-foreground">
-                      {activeBatchStats.queued > 0
-                        ? `${activeBatchStats.queued.toLocaleString()} waiting`
-                        : activeBatchStats.processing > 0
-                          ? "Finishing current files..."
-                          : "Finalising..."}
-                    </span>
+                    {remainingFiles > 0 && (
+                      <span className="text-muted-foreground font-medium">
+                        {remainingFiles.toLocaleString()} files remaining
+                      </span>
+                    )}
                   </div>
 
                 </div>

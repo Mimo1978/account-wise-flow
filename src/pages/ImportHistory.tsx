@@ -67,7 +67,7 @@ export default function ImportHistory() {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       
       const response = await fetch(
-        `${supabaseUrl}/functions/v1/cv-batch-import/${batchId}/complete-upload`,
+        `${supabaseUrl}/functions/v1/cv-batch-import/${batchId}/restart`,
         {
           method: "POST",
           headers: {
@@ -181,7 +181,7 @@ export default function ImportHistory() {
 
                   </div>
 
-                  {activeBatch.processed_files === 0 && activeBatch.status === "processing" && (
+                  {activeBatch.processed_files === 0 && (
                     <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3">
                       <div>
                         <p className="text-xs font-medium text-amber-600">Processing appears stuck</p>

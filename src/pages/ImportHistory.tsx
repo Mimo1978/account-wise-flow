@@ -115,7 +115,7 @@ export default function ImportHistory() {
               <div className="space-y-4">
 
                 <div className="flex items-start gap-3">
-                  <CMOrbital size="md" />
+                  <CMOrbital size={48} />
 
                   <div className="flex-1 min-w-0">
 

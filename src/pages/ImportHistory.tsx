@@ -78,7 +78,7 @@ export default function ImportHistory() {
       failedFiles: failedResult.count || 0,
     });
 
-    const currentActiveBatch = batchRows.find(b => b.status === "processing" || b.status === "queued");
+    const currentActiveBatch = batchRows.find(b => b.status === "processing" || b.status === "queued" || b.status === "paused");
 
     if (currentActiveBatch) {
       const { data: activeItems } = await supabase
@@ -98,6 +98,11 @@ export default function ImportHistory() {
         },
         { started: 0, completed: 0, created: 0, failed: 0, processing: 0, queued: 0 }
       );
+
+      // Use batch-level success_count as fallback if item-level created is 0
+      if (stats.created === 0 && currentActiveBatch.success_count > 0) {
+        stats.created = currentActiveBatch.success_count;
+      }
 
       setActiveBatchStats(stats);
     } else {

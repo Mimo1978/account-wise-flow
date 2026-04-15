@@ -43,6 +43,7 @@ import NotFound from "./pages/NotFound";
 import Outreach from "./pages/Outreach";
 import SchemaInventory from "./pages/SchemaInventory";
 import Onboarding from "./pages/Onboarding";
+import DataOnboarding from "./pages/DataOnboarding";
 import ProjectsList from "./pages/ProjectsList";
 import DealsPage from "./pages/DealsPage";
 import DocumentsHub from "./pages/DocumentsHub";
@@ -156,6 +157,7 @@ const App = () => {
             <Route path="/auth/sign-in" element={<Navigate to="/auth?tab=signin" replace />} />
             <Route path="/auth/sign-up" element={<Navigate to="/auth?tab=signup" replace />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/get-started" element={<ProtectedRoute><DataOnboarding /></ProtectedRoute>} />
             <Route path="/demo" element={<Demo />} />
             <Route path="/jobs/board" element={<PublicJobBoard />} />
 

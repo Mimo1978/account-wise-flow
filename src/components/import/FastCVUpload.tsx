@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const MAX_FILES = 10;
+const MAX_FILES = 50;
 
 interface FileStatus {
   fileName: string;

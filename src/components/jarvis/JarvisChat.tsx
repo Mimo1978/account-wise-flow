@@ -44,16 +44,34 @@ function TypingDots() {
     <div className="flex items-center gap-1 px-4 py-3">
       <div className="flex items-center gap-1.5">
         <Sparkles className="h-4 w-4 text-primary shrink-0" />
-        <span className="flex gap-1">
-          {[0, 1, 2].map((i) => (
-            <span
+        <div className="flex items-end gap-[3px] h-5">
+          {[
+            { h: 8,  d: '0ms'   },
+            { h: 14, d: '80ms'  },
+            { h: 20, d: '160ms' },
+            { h: 16, d: '120ms' },
+            { h: 20, d: '200ms' },
+            { h: 10, d: '240ms' },
+            { h: 18, d: '280ms' },
+            { h: 8,  d: '320ms' },
+          ].map((bar, i) => (
+            <div
               key={i}
-              className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce"
-              style={{ animationDelay: `${i * 150}ms` }}
+              className="w-[2px] rounded-full bg-primary/70"
+              style={{
+                height: `${bar.h}px`,
+                animation: `cmPipelinePulse 0.8s ease-in-out ${bar.d} infinite alternate`,
+              }}
             />
           ))}
-        </span>
+        </div>
       </div>
+      <style>{`
+        @keyframes cmPipelinePulse {
+          from { opacity: 0.25; transform: scaleY(0.5); }
+          to   { opacity: 1;    transform: scaleY(1);   }
+        }
+      `}</style>
     </div>
   );
 }
@@ -244,6 +262,61 @@ function MessageBubble({
           )}
         </div>
       </div>
+
+      {showSearchOverlay && (
+        <div className="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm">
+          {/* Orbital animation */}
+          <div className="relative w-64 h-64 mb-8">
+            {/* Centre dot */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary" />
+
+            {/* Inner ring */}
+            <svg className="absolute inset-0 w-full h-full" style={{ animation: 'cmOrbSpin 3s linear infinite' }}>
+              <circle
+                cx="50%"
+                cy="50%"
+                r="30"
+                fill="none"
+                stroke="hsl(var(--primary))"
+                strokeWidth="2"
+                strokeDasharray="4 8"
+                opacity="0.5"
+              />
+            </svg>
+
+            {/* Middle ring */}
+            <svg className="absolute inset-0 w-full h-full" style={{ animation: 'cmOrbSpin 4s linear reverse infinite' }}>
+              <circle cx="50%" cy="50%" r="60" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeDasharray="6 12" opacity="0.4" />
+              <circle cx="50%" cy="10%" r="4" fill="hsl(var(--primary))" opacity="0.8" />
+              <circle cx="50%" cy="90%" r="3" fill="hsl(var(--primary))" opacity="0.6" />
+            </svg>
+
+            {/* Outer ring */}
+            <svg className="absolute inset-0 w-full h-full" style={{ animation: 'cmOrbSpin 5s linear infinite' }}>
+              <circle cx="50%" cy="50%" r="90" fill="none" stroke="hsl(var(--primary))" strokeWidth="1" strokeDasharray="8 16" opacity="0.3" />
+              <circle cx="90%" cy="50%" r="5" fill="hsl(var(--primary))" opacity="0.7" />
+              <circle cx="10%" cy="50%" r="3" fill="hsl(var(--primary))" opacity="0.5" />
+            </svg>
+          </div>
+
+          {/* Message */}
+          <div className="text-center space-y-2">
+            <h2 className="text-2xl font-bold text-foreground animate-pulse">
+              Scanning your talent database
+            </h2>
+            <p className="text-muted-foreground text-sm max-w-md">
+              Ranking candidates by fit, tenure and company prestige...
+            </p>
+          </div>
+
+          <style>{`
+            @keyframes cmOrbSpin {
+              from { transform: rotate(0deg); }
+              to   { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }
@@ -567,6 +640,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const [input, setInput] = useState("");
   const [keepListening, setKeepListening] = useState(false);
   const [bannerData, setBannerData] = useState<BannerData | null>(null);
+  const [showSearchOverlay, setShowSearchOverlay] = useState(false);
   const lastBannerMsgIdx = useRef(-1);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
@@ -913,10 +987,19 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
       const hasSuccessfulMutation = last.actionsExecuted?.some(
         (a) => a.success && /^(create_|generate_|initiate_|mark_|send_|update_|delete_)/.test(a.tool)
       );
+      const isSearchAction = last.actionsExecuted?.some(a => a.tool === 'search_talent');
       if (last.navigateTo && hasSuccessfulMutation) {
-        setTimeout(() => {
-          navigate(last.navigateTo!);
-        }, 1500);
+        if (isSearchAction) {
+          setShowSearchOverlay(true);
+          setTimeout(() => {
+            setShowSearchOverlay(false);
+            navigate(last.navigateTo!);
+          }, 2800);
+        } else {
+          setTimeout(() => {
+            navigate(last.navigateTo!);
+          }, 1500);
+        }
       }
 
       // Check for guided tour first
@@ -1222,7 +1305,18 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
           <div className="flex items-center gap-2.5">
             <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center relative">
               {visualState === "thinking" ? (
-                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                <div className="flex items-end gap-[2px] h-3.5">
+                  {[6,10,14,10,6].map((h, i) => (
+                    <div
+                      key={i}
+                      className="w-[2px] rounded-full bg-primary"
+                      style={{
+                        height: `${h}px`,
+                        animation: `cmPipelinePulse 0.8s ease-in-out ${i * 80}ms infinite alternate`,
+                      }}
+                    />
+                  ))}
+                </div>
               ) : visualState === "speaking" ? (
                 <Volume2 className="h-4 w-4 text-primary animate-pulse" />
               ) : (

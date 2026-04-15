@@ -602,9 +602,8 @@ async function processQueuedItems(supabase: any, batchId: string, tenantId: stri
 
   // Process items in batches with concurrency limit
   const CONCURRENT_LIMIT = MAX_CONCURRENT_ITEMS_PER_TENANT;
-  let processedCount = 0;
-  let successCount = 0;
-  let failCount = 0;
+
+  await syncBatchProgress(supabase, batchId);
   
   while (true) {
     // Fetch next batch of queued items
@@ -621,32 +620,58 @@ async function processQueuedItems(supabase: any, batchId: string, tenantId: stri
     }
 
     // Process items concurrently
-    const results = await Promise.allSettled(
+    await Promise.allSettled(
       items.map(async (item: any) => {
-        const ok = await processItemWithRetry(supabase, item, LOVABLE_API_KEY!);
-        processedCount++;
-        if (ok) { successCount++; } else { failCount++; }
-        // Update batch progress after EVERY item so the UI sees real-time counts
-        await supabase
-          .from('cv_import_batches')
-          .update({
-            processed_files: processedCount,
-            success_count: successCount,
-            fail_count: failCount,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', batchId);
-        return ok;
+        await processItemWithRetry(supabase, item, LOVABLE_API_KEY!);
+        await syncBatchProgress(supabase, batchId);
       })
     );
   }
 
+  const progress = await syncBatchProgress(supabase, batchId);
+
   // Finalize batch status
-  const finalStatus = failCount === 0 ? 'completed' : (successCount === 0 ? 'failed' : 'partial');
+  const finalStatus = progress.failCount === 0 ? 'completed' : (progress.successCount === 0 ? 'failed' : 'partial');
   await updateBatchStatus(supabase, batchId, finalStatus, 
-    failCount > 0 ? `${failCount} items failed processing` : null);
+    progress.failCount > 0 ? `${progress.failCount} items failed processing` : null);
   
-  console.log(`Completed processing for batch ${batchId}: ${successCount} success, ${failCount} failed`);
+  console.log(`Completed processing for batch ${batchId}: ${progress.successCount} success, ${progress.failCount} failed`);
+}
+
+async function syncBatchProgress(supabase: any, batchId: string) {
+  const { data: batch } = await supabase
+    .from('cv_import_batches')
+    .select('total_files')
+    .eq('id', batchId)
+    .single();
+
+  const { data: items } = await supabase
+    .from('cv_import_items')
+    .select('status')
+    .eq('batch_id', batchId);
+
+  let processedCount = 0;
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const row of items || []) {
+    if (row.status !== 'queued' && row.status !== 'processing') processedCount++;
+    if (row.status === 'parsed' || row.status === 'merged') successCount++;
+    if (row.status === 'failed') failCount++;
+  }
+
+  await supabase
+    .from('cv_import_batches')
+    .update({
+      processed_files: processedCount,
+      success_count: successCount,
+      fail_count: failCount,
+      status: processedCount < (batch?.total_files || 0) ? 'processing' : undefined,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', batchId);
+
+  return { processedCount, successCount, failCount };
 }
 
 async function updateBatchStatus(supabase: any, batchId: string, status: string, errorSummary: string | null) {
@@ -800,19 +825,35 @@ async function processItem(supabase: any, item: any, apiKey: string) {
     }
   }
 
-  // Mark item as parsed and link to candidate
-  await supabase
+  const completedAt = new Date().toISOString();
+
+  // Mark item as parsed first so counters keep moving even if metadata enrichment fails
+  const { error: parsedError } = await supabase
     .from('cv_import_items')
     .update({
       status: 'parsed',
       parse_confidence: extractedData.overall_confidence,
+      candidate_id: candidateId,
+      completed_at: completedAt,
+    })
+    .eq('id', item.id);
+
+  if (parsedError) {
+    throw new Error(`Failed to mark item as parsed: ${parsedError.message}`);
+  }
+
+  const { error: enrichmentError } = await supabase
+    .from('cv_import_items')
+    .update({
       field_confidence: extractedData.field_confidence,
       extracted_data: extractedData,
       search_tags: searchTags,
-      candidate_id: candidateId,
-      completed_at: new Date().toISOString(),
     })
     .eq('id', item.id);
+
+  if (enrichmentError) {
+    console.error(`Metadata enrichment failed for item ${item.id}:`, enrichmentError);
+  }
 
   console.log(`Successfully processed item ${item.id} — candidate: ${candidateId || 'skipped (no name found)'}`);
 }

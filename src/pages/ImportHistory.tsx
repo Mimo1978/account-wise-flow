@@ -79,18 +79,19 @@ export default function ImportHistory() {
       const result = await response.json();
       if (result.success) {
         toast.success("Processing started — candidates will appear in Talent shortly");
-        fetchBatches();
+        await fetchBatches();
       } else {
         toast.error(result.error || "Failed to start processing");
+        setTriggering(false);
       }
     } catch (e: any) {
       toast.error(e.message || "Failed to start processing");
-    } finally {
       setTriggering(false);
     }
   };
 
   const activeBatch = batches.find(b => b.status === "processing" || b.status === "queued");
+  const isBatchProcessing = activeBatch?.status === "processing";
   const totalImported = batches.reduce((s, b) => s + (b.success_count || 0), 0);
   const totalFailed = batches.reduce((s, b) => s + (b.fail_count || 0), 0);
 
@@ -184,15 +185,15 @@ export default function ImportHistory() {
                   {activeBatch.processed_files === 0 && (
                     <div className={cn(
                       "mt-3 p-3 rounded-lg flex items-center justify-between gap-3",
-                      triggering
+                      isBatchProcessing || triggering
                         ? "bg-primary/10 border border-primary/20"
                         : "bg-amber-500/10 border border-amber-500/20"
                     )}>
                       <div>
-                        {triggering ? (
+                        {isBatchProcessing || triggering ? (
                           <>
-                            <p className="text-xs font-medium text-primary">Processing started</p>
-                            <p className="text-xs text-muted-foreground">AI is extracting candidate data — progress will update shortly</p>
+                            <p className="text-xs font-medium text-primary">Processing active</p>
+                            <p className="text-xs text-muted-foreground">The import is running in the background — progress will update automatically</p>
                           </>
                         ) : (
                           <>
@@ -204,15 +205,15 @@ export default function ImportHistory() {
                       <Button
                         size="sm"
                         onClick={() => triggerProcessing(activeBatch.id)}
-                        disabled={triggering}
+                        disabled={isBatchProcessing || triggering}
                         className={cn(
                           "gap-1.5 font-medium flex-shrink-0",
-                          triggering
+                          isBatchProcessing || triggering
                             ? "bg-primary/20 text-primary cursor-wait"
                             : "bg-amber-500 hover:bg-amber-400 text-black"
                         )}
                       >
-                        {triggering ? (
+                        {isBatchProcessing || triggering ? (
                           <>
                             <RefreshCw className="h-3.5 w-3.5 animate-spin" />
                             Processing…

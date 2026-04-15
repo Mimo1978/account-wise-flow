@@ -196,7 +196,7 @@ export default function CrmDealDetail() {
     enabled: !!id,
   });
 
-  if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  if (isLoading) return <CMSectionLoader />;
   if (!deal) return <div className="p-6 text-muted-foreground">Deal not found</div>;
 
   const currencySymbol = deal.currency === "GBP" ? "£" : deal.currency === "USD" ? "$" : "€";

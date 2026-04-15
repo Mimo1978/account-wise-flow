@@ -344,7 +344,7 @@ export default function DocumentsHub() {
 
         {/* Documents Table */}
         {isLoading ? (
-          <Card className="border border-border rounded-xl"><CardContent className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></CardContent></Card>
+          <CMSectionLoader />
         ) : filtered.length === 0 ? (
           <Card className="flex flex-col items-center justify-center text-center p-12 border border-border rounded-xl">
             <FileText className="w-12 h-12 text-muted-foreground mb-4" />

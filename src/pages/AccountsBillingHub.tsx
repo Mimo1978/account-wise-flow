@@ -559,7 +559,7 @@ const AccountsBillingHub = () => {
       </div>
 
       {isLoading ? (
-        <Card><CardContent className="flex items-center justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></CardContent></Card>
+        <CMSectionLoader />
       ) : (
         <>
           {/* KPI Row */}

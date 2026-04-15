@@ -449,6 +449,44 @@ serve(async (req) => {
       );
     }
 
+    // Route: POST /cv-batch-import/:batchId/pause - Stop/pause processing
+    if (method === 'POST' && pathParts.length === 3 && pathParts[2] === 'pause') {
+      const batchId = pathParts[1];
+
+      // Set batch status to paused — the processing loop checks this before each iteration
+      const { data: batch, error: updateError } = await supabaseAdmin
+        .from('cv_import_batches')
+        .update({
+          status: 'paused',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', batchId)
+        .in('status', ['processing', 'queued'])
+        .select()
+        .single();
+
+      if (updateError || !batch) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Batch not found or not active' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Reset any items stuck in 'processing' back to 'queued' so they can be resumed later
+      await supabaseAdmin
+        .from('cv_import_items')
+        .update({ status: 'queued', started_at: null })
+        .eq('batch_id', batchId)
+        .eq('status', 'processing');
+
+      await logAudit(supabase, userId, 'batch_paused', batchId, {});
+
+      return new Response(
+        JSON.stringify({ success: true, data: batch, message: 'Processing paused' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Route: POST /cv-batch-import/items/:itemId/retry - Retry failed item
     if (method === 'POST' && pathParts.length === 3 && pathParts[1] === 'items' && pathParts[2] !== 'resolve-dedupe') {
       const itemId = pathParts[2].replace('/retry', '');
@@ -606,6 +644,18 @@ async function processQueuedItems(supabase: any, batchId: string, tenantId: stri
   await syncBatchProgress(supabase, batchId);
   
   while (true) {
+    // Check if batch was paused/stopped before picking up more work
+    const { data: batchCheck } = await supabase
+      .from('cv_import_batches')
+      .select('status')
+      .eq('id', batchId)
+      .single();
+
+    if (batchCheck?.status === 'paused' || batchCheck?.status === 'completed' || batchCheck?.status === 'failed') {
+      console.log(`Batch ${batchId} status is ${batchCheck.status} — stopping processing loop`);
+      return; // Exit without finalising — user paused intentionally
+    }
+
     // Fetch next batch of queued items
     const { data: items, error } = await supabase
       .from('cv_import_items')

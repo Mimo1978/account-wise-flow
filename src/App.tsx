@@ -43,6 +43,7 @@ import NotFound from "./pages/NotFound";
 import Outreach from "./pages/Outreach";
 import SchemaInventory from "./pages/SchemaInventory";
 import Onboarding from "./pages/Onboarding";
+import DataOnboarding from "./pages/DataOnboarding";
 import ProjectsList from "./pages/ProjectsList";
 import DealsPage from "./pages/DealsPage";
 import DocumentsHub from "./pages/DocumentsHub";

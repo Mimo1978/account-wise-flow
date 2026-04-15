@@ -6803,6 +6803,7 @@ export type Database = {
         | "completed"
         | "failed"
         | "partial"
+        | "paused"
       cv_item_status:
         | "queued"
         | "processing"
@@ -7018,6 +7019,7 @@ export const Constants = {
         "completed",
         "failed",
         "partial",
+        "paused",
       ],
       cv_item_status: [
         "queued",

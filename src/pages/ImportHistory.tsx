@@ -118,7 +118,7 @@ export default function ImportHistory() {
   }, [fetchBatches]);
 
   useEffect(() => {
-    const hasActive = batches.some(b => b.status === "processing" || b.status === "queued");
+    const hasActive = batches.some(b => b.status === "processing" || b.status === "queued" || b.status === "paused");
     if (!hasActive) return;
     const interval = setInterval(fetchBatches, 3000);
     return () => clearInterval(interval);

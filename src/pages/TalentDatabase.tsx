@@ -892,10 +892,18 @@ export default function TalentDatabase() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
+                        <DropdownMenuItem onClick={() => navigate("/bulk-upload")}>
+                          <Layers className="h-4 w-4 mr-2 text-primary" />
+                          <div className="flex flex-col">
+                            <span className="font-medium">Bulk import — 100s or 1000s of CVs</span>
+                            <span className="text-xs text-muted-foreground">Upload an entire folder at once</span>
+                          </div>
+                        </DropdownMenuItem>
+                        <Separator className="my-1" />
                         <DropdownMenuItem onClick={() => setShowFastUpload(true)}>
                           <Upload className="h-4 w-4 mr-2" />
                           Import CVs
-                          <Badge variant="outline" className="ml-auto text-xs">Fast</Badge>
+                          <Badge variant="outline" className="ml-auto text-xs">Up to 50</Badge>
                         </DropdownMenuItem>
                         <Separator className="my-1" />
                         <DropdownMenuItem onClick={() => {

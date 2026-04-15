@@ -289,7 +289,9 @@ export default function ImportHistory() {
 
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">
-                        {activeProgressCount.toLocaleString()} of {activeBatch.total_files.toLocaleString()} files started
+                        {activeBatchStats.created > 0
+                          ? `${activeBatchStats.created.toLocaleString()} of ${activeBatch.total_files.toLocaleString()} imported — ${remainingFiles.toLocaleString()} remaining`
+                          : `${activeBatchStats.started.toLocaleString()} of ${activeBatch.total_files.toLocaleString()} files started`}
                       </span>
                       <span className="font-medium text-foreground">{activeProgressPct}%</span>
                     </div>

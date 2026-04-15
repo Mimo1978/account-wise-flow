@@ -46,6 +46,8 @@ export default function ImportHistory() {
     failed: 0,
     processing: 0,
     queued: 0,
+    tracked: 0,
+    preparing: 0,
   });
 
   const fetchBatches = useCallback(async () => {

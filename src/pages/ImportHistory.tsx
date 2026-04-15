@@ -51,11 +51,11 @@ export default function ImportHistory() {
     fetchBatches();
   }, [fetchBatches]);
 
-  // Auto-refresh every 8 seconds if any batch is still processing
+  // Auto-refresh every 3 seconds if any batch is still processing
   useEffect(() => {
     const hasActive = batches.some(b => b.status === "processing" || b.status === "queued");
     if (!hasActive) return;
-    const interval = setInterval(fetchBatches, 8000);
+    const interval = setInterval(fetchBatches, 3000);
     return () => clearInterval(interval);
   }, [batches, fetchBatches]);
 
@@ -182,18 +182,42 @@ export default function ImportHistory() {
                   </div>
 
                   {activeBatch.processed_files === 0 && (
-                    <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3">
+                    <div className={cn(
+                      "mt-3 p-3 rounded-lg flex items-center justify-between gap-3",
+                      triggering
+                        ? "bg-primary/10 border border-primary/20"
+                        : "bg-amber-500/10 border border-amber-500/20"
+                    )}>
                       <div>
-                        <p className="text-xs font-medium text-amber-600">Processing appears stuck</p>
-                        <p className="text-xs text-muted-foreground">Files are uploaded but processing hasn't started yet</p>
+                        {triggering ? (
+                          <>
+                            <p className="text-xs font-medium text-primary">Processing started</p>
+                            <p className="text-xs text-muted-foreground">AI is extracting candidate data — progress will update shortly</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xs font-medium text-amber-600">Processing appears stuck</p>
+                            <p className="text-xs text-muted-foreground">Files are uploaded but processing hasn't started yet</p>
+                          </>
+                        )}
                       </div>
                       <Button
                         size="sm"
                         onClick={() => triggerProcessing(activeBatch.id)}
                         disabled={triggering}
-                        className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium flex-shrink-0"
+                        className={cn(
+                          "gap-1.5 font-medium flex-shrink-0",
+                          triggering
+                            ? "bg-primary/20 text-primary cursor-wait"
+                            : "bg-amber-500 hover:bg-amber-400 text-black"
+                        )}
                       >
-                        {triggering ? "Starting..." : "Start processing"}
+                        {triggering ? (
+                          <>
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                            Processing…
+                          </>
+                        ) : "Restart processing"}
                       </Button>
                     </div>
                   )}

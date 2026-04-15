@@ -2,332 +2,204 @@ import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { useCVBatchImport } from "@/hooks/use-cv-batch-import";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { validateBatch } from "@/lib/cv-file-validator";
+import { CMOrbital, CMPulse } from "@/components/ui/CMLoader";
 import { cn } from "@/lib/utils";
 import {
-  Upload, CheckCircle2, XCircle, Loader2,
-  FileText, AlertTriangle, Users, ChevronRight
+  Upload, CheckCircle2, XCircle, AlertTriangle,
+  Users, FileText, ChevronRight, RotateCcw
 } from "lucide-react";
-
-interface FileResult {
-  name: string;
-  status: "waiting" | "processing" | "done" | "error" | "skipped";
-  candidateName?: string;
-  candidateId?: string;
-  error?: string;
-}
-
-const BATCH_SIZE = 5; // Process 5 at a time to avoid rate limits
-const DELAY_BETWEEN_BATCHES = 2000; // 2 second pause between batches
 
 export default function BulkCVUpload() {
   const navigate = useNavigate();
   const { currentWorkspace } = useWorkspace();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [files, setFiles] = useState<FileResult[]>([]);
-  const [isRunning, setIsRunning] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [currentBatch, setCurrentBatch] = useState(0);
-  const [totalBatches, setTotalBatches] = useState(0);
-  const abortRef = useRef(false);
+  const [phase, setPhase] = useState<"idle"|"uploading"|"processing"|"done">("idle");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [totalFiles, setTotalFiles] = useState(0);
+  const [uploadedCount, setUploadedCount] = useState(0);
+  const [batchId, setBatchId] = useState<string|null>(null);
+  const [error, setError] = useState<string|null>(null);
 
-  const done = files.filter(f => f.status === "done").length;
-  const errors = files.filter(f => f.status === "error").length;
-  const skipped = files.filter(f => f.status === "skipped").length;
-  const processing = files.filter(f => f.status === "processing").length;
-  const waiting = files.filter(f => f.status === "waiting").length;
-  const finished = files.length > 0 && waiting === 0 && processing === 0 && isRunning === false;
+  const {
+    createBatch,
+    uploadItem,
+    triggerProcessing,
+    getBatchStatus,
+  } = useCVBatchImport();
 
-  const processFile = async (file: File, index: number): Promise<void> => {
-    setFiles(prev => prev.map((f, i) =>
-      i === index ? { ...f, status: "processing" } : f
-    ));
+  const handleFiles = useCallback(async (files: File[]) => {
+    if (!currentWorkspace?.id || files.length === 0) return;
+
+    const validFiles = files.filter(f => {
+      const ext = f.name.split(".").pop()?.toLowerCase();
+      return ["pdf","doc","docx"].includes(ext || "") && f.size > 15000 && f.size < 15000000;
+    });
+
+    if (validFiles.length === 0) {
+      setError("No valid CV files found. Files must be PDF or Word, between 15KB and 15MB.");
+      return;
+    }
+
+    setTotalFiles(validFiles.length);
+    setPhase("uploading");
+    setError(null);
+    setUploadedCount(0);
+    setUploadProgress(0);
 
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      const { batch } = await createBatch(currentWorkspace.id, validFiles.length);
+      setBatchId(batch.id);
 
-      const { data, error } = await supabase.functions.invoke("fast-cv-import", {
-        body: {
-          base64,
-          fileName: file.name,
-          mimeType: file.type || "application/pdf",
-          tenantId: currentWorkspace?.id,
-        },
-      });
+      const CONCURRENT = 5;
+      let completed = 0;
 
-      if (error) throw new Error(error.message);
-
-      if (data?.ok) {
-        setFiles(prev => prev.map((f, i) =>
-          i === index ? {
-            ...f,
-            status: "done",
-            candidateName: data.candidate_name,
-            candidateId: data.candidate_id,
-          } : f
-        ));
-      } else {
-        setFiles(prev => prev.map((f, i) =>
-          i === index ? {
-            ...f,
-            status: "error",
-            error: data?.error || "Could not parse CV",
-          } : f
-        ));
+      for (let i = 0; i < validFiles.length; i += CONCURRENT) {
+        const chunk = validFiles.slice(i, i + CONCURRENT);
+        await Promise.all(chunk.map(file => uploadItem(batch.id, file, currentWorkspace.id)));
+        completed += chunk.length;
+        setUploadedCount(completed);
+        setUploadProgress(Math.round((completed / validFiles.length) * 100));
       }
+
+      setPhase("processing");
+      await triggerProcessing(batch.id, currentWorkspace.id);
+
     } catch (e: any) {
-      setFiles(prev => prev.map((f, i) =>
-        i === index ? { ...f, status: "error", error: e.message } : f
-      ));
+      setError(e.message || "Upload failed. Please try again.");
+      setPhase("idle");
     }
-  };
+  }, [currentWorkspace?.id, createBatch, uploadItem, triggerProcessing]);
 
-  const startProcessing = useCallback(async (fileList: FileResult[], rawFiles: File[]) => {
-    if (!currentWorkspace?.id) return;
-    abortRef.current = false;
-    setIsRunning(true);
-
-    const batches = Math.ceil(rawFiles.length / BATCH_SIZE);
-    setTotalBatches(batches);
-
-    for (let b = 0; b < batches; b++) {
-      if (abortRef.current) break;
-      setCurrentBatch(b + 1);
-
-      const start = b * BATCH_SIZE;
-      const end = Math.min(start + BATCH_SIZE, rawFiles.length);
-      const batchFiles = rawFiles.slice(start, end);
-      const batchIndices = Array.from({ length: end - start }, (_, i) => start + i);
-
-      await Promise.all(
-        batchFiles.map((file, i) => processFile(file, batchIndices[i]))
-      );
-
-      if (b < batches - 1 && !abortRef.current) {
-        await new Promise(r => setTimeout(r, DELAY_BETWEEN_BATCHES));
-      }
-    }
-
-    setIsRunning(false);
-  }, [currentWorkspace?.id]);
-
-  const handleFiles = useCallback(async (rawFiles: File[]) => {
-    if (rawFiles.length === 0) return;
-
-    const { valid, rejected } = await validateBatch(rawFiles);
-
-    const fileResults: FileResult[] = [
-      ...valid.map(f => ({ name: f.name, status: "waiting" as const })),
-      ...rejected.map(r => ({ name: r.file.name, status: "skipped" as const, error: r.error })),
-    ];
-
-    setFiles(fileResults);
-    setCurrentBatch(0);
-    setTotalBatches(0);
-
-    if (valid.length > 0) {
-      await startProcessing(fileResults, valid);
-    }
-  }, [startProcessing]);
-
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    const dropped = Array.from(e.dataTransfer.files);
-    if (dropped.length > 0) handleFiles(dropped);
+    handleFiles(Array.from(e.dataTransfer.files));
   }, [handleFiles]);
 
   const handleSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files || []);
-    if (selected.length > 0) handleFiles(selected);
+    handleFiles(Array.from(e.target.files || []));
     if (inputRef.current) inputRef.current.value = "";
   }, [handleFiles]);
 
-  const progress = files.length > 0
-    ? Math.round(((done + errors + skipped) / files.length) * 100)
-    : 0;
+  const reset = () => {
+    setPhase("idle");
+    setTotalFiles(0);
+    setUploadedCount(0);
+    setUploadProgress(0);
+    setBatchId(null);
+    setError(null);
+  };
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="min-h-screen bg-background">
+      <div className="max-w-3xl mx-auto px-6 py-12">
 
-        {/* Header */}
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <Users className="h-8 w-8 text-primary" />
-            Bulk CV Import
-          </h1>
-          <p className="text-muted-foreground text-base">
-            Drop your entire CV folder here. AI reads each file and creates candidate records automatically.
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-foreground">Bulk CV Import</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Import thousands of CVs at once. AI reads each file and creates candidate records automatically.
           </p>
         </div>
 
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept=".pdf,.doc,.docx"
-          onChange={handleSelect}
-          className="hidden"
-        />
-
-        {/* Drop zone */}
-        {files.length === 0 && (
+        {/* IDLE — drop zone */}
+        {phase === "idle" && (
           <div
-            onDrop={handleDrop}
-            onDragOver={(e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
             onDragLeave={() => setIsDragOver(false)}
+            onDrop={handleDrop}
             onClick={() => inputRef.current?.click()}
             className={cn(
               "border-2 border-dashed rounded-xl p-16 text-center cursor-pointer transition-all",
-              isDragOver
-                ? "border-primary bg-primary/5"
-                : "border-border hover:border-primary/50 hover:bg-muted/30"
+              isDragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/20"
             )}
           >
-            <Upload className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-xl font-semibold mb-2 text-foreground">
-              Drop your CV folder here
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              Select all files from your CVs folder — PDF and Word supported
-            </p>
-            <p className="text-sm text-muted-foreground/70">
-              No limit on number of files · Processed 5 at a time · AI extracts name, email, phone, skills
-            </p>
-            <Button variant="outline" className="mt-6">
-              <Upload className="h-4 w-4 mr-2" />
-              Select Files
-            </Button>
+            <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
+            <p className="text-base font-medium text-foreground">Drop your CV folder here</p>
+            <p className="text-sm text-muted-foreground mt-1">Select all files — PDF and Word supported</p>
+            <p className="text-xs text-muted-foreground/60 mt-3">No file limit · Files under 15KB or over 15MB are skipped automatically</p>
+            <input ref={inputRef} type="file" multiple accept=".pdf,.doc,.docx" className="hidden" onChange={handleSelect} />
           </div>
         )}
 
-        {/* Progress bar */}
-        {files.length > 0 && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
+        {error && (
+          <div className="flex items-center gap-3 mt-4 p-4 rounded-lg bg-destructive/10 border border-destructive/20">
+            <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+            <p className="text-sm text-destructive">{error}</p>
+            <Button variant="ghost" size="sm" onClick={reset}>Try again</Button>
+          </div>
+        )}
 
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-foreground">
-                      {isRunning
-                        ? `Processing batch ${currentBatch} of ${totalBatches}...`
-                        : finished
-                          ? "Import complete"
-                          : "Ready"}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {done} imported · {errors} failed · {skipped} skipped · {waiting} waiting
-                    </p>
+        {/* UPLOADING */}
+        {phase === "uploading" && (
+          <Card>
+            <CardContent className="py-12">
+              <div className="flex flex-col items-center gap-6">
+                <CMPulse size="lg" />
+                <div className="w-full max-w-md">
+                  <div className="flex justify-between text-sm text-muted-foreground mb-2">
+                    <span>{uploadedCount} of {totalFiles} uploaded</span>
+                    <span>{uploadProgress}%</span>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-foreground">{progress}%</div>
-                    <div className="text-sm text-muted-foreground">{done + errors + skipped} / {files.length}</div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                   </div>
                 </div>
-
-              {/* Progress bar */}
-              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{ width: `${progress}%` }}
-                />
+                <p className="text-xs text-muted-foreground/60">
+                  Do not close this tab while uploading
+                </p>
               </div>
-
-              {/* Stats row */}
-              <div className="grid grid-cols-4 gap-4 pt-2">
-                {[
-                  { label: "Imported", value: done, color: "text-green-600" },
-                  { label: "Processing", value: processing, color: "text-blue-500" },
-                  { label: "Failed", value: errors, color: "text-red-500" },
-                  { label: "Waiting", value: waiting, color: "text-muted-foreground" },
-                ].map(s => (
-                  <div key={s.label} className="text-center">
-                    <div className={cn("text-2xl font-bold", s.color)}>{s.value}</div>
-                    <div className="text-xs text-muted-foreground">{s.label}</div>
-                  </div>
-                ))}
-              </div>
-
-            </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Action buttons when done */}
-        {finished && (
-          <div className="flex gap-3">
-            <Button onClick={() => navigate("/talent")} className="gap-2">
-              <Users className="h-4 w-4" />
-              View {done} candidates in Talent
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" onClick={() => {
-              setFiles([]);
-              setCurrentBatch(0);
-              setTotalBatches(0);
-            }}>
-              Import more CVs
-            </Button>
-          </div>
+        {/* PROCESSING */}
+        {phase === "processing" && (
+          <Card>
+            <CardContent className="py-12">
+              <div className="flex flex-col items-center gap-6">
+                <CMOrbital size={80} messages={["Scanning profiles...", "Extracting skills...", "Matching companies...", "Building records..."]} />
+                <div className="text-center">
+                  <p className="text-base font-medium text-foreground">
+                    Processing {totalFiles.toLocaleString()} CVs
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    This runs in the background — you can close this tab and come back later.
+                    Check progress in Import History.
+                  </p>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button variant="default" onClick={() => navigate("/talent")} className="gap-2">
+                    <Users className="w-4 h-4" /> Go to Talent
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate("/imports")} className="gap-2">
+                    <ChevronRight className="w-4 h-4" /> View Import History
+                  </Button>
+                </div>
+
+                <Button variant="ghost" size="sm" onClick={reset} className="gap-2">
+                  <RotateCcw className="w-4 h-4" /> Import more CVs
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        {/* File list */}
-        {files.length > 0 && (
-          <div className="space-y-2 max-h-[500px] overflow-y-auto">
-            {files.map((f, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border"
-              >
-                {/* Icon */}
-                <div className="flex-shrink-0">
-                  {f.status === "done" && <CheckCircle2 className="h-5 w-5 text-green-600" />}
-                  {f.status === "error" && <XCircle className="h-5 w-5 text-red-500" />}
-                  {f.status === "skipped" && <AlertTriangle className="h-5 w-5 text-amber-500" />}
-                  {f.status === "processing" && <Loader2 className="h-5 w-5 text-blue-500 animate-spin" />}
-                  {f.status === "waiting" && <FileText className="h-5 w-5 text-muted-foreground" />}
-                </div>
-
-                {/* File info */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground truncate">
-                    {f.status === "done" && f.candidateName
-                      ? <>{f.candidateName} ← {f.name}</>
-                      : f.name
-                    }
-                  </div>
-                  {f.error && (
-                    <div className="text-xs text-red-500 truncate">{f.error}</div>
-                  )}
-                </div>
-
-                {/* Status badge */}
-                <div className="flex-shrink-0">
-                  <span className={cn(
-                    "text-xs px-2 py-1 rounded-full font-medium",
-                    f.status === "done" && "bg-green-500/10 text-green-600",
-                    f.status === "error" && "bg-red-500/10 text-red-500",
-                    f.status === "skipped" && "bg-amber-500/10 text-amber-600",
-                    f.status === "processing" && "bg-blue-500/10 text-blue-500",
-                    f.status === "waiting" && "bg-muted text-muted-foreground"
-                  )}>
-                    {f.status === "done" ? "Imported" :
-                     f.status === "error" ? "Failed" :
-                     f.status === "skipped" ? "Skipped" :
-                     f.status === "processing" ? "Reading..." :
-                     "Waiting"}
-                  </span>
-                </div>
-
+        {/* Info cards */}
+        {phase === "idle" && (
+          <div className="grid grid-cols-3 gap-4 mt-8">
+            {[
+              { icon: FileText, title: "AI reads every CV", desc: "Extracts name, email, phone, skills, experience, company history" },
+              { icon: Users, title: "Instant candidate records", desc: "Each CV becomes a searchable candidate in your Talent database" },
+              { icon: CheckCircle2, title: "Duplicates handled", desc: "Same CV submitted twice is detected automatically by checksum" },
+            ].map((c, i) => (
+              <div key={i} className="rounded-lg border border-border p-4">
+                <c.icon className="w-5 h-5 text-primary mb-2" />
+                <p className="text-sm font-medium text-foreground">{c.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">{c.desc}</p>
               </div>
             ))}
           </div>

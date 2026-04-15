@@ -13,6 +13,8 @@ export interface MatchScoreBreakdown {
     average_tenure_months: number;
     recent_role_tenure_months: number;
     short_tenure_roles: number;
+    inferred_role_type?: 'contractor' | 'permanent' | 'mixed' | 'unknown';
+    role_type_notes?: string[];
   };
   recency_analysis?: {
     years_since_relevant_role: number;

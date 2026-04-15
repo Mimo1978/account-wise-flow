@@ -262,61 +262,6 @@ function MessageBubble({
           )}
         </div>
       </div>
-
-      {showSearchOverlay && (
-        <div className="fixed inset-0 z-[10000] flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm">
-          {/* Orbital animation */}
-          <div className="relative w-64 h-64 mb-8">
-            {/* Centre dot */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-primary" />
-
-            {/* Inner ring */}
-            <svg className="absolute inset-0 w-full h-full" style={{ animation: 'cmOrbSpin 3s linear infinite' }}>
-              <circle
-                cx="50%"
-                cy="50%"
-                r="30"
-                fill="none"
-                stroke="hsl(var(--primary))"
-                strokeWidth="2"
-                strokeDasharray="4 8"
-                opacity="0.5"
-              />
-            </svg>
-
-            {/* Middle ring */}
-            <svg className="absolute inset-0 w-full h-full" style={{ animation: 'cmOrbSpin 4s linear reverse infinite' }}>
-              <circle cx="50%" cy="50%" r="60" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeDasharray="6 12" opacity="0.4" />
-              <circle cx="50%" cy="10%" r="4" fill="hsl(var(--primary))" opacity="0.8" />
-              <circle cx="50%" cy="90%" r="3" fill="hsl(var(--primary))" opacity="0.6" />
-            </svg>
-
-            {/* Outer ring */}
-            <svg className="absolute inset-0 w-full h-full" style={{ animation: 'cmOrbSpin 5s linear infinite' }}>
-              <circle cx="50%" cy="50%" r="90" fill="none" stroke="hsl(var(--primary))" strokeWidth="1" strokeDasharray="8 16" opacity="0.3" />
-              <circle cx="90%" cy="50%" r="5" fill="hsl(var(--primary))" opacity="0.7" />
-              <circle cx="10%" cy="50%" r="3" fill="hsl(var(--primary))" opacity="0.5" />
-            </svg>
-          </div>
-
-          {/* Message */}
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl font-bold text-foreground animate-pulse">
-              Scanning your talent database
-            </h2>
-            <p className="text-muted-foreground text-sm max-w-md">
-              Ranking candidates by fit, tenure and company prestige...
-            </p>
-          </div>
-
-          <style>{`
-            @keyframes cmOrbSpin {
-              from { transform: rotate(0deg); }
-              to   { transform: rotate(360deg); }
-            }
-          `}</style>
-        </div>
-      )}
     </div>
   );
 }

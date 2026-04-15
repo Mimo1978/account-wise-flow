@@ -622,29 +622,23 @@ async function processQueuedItems(supabase: any, batchId: string, tenantId: stri
 
     // Process items concurrently
     const results = await Promise.allSettled(
-      items.map((item: any) => processItemWithRetry(supabase, item, LOVABLE_API_KEY!))
-    );
-    
-    // Count results
-    results.forEach((result, index) => {
-      processedCount++;
-      if (result.status === 'fulfilled' && result.value) {
-        successCount++;
-      } else {
-        failCount++;
-      }
-    });
-    
-    // Update batch progress
-    await supabase
-      .from('cv_import_batches')
-      .update({
-        processed_files: processedCount,
-        success_count: successCount,
-        fail_count: failCount,
-        updated_at: new Date().toISOString(),
+      items.map(async (item: any) => {
+        const ok = await processItemWithRetry(supabase, item, LOVABLE_API_KEY!);
+        processedCount++;
+        if (ok) { successCount++; } else { failCount++; }
+        // Update batch progress after EVERY item so the UI sees real-time counts
+        await supabase
+          .from('cv_import_batches')
+          .update({
+            processed_files: processedCount,
+            success_count: successCount,
+            fail_count: failCount,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', batchId);
+        return ok;
       })
-      .eq('id', batchId);
+    );
   }
 
   // Finalize batch status

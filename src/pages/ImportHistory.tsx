@@ -189,7 +189,8 @@ export default function ImportHistory() {
   const activeBatch = batches.find(b => b.status === "processing" || b.status === "queued" || b.status === "paused");
   const isBatchProcessing = activeBatch?.status === "processing";
   const isBatchPaused = activeBatch?.status === "paused";
-  const activeProgressCount = activeBatchStats.started || activeBatch?.processed_files || 0;
+  const remainingFiles = activeBatch ? activeBatch.total_files - activeBatchStats.created - activeBatchStats.failed : 0;
+  const activeProgressCount = activeBatchStats.created + activeBatchStats.failed;
   const activeProgressPct = activeBatch
     ? Math.round((activeProgressCount / Math.max(activeBatch.total_files, 1)) * 100)
     : 0;

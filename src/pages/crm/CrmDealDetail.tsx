@@ -1,3 +1,4 @@
+import { CMSectionLoader } from "@/components/ui/CMLoader";
 import { useState, useEffect } from "react";
 import { PipelineChevron as SharedPipelineChevron } from "@/components/pipeline/PipelineChevron";
 import { useParams, useNavigate } from "react-router-dom";

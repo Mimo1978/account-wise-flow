@@ -1,3 +1,4 @@
+import { CMSectionLoader } from "@/components/ui/CMLoader";
 import { PipelineChevron as SharedPipelineChevron } from '@/components/pipeline/PipelineChevron';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

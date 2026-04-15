@@ -250,20 +250,30 @@ export default function ImportHistory() {
         </div>
 
         {activeBatch && (
-          <Card className="border-primary/30 bg-primary/5">
+          <Card className={cn(
+            "bg-primary/5",
+            isBatchPaused ? "border-amber-500/30" : "border-primary/30"
+          )}>
             <CardContent className="pt-6">
 
             <div className="space-y-5">
               <div className="space-y-4">
 
                 <div className="flex items-start gap-3">
-                  <CMOrbital size={48} />
+                  {!isBatchPaused && <CMOrbital size={48} />}
+                  {isBatchPaused && <PauseCircle className="h-12 w-12 text-amber-500 flex-shrink-0" />}
 
                   <div className="flex-1 min-w-0">
 
                     <div className="flex items-center gap-2 mb-1">
-                      <Clock className="h-4 w-4 text-primary" />
-                      <span className="font-semibold text-foreground">Import running in background</span>
+                      {isBatchPaused ? (
+                        <PauseCircle className="h-4 w-4 text-amber-500" />
+                      ) : (
+                        <Clock className="h-4 w-4 text-primary" />
+                      )}
+                      <span className="font-semibold text-foreground">
+                        {isBatchPaused ? "Import paused" : "Import running in background"}
+                      </span>
                       <span className="text-xs text-muted-foreground">
                         Started {formatDistanceToNow(new Date(activeBatch.created_at), { addSuffix: true })}
                       </span>
@@ -280,22 +290,33 @@ export default function ImportHistory() {
 
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-primary transition-all duration-500"
+                        className={cn(
+                          "h-full transition-all duration-500",
+                          isBatchPaused ? "bg-amber-500" : "bg-primary"
+                        )}
                         style={{ width: `${activeProgressPct}%` }}
                       />
                     </div>
 
                   </div>
 
-                  {activeBatchStats.completed === 0 && (
+                  {/* Action banner — paused, stuck, or processing */}
+                  {(isBatchPaused || activeBatchStats.completed === 0) && (
                     <div className={cn(
                       "mt-3 p-3 rounded-lg flex items-center justify-between gap-3",
-                      isBatchProcessing || triggering
-                        ? "bg-primary/10 border border-primary/20"
-                        : "bg-amber-500/10 border border-amber-500/20"
+                      isBatchPaused
+                        ? "bg-amber-500/10 border border-amber-500/20"
+                        : isBatchProcessing || triggering
+                          ? "bg-primary/10 border border-primary/20"
+                          : "bg-amber-500/10 border border-amber-500/20"
                     )}>
                       <div>
-                        {isBatchProcessing || triggering ? (
+                        {isBatchPaused ? (
+                          <>
+                            <p className="text-xs font-medium text-amber-600">Import paused</p>
+                            <p className="text-xs text-muted-foreground">Processing stopped — {activeBatchStats.queued.toLocaleString()} files still waiting. Click Resume to continue.</p>
+                          </>
+                        ) : isBatchProcessing || triggering ? (
                           <>
                             <p className="text-xs font-medium text-primary">Processing active</p>
                             <p className="text-xs text-muted-foreground">The import is running in the background — progress will update automatically</p>
@@ -307,24 +328,50 @@ export default function ImportHistory() {
                           </>
                         )}
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => triggerProcessing(activeBatch.id)}
-                        disabled={isBatchProcessing || triggering}
-                        className={cn(
-                          "gap-1.5 font-medium flex-shrink-0",
-                          isBatchProcessing || triggering
-                            ? "bg-primary/20 text-primary cursor-wait"
-                            : "bg-amber-500 hover:bg-amber-400 text-black"
-                        )}
-                      >
-                        {isBatchProcessing || triggering ? (
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {isBatchPaused ? (
+                          <Button
+                            size="sm"
+                            onClick={() => triggerProcessing(activeBatch.id)}
+                            disabled={triggering}
+                            className="gap-1.5 font-medium bg-primary hover:bg-primary/90"
+                          >
+                            {triggering ? (
+                              <>
+                                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                Resuming…
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="h-3.5 w-3.5" />
+                                Resume
+                              </>
+                            )}
+                          </Button>
+                        ) : (
                           <>
-                            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                            Processing…
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => triggerProcessing(activeBatch.id)}
+                              disabled={isBatchProcessing || triggering}
+                              className={cn(
+                                "gap-1.5 font-medium",
+                                isBatchProcessing || triggering
+                                  ? "text-primary cursor-wait"
+                                  : ""
+                              )}
+                            >
+                              {isBatchProcessing || triggering ? (
+                                <>
+                                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                  Processing…
+                                </>
+                              ) : "Restart processing"}
+                            </Button>
                           </>
-                        ) : "Restart processing"}
-                      </Button>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -332,9 +379,11 @@ export default function ImportHistory() {
                     <span className="text-green-600 font-medium">
                       ✓ {activeBatchStats.created.toLocaleString()} candidates created
                     </span>
-                    <span className="text-foreground font-medium">
-                      {activeBatchStats.processing.toLocaleString()} processing now
-                    </span>
+                    {!isBatchPaused && (
+                      <span className="text-foreground font-medium">
+                        {activeBatchStats.processing.toLocaleString()} processing now
+                      </span>
+                    )}
                     {activeBatchStats.failed > 0 && (
                       <span className="text-red-400 font-medium">
                         ✗ {activeBatchStats.failed.toLocaleString()} failed
@@ -356,13 +405,38 @@ export default function ImportHistory() {
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-border">
-              <Button onClick={() => navigate("/talent")} variant="outline" className="gap-1.5">
-                <Users className="h-4 w-4" />
-                View candidates so far
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => navigate("/talent")} variant="outline" className="gap-1.5">
+                  <Users className="h-4 w-4" />
+                  View candidates so far
+                </Button>
+                {isBatchProcessing && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => stopProcessing(activeBatch.id)}
+                    disabled={stopping}
+                    className="gap-1.5"
+                  >
+                    {stopping ? (
+                      <>
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                        Stopping…
+                      </>
+                    ) : (
+                      <>
+                        <Square className="h-3.5 w-3.5" />
+                        Stop import
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
 
               <p className="text-xs text-muted-foreground max-w-md">
-                You can close this tab — processing continues automatically. Come back to check progress.
+                {isBatchPaused
+                  ? "Import is paused. Click Resume above to continue processing remaining files."
+                  : "You can close this tab — processing continues automatically. Come back to check progress."}
               </p>
 
             </div>

@@ -25,9 +25,10 @@ export default function BulkCVUpload() {
 
   const {
     createBatch,
-    uploadItem,
-    triggerProcessing,
-    getBatchStatus,
+    uploadFiles,
+    completeUpload,
+    isUploading,
+    uploadProgress: hookProgress,
   } = useCVBatchImport();
 
   const handleFiles = useCallback(async (files: File[]) => {
@@ -50,28 +51,28 @@ export default function BulkCVUpload() {
     setUploadProgress(0);
 
     try {
-      const { batch } = await createBatch(currentWorkspace.id, validFiles.length);
-      setBatchId(batch.id);
+      const result = await createBatch(validFiles.length);
+      if (!result) throw new Error("Failed to create batch");
+      setBatchId(result.batch.id);
 
-      const CONCURRENT = 5;
-      let completed = 0;
+      const uploadPath = result.uploadPath || `${currentWorkspace.id}/${result.batch.id}`;
+      const success = await uploadFiles(validFiles, result.batch.id, uploadPath, 5);
 
-      for (let i = 0; i < validFiles.length; i += CONCURRENT) {
-        const chunk = validFiles.slice(i, i + CONCURRENT);
-        await Promise.all(chunk.map(file => uploadItem(batch.id, file, currentWorkspace.id)));
-        completed += chunk.length;
-        setUploadedCount(completed);
-        setUploadProgress(Math.round((completed / validFiles.length) * 100));
+      if (success) {
+        setUploadedCount(validFiles.length);
+        setUploadProgress(100);
+        setPhase("processing");
+        await completeUpload(result.batch.id);
+      } else {
+        setPhase("processing");
+        await completeUpload(result.batch.id);
       }
-
-      setPhase("processing");
-      await triggerProcessing(batch.id, currentWorkspace.id);
 
     } catch (e: any) {
       setError(e.message || "Upload failed. Please try again.");
       setPhase("idle");
     }
-  }, [currentWorkspace?.id, createBatch, uploadItem, triggerProcessing]);
+  }, [currentWorkspace?.id, createBatch, uploadFiles, completeUpload]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

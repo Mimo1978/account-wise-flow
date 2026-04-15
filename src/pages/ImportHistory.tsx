@@ -153,27 +153,27 @@ export default function ImportHistory() {
   const stopProcessing = async (batchId: string) => {
     setStopping(true);
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/cv-batch-import/${batchId}/pause`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-        }
-      );
-      const result = await response.json();
-      if (result.success) {
-        toast.success("Import paused — you can resume anytime");
-        await fetchBatches();
-      } else {
-        toast.error(result.error || "Failed to pause");
+      // Update batch status directly — the processing loop checks status before each item
+      const { error: updateError } = await supabase
+        .from("cv_import_batches")
+        .update({ status: "paused" as any, updated_at: new Date().toISOString() })
+        .eq("id", batchId)
+        .in("status", ["processing", "queued"]);
+
+      if (updateError) {
+        toast.error("Failed to pause: " + updateError.message);
+        return;
       }
+
+      // Reset any items stuck in 'processing' back to 'queued'
+      await supabase
+        .from("cv_import_items")
+        .update({ status: "queued", started_at: null })
+        .eq("batch_id", batchId)
+        .eq("status", "processing");
+
+      toast.success("Import paused — you can resume anytime");
+      await fetchBatches();
     } catch (e: any) {
       toast.error(e.message || "Failed to pause");
     } finally {

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageBackButton } from "@/components/ui/page-back-button";
 import { CMOrbital } from "@/components/ui/CMLoader";
+import { toast } from "sonner";
 import {
   CheckCircle2, XCircle, Clock, AlertCircle,
   FileStack, Users, ChevronRight, RefreshCw
@@ -31,6 +32,7 @@ export default function ImportHistory() {
   const [batches, setBatches] = useState<ImportBatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [triggering, setTriggering] = useState(false);
 
   const fetchBatches = useCallback(async () => {
     if (!currentWorkspace?.id) return;

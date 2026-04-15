@@ -33,6 +33,7 @@ export default function ImportHistory() {
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [triggering, setTriggering] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [summary, setSummary] = useState({
     importedCandidates: 0,
     importSessions: 0,

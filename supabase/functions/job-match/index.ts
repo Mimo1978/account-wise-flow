@@ -400,6 +400,40 @@ Deno.serve(async (req) => {
         });
       }
 
+      // === CLIENT-SECTOR BOOST ===
+      // If the job spec's client company sector matches the candidate's company background
+      // boost the sector score further — same sector experience is more valuable
+      const clientSector = (spec.sector || '').toLowerCase();
+      if (clientSector && experience.length > 0) {
+        // Define sector keyword groups
+        const sectorKeywords: Record<string, string[]> = {
+          banking: ['bank', 'financial', 'finance', 'investment', 'asset management', 'wealth', 'trading', 'markets', 'hedge', 'capital'],
+          technology: ['tech', 'software', 'digital', 'data', 'cloud', 'saas', 'platform', 'engineering'],
+          healthcare: ['health', 'pharma', 'medical', 'clinical', 'hospital', 'nhs', 'life sciences'],
+          insurance: ['insurance', 'insur', 'lloyds', 'reinsurance', 'underwriting'],
+          consulting: ['consulting', 'consultancy', 'advisory', 'mckinsey', 'bcg', 'pwc', 'deloitte', 'kpmg', 'ey', 'accenture'],
+          retail: ['retail', 'consumer', 'fmcg', 'ecommerce', 'e-commerce'],
+          energy: ['energy', 'oil', 'gas', 'utilities', 'power', 'renewable'],
+        };
+        const clientKeywords = sectorKeywords[clientSector] || [clientSector];
+        const candidateAllText = experience.map((e: any) => 
+          `${e.company || ''} ${e.title || ''} ${e.summary || ''}`
+        ).join(' ').toLowerCase();
+        const sectorMatchCount = clientKeywords.filter(kw => candidateAllText.includes(kw)).length;
+        if (sectorMatchCount >= 2) {
+          // Strong sector match — boost significantly
+          sectorCompanyScore = Math.min(100, sectorCompanyScore + 20);
+          claims.push({
+            id: genClaimId('sector', claimIndex++),
+            text: `Strong sector alignment: ${sectorMatchCount} indicators matching ${clientSector} sector`,
+            category: 'sector',
+            evidence: [],
+          });
+        } else if (sectorMatchCount === 1) {
+          sectorCompanyScore = Math.min(100, sectorCompanyScore + 10);
+        }
+      }
+
       // === TENURE ANALYSIS ===
       let tenureScore = 60;
       const riskFlags: string[] = [];
@@ -616,6 +650,108 @@ Deno.serve(async (req) => {
           riskFlags.push('Pattern of short tenure across multiple roles');
         }
 
+      // === ROLE TYPE INFERENCE ===
+      // Infer whether candidate is contractor or permanent based on role patterns
+      // Even if CV doesn't explicitly state "contract"
+      let inferredRoleType: 'contractor' | 'permanent' | 'mixed' | 'unknown' = 'unknown';
+      const roleTypeNotes: string[] = [];
+      if (experience.length >= 2) {
+        const durations = experience.map((e: any) => {
+          const s = e.start_date ? new Date(e.start_date) : null;
+          const en = e.end_date ? new Date(e.end_date) : new Date();
+          if (!s) return 0;
+          return Math.round((en.getTime() - s.getTime()) / (1000 * 60 * 60 * 24 * 30));
+        }).filter((d: number) => d > 0);
+        const shortRoles = durations.filter((d: number) => d <= 12).length;
+        const longRoles = durations.filter((d: number) => d > 18).length;
+        const allShort = shortRoles >= durations.length * 0.7;
+        const allLong = longRoles >= durations.length * 0.7;
+        const hasExplicitContract = candidateText.includes('contract') || 
+          candidateText.includes('contractor') || candidateText.includes('freelance');
+        const hasExplicitPerm = candidateText.includes('permanent') || 
+          candidateText.includes('full-time') || candidateText.includes('full time');
+        if (hasExplicitContract) {
+          inferredRoleType = 'contractor';
+        } else if (hasExplicitPerm && allLong) {
+          inferredRoleType = 'permanent';
+        } else if (allShort && !hasExplicitPerm) {
+          inferredRoleType = 'contractor';
+          roleTypeNotes.push('Pattern of short roles (≤12 months) suggests contractor — confirm in screening');
+          suggestedQuestions.push('Were your roles at [company] on a contract or permanent basis?');
+        } else if (allLong && !hasExplicitContract) {
+          inferredRoleType = 'permanent';
+        } else {
+          inferredRoleType = 'mixed';
+          roleTypeNotes.push('Mixed role lengths — may have both contract and permanent experience');
+        }
+        // Special case: one very short role at a tier-1 company surrounded by long roles
+        for (let i = 0; i < experience.length; i++) {
+          const exp = experience[i];
+          const dur = durations[i];
+          if (dur && dur <= 6 && dur > 0) {
+            const isTierOne = Object.values(SECTOR_TIERS).flat().some(
+              (tc: string) => (exp.company || '').toLowerCase().includes(tc.toLowerCase())
+            );
+            if (isTierOne && longRoles >= 2) {
+              riskFlags.push(`Short stint (${dur} months) at ${exp.company} — possible maternity cover or project rescue`);
+              suggestedQuestions.push(`Your role at ${exp.company} was only ${dur} months — was this a fixed-term or covering position?`);
+            }
+          }
+        }
+      }
+      // Add role type to score breakdown notes
+      if (roleTypeNotes.length > 0) {
+        claims.push({
+          id: genClaimId('risk', claimIndex++),
+          text: `Role type inference: ${inferredRoleType} — ${roleTypeNotes[0]}`,
+          category: 'risk',
+          evidence: [],
+        });
+      }
+
+      // === DELIVERY ROLE INFERENCE ===
+      // For Project Managers and Business Analysts, infer delivery quality from tenure patterns
+      const specIsPMorBA = (spec.title || '').toLowerCase().match(/project manager|programme manager|program manager|business analyst|delivery manager|scrum master/);
+      
+      if (specIsPMorBA && experience.length > 0) {
+        for (const exp of experience) {
+          const title = (exp.title || '').toLowerCase();
+          const isPMorBA = title.match(/project manager|programme manager|program manager|business analyst|delivery manager|scrum master/);
+          
+          if (isPMorBA) {
+            const s = exp.start_date ? new Date(exp.start_date) : null;
+            const en = exp.end_date ? new Date(exp.end_date) : new Date();
+            const months = s ? Math.round((en.getTime() - s.getTime()) / (1000 * 60 * 60 * 24 * 30)) : 0;
+            
+            const isTierOne = Object.values(SECTOR_TIERS).flat().some(
+              (tc: string) => (exp.company || '').toLowerCase().includes(tc.toLowerCase())
+            );
+            if (months >= 18) {
+              // Long PM tenure at any company = likely delivered and extended
+              tenureScore = Math.min(100, tenureScore + 10);
+              const note = `${exp.title} at ${exp.company} for ${months} months — likely delivered full project lifecycle`;
+              claims.push({
+                id: genClaimId('tenure', claimIndex++),
+                text: note,
+                category: 'tenure',
+                evidence: [],
+              });
+            } else if (months >= 6 && months < 12 && isTierOne) {
+              // Short but at tier-1 — could be phase delivery or handover
+              suggestedQuestions.push(`Your ${exp.title} at ${exp.company} was ${months} months — did you deliver a specific phase or milestone?`);
+            } else if (months < 6 && isTierOne) {
+              // Very short at tier-1 — flag it
+              riskFlags.push(`Very short ${exp.title} engagement (${months} months) at ${exp.company} — explore reason in screening`);
+              suggestedQuestions.push(`What was the scope of your ${months}-month role at ${exp.company}?`);
+            } else if (months < 6 && !isTierOne) {
+              // Short at unknown company — higher risk
+              tenureScore = Math.max(tenureScore - 10, 20);
+              riskFlags.push(`Short ${exp.title} engagement (${months} months) at ${exp.company}`);
+            }
+          }
+        }
+      }
+
         // Add tenure claim
         claims.push({
           id: genClaimId('tenure', 0),
@@ -756,6 +892,8 @@ Deno.serve(async (req) => {
             average_tenure_months: averageTenure,
             recent_role_tenure_months: recentRoleTenure,
             short_tenure_roles: shortTenureRoles,
+            inferred_role_type: inferredRoleType,
+            role_type_notes: roleTypeNotes,
           },
           recency_analysis: {
             years_since_relevant_role: yearsSinceRelevant,

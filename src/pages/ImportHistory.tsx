@@ -10,7 +10,7 @@ import { CMOrbital } from "@/components/ui/CMLoader";
 import { toast } from "sonner";
 import {
   CheckCircle2, XCircle, Clock, AlertCircle,
-  FileStack, Users, ChevronRight, RefreshCw
+  FileStack, Users, ChevronRight, RefreshCw, Square, PauseCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 

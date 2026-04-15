@@ -33,16 +33,76 @@ export default function ImportHistory() {
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [triggering, setTriggering] = useState(false);
+  const [summary, setSummary] = useState({
+    importedCandidates: 0,
+    importSessions: 0,
+    failedFiles: 0,
+  });
+  const [activeBatchStats, setActiveBatchStats] = useState({
+    started: 0,
+    completed: 0,
+    created: 0,
+    failed: 0,
+    processing: 0,
+    queued: 0,
+  });
 
   const fetchBatches = useCallback(async () => {
     if (!currentWorkspace?.id) return;
-    const { data } = await supabase
-      .from("cv_import_batches")
-      .select("id, created_at, status, total_files, processed_files, success_count, fail_count, completed_at, source")
-      .eq("tenant_id", currentWorkspace.id)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    if (data) setBatches(data as ImportBatch[]);
+
+    const [batchesResult, importedResult, failedResult] = await Promise.all([
+      supabase
+        .from("cv_import_batches")
+        .select("id, created_at, status, total_files, processed_files, success_count, fail_count, completed_at, source", { count: "exact" })
+        .eq("tenant_id", currentWorkspace.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("candidates")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", currentWorkspace.id)
+        .in("source", ["cv_import", "import"]),
+      supabase
+        .from("cv_import_items")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", currentWorkspace.id)
+        .eq("status", "failed"),
+    ]);
+
+    const batchRows = (batchesResult.data as ImportBatch[]) || [];
+    setBatches(batchRows);
+    setSummary({
+      importedCandidates: importedResult.count || 0,
+      importSessions: batchesResult.count || 0,
+      failedFiles: failedResult.count || 0,
+    });
+
+    const currentActiveBatch = batchRows.find(b => b.status === "processing" || b.status === "queued");
+
+    if (currentActiveBatch) {
+      const { data: activeItems } = await supabase
+        .from("cv_import_items")
+        .select("status, candidate_id")
+        .eq("batch_id", currentActiveBatch.id);
+
+      const stats = (activeItems || []).reduce(
+        (acc, item) => {
+          if (item.status !== "queued") acc.started += 1;
+          if (item.status !== "queued" && item.status !== "processing") acc.completed += 1;
+          if (item.status === "processing") acc.processing += 1;
+          if (item.status === "queued") acc.queued += 1;
+          if (item.status === "failed") acc.failed += 1;
+          if (item.status === "parsed" || item.status === "merged" || Boolean(item.candidate_id)) acc.created += 1;
+          return acc;
+        },
+        { started: 0, completed: 0, created: 0, failed: 0, processing: 0, queued: 0 }
+      );
+
+      setActiveBatchStats(stats);
+    } else {
+      setActiveBatchStats({ started: 0, completed: 0, created: 0, failed: 0, processing: 0, queued: 0 });
+    }
+
     setIsLoading(false);
     setLastRefresh(new Date());
   }, [currentWorkspace?.id]);
@@ -51,7 +111,6 @@ export default function ImportHistory() {
     fetchBatches();
   }, [fetchBatches]);
 
-  // Auto-refresh every 3 seconds if any batch is still processing
   useEffect(() => {
     const hasActive = batches.some(b => b.status === "processing" || b.status === "queued");
     if (!hasActive) return;
@@ -92,14 +151,15 @@ export default function ImportHistory() {
 
   const activeBatch = batches.find(b => b.status === "processing" || b.status === "queued");
   const isBatchProcessing = activeBatch?.status === "processing";
-  const totalImported = batches.reduce((s, b) => s + (b.success_count || 0), 0);
-  const totalFailed = batches.reduce((s, b) => s + (b.fail_count || 0), 0);
+  const activeProgressCount = activeBatchStats.started || activeBatch?.processed_files || 0;
+  const activeProgressPct = activeBatch
+    ? Math.round((activeProgressCount / Math.max(activeBatch.total_files, 1)) * 100)
+    : 0;
 
   return (
     <div className="h-full overflow-y-auto bg-background">
       <div className="container mx-auto px-6 py-8 max-w-5xl space-y-6">
 
-        {/* Header */}
         <div className="flex items-start justify-between gap-6">
 
           <div>
@@ -125,12 +185,26 @@ export default function ImportHistory() {
 
         </div>
 
-        {/* Summary KPIs */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Total imported", value: totalImported.toLocaleString(), color: "text-green-600", sub: "candidates created" },
-            { label: "Total batches", value: batches.length.toString(), color: "text-foreground", sub: "import sessions" },
-            { label: "Failed", value: totalFailed.toLocaleString(), color: totalFailed > 0 ? "text-red-500" : "text-muted-foreground", sub: "could not parse" },
+            {
+              label: "Imported candidates",
+              value: summary.importedCandidates.toLocaleString(),
+              color: "text-green-600",
+              sub: "candidate profiles created from CVs",
+            },
+            {
+              label: "Import sessions",
+              value: summary.importSessions.toLocaleString(),
+              color: "text-foreground",
+              sub: "CV upload batches started",
+            },
+            {
+              label: "Failed files",
+              value: summary.failedFiles.toLocaleString(),
+              color: summary.failedFiles > 0 ? "text-red-500" : "text-muted-foreground",
+              sub: "CVs that need review",
+            },
           ].map(k => (
             <Card key={k.label}>
               <CardContent className="pt-6">
@@ -142,7 +216,6 @@ export default function ImportHistory() {
           ))}
         </div>
 
-        {/* Active batch — live progress card */}
         {activeBatch && (
           <Card className="border-primary/30 bg-primary/5">
             <CardContent className="pt-6">
@@ -163,26 +236,25 @@ export default function ImportHistory() {
                       </span>
                     </div>
 
-                  {/* Progress bar */}
                   <div className="space-y-2 mt-3">
 
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">
-                        {activeBatch.processed_files.toLocaleString()} of {activeBatch.total_files.toLocaleString()} processed
+                        {activeProgressCount.toLocaleString()} of {activeBatch.total_files.toLocaleString()} files started
                       </span>
-                      <span className="font-medium text-foreground">{Math.round((activeBatch.processed_files / Math.max(activeBatch.total_files, 1)) * 100)}%</span>
+                      <span className="font-medium text-foreground">{activeProgressPct}%</span>
                     </div>
 
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                       <div
                         className="h-full bg-primary transition-all duration-500"
-                        style={{ width: `${Math.round((activeBatch.processed_files / Math.max(activeBatch.total_files, 1)) * 100)}%` }}
+                        style={{ width: `${activeProgressPct}%` }}
                       />
                     </div>
 
                   </div>
 
-                  {activeBatch.processed_files === 0 && (
+                  {activeBatchStats.completed === 0 && (
                     <div className={cn(
                       "mt-3 p-3 rounded-lg flex items-center justify-between gap-3",
                       isBatchProcessing || triggering
@@ -223,20 +295,24 @@ export default function ImportHistory() {
                     </div>
                   )}
 
-                  {/* Stats row */}
-                  <div className="flex items-center gap-4 text-sm mt-3">
+                  <div className="flex items-center gap-4 text-sm mt-3 flex-wrap">
                     <span className="text-green-600 font-medium">
-                      ✓ {activeBatch.success_count.toLocaleString()} candidates created
+                      ✓ {activeBatchStats.created.toLocaleString()} candidates created
                     </span>
-                    {activeBatch.fail_count > 0 && (
+                    <span className="text-foreground font-medium">
+                      {activeBatchStats.processing.toLocaleString()} processing now
+                    </span>
+                    {activeBatchStats.failed > 0 && (
                       <span className="text-red-400 font-medium">
-                        ✗ {activeBatch.fail_count} failed
+                        ✗ {activeBatchStats.failed.toLocaleString()} failed
                       </span>
                     )}
                     <span className="text-muted-foreground">
-                      {activeBatch.total_files - activeBatch.processed_files > 0
-                        ? `${(activeBatch.total_files - activeBatch.processed_files).toLocaleString()} remaining`
-                        : "Finalising..."}
+                      {activeBatchStats.queued > 0
+                        ? `${activeBatchStats.queued.toLocaleString()} waiting`
+                        : activeBatchStats.processing > 0
+                          ? "Finishing current files..."
+                          : "Finalising..."}
                     </span>
                   </div>
 
@@ -262,7 +338,6 @@ export default function ImportHistory() {
           </Card>
         )}
 
-        {/* Past batches */}
         {batches.filter(b => b.status !== "processing" && b.status !== "queued").length > 0 && (
           <div className="space-y-3">
 
@@ -279,7 +354,6 @@ export default function ImportHistory() {
                     <Card key={batch.id} className="hover:bg-muted/30 transition-colors">
                       <CardContent className="py-4 flex items-center gap-4">
 
-                      {/* Status icon */}
                       <div className="flex-shrink-0">
                         {batch.status === "completed" && <CheckCircle2 className="h-5 w-5 text-green-500" />}
                         {batch.status === "partial" && <AlertCircle className="h-5 w-5 text-yellow-500" />}
@@ -287,7 +361,6 @@ export default function ImportHistory() {
                         {batch.status === "queued" && <Clock className="h-5 w-5 text-muted-foreground" />}
                       </div>
 
-                      {/* Info */}
                       <div className="flex-1 min-w-0">
 
                         <div className="flex items-center gap-2 text-sm mb-2">
@@ -300,7 +373,6 @@ export default function ImportHistory() {
                           </span>
                         </div>
 
-                        {/* Mini progress bar */}
                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                           <div
                             className={cn(
@@ -313,7 +385,6 @@ export default function ImportHistory() {
 
                       </div>
 
-                      {/* Results */}
                       <div className="flex items-center gap-3 text-sm">
                         <span className="text-green-600 font-medium">{batch.success_count.toLocaleString()} imported</span>
                         {batch.fail_count > 0 && (
@@ -334,7 +405,6 @@ export default function ImportHistory() {
           </div>
         )}
 
-        {/* Empty state */}
         {!isLoading && batches.length === 0 && (
           <Card className="border-dashed">
             <CardContent className="py-16 text-center">

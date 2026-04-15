@@ -145,7 +145,7 @@ export default function BulkCVUpload() {
                     <span>{hookProgress.total > 0 ? Math.round((hookProgress.uploaded / hookProgress.total) * 100) : 0}%</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                    <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${hookProgress.total > 0 ? Math.round((hookProgress.uploaded / hookProgress.total) * 100) : 0}%` }} />
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground/60">

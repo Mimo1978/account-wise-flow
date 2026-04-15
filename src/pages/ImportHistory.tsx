@@ -445,7 +445,7 @@ export default function ImportHistory() {
           </Card>
         )}
 
-        {batches.filter(b => b.status !== "processing" && b.status !== "queued").length > 0 && (
+        {batches.filter(b => b.status !== "processing" && b.status !== "queued" && b.status !== "paused").length > 0 && (
           <div className="space-y-3">
 
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
@@ -454,7 +454,7 @@ export default function ImportHistory() {
 
             <div className="space-y-2">
               {batches
-                .filter(b => b.status !== "processing" && b.status !== "queued")
+                .filter(b => b.status !== "processing" && b.status !== "queued" && b.status !== "paused")
                 .map(batch => {
                   const pct = Math.round((batch.success_count / Math.max(batch.total_files, 1)) * 100);
                   return (

@@ -183,9 +183,9 @@ export default function DataOnboarding() {
         onComplete={() => { markDone("cvs"); setCvUploadOpen(false); }}
       />
 
-      <ImportCenterModal open={csvOpen} onOpenChange={setCsvOpen} />
+      <ImportCenterModal open={csvOpen} onOpenChange={setCsvOpen} entityType="candidates" onImportComplete={() => { markDone("spreadsheet"); setCsvOpen(false); }} />
 
-      <ImportCenterModal open={companiesOpen} onOpenChange={setCompaniesOpen} />
+      <ImportCenterModal open={companiesOpen} onOpenChange={setCompaniesOpen} entityType="companies" onImportComplete={() => { markDone("companies"); setCompaniesOpen(false); }} />
     </div>
   );
 }

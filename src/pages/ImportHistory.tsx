@@ -5,6 +5,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { format, formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageBackButton } from "@/components/ui/page-back-button";
 import { CMOrbital } from "@/components/ui/CMLoader";
 import {
   CheckCircle2, XCircle, Clock, AlertCircle,

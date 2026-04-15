@@ -1,13 +1,7 @@
-import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 
-interface CMLoaderProps {
-  messages?: string[];
-  size?: "sm" | "md" | "lg";
-  className?: string;
-}
-
-const DEFAULT_MESSAGES = [
+const SEARCH_MESSAGES = [
   "Scanning profiles...",
   "Weighing company prestige...",
   "Analysing tenure patterns...",
@@ -15,103 +9,114 @@ const DEFAULT_MESSAGES = [
   "Ranking top matches...",
 ];
 
-export function CMLoader({ messages = DEFAULT_MESSAGES, size = "md", className }: CMLoaderProps) {
-  const [msgIndex, setMsgIndex] = useState(0);
+const GENERAL_MESSAGES = [
+  "Loading...",
+  "Fetching data...",
+  "Almost there...",
+];
 
+/* ── Orbital nodes — full section loader ── */
+export function CMOrbital({
+  size = 80,
+  messages = GENERAL_MESSAGES,
+  className,
+}: {
+  size?: number;
+  messages?: string[];
+  className?: string;
+}) {
+  const [msgIdx, setMsgIdx] = useState(0);
   useEffect(() => {
     if (messages.length <= 1) return;
-    const interval = setInterval(() => {
-      setMsgIndex(i => (i + 1) % messages.length);
-    }, 2000);
-    return () => clearInterval(interval);
+    const t = setInterval(() => setMsgIdx(i => (i + 1) % messages.length), 2000);
+    return () => clearInterval(t);
   }, [messages.length]);
 
-  const radarSize = size === "sm" ? 32 : size === "lg" ? 64 : 48;
-  const fontSize = size === "sm" ? "10px" : size === "lg" ? "13px" : "11px";
+  const c = size / 2;
+  const r1 = size * 0.27;
+  const r2 = size * 0.43;
+  const r3 = size * 0.48;
 
   return (
     <div className={cn("flex flex-col items-center gap-3", className)}>
-      {/* Radar sweep */}
-      <div className="relative" style={{ width: radarSize, height: radarSize }}>
-        <svg width={radarSize} height={radarSize} viewBox="0 0 48 48" className="absolute inset-0">
-          {/* Sweep line */}
-          <line
-            x1="24"
-            y1="24"
-            x2="24"
-            y2="4"
-            stroke="hsl(var(--primary))"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            className="origin-center"
-            style={{ animation: "cmRadarSweep 2s linear infinite" }}
-          />
+      <div className="relative" style={{ width: size, height: size }}>
+        {/* Centre */}
+        <div className="absolute rounded-full bg-primary" style={{ width: 6, height: 6, top: c - 3, left: c - 3 }} />
 
-          {/* Ping dots */}
-          <circle
-            cx="24"
-            cy="14"
-            r="2"
-            fill="hsl(var(--primary))"
-            className="opacity-80"
-            style={{ animation: "cmRadarFade 2s ease-in-out infinite" }}
-          />
+        {/* Ring 1 */}
+        <div className="absolute inset-0" style={{ animation: "cmOrb 2s linear infinite" }}>
+          <div className="absolute rounded-full bg-primary/80" style={{ width: 5, height: 5, top: c - r1 - 2.5, left: c - 2.5 }} />
+        </div>
 
-          <circle
-            cx="34"
-            cy="24"
-            r="1.5"
-            fill="hsl(var(--primary))"
-            className="opacity-60"
-            style={{ animation: "cmRadarFade 2s ease-in-out 0.5s infinite" }}
-          />
+        {/* Ring 2 */}
+        <div className="absolute inset-0" style={{ animation: "cmOrb 3.5s linear infinite reverse" }}>
+          <div className="absolute rounded-full bg-primary/60" style={{ width: 4, height: 4, top: c - r2 - 2, left: c - 2 }} />
+          <div className="absolute rounded-full bg-primary/40" style={{ width: 4, height: 4, top: c + r2 - 2, left: c - 2 }} />
+        </div>
 
-          <circle
-            cx="18"
-            cy="32"
-            r="1.5"
-            fill="hsl(var(--primary))"
-            className="opacity-60"
-            style={{ animation: "cmRadarFade 2s ease-in-out 1s infinite" }}
-          />
-
-          {/* Centre dot */}
-          <circle cx="24" cy="24" r="1.5" fill="hsl(var(--primary))" className="opacity-100" />
-        </svg>
+        {/* Ring 3 */}
+        <div className="absolute inset-0" style={{ animation: "cmOrb 5s linear infinite" }}>
+          <div className="absolute rounded-full bg-primary/30" style={{ width: 3, height: 3, top: c - r3 - 1.5, left: c - 1.5 }} />
+        </div>
       </div>
 
-      {/* Rotating message */}
       {messages.length > 0 && (
-        <div className="text-center min-h-[14px] transition-opacity duration-300" style={{ fontSize }}>
-          <span className="text-muted-foreground font-medium animate-fade-in">
-            {messages[msgIndex]}
-          </span>
-        </div>
+        <span className="text-xs text-muted-foreground font-medium animate-fade-in">
+          {messages[msgIdx]}
+        </span>
       )}
-
-      <style>{`
-        @keyframes cmRadarSweep {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
-        @keyframes cmRadarFade {
-          0%   { opacity: 0; }
-          10%  { opacity: 1; }
-          60%  { opacity: 0.3; }
-          100% { opacity: 0; }
-        }
-      `}</style>
+      <style>{`@keyframes cmOrb{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
 
-export function CMLoaderPage({ messages, title = "Processing..." }: { messages?: string[]; title?: string }) {
+/* ── Pipeline pulse — inline/button loader ── */
+export function CMPulse({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
+  const heights = size === "sm"
+    ? [4, 7, 10, 7, 4]
+    : size === "lg"
+    ? [8, 14, 20, 16, 20, 10, 18, 8]
+    : [6, 10, 14, 10, 14, 8, 12, 6];
+  const h = size === "sm" ? 10 : size === "lg" ? 20 : 14;
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <CMLoader messages={messages} size="lg" />
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+    <div className="flex items-end gap-[2px]" style={{ height: h }}>
+      {heights.map((bh, i) => (
+        <div key={i} className="w-[2px] rounded-full bg-primary/70" style={{ height: bh, animation: `cmPulse 0.8s ease-in-out ${i * 80}ms infinite alternate` }} />
+      ))}
+      <style>{`@keyframes cmPulse{from{opacity:.25;transform:scaleY(.5)}to{opacity:1;transform:scaleY(1)}}`}</style>
+    </div>
+  );
+}
+
+/* ── Full page orbital overlay ── */
+export function CMOrbitalOverlay({
+  visible,
+  title = "Processing...",
+  subtitle = "This won't take long",
+  messages,
+}: {
+  visible: boolean;
+  title?: string;
+  subtitle?: string;
+  messages?: string[];
+}) {
+  if (!visible) return null;
+  return (
+    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm">
+      <CMOrbital size={100} messages={messages} />
+      <div className="mt-6 text-center">
+        <p className="text-lg font-semibold text-foreground">{title}</p>
+        <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
       </div>
+    </div>
+  );
+}
+
+/* ── Section loader — replaces centred Loader2 in page sections ── */
+export function CMSectionLoader({ message }: { message?: string }) {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <CMOrbital size={48} messages={message ? [message] : GENERAL_MESSAGES} />
     </div>
   );
 }

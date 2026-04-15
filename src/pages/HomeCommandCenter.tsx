@@ -1,3 +1,4 @@
+import { CMSectionLoader } from "@/components/ui/CMLoader";
 import { PipelineChevron as SharedPipelineChevron } from '@/components/pipeline/PipelineChevron';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +27,7 @@ import { getContactBadgeSeverity, getProjectBadgeSeverity, BADGE_SEVERITY_STYLES
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   RefreshCw, Briefcase, TrendingUp, FileText, CalendarClock,
-  Plus, Building2, ArrowRight, LayoutGrid, Clock, Receipt, Loader2,
+  Plus, Building2, ArrowRight, LayoutGrid, Clock, Receipt,
   AlertTriangle, ChevronRight, DollarSign, Target, Phone,
   Users, Zap, Video, CheckSquare, Inbox, Send, FileBarChart, Compass,
   ArrowUpRight, Circle,
@@ -565,7 +566,7 @@ const HomeCommandCenter = () => {
             </div>
           }>
           {dealsLoading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin" style={{ color: DARK.textSecondary }} /></div>
+            <CMSectionLoader />
           ) : (
             <div className="space-y-4">
               <SharedPipelineChevron
@@ -758,7 +759,7 @@ const HomeCommandCenter = () => {
             </Button>
           }>
           {engLoading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="w-5 h-5 animate-spin" style={{ color: DARK.textSecondary }} /></div>
+            <CMSectionLoader />
           ) : engagements.length === 0 ? (
             <div className="flex flex-col items-center justify-center text-center py-10">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: DARK.border }}>

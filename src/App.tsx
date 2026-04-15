@@ -44,6 +44,7 @@ import Outreach from "./pages/Outreach";
 import SchemaInventory from "./pages/SchemaInventory";
 import Onboarding from "./pages/Onboarding";
 import DataOnboarding from "./pages/DataOnboarding";
+import BulkCVUpload from "./pages/BulkCVUpload";
 import ProjectsList from "./pages/ProjectsList";
 import DealsPage from "./pages/DealsPage";
 import DocumentsHub from "./pages/DocumentsHub";
@@ -158,6 +159,7 @@ const App = () => {
             <Route path="/auth/sign-up" element={<Navigate to="/auth?tab=signup" replace />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/onboarding/data" element={<ProtectedRoute><DataOnboarding /></ProtectedRoute>} />
+            <Route path="/bulk-upload" element={<ProtectedRoute><ProductLayout><BulkCVUpload /></ProductLayout></ProtectedRoute>} />
             <Route path="/demo" element={<Demo />} />
             <Route path="/jobs/board" element={<PublicJobBoard />} />
 

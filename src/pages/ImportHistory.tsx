@@ -1,27 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { CMOrbital } from "@/components/ui/CMLoader";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  ArrowRight,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  FileStack,
-  AlertCircle,
+  CheckCircle2, XCircle, Clock, AlertCircle,
+  FileStack, Users, ChevronRight, RefreshCw
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ImportBatch {
   id: string;
@@ -35,136 +24,251 @@ interface ImportBatch {
   source: string;
 }
 
-const statusConfig: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
-  queued: { label: "Queued", icon: <Clock className="h-3.5 w-3.5" />, className: "bg-muted text-muted-foreground" },
-  processing: { label: "Processing", icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, className: "bg-blue-500/20 text-blue-400" },
-  completed: { label: "Completed", icon: <CheckCircle2 className="h-3.5 w-3.5" />, className: "bg-green-500/20 text-green-400" },
-  partial: { label: "Partial", icon: <AlertCircle className="h-3.5 w-3.5" />, className: "bg-yellow-500/20 text-yellow-400" },
-  failed: { label: "Failed", icon: <XCircle className="h-3.5 w-3.5" />, className: "bg-red-500/20 text-red-400" },
-};
-
 export default function ImportHistory() {
   const navigate = useNavigate();
   const { currentWorkspace } = useWorkspace();
   const [batches, setBatches] = useState<ImportBatch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+
+  const fetchBatches = useCallback(async () => {
+    if (!currentWorkspace?.id) return;
+    const { data } = await supabase
+      .from("cv_import_batches")
+      .select("id, created_at, status, total_files, processed_files, success_count, fail_count, completed_at, source")
+      .eq("tenant_id", currentWorkspace.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (data) setBatches(data as ImportBatch[]);
+    setIsLoading(false);
+    setLastRefresh(new Date());
+  }, [currentWorkspace?.id]);
 
   useEffect(() => {
-    if (!currentWorkspace?.id) return;
-
-    const fetchBatches = async () => {
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from("cv_import_batches")
-        .select("id, created_at, status, total_files, processed_files, success_count, fail_count, completed_at, source")
-        .eq("tenant_id", currentWorkspace.id)
-        .order("created_at", { ascending: false })
-        .limit(50);
-
-      if (!error && data) {
-        setBatches(data as ImportBatch[]);
-      }
-      setIsLoading(false);
-    };
-
     fetchBatches();
-  }, [currentWorkspace?.id]);
+  }, [fetchBatches]);
+
+  // Auto-refresh every 8 seconds if any batch is still processing
+  useEffect(() => {
+    const hasActive = batches.some(b => b.status === "processing" || b.status === "queued");
+    if (!hasActive) return;
+    const interval = setInterval(fetchBatches, 8000);
+    return () => clearInterval(interval);
+  }, [batches, fetchBatches]);
+
+  const activeBatch = batches.find(b => b.status === "processing" || b.status === "queued");
+  const totalImported = batches.reduce((s, b) => s + (b.success_count || 0), 0);
+  const totalFailed = batches.reduce((s, b) => s + (b.fail_count || 0), 0);
 
   return (
     <div className="h-full overflow-y-auto bg-background">
       <div className="container mx-auto px-6 py-8 max-w-5xl space-y-6">
-        <div>
-         <h1 className="text-2xl font-bold tracking-tight text-foreground">Import History</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            All CV and contact imports
-          </p>
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-6">
+
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Import Progress</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Live status of all your CV imports
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              Updated {formatDistanceToNow(lastRefresh, { addSuffix: true })}
+            </span>
+            <Button variant="outline" size="sm" onClick={fetchBatches} className="gap-1.5">
+              <RefreshCw className="h-3.5 w-3.5" />
+              Refresh
+            </Button>
+            <Button onClick={() => navigate("/import/cvs")} className="gap-1.5">
+              + Import more CVs
+            </Button>
+          </div>
+
         </div>
 
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted">
-                <TableHead className="font-semibold">Date</TableHead>
-                <TableHead className="font-semibold">Files</TableHead>
-                <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold">Results</TableHead>
-                <TableHead className="font-semibold w-[140px]">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
-                    Loading…
-                  </TableCell>
-                </TableRow>
-              ) : batches.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                    <FileStack className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                    <p className="font-medium">No imports yet</p>
-                    <p className="text-xs mt-1">Go to Talent → Import to add CVs.</p>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                batches.map((batch) => {
-                  const cfg = statusConfig[batch.status] || statusConfig.queued;
-                  return (
-                    <TableRow key={batch.id} className="hover:bg-muted/30">
-                      <TableCell>
-                        <div>
-                          <span className="font-medium text-sm">
-                            {format(new Date(batch.created_at), "dd MMM yyyy")}
-                          </span>
-                          <span className="text-xs text-muted-foreground ml-2">
-                            {format(new Date(batch.created_at), "HH:mm")}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm">
-                          {batch.total_files} file{batch.total_files !== 1 ? "s" : ""}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={`gap-1 ${cfg.className}`}>
-                          {cfg.icon}
-                          {cfg.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2 text-sm">
-                          {batch.success_count > 0 && (
-                            <span className="text-green-500">{batch.success_count} parsed</span>
-                          )}
-                          {batch.fail_count > 0 && (
-                            <span className="text-red-400">{batch.fail_count} failed</span>
-                          )}
-                          {batch.processed_files < batch.total_files && (
-                            <span className="text-muted-foreground">
-                              {batch.processed_files}/{batch.total_files} processed
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                       <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1"
-                          onClick={() => navigate(`/imports/${batch.id}/review`)}
-                        >
-                          Review →
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+        {/* Summary KPIs */}
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: "Total imported", value: totalImported.toLocaleString(), color: "text-green-600", sub: "candidates created" },
+            { label: "Total batches", value: batches.length.toString(), color: "text-foreground", sub: "import sessions" },
+            { label: "Failed", value: totalFailed.toLocaleString(), color: totalFailed > 0 ? "text-red-500" : "text-muted-foreground", sub: "could not parse" },
+          ].map(k => (
+            <Card key={k.label}>
+              <CardContent className="pt-6">
+                <div className="text-xs font-medium text-muted-foreground mb-1">{k.label}</div>
+                <div className={cn("text-3xl font-bold", k.color)}>{k.value}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{k.sub}</div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
+
+        {/* Active batch — live progress card */}
+        {activeBatch && (
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="pt-6">
+
+            <div className="space-y-5">
+              <div className="space-y-4">
+
+                <div className="flex items-start gap-3">
+                  <CMOrbital size={48} />
+
+                  <div className="flex-1 min-w-0">
+
+                    <div className="flex items-center gap-2 mb-1">
+                      <Clock className="h-4 w-4 text-primary" />
+                      <span className="font-semibold text-foreground">Import running in background</span>
+                      <span className="text-xs text-muted-foreground">
+                        Started {formatDistanceToNow(new Date(activeBatch.created_at), { addSuffix: true })}
+                      </span>
+                    </div>
+
+                  {/* Progress bar */}
+                  <div className="space-y-2 mt-3">
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        {activeBatch.processed_files.toLocaleString()} of {activeBatch.total_files.toLocaleString()} processed
+                      </span>
+                      <span className="font-medium text-foreground">{Math.round((activeBatch.processed_files / Math.max(activeBatch.total_files, 1)) * 100)}%</span>
+                    </div>
+
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all duration-500"
+                        style={{ width: `${Math.round((activeBatch.processed_files / Math.max(activeBatch.total_files, 1)) * 100)}%` }}
+                      />
+                    </div>
+
+                  </div>
+
+                  {/* Stats row */}
+                  <div className="flex items-center gap-4 text-sm mt-3">
+                    <span className="text-green-600 font-medium">
+                      ✓ {activeBatch.success_count.toLocaleString()} candidates created
+                    </span>
+                    {activeBatch.fail_count > 0 && (
+                      <span className="text-red-400 font-medium">
+                        ✗ {activeBatch.fail_count} failed
+                      </span>
+                    )}
+                    <span className="text-muted-foreground">
+                      {activeBatch.total_files - activeBatch.processed_files > 0
+                        ? `${(activeBatch.total_files - activeBatch.processed_files).toLocaleString()} remaining`
+                        : "Finalising..."}
+                    </span>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-border">
+              <Button onClick={() => navigate("/talent")} variant="outline" className="gap-1.5">
+                <Users className="h-4 w-4" />
+                View candidates so far
+              </Button>
+
+              <p className="text-xs text-muted-foreground max-w-md">
+                You can close this tab — processing continues automatically. Come back to check progress.
+              </p>
+
+            </div>
+          </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Past batches */}
+        {batches.filter(b => b.status !== "processing" && b.status !== "queued").length > 0 && (
+          <div className="space-y-3">
+
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+              Completed imports
+            </h2>
+
+            <div className="space-y-2">
+              {batches
+                .filter(b => b.status !== "processing" && b.status !== "queued")
+                .map(batch => {
+                  const pct = Math.round((batch.success_count / Math.max(batch.total_files, 1)) * 100);
+                  return (
+                    <Card key={batch.id} className="hover:bg-muted/30 transition-colors">
+                      <CardContent className="py-4 flex items-center gap-4">
+
+                      {/* Status icon */}
+                      <div className="flex-shrink-0">
+                        {batch.status === "completed" && <CheckCircle2 className="h-5 w-5 text-green-500" />}
+                        {batch.status === "partial" && <AlertCircle className="h-5 w-5 text-yellow-500" />}
+                        {batch.status === "failed" && <XCircle className="h-5 w-5 text-red-500" />}
+                        {batch.status === "queued" && <Clock className="h-5 w-5 text-muted-foreground" />}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+
+                        <div className="flex items-center gap-2 text-sm mb-2">
+                          <span className="font-medium text-foreground">
+                            {batch.total_files.toLocaleString()} CVs
+                          </span>
+                          ·
+                          <span className="text-muted-foreground">
+                            {format(new Date(batch.created_at), "dd MMM yyyy 'at' HH:mm")}
+                          </span>
+                        </div>
+
+                        {/* Mini progress bar */}
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full transition-all",
+                              pct === 100 ? "bg-green-500" : pct > 50 ? "bg-yellow-500" : "bg-red-500"
+                            )}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+
+                      </div>
+
+                      {/* Results */}
+                      <div className="flex items-center gap-3 text-sm">
+                        <span className="text-green-600 font-medium">{batch.success_count.toLocaleString()} imported</span>
+                        {batch.fail_count > 0 && (
+                          <span className="text-red-400">{batch.fail_count} failed</span>
+                        )}
+                        <span className="text-muted-foreground">{pct}% success rate</span>
+                      </div>
+
+                      <Button onClick={() => navigate(`/imports/${batch.id}/review`)} variant="ghost" size="sm" className="flex-shrink-0">
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </CardContent>
+                    </Card>
+                  );
+                })}
+            </div>
+
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!isLoading && batches.length === 0 && (
+          <Card className="border-dashed">
+            <CardContent className="py-16 text-center">
+            <FileStack className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+            <h3 className="text-lg font-semibold text-foreground mb-1">No imports yet</h3>
+            <p className="text-sm text-muted-foreground mb-6">Go to Talent → Import → Bulk import to add your CVs</p>
+            <Button onClick={() => navigate("/import/cvs")}>Start importing CVs</Button>
+          </CardContent>
+          </Card>
+        )}
+
       </div>
     </div>
   );

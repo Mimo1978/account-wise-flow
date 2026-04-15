@@ -401,6 +401,54 @@ serve(async (req) => {
       );
     }
 
+    // Route: POST /cv-batch-import/:batchId/restart - Force restart stuck batch
+    if (method === 'POST' && pathParts.length === 3 && pathParts[2] === 'restart') {
+      const batchId = pathParts[1];
+
+      // Reset all queued/failed items back to queued
+      await supabaseAdmin
+        .from('cv_import_items')
+        .update({ status: 'queued', error_message: null })
+        .eq('batch_id', batchId)
+        .in('status', ['queued', 'failed', 'processing']);
+
+      // Reset batch counters and force processing status
+      const { data: batch, error: updateError } = await supabaseAdmin
+        .from('cv_import_batches')
+        .update({
+          status: 'processing',
+          started_at: new Date().toISOString(),
+          processed_files: 0,
+          success_count: 0,
+          fail_count: 0,
+        })
+        .eq('id', batchId)
+        .select()
+        .single();
+
+      if (updateError || !batch) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Batch not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const tenantId = batch.tenant_id;
+
+      // Trigger background processing
+      const processingPromise = processQueuedItems(supabaseAdmin, batchId, tenantId);
+      if (typeof (globalThis as any).EdgeRuntime?.waitUntil === 'function') {
+        (globalThis as any).EdgeRuntime.waitUntil(processingPromise);
+      } else {
+        processingPromise.catch(e => console.error('Restart processing error:', e));
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, data: batch, message: 'Processing restarted' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Route: POST /cv-batch-import/items/:itemId/retry - Retry failed item
     if (method === 'POST' && pathParts.length === 3 && pathParts[1] === 'items' && pathParts[2] !== 'resolve-dedupe') {
       const itemId = pathParts[2].replace('/retry', '');

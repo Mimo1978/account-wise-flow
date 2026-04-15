@@ -156,7 +156,7 @@ export default function ImportHistory() {
       // Update batch status directly — the processing loop checks status before each item
       const { error: updateError } = await supabase
         .from("cv_import_batches")
-        .update({ status: "paused", updated_at: new Date().toISOString() })
+        .update({ status: "paused" as any, updated_at: new Date().toISOString() })
         .eq("id", batchId)
         .in("status", ["processing", "queued"]);
 

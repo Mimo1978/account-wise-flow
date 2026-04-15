@@ -150,8 +150,40 @@ export default function ImportHistory() {
     }
   };
 
-  const activeBatch = batches.find(b => b.status === "processing" || b.status === "queued");
+  const stopProcessing = async (batchId: string) => {
+    setStopping(true);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/cv-batch-import/${batchId}/pause`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+        }
+      );
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Import paused — you can resume anytime");
+        await fetchBatches();
+      } else {
+        toast.error(result.error || "Failed to pause");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to pause");
+    } finally {
+      setStopping(false);
+    }
+  };
+
+  const activeBatch = batches.find(b => b.status === "processing" || b.status === "queued" || b.status === "paused");
   const isBatchProcessing = activeBatch?.status === "processing";
+  const isBatchPaused = activeBatch?.status === "paused";
   const activeProgressCount = activeBatchStats.started || activeBatch?.processed_files || 0;
   const activeProgressPct = activeBatch
     ? Math.round((activeProgressCount / Math.max(activeBatch.total_files, 1)) * 100)

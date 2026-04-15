@@ -82,7 +82,7 @@ export default function ImportHistory() {
     let filesRemaining = 0;
 
     if (currentActiveBatch) {
-      const [createdResult, failedItemsResult, processingResult, queuedResult] = await Promise.all([
+      const [createdResult, failedItemsResult, processingResult, queuedResult, trackedResult] = await Promise.all([
         supabase
           .from("cv_import_items")
           .select("id", { count: "exact", head: true })
@@ -103,16 +103,22 @@ export default function ImportHistory() {
           .select("id", { count: "exact", head: true })
           .eq("batch_id", currentActiveBatch.id)
           .eq("status", "queued"),
+        supabase
+          .from("cv_import_items")
+          .select("id", { count: "exact", head: true })
+          .eq("batch_id", currentActiveBatch.id),
       ]);
 
       const created = createdResult.count || 0;
       const failed = failedItemsResult.count || 0;
       const processing = processingResult.count || 0;
       const queued = queuedResult.count || 0;
-      const started = Math.max(currentActiveBatch.total_files - queued, 0);
+      const tracked = trackedResult.count || 0;
+      const preparing = Math.max(currentActiveBatch.total_files - tracked, 0);
+      const started = created + failed + processing;
       const completed = created + failed;
 
-      filesRemaining = Math.max(currentActiveBatch.total_files - completed, 0);
+      filesRemaining = Math.max(currentActiveBatch.total_files - started, 0);
 
       setActiveBatchStats({
         started,
@@ -121,9 +127,20 @@ export default function ImportHistory() {
         failed,
         processing,
         queued,
+        tracked,
+        preparing,
       });
     } else {
-      setActiveBatchStats({ started: 0, completed: 0, created: 0, failed: 0, processing: 0, queued: 0 });
+      setActiveBatchStats({
+        started: 0,
+        completed: 0,
+        created: 0,
+        failed: 0,
+        processing: 0,
+        queued: 0,
+        tracked: 0,
+        preparing: 0,
+      });
     }
 
     setSummary({

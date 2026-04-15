@@ -141,8 +141,8 @@ export default function BulkCVUpload() {
                 <CMPulse size="lg" />
                 <div className="w-full max-w-md">
                   <div className="flex justify-between text-sm text-muted-foreground mb-2">
-                    <span>{uploadedCount} of {totalFiles} uploaded</span>
-                    <span>{uploadProgress}%</span>
+                    <span>{hookProgress.uploaded} of {hookProgress.total || totalFiles} uploaded</span>
+                    <span>{hookProgress.total > 0 ? Math.round((hookProgress.uploaded / hookProgress.total) * 100) : 0}%</span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }} />

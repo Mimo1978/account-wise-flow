@@ -738,23 +738,89 @@ async function processItem(supabase: any, item: any, apiKey: string) {
   // Generate search tags from extracted data
   const searchTags = generateSearchTags(extractedData);
 
-  // TODO: Implement dedupe check against existing talents
-  // For now, mark as parsed
-  const finalStatus = 'parsed';
+  // === AUTO-CREATE CANDIDATE RECORD ===
+  const name = extractedData.personal?.full_name || null;
+  let candidateId: string | null = null;
 
+  if (name) {
+    // Check for existing candidate by email to avoid duplicates
+    const email = extractedData.personal?.email || null;
+    let existingId: string | null = null;
+
+    if (email) {
+      const { data: existing } = await supabase
+        .from('candidates')
+        .select('id')
+        .eq('tenant_id', item.tenant_id)
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existing?.id) existingId = existing.id;
+    }
+
+    if (existingId) {
+      // Update existing candidate with fresh CV data
+      await supabase
+        .from('candidates')
+        .update({
+          phone: extractedData.personal?.phone || undefined,
+          location: extractedData.personal?.location || undefined,
+          linkedin_url: extractedData.personal?.linkedin_url || undefined,
+          current_title: extractedData.headline?.current_title || undefined,
+          current_company: extractedData.headline?.current_company || undefined,
+          skills: extractedData.skills || {},
+          experience: extractedData.experience?.roles || [],
+          education: extractedData.education?.qualifications || [],
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingId);
+
+      candidateId = existingId;
+    } else {
+      // Create new candidate record
+      const { data: newCandidate, error: insertError } = await supabase
+        .from('candidates')
+        .insert({
+          tenant_id: item.tenant_id,
+          name,
+          email: extractedData.personal?.email || null,
+          phone: extractedData.personal?.phone || null,
+          location: extractedData.personal?.location || null,
+          linkedin_url: extractedData.personal?.linkedin_url || null,
+          current_title: extractedData.headline?.current_title || null,
+          current_company: extractedData.headline?.current_company || null,
+          headline: extractedData.headline?.current_title || null,
+          skills: extractedData.skills || {},
+          experience: extractedData.experience?.roles || [],
+          education: extractedData.education?.qualifications || [],
+          source: 'cv_import',
+          status: 'active',
+          raw_cv_text: extractedData.raw_text || null,
+        })
+        .select('id')
+        .single();
+
+      if (!insertError && newCandidate) {
+        candidateId = newCandidate.id;
+      }
+    }
+  }
+
+  // Mark item as parsed and link to candidate
   await supabase
     .from('cv_import_items')
     .update({
-      status: finalStatus,
+      status: 'parsed',
       parse_confidence: extractedData.overall_confidence,
       field_confidence: extractedData.field_confidence,
       extracted_data: extractedData,
       search_tags: searchTags,
+      candidate_id: candidateId,
       completed_at: new Date().toISOString(),
     })
     .eq('id', item.id);
 
-  console.log(`Successfully processed item ${item.id} with confidence ${extractedData.overall_confidence}`);
+  console.log(`Successfully processed item ${item.id} — candidate: ${candidateId || 'skipped (no name found)'}`);
 }
 
 // Text extraction function supporting PDF and DOC/DOCX

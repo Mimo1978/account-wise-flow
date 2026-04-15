@@ -69,6 +69,7 @@ export default function ImportHistory() {
         <div className="flex items-start justify-between gap-6">
 
           <div>
+            <PageBackButton fallback="/talent" className="mb-3" />
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Import Progress</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Live status of all your CV imports

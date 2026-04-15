@@ -36,7 +36,7 @@ export default function ImportHistory() {
   const [stopping, setStopping] = useState(false);
   const [summary, setSummary] = useState({
     importedCandidates: 0,
-    importSessions: 0,
+    filesRemaining: 0,
     failedFiles: 0,
   });
   const [activeBatchStats, setActiveBatchStats] = useState({
@@ -72,42 +72,63 @@ export default function ImportHistory() {
 
     const batchRows = (batchesResult.data as ImportBatch[]) || [];
     setBatches(batchRows);
-    setSummary({
-      importedCandidates: importedResult.count || 0,
-      importSessions: batchesResult.count || 0,
-      failedFiles: failedResult.count || 0,
-    });
 
-    const currentActiveBatch = batchRows.find(b => b.status === "processing" || b.status === "queued" || b.status === "paused");
+    const currentActiveBatch = batchRows.find(
+      (b) => b.status === "processing" || b.status === "queued" || b.status === "paused"
+    );
+
+    let filesRemaining = 0;
 
     if (currentActiveBatch) {
-      const { data: activeItems } = await supabase
-        .from("cv_import_items")
-        .select("status, candidate_id")
-        .eq("batch_id", currentActiveBatch.id);
+      const [createdResult, failedItemsResult, processingResult, queuedResult] = await Promise.all([
+        supabase
+          .from("cv_import_items")
+          .select("id", { count: "exact", head: true })
+          .eq("batch_id", currentActiveBatch.id)
+          .not("candidate_id", "is", null),
+        supabase
+          .from("cv_import_items")
+          .select("id", { count: "exact", head: true })
+          .eq("batch_id", currentActiveBatch.id)
+          .eq("status", "failed"),
+        supabase
+          .from("cv_import_items")
+          .select("id", { count: "exact", head: true })
+          .eq("batch_id", currentActiveBatch.id)
+          .eq("status", "processing"),
+        supabase
+          .from("cv_import_items")
+          .select("id", { count: "exact", head: true })
+          .eq("batch_id", currentActiveBatch.id)
+          .eq("status", "queued"),
+      ]);
 
-      const stats = (activeItems || []).reduce(
-        (acc, item) => {
-          if (item.status !== "queued") acc.started += 1;
-          if (item.status !== "queued" && item.status !== "processing") acc.completed += 1;
-          if (item.status === "processing") acc.processing += 1;
-          if (item.status === "queued") acc.queued += 1;
-          if (item.status === "failed") acc.failed += 1;
-          if (item.status === "parsed" || item.status === "merged" || Boolean(item.candidate_id)) acc.created += 1;
-          return acc;
-        },
-        { started: 0, completed: 0, created: 0, failed: 0, processing: 0, queued: 0 }
-      );
+      const created = createdResult.count || 0;
+      const failed = failedItemsResult.count || 0;
+      const processing = processingResult.count || 0;
+      const queued = queuedResult.count || 0;
+      const started = Math.max(currentActiveBatch.total_files - queued, 0);
+      const completed = created + failed;
 
-      // Use batch-level success_count as fallback if item-level created is 0
-      if (stats.created === 0 && currentActiveBatch.success_count > 0) {
-        stats.created = currentActiveBatch.success_count;
-      }
+      filesRemaining = Math.max(currentActiveBatch.total_files - completed, 0);
 
-      setActiveBatchStats(stats);
+      setActiveBatchStats({
+        started,
+        completed,
+        created,
+        failed,
+        processing,
+        queued,
+      });
     } else {
       setActiveBatchStats({ started: 0, completed: 0, created: 0, failed: 0, processing: 0, queued: 0 });
     }
+
+    setSummary({
+      importedCandidates: importedResult.count || 0,
+      filesRemaining,
+      failedFiles: failedResult.count || 0,
+    });
 
     setIsLoading(false);
     setLastRefresh(new Date());

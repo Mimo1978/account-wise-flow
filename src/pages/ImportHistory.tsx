@@ -5,6 +5,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { format, formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageBackButton } from "@/components/ui/page-back-button";
 import { CMOrbital } from "@/components/ui/CMLoader";
 import {
   CheckCircle2, XCircle, Clock, AlertCircle,
@@ -68,6 +69,7 @@ export default function ImportHistory() {
         <div className="flex items-start justify-between gap-6">
 
           <div>
+            <PageBackButton fallback="/talent" className="mb-3" />
             <h1 className="text-2xl font-bold tracking-tight text-foreground">Import Progress</h1>
             <p className="text-sm text-muted-foreground mt-1">
               Live status of all your CV imports

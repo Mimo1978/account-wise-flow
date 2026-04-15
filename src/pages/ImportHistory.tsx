@@ -167,18 +167,20 @@ export default function ImportHistory() {
 
               </div>
 
-              <div className="flex items-center justify-between pt-3 border-t border-border">
-                <Button onClick={() => navigate("/talent")} variant="outline" className="gap-1.5">
-                  <Users className="h-4 w-4" />
-                  View candidates so far
-                </Button>
-
-                <p className="text-xs text-muted-foreground max-w-md">
-                  You can close this tab — processing continues automatically. Come back to check progress.
-                </p>
-
-              </div>
             </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-border">
+              <Button onClick={() => navigate("/talent")} variant="outline" className="gap-1.5">
+                <Users className="h-4 w-4" />
+                View candidates so far
+              </Button>
+
+              <p className="text-xs text-muted-foreground max-w-md">
+                You can close this tab — processing continues automatically. Come back to check progress.
+              </p>
+
+            </div>
+          </div>
             </CardContent>
           </Card>
         )}

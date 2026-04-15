@@ -384,10 +384,12 @@ export default function ImportHistory() {
                   )}
 
                   <div className="flex items-center gap-4 text-sm mt-3 flex-wrap">
-                    <span className="text-green-600 font-medium">
-                      ✓ {activeBatchStats.created.toLocaleString()} candidates created
-                    </span>
-                    {!isBatchPaused && (
+                    {activeBatchStats.created > 0 && (
+                      <span className="text-green-600 font-medium">
+                        ✓ {activeBatchStats.created.toLocaleString()} candidates created
+                      </span>
+                    )}
+                    {!isBatchPaused && activeBatchStats.processing > 0 && (
                       <span className="text-foreground font-medium">
                         {activeBatchStats.processing.toLocaleString()} processing now
                       </span>
@@ -397,13 +399,11 @@ export default function ImportHistory() {
                         ✗ {activeBatchStats.failed.toLocaleString()} failed
                       </span>
                     )}
-                    <span className="text-muted-foreground">
-                      {activeBatchStats.queued > 0
-                        ? `${activeBatchStats.queued.toLocaleString()} waiting`
-                        : activeBatchStats.processing > 0
-                          ? "Finishing current files..."
-                          : "Finalising..."}
-                    </span>
+                    {remainingFiles > 0 && (
+                      <span className="text-muted-foreground font-medium">
+                        {remainingFiles.toLocaleString()} files remaining
+                      </span>
+                    )}
                   </div>
 
                 </div>

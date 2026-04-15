@@ -59,6 +59,37 @@ export default function ImportHistory() {
     return () => clearInterval(interval);
   }, [batches, fetchBatches]);
 
+  const triggerProcessing = async (batchId: string) => {
+    setTriggering(true);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/cv-batch-import/${batchId}/complete-upload`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+        }
+      );
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Processing started — candidates will appear in Talent shortly");
+        fetchBatches();
+      } else {
+        toast.error(result.error || "Failed to start processing");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to start processing");
+    } finally {
+      setTriggering(false);
+    }
+  };
+
   const activeBatch = batches.find(b => b.status === "processing" || b.status === "queued");
   const totalImported = batches.reduce((s, b) => s + (b.success_count || 0), 0);
   const totalFailed = batches.reduce((s, b) => s + (b.fail_count || 0), 0);
@@ -149,6 +180,23 @@ export default function ImportHistory() {
                     </div>
 
                   </div>
+
+                  {activeBatch.processed_files === 0 && activeBatch.status === "processing" && (
+                    <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium text-amber-600">Processing appears stuck</p>
+                        <p className="text-xs text-muted-foreground">Files are uploaded but processing hasn't started yet</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => triggerProcessing(activeBatch.id)}
+                        disabled={triggering}
+                        className="gap-1.5 bg-amber-500 hover:bg-amber-400 text-black font-medium flex-shrink-0"
+                      >
+                        {triggering ? "Starting..." : "Start processing"}
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Stats row */}
                   <div className="flex items-center gap-4 text-sm mt-3">

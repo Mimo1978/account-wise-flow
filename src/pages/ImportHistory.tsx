@@ -254,10 +254,10 @@ export default function ImportHistory() {
               sub: "candidate profiles created from CVs",
             },
             {
-              label: "Import sessions",
-              value: summary.importSessions.toLocaleString(),
-              color: "text-foreground",
-              sub: "CV upload batches started",
+              label: "Files remaining",
+              value: summary.filesRemaining.toLocaleString(),
+              color: summary.filesRemaining > 0 ? "text-foreground" : "text-green-600",
+              sub: activeBatch ? "still to process in the current import" : "no active import running",
             },
             {
               label: "Failed files",

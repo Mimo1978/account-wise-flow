@@ -875,6 +875,35 @@ async function processItem(supabase: any, item: any, apiKey: string) {
     }
   }
 
+  // Link CV file to candidate record
+  if (candidateId) {
+    // Update cv_storage_path on candidate
+    await supabase
+      .from('candidates')
+      .update({
+        cv_storage_path: item.storage_path,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', candidateId);
+
+    // Create talent_documents record so CV appears in the document viewer
+    const ext = item.file_name?.split('.').pop()?.toLowerCase() || 'pdf';
+    await supabase.from('talent_documents').insert({
+      talent_id: candidateId,
+      workspace_id: item.tenant_id,
+      file_name: item.file_name,
+      file_path: item.storage_path,
+      file_type: ext,
+      file_size: item.file_size || 0,
+      doc_kind: 'cv',
+      parse_status: 'completed',
+      parsed_text: extractedData.raw_text || null,
+      uploaded_by: item.uploaded_by || null,
+    }).then(({ error }) => {
+      if (error) console.warn(`talent_documents insert warning for ${item.id}:`, error.message);
+    });
+  }
+
   const completedAt = new Date().toISOString();
 
   // Mark item as parsed first so counters keep moving even if metadata enrichment fails

@@ -62,6 +62,7 @@ import { useColumnPinning } from "@/hooks/use-column-pinning";
 import { useViewPresets } from "@/hooks/use-view-presets";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   Users,

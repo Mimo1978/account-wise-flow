@@ -320,6 +320,12 @@ export default function TalentDatabase() {
     return Array.from(types).sort();
   }, [allTalents]);
 
+  // Get unique locations from data
+  const locations = useMemo(() => {
+    const locs = new Set(allTalents.map((t) => t.location).filter(Boolean) as string[]);
+    return Array.from(locs).sort();
+  }, [allTalents]);
+
   // Filter talents - use Boolean search results if active, otherwise filter locally
   const filteredTalents = useMemo(() => {
     // If Boolean search is active and has results, use those

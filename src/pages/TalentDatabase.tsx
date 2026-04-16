@@ -363,9 +363,15 @@ export default function TalentDatabase() {
       const matchesRoleType =
         roleTypeFilter === "all" || talent.roleType === roleTypeFilter;
 
-      return matchesSearch && matchesAvailability && matchesRoleType;
+      const matchesLocation =
+        locationFilter === "all" || talent.location === locationFilter;
+
+      const matchesCv =
+        hasCvFilter === "all" || (hasCvFilter === "yes" ? !!talent.cvStoragePath : !talent.cvStoragePath);
+
+      return matchesSearch && matchesAvailability && matchesRoleType && matchesLocation && matchesCv;
     });
-  }, [booleanSearch.query, booleanSearch.isActive, booleanSearch.isBooleanMode, booleanSearch.hasResults, booleanSearch.results, availabilityFilter, roleTypeFilter, allTalents]);
+  }, [booleanSearch.query, booleanSearch.isActive, booleanSearch.isBooleanMode, booleanSearch.hasResults, booleanSearch.results, availabilityFilter, roleTypeFilter, locationFilter, hasCvFilter, allTalents]);
 
   const handleRowClick = (talent: Talent) => {
     // Store search result if in Boolean mode

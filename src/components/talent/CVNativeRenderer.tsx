@@ -42,6 +42,7 @@ export function CVNativeRenderer({
   const docxContainerRef = useRef<HTMLDivElement | null>(null);
   const [renderState, setRenderState] = useState<RenderState>({ kind: "loading" });
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [docxBlob, setDocxBlob] = useState<Blob | null>(null);
   const renderedPdfPagesRef = useRef<string[]>([]);
 
   const documentKind = useMemo(() => getDocumentKind(document), [document]);
@@ -72,6 +73,7 @@ export function CVNativeRenderer({
         revokeUrls(renderedPdfPagesRef.current);
         renderedPdfPagesRef.current = [];
       }
+      setDocxBlob(null);
       if (docxContainerRef.current) {
         docxContainerRef.current.innerHTML = "";
       }
@@ -97,27 +99,6 @@ export function CVNativeRenderer({
       }
 
       return pages;
-    };
-
-    const renderDocx = async (blob: Blob) => {
-      const container = docxContainerRef.current;
-      if (!container) return false;
-
-      container.innerHTML = "";
-      await renderAsync(blob, container, container, {
-        className: "cv-docx",
-        inWrapper: true,
-        ignoreWidth: false,
-        ignoreHeight: false,
-        ignoreFonts: false,
-        breakPages: true,
-        ignoreLastRenderedPageBreak: false,
-        renderHeaders: true,
-        renderFooters: true,
-        useBase64URL: true,
-      });
-
-      return true;
     };
 
     const load = async () => {
@@ -146,10 +127,10 @@ export function CVNativeRenderer({
         if (documentKind === "docx") {
           const stored = await downloadStoredFile(document.filePath);
           if (!stored) throw new Error("The Word CV file could not be found in storage.");
-          await renderDocx(stored.blob);
           if (isCancelled) {
             return;
           }
+          setDocxBlob(stored.blob);
           setRenderState({ kind: "docx" });
           return;
         }
@@ -177,6 +158,44 @@ export function CVNativeRenderer({
       cleanup();
     };
   }, [document.filePath, document.id, document.pdfConversionStatus, document.pdfStoragePath, documentKind]);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const renderDocxDocument = async () => {
+      if (renderState.kind !== "docx" || !docxBlob || !docxContainerRef.current) return;
+
+      try {
+        const container = docxContainerRef.current;
+        container.innerHTML = "";
+        await renderAsync(docxBlob, container, container, {
+          className: "cv-docx",
+          inWrapper: true,
+          ignoreWidth: false,
+          ignoreHeight: false,
+          ignoreFonts: false,
+          breakPages: true,
+          ignoreLastRenderedPageBreak: false,
+          renderHeaders: true,
+          renderFooters: true,
+          useBase64URL: true,
+        });
+      } catch (error) {
+        if (isCancelled) return;
+        console.error("[CVNativeRenderer] DOCX render failed", error);
+        setRenderState({
+          kind: "error",
+          message: error instanceof Error ? error.message : "Unable to render this Word CV.",
+        });
+      }
+    };
+
+    renderDocxDocument();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [docxBlob, renderState.kind]);
 
   if (renderState.kind === "loading") {
     return (

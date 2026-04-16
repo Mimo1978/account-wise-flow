@@ -252,14 +252,9 @@ export default function TalentDatabase() {
     invalidateCandidates 
   } = useCandidates();
 
-  // Use real data if available, fallback to mock for demo
+  // Always use real database candidates
   const allTalents = useMemo(() => {
-    // If we have real candidates, use them; otherwise use mock data for demo purposes
-    if (dbCandidates.length > 0) {
-      return dbCandidates;
-    }
-    // Fallback to mock data when no real candidates (for demo workspace)
-    return mockTalents;
+    return dbCandidates;
   }, [dbCandidates]);
 
   // Fetch document counts for all visible talents

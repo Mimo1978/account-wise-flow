@@ -73,6 +73,7 @@ import { EmailComposeModal } from "@/components/communications/EmailComposeModal
 import { SMSComposeModal } from "@/components/communications/SMSComposeModal";
 import { ScheduleCallbackPopover } from "@/components/outreach/ScheduleCallbackPopover";
 import type { OutreachTarget } from "@/hooks/use-outreach";
+import type { TalentDocument } from "@/lib/talent-document-types";
 import { Bot } from "lucide-react";
 import {
   getCandidateUpdateFromHeaderStatus,
@@ -178,6 +179,41 @@ export default function CandidateProfile() {
   const candidate = useMemo(() => {
     return candidates.find((c) => c.id === candidateId) || null;
   }, [candidates, candidateId]);
+
+  const fallbackCvDocument = useMemo<TalentDocument | null>(() => {
+    if (!candidate || documents.length > 0 || !candidate.cvStoragePath || !currentWorkspace?.id) {
+      return null;
+    }
+
+    const filePath = candidate.cvStoragePath;
+    const rawFileName = filePath.split("/").pop() || `${candidate.name}_cv`;
+    const fileName = decodeURIComponent(rawFileName);
+    const extension = fileName.includes(".") ? fileName.split(".").pop()?.toLowerCase() || "pdf" : "pdf";
+    const timestamp = candidate.lastUpdated || new Date().toISOString();
+    const isPdf = extension === "pdf";
+
+    return {
+      id: `fallback-${candidate.id}`,
+      workspaceId: currentWorkspace.id,
+      talentId: candidate.id,
+      filePath,
+      fileName,
+      fileType: extension,
+      fileSize: 0,
+      uploadedBy: null,
+      uploadedAt: timestamp,
+      docKind: "cv",
+      parsedText: candidate.rawCvText || null,
+      parseStatus: candidate.rawCvText ? "parsed" : "pending",
+      textHash: null,
+      pdfStoragePath: isPdf ? filePath : null,
+      pdfConversionStatus: isPdf ? "not_needed" : "pending",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+  }, [candidate, currentWorkspace?.id, documents.length]);
+
+  const primaryCvDocument = documents[0] || fallbackCvDocument;
 
   useEffect(() => {
     setHeaderActiveStatus(getHeaderStatusFromTalent(candidate));
@@ -526,9 +562,9 @@ export default function CandidateProfile() {
 
             {/* CV content — ONLY THIS SCROLLS */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', justifyContent: 'center', background: '#e5e7eb' }}>
-              {documents[0] ? (
+              {primaryCvDocument ? (
                 <CVInlineViewer
-                  document={documents[0]}
+                  document={primaryCvDocument}
                   talentId={candidate.id}
                 />
               ) : (

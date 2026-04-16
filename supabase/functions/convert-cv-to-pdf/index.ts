@@ -6,6 +6,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function getBucketCandidates(path?: string | null) {
+  if (!path) return ["candidate_cvs", "cv-uploads", "talent-documents"] as const;
+  const normalized = path.toLowerCase();
+  if (normalized.startsWith("candidate_cvs/")) return ["candidate_cvs", "cv-uploads", "talent-documents"] as const;
+  if (normalized.startsWith("cv-uploads/")) return ["cv-uploads", "candidate_cvs", "talent-documents"] as const;
+  if (normalized.startsWith("talent-documents/")) return ["talent-documents", "cv-uploads", "candidate_cvs"] as const;
+  return ["candidate_cvs", "cv-uploads", "talent-documents"] as const;
+}
+
+function normalizeStoragePath(path?: string | null) {
+  if (!path) return null;
+  return path
+    .replace(/^candidate_cvs\//i, "")
+    .replace(/^cv-uploads\//i, "")
+    .replace(/^talent-documents\//i, "");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -81,10 +98,31 @@ serve(async (req) => {
       pdf_conversion_status: 'converting'
     }).eq("id", document_id);
 
-    // Download original file from storage
-    const { data: fileBlob, error: downloadError } = await admin.storage
-      .from("candidate_cvs")
-      .download(doc.file_path);
+    const normalizedPath = normalizeStoragePath(doc.file_path);
+    if (!normalizedPath) {
+      await admin.from("talent_documents").update({
+        pdf_conversion_status: 'failed'
+      }).eq("id", document_id);
+
+      return new Response(
+        JSON.stringify({ error: "Document storage path is invalid" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    let sourceBucket: string | null = null;
+    let fileBlob: Blob | null = null;
+    let downloadError: unknown = null;
+
+    for (const bucket of getBucketCandidates(doc.file_path)) {
+      const result = await admin.storage.from(bucket).download(normalizedPath);
+      if (!result.error && result.data) {
+        sourceBucket = bucket;
+        fileBlob = result.data;
+        break;
+      }
+      downloadError = result.error;
+    }
 
     if (downloadError || !fileBlob) {
       await admin.from("talent_documents").update({
@@ -184,7 +222,7 @@ serve(async (req) => {
     const pdfPath = doc.file_path.replace(/\.[^.]+$/, '') + '_preview.pdf';
 
     const { error: uploadError } = await admin.storage
-      .from("candidate_cvs")
+      .from(sourceBucket || "candidate_cvs")
       .upload(pdfPath, pdfBytes, {
         contentType: "application/pdf",
         upsert: true,

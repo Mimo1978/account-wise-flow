@@ -45,16 +45,20 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
   }, []);
 
   const resolveStorageBucket = useCallback((filePath?: string | null) => {
-    if (!filePath) return ['candidate_cvs', 'cv-uploads'] as const;
+    if (!filePath) return ['candidate_cvs', 'cv-uploads', 'talent-documents'] as const;
     const normalized = filePath.toLowerCase();
-    if (normalized.startsWith('cv-uploads/')) return ['cv-uploads', 'candidate_cvs'] as const;
-    if (normalized.startsWith('candidate_cvs/')) return ['candidate_cvs', 'cv-uploads'] as const;
-    return ['candidate_cvs', 'cv-uploads'] as const;
+    if (normalized.startsWith('cv-uploads/')) return ['cv-uploads', 'candidate_cvs', 'talent-documents'] as const;
+    if (normalized.startsWith('candidate_cvs/')) return ['candidate_cvs', 'cv-uploads', 'talent-documents'] as const;
+    if (normalized.startsWith('talent-documents/')) return ['talent-documents', 'cv-uploads', 'candidate_cvs'] as const;
+    return ['candidate_cvs', 'cv-uploads', 'talent-documents'] as const;
   }, []);
 
   const normalizeStoragePath = useCallback((filePath?: string | null) => {
     if (!filePath) return null;
-    return filePath.replace(/^candidate_cvs\//i, '').replace(/^cv-uploads\//i, '');
+    return filePath
+      .replace(/^candidate_cvs\//i, '')
+      .replace(/^cv-uploads\//i, '')
+      .replace(/^talent-documents\//i, '');
   }, []);
 
   const fetchDocuments = useCallback(async () => {

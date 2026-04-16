@@ -13,14 +13,18 @@ export function CVInlineViewer({ document, talentId }: CVInlineViewerProps) {
   const [loading, setLoading] = useState(true);
 
   const getBucketCandidates = (path?: string | null) => {
-    if (!path) return ['candidate_cvs', 'cv-uploads'] as const;
+    if (!path) return ['candidate_cvs', 'cv-uploads', 'talent-documents'] as const;
     const normalized = path.toLowerCase();
-    if (normalized.startsWith('cv-uploads/')) return ['cv-uploads', 'candidate_cvs'] as const;
-    if (normalized.startsWith('candidate_cvs/')) return ['candidate_cvs', 'cv-uploads'] as const;
-    return ['candidate_cvs', 'cv-uploads'] as const;
+    if (normalized.startsWith('cv-uploads/')) return ['cv-uploads', 'candidate_cvs', 'talent-documents'] as const;
+    if (normalized.startsWith('candidate_cvs/')) return ['candidate_cvs', 'cv-uploads', 'talent-documents'] as const;
+    if (normalized.startsWith('talent-documents/')) return ['talent-documents', 'cv-uploads', 'candidate_cvs'] as const;
+    return ['candidate_cvs', 'cv-uploads', 'talent-documents'] as const;
   };
 
-  const normalizePath = (path?: string | null) => path?.replace(/^candidate_cvs\//i, '').replace(/^cv-uploads\//i, '') || null;
+  const normalizePath = (path?: string | null) => path
+    ?.replace(/^candidate_cvs\//i, '')
+    .replace(/^cv-uploads\//i, '')
+    .replace(/^talent-documents\//i, '') || null;
 
   const isPDF = document.fileName?.toLowerCase().endsWith('.pdf') ||
                 document.fileType?.toLowerCase().includes('pdf');

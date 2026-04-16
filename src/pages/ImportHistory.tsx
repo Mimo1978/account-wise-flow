@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { usePermissions } from "@/hooks/usePermissions";
+import { usePermissions } from "@/hooks/use-permissions";
 
 interface ImportBatch {
   id: string;

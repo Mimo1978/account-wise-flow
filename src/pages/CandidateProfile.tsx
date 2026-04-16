@@ -561,7 +561,7 @@ export default function CandidateProfile() {
             </div>
 
             {/* CV content — ONLY THIS SCROLLS */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', justifyContent: 'center', background: '#e5e7eb' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', justifyContent: 'center', background: 'hsl(var(--muted))' }}>
               {primaryCvDocument ? (
                 <CVInlineViewer
                   document={primaryCvDocument}

@@ -44,6 +44,19 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
     setUploadError(null);
   }, []);
 
+  const resolveStorageBucket = useCallback((filePath?: string | null) => {
+    if (!filePath) return ['candidate_cvs', 'cv-uploads'] as const;
+    const normalized = filePath.toLowerCase();
+    if (normalized.startsWith('cv-uploads/')) return ['cv-uploads', 'candidate_cvs'] as const;
+    if (normalized.startsWith('candidate_cvs/')) return ['candidate_cvs', 'cv-uploads'] as const;
+    return ['candidate_cvs', 'cv-uploads'] as const;
+  }, []);
+
+  const normalizeStoragePath = useCallback((filePath?: string | null) => {
+    if (!filePath) return null;
+    return filePath.replace(/^candidate_cvs\//i, '').replace(/^cv-uploads\//i, '');
+  }, []);
+
   const fetchDocuments = useCallback(async () => {
     if (!currentWorkspace?.id || !talentId) {
       setDocuments([]);
@@ -294,13 +307,14 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
 
   const getSignedUrl = useCallback(
     async (filePath: string): Promise<string | null> => {
-      // Try candidate_cvs bucket first, then cv-uploads as fallback (batch imports)
-      const buckets = ['candidate_cvs', 'cv-uploads'];
-      for (const bucket of buckets) {
+      const normalizedPath = normalizeStoragePath(filePath);
+      if (!normalizedPath) return null;
+
+      for (const bucket of resolveStorageBucket(filePath)) {
         try {
           const { data, error } = await supabase.storage
             .from(bucket)
-            .createSignedUrl(filePath, 3600);
+            .createSignedUrl(normalizedPath, 3600);
 
           if (!error && data?.signedUrl) {
             return data.signedUrl;
@@ -312,7 +326,7 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
       console.error('[useTalentDocuments] Could not get signed URL from any bucket for:', filePath);
       return null;
     },
-    []
+    [normalizeStoragePath, resolveStorageBucket]
   );
 
   const downloadDocument = useCallback(
@@ -325,10 +339,15 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
       setIsDownloading(true);
 
       try {
-        // Try candidate_cvs bucket first, then cv-uploads as fallback (batch imports)
+        const normalizedPath = normalizeStoragePath(doc.filePath);
+        if (!normalizedPath) {
+          toast.error('Failed to download document');
+          return;
+        }
+
         let downloadedData: Blob | null = null;
-        for (const bucket of ['candidate_cvs', 'cv-uploads']) {
-          const result = await supabase.storage.from(bucket).download(doc.filePath);
+        for (const bucket of resolveStorageBucket(doc.filePath)) {
+          const result = await supabase.storage.from(bucket).download(normalizedPath);
           if (!result.error && result.data) {
             downloadedData = result.data;
             break;
@@ -359,7 +378,7 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
         setIsDownloading(false);
       }
     },
-    []
+    [normalizeStoragePath, resolveStorageBucket]
   );
 
   const deleteDocument = useCallback(
@@ -373,13 +392,25 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
         }
 
         // Delete from storage
-        const { error: storageError } = await supabase.storage
-          .from('candidate_cvs')
-          .remove([doc.filePath]);
+        const normalizedPath = normalizeStoragePath(doc.filePath);
+        if (normalizedPath) {
+          let removed = false;
+          for (const bucket of resolveStorageBucket(doc.filePath)) {
+            const { error: storageError } = await supabase.storage
+              .from(bucket)
+              .remove([normalizedPath]);
 
-        if (storageError) {
-          console.error('[useTalentDocuments] Storage delete error:', storageError);
-          // Continue anyway - the record delete is more important
+            if (!storageError) {
+              removed = true;
+              break;
+            }
+
+            console.error('[useTalentDocuments] Storage delete error:', storageError);
+          }
+
+          if (!removed) {
+            console.error('[useTalentDocuments] Failed to delete storage object from all buckets');
+          }
         }
 
         // Delete the record
@@ -403,7 +434,7 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
         return false;
       }
     },
-    [documents, fetchDocuments]
+    [documents, fetchDocuments, normalizeStoragePath, resolveStorageBucket]
   );
 
   return {

@@ -51,16 +51,17 @@ export function CVViewerPanel({
   const primaryDoc = documents.find(d => d.docKind === 'cv') || documents[0] || null;
   const isPdfReady = primaryDoc?.pdfConversionStatus === 'done' || primaryDoc?.pdfConversionStatus === 'not_needed';
   const isConverting = primaryDoc?.pdfConversionStatus === 'converting' || primaryDoc?.pdfConversionStatus === 'pending';
+  const effectiveCvPath = primaryDoc?.filePath || cvStoragePath;
 
   // Get signed URL for the original file (for download)
   useEffect(() => {
-    if (!cvStoragePath) return;
+    if (!effectiveCvPath) return;
     setIsLoadingUrl(true);
-    getSignedUrl(cvStoragePath).then((url) => {
+    getSignedUrl(effectiveCvPath).then((url) => {
       setSignedUrl(url);
       setIsLoadingUrl(false);
     });
-  }, [cvStoragePath, getSignedUrl]);
+  }, [effectiveCvPath, getSignedUrl]);
 
   // Get signed URL for the PDF preview
   useEffect(() => {
@@ -69,11 +70,8 @@ export function CVViewerPanel({
       setPdfSignedUrl(null);
       return;
     }
-    supabase.storage
-      .from("candidate_cvs")
-      .createSignedUrl(pdfPath, 3600)
-      .then(({ data }) => setPdfSignedUrl(data?.signedUrl || null));
-  }, [primaryDoc?.pdfStoragePath, isPdfReady]);
+    getSignedUrl(pdfPath).then((url) => setPdfSignedUrl(url));
+  }, [primaryDoc?.pdfStoragePath, isPdfReady, getSignedUrl]);
 
   // Poll while converting
   useEffect(() => {
@@ -85,9 +83,9 @@ export function CVViewerPanel({
   }, [isConverting, refetchDocs]);
 
   const handleDownload = () => {
-    if (!cvStoragePath) return;
-    const filename = getFileNameFromPath(cvStoragePath);
-    downloadCV(candidateId, cvStoragePath, filename);
+    if (!effectiveCvPath) return;
+    const filename = getFileNameFromPath(effectiveCvPath);
+    downloadCV(candidateId, effectiveCvPath, filename);
   };
 
   const handleFileSelect = useCallback(
@@ -117,7 +115,7 @@ export function CVViewerPanel({
   };
 
   // No CV — upload zone
-  if (!cvStoragePath) {
+  if (!effectiveCvPath && !primaryDoc) {
     return (
       <div className="h-full flex flex-col">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
@@ -173,7 +171,7 @@ export function CVViewerPanel({
     );
   }
 
-  const fileName = getFileNameFromPath(cvStoragePath);
+  const fileName = getFileNameFromPath(effectiveCvPath || primaryDoc?.filePath || `${candidateName}_cv`);
 
   return (
     <div className="h-full flex flex-col">

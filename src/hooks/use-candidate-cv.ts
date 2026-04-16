@@ -34,6 +34,19 @@ export function useCandidateCV(): UseCandidateCVReturn {
   const [isUploading, setIsUploading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  const resolveStorageBucket = useCallback((storagePath?: string | null) => {
+    if (!storagePath) return ["cv-uploads", "candidate_cvs"] as const;
+    const normalized = storagePath.toLowerCase();
+    if (normalized.startsWith("candidate_cvs/")) return ["candidate_cvs", "cv-uploads"] as const;
+    if (normalized.startsWith("cv-uploads/")) return ["cv-uploads", "candidate_cvs"] as const;
+    return ["cv-uploads", "candidate_cvs"] as const;
+  }, []);
+
+  const normalizeStoragePath = useCallback((storagePath?: string | null) => {
+    if (!storagePath) return null;
+    return storagePath.replace(/^candidate_cvs\//i, "").replace(/^cv-uploads\//i, "");
+  }, []);
+
   const validateFile = useCallback((file: File): { valid: boolean; error?: string } => {
     // Check file type
     const isValidType = ACCEPTED_TYPES.includes(file.type);
@@ -151,11 +164,62 @@ export function useCandidateCV(): UseCandidateCVReturn {
           return false;
         }
 
+        const ext = file.name.split(".").pop()?.toLowerCase() || "pdf";
+        const { data: existingDoc } = await supabase
+          .from("talent_documents")
+          .select("id")
+          .eq("talent_id", candidateId)
+          .eq("workspace_id", currentWorkspace.id)
+          .eq("doc_kind", "cv")
+          .order("uploaded_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const talentDocumentPayload = {
+          workspace_id: currentWorkspace.id,
+          talent_id: candidateId,
+          file_path: storagePath,
+          file_name: file.name,
+          file_type: ext,
+          file_size: file.size,
+          uploaded_by: user.id,
+          doc_kind: "cv" as const,
+          parse_status: "pending" as const,
+          pdf_storage_path: null,
+          pdf_conversion_status: file.type === "application/pdf" || ext === "pdf" ? "not_needed" : "pending",
+          updated_at: new Date().toISOString(),
+        };
+
+        const { data: talentDocument, error: docError } = existingDoc?.id
+          ? await supabase
+              .from("talent_documents")
+              .update(talentDocumentPayload)
+              .eq("id", existingDoc.id)
+              .select("id")
+              .single()
+          : await supabase
+              .from("talent_documents")
+              .insert(talentDocumentPayload)
+              .select("id")
+              .single();
+
+        if (docError) {
+          console.error("[useCandidateCV] talent_documents sync error:", docError);
+        }
+
         toast.success("CV uploaded successfully");
 
         // Trigger background text extraction for AI features
         // This runs asynchronously and doesn't block the upload
         triggerTextExtraction(candidateId, storagePath);
+
+        if (talentDocument?.id) {
+          supabase.functions.invoke("convert-cv-to-pdf", {
+            body: { document_id: talentDocument.id },
+          }).catch((error) => {
+            console.error("[useCandidateCV] PDF conversion trigger failed:", error);
+          });
+        }
 
         return true;
       } catch (error) {
@@ -172,22 +236,26 @@ export function useCandidateCV(): UseCandidateCVReturn {
   const getSignedUrl = useCallback(
     async (storagePath: string): Promise<string | null> => {
       try {
-        const { data, error } = await supabase.storage
-          .from("cv-uploads")
-          .createSignedUrl(storagePath, 3600); // 1 hour expiry
+        const normalizedPath = normalizeStoragePath(storagePath);
+        if (!normalizedPath) return null;
 
-        if (error) {
-          console.error("[useCandidateCV] Signed URL error:", error);
-          return null;
+        for (const bucket of resolveStorageBucket(storagePath)) {
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(normalizedPath, 3600);
+
+          if (!error && data?.signedUrl) {
+            return data.signedUrl;
+          }
         }
 
-        return data.signedUrl;
+        return null;
       } catch (error) {
         console.error("[useCandidateCV] Unexpected error getting signed URL:", error);
         return null;
       }
     },
-    []
+    [normalizeStoragePath, resolveStorageBucket]
   );
 
   const downloadCV = useCallback(
@@ -200,12 +268,22 @@ export function useCandidateCV(): UseCandidateCVReturn {
       setIsDownloading(true);
 
       try {
-        const { data, error } = await supabase.storage
-          .from("cv-uploads")
-          .download(storagePath);
+        const normalizedPath = normalizeStoragePath(storagePath);
+        if (!normalizedPath) {
+          toast.error("Failed to download CV");
+          return;
+        }
 
-        if (error) {
-          console.error("[useCandidateCV] Download error:", error);
+        let data: Blob | null = null;
+        for (const bucket of resolveStorageBucket(storagePath)) {
+          const result = await supabase.storage.from(bucket).download(normalizedPath);
+          if (!result.error && result.data) {
+            data = result.data;
+            break;
+          }
+        }
+
+        if (!data) {
           toast.error("Failed to download CV");
           return;
         }
@@ -228,7 +306,7 @@ export function useCandidateCV(): UseCandidateCVReturn {
         setIsDownloading(false);
       }
     },
-    []
+    [normalizeStoragePath, resolveStorageBucket]
   );
 
   return {

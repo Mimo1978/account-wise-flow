@@ -169,6 +169,7 @@ const initialColumns: ColumnConfig[] = [
   { id: "aiOverview", label: "Experience Summary", category: "AI-Derived", minWidth: 200, defaultWidth: 300, visible: false },
   { id: "keySkills", label: "Key Skills (AI)", category: "AI-Derived", minWidth: 150, defaultWidth: 200, visible: false },
   // Operational
+  { id: "hasCV", label: "CV", category: "Operational", minWidth: 60, defaultWidth: 70, visible: true },
   { id: "lastUpdated", label: "Last Updated", category: "Operational", minWidth: 100, defaultWidth: 120, visible: true },
   { id: "cvSource", label: "CV Source", category: "Operational", minWidth: 100, defaultWidth: 110, visible: true },
   { id: "docs", label: "Docs", category: "Operational", minWidth: 80, defaultWidth: 90, visible: true },
@@ -595,6 +596,15 @@ export default function TalentDatabase() {
               </Badge>
             ))}
           </div>
+        );
+      case "hasCV":
+        return talent.cvStoragePath ? (
+          <Badge variant="outline" className="gap-1 text-xs font-normal text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+            <FileText className="h-3 w-3" />
+            Yes
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground text-xs">—</span>
         );
       case "lastUpdated":
         return (

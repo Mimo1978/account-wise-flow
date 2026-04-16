@@ -1173,6 +1173,31 @@ export default function TalentDatabase() {
                 ))}
               </SelectContent>
             </Select>
+            {locations.length > 0 && (
+              <Select value={locationFilter} onValueChange={setLocationFilter}>
+                <SelectTrigger className="w-[180px]" data-jarvis-id="talent-filter-location">
+                  <SelectValue placeholder="Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc} value={loc}>
+                      {loc}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={hasCvFilter} onValueChange={setHasCvFilter}>
+              <SelectTrigger className="w-[140px]" data-jarvis-id="talent-filter-cv">
+                <SelectValue placeholder="CV Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All CV Status</SelectItem>
+                <SelectItem value="yes">Has CV</SelectItem>
+                <SelectItem value="no">No CV</SelectItem>
+              </SelectContent>
+            </Select>
             
             {/* Toggle for search results view */}
             {booleanSearch.isBooleanMode && booleanSearch.hasResults && (

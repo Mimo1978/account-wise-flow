@@ -425,6 +425,44 @@ export default function TalentDatabase() {
   const isAllSelected = filteredTalents.length > 0 && selectedIds.size === filteredTalents.length;
   const isSomeSelected = selectedIds.size > 0 && selectedIds.size < filteredTalents.length;
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      // Delete in batches of 50
+      for (let i = 0; i < ids.length; i += 50) {
+        const batch = ids.slice(i, i + 50);
+        // Delete related talent_documents first
+        await supabase.from("talent_documents" as any).delete().in("talent_id", batch);
+        // Delete related cv_import_items
+        await supabase.from("cv_import_items" as any).delete().in("candidate_id", batch);
+        // Delete candidate notes
+        await supabase.from("candidate_notes" as any).delete().in("candidate_id", batch);
+        // Delete candidate interviews
+        await supabase.from("candidate_interviews" as any).delete().in("candidate_id", batch);
+        // Delete candidate opportunities
+        await supabase.from("candidate_opportunities" as any).delete().in("candidate_id", batch);
+        // Delete canvas nodes referencing candidates
+        await supabase.from("canvas_nodes" as any).delete().in("candidate_id", batch);
+        // Delete the candidates themselves
+        const { error } = await supabase.from("candidates" as any).delete().in("id", batch);
+        if (error) throw error;
+      }
+      toast.success(`${ids.length} candidate(s) permanently deleted`);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["talent-documents"] });
+      refetchCandidates();
+    } catch (err: any) {
+      console.error("Bulk delete error:", err);
+      toast.error("Failed to delete: " + (err.message || "Unknown error"));
+    } finally {
+      setBulkDeleting(false);
+      setShowBulkDeleteConfirm(false);
+    }
+  };
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "—";
     try {

@@ -1324,17 +1324,20 @@ function normalizeToCanonicalSchema(parsed: any): CandidateProfileParse {
       full_name: talent.personal?.full_name || talent.name || 'Unknown',
       email: talent.personal?.email || talent.email || null,
       phone: talent.personal?.phone || talent.phone || null,
+      home_address: talent.personal?.home_address || talent.personal?.address || talent.address || null,
       location: talent.personal?.location || talent.location || null,
       linkedin_url: talent.personal?.linkedin_url || talent.linkedIn || talent.linkedin || null,
     },
     headline: {
       current_title: talent.headline?.current_title || talent.roleType || talent.current_title || null,
+      current_company: talent.headline?.current_company || talent.current_company || null,
       seniority_level: normalizeSeniority(talent.headline?.seniority_level || talent.seniority),
     },
+    summary: talent.summary || talent.professional_summary || null,
     skills: {
-      primary_skills: talent.skills?.primary_skills || (Array.isArray(talent.skills) ? talent.skills.slice(0, 5) : []),
-      secondary_skills: talent.skills?.secondary_skills || (Array.isArray(talent.skills) ? talent.skills.slice(5, 10) : []),
-      keywords: talent.skills?.keywords || (Array.isArray(talent.skills) ? talent.skills.slice(10) : []),
+      primary_skills: talent.skills?.primary_skills || (Array.isArray(talent.skills) ? talent.skills.slice(0, 10) : []),
+      secondary_skills: talent.skills?.secondary_skills || (Array.isArray(talent.skills) ? talent.skills.slice(10, 20) : []),
+      keywords: talent.skills?.keywords || (Array.isArray(talent.skills) ? talent.skills.slice(20) : []),
     },
     experience: {
       roles: normalizeExperience(talent.experience?.roles || talent.experience || []),

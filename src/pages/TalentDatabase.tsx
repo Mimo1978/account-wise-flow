@@ -597,6 +597,15 @@ export default function TalentDatabase() {
             ))}
           </div>
         );
+      case "hasCV":
+        return talent.cvStoragePath ? (
+          <Badge variant="outline" className="gap-1 text-xs font-normal text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
+            <FileText className="h-3 w-3" />
+            Yes
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground text-xs">—</span>
+        );
       case "lastUpdated":
         return (
           <span className="text-muted-foreground text-sm">

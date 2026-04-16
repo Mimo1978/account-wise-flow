@@ -115,6 +115,31 @@ export default function AdminGovernance() {
     setConfirmPurgeText("");
   };
 
+  const handleBulkPurge = async () => {
+    if (bulkPurgeConfirmText !== "DELETE" || selectedBinIds.size === 0) return;
+    setBulkPurging(true);
+    try {
+      const items = recycleBin.filter((item: any) => selectedBinIds.has(`${item.record_type}-${item.id}`));
+      for (const item of items) {
+        await purgeRecord.mutateAsync({
+          recordType: item.record_type,
+          recordId: item.id,
+        });
+      }
+      toast.success(`${items.length} record(s) permanently purged`);
+      setSelectedBinIds(new Set());
+    } catch (err: any) {
+      toast.error("Purge failed: " + (err.message || "Unknown error"));
+    } finally {
+      setBulkPurging(false);
+      setShowBulkPurge(false);
+      setBulkPurgeConfirmText("");
+    }
+  };
+
+  const isAllBinSelected = recycleBin.length > 0 && selectedBinIds.size === recycleBin.length;
+  const isSomeBinSelected = selectedBinIds.size > 0 && selectedBinIds.size < recycleBin.length;
+
   return (
     <div className="space-y-6">
       <div>

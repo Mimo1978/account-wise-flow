@@ -204,6 +204,7 @@ export default function TalentDatabase() {
   const [showAddCandidate, setShowAddCandidate] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteFailures, setBulkDeleteFailures] = useState<{ name: string; reason: string }[]>([]);
 
   // Match mode state
   const { data: matchResults = [], isLoading: matchLoading } = useQuery({
@@ -456,39 +457,85 @@ export default function TalentDatabase() {
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     setBulkDeleting(true);
-    try {
-      const ids = Array.from(selectedIds);
-      // Delete in batches of 50
-      for (let i = 0; i < ids.length; i += 50) {
-        const batch = ids.slice(i, i + 50);
-        // Delete related talent_documents first
-        await supabase.from("talent_documents" as any).delete().in("talent_id", batch);
-        // Delete related cv_import_items
-        await supabase.from("cv_import_items" as any).delete().in("candidate_id", batch);
-        // Delete candidate notes
-        await supabase.from("candidate_notes" as any).delete().in("candidate_id", batch);
-        // Delete candidate interviews
-        await supabase.from("candidate_interviews" as any).delete().in("candidate_id", batch);
-        // Delete candidate opportunities
-        await supabase.from("candidate_opportunities" as any).delete().in("candidate_id", batch);
-        // Delete canvas nodes referencing candidates
-        await supabase.from("canvas_nodes" as any).delete().in("candidate_id", batch);
-        // Delete the candidates themselves
-        const { error } = await supabase.from("candidates" as any).delete().in("id", batch);
+    setBulkDeleteFailures([]);
+
+    const ids = Array.from(selectedIds);
+    const failures: { name: string; reason: string }[] = [];
+    let successCount = 0;
+
+    // All FK-dependent tables that reference candidates
+    const dependentTables: { table: string; column: string }[] = [
+      { table: "talent_documents", column: "talent_id" },
+      { table: "talent_skills", column: "talent_id" },
+      { table: "talent_cv_sections", column: "talent_id" },
+      { table: "talent_experience", column: "talent_id" },
+      { table: "cv_import_items", column: "candidate_id" },
+      { table: "candidate_notes", column: "candidate_id" },
+      { table: "candidate_interviews", column: "candidate_id" },
+      { table: "candidate_opportunities", column: "candidate_id" },
+      { table: "canvas_nodes", column: "candidate_id" },
+      { table: "diary_events", column: "candidate_id" },
+      { table: "call_outcomes", column: "candidate_id" },
+      { table: "generated_exports", column: "candidate_id" },
+      { table: "job_applications", column: "candidate_id" },
+      { table: "job_shortlist", column: "candidate_id" },
+      { table: "outreach_events", column: "candidate_id" },
+      { table: "outreach_inbound_responses", column: "candidate_id" },
+      { table: "outreach_messages", column: "candidate_id" },
+      { table: "outreach_targets", column: "candidate_id" },
+      { table: "placements", column: "candidate_id" },
+    ];
+
+    // Process one candidate at a time so failures are isolated
+    for (const id of ids) {
+      try {
+        // Clean up all dependent records
+        for (const dep of dependentTables) {
+          await supabase.from(dep.table as any).delete().eq(dep.column, id);
+        }
+        // Nullify candidate_id on crm_deals (don't delete deals)
+        await supabase.from("crm_deals" as any).update({ candidate_id: null }).eq("candidate_id", id);
+        // Delete the candidate
+        const { error } = await supabase.from("candidates" as any).delete().eq("id", id);
         if (error) throw error;
+        successCount++;
+      } catch (err: any) {
+        const candidateName = filteredTalents.find(t => t.id === id)?.name || id;
+        // Parse FK constraint name for a human-readable reason
+        const msg: string = err.message || "Unknown error";
+        let reason = msg;
+        const fkMatch = msg.match(/violates foreign key constraint "([^"]+)" on table "([^"]+)"/);
+        if (fkMatch) {
+          reason = `Linked to ${fkMatch[2].replace(/_/g, ' ')} (${fkMatch[1].replace(/_/g, ' ')})`;
+        }
+        failures.push({ name: candidateName, reason });
       }
-      toast.success(`${ids.length} candidate(s) permanently deleted`);
-      setSelectedIds(new Set());
+    }
+
+    if (successCount > 0) {
+      toast.success(`${successCount} candidate(s) permanently deleted`);
+      // Remove successful deletes from selection
+      const failedIds = new Set(
+        failures.map(f => {
+          const t = filteredTalents.find(t => t.name === f.name || t.id === f.name);
+          return t?.id || f.name;
+        })
+      );
+      setSelectedIds(failedIds);
       queryClient.invalidateQueries({ queryKey: ["candidates"] });
       queryClient.invalidateQueries({ queryKey: ["talent-documents"] });
       refetchCandidates();
-    } catch (err: any) {
-      console.error("Bulk delete error:", err);
-      toast.error("Failed to delete: " + (err.message || "Unknown error"));
-    } finally {
-      setBulkDeleting(false);
+    }
+
+    if (failures.length > 0) {
+      setBulkDeleteFailures(failures);
+      toast.error(`${failures.length} candidate(s) could not be deleted — see details`);
+    } else {
+      setSelectedIds(new Set());
       setShowBulkDeleteConfirm(false);
     }
+
+    setBulkDeleting(false);
   };
 
   const formatDate = (dateStr?: string) => {
@@ -1658,43 +1705,71 @@ export default function TalentDatabase() {
       />
 
       {/* Bulk Delete Confirmation Dialog (Admin only) */}
-      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
-        <AlertDialogContent>
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={(open) => {
+        setShowBulkDeleteConfirm(open);
+        if (!open) setBulkDeleteFailures([]);
+      }}>
+        <AlertDialogContent className="max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <Trash2 className="h-5 w-5" />
-              Permanently Delete {selectedIds.size} Candidate{selectedIds.size !== 1 ? "s" : ""}
+              {bulkDeleteFailures.length > 0
+                ? `${bulkDeleteFailures.length} Candidate(s) Could Not Be Deleted`
+                : `Permanently Delete ${selectedIds.size} Candidate${selectedIds.size !== 1 ? "s" : ""}`}
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription asChild>
               <div className="space-y-3">
-                <p>
-                  This will <strong>permanently delete</strong> the selected {selectedIds.size} candidate(s)
-                  including their CVs, notes, interviews, and all linked records. This cannot be undone.
-                </p>
-                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-                  <p className="text-destructive font-medium text-sm">
-                    ⚠ This action bypasses the recycle bin and is irreversible.
-                  </p>
-                </div>
+                {bulkDeleteFailures.length > 0 ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      The following candidates are linked to other records and could not be deleted.
+                      Unlink them first, or remove them from the selection.
+                    </p>
+                    <div className="max-h-60 overflow-y-auto space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                      {bulkDeleteFailures.map((f, i) => (
+                        <div key={i} className="text-sm">
+                          <span className="font-medium text-foreground">{f.name}</span>
+                          <span className="text-muted-foreground ml-1">— {f.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      This will <strong>permanently delete</strong> the selected {selectedIds.size} candidate(s)
+                      including their CVs, notes, interviews, and all linked records. This cannot be undone.
+                    </p>
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                      <p className="text-destructive font-medium text-sm">
+                        ⚠ This action bypasses the recycle bin and is irreversible.
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={handleBulkDelete}
-              disabled={bulkDeleting}
-            >
-              {bulkDeleting ? (
-                <>
-                  <span className="h-4 w-4 mr-1 animate-spin border-2 border-current border-t-transparent rounded-full inline-block" />
-                  Deleting…
-                </>
-              ) : (
-                <>Delete {selectedIds.size} Permanently</>
-              )}
-            </Button>
+            <AlertDialogCancel disabled={bulkDeleting}>
+              {bulkDeleteFailures.length > 0 ? "Close" : "Cancel"}
+            </AlertDialogCancel>
+            {bulkDeleteFailures.length === 0 && (
+              <Button
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+              >
+                {bulkDeleting ? (
+                  <>
+                    <span className="h-4 w-4 mr-1 animate-spin border-2 border-current border-t-transparent rounded-full inline-block" />
+                    Deleting…
+                  </>
+                ) : (
+                  <>Delete {selectedIds.size} Permanently</>
+                )}
+              </Button>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

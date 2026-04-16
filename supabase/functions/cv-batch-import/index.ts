@@ -452,6 +452,82 @@ serve(async (req) => {
       );
     }
 
+    // Route: POST /cv-batch-import/:batchId/full-reset - Reset ALL items to start from scratch
+    if (method === 'POST' && pathParts.length === 3 && pathParts[2] === 'full-reset') {
+      const batchId = pathParts[1];
+
+      // Admin only
+      if (role !== 'admin') {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Admin access required for full reset' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Delete any candidates that were created by this batch
+      const { data: linkedItems } = await supabaseAdmin
+        .from('cv_import_items')
+        .select('candidate_id')
+        .eq('batch_id', batchId)
+        .not('candidate_id', 'is', null);
+
+      if (linkedItems && linkedItems.length > 0) {
+        const candidateIds = linkedItems.map((i: any) => i.candidate_id).filter(Boolean);
+        if (candidateIds.length > 0) {
+          // Delete linked talent_documents first
+          await supabaseAdmin.from('talent_documents').delete().in('talent_id', candidateIds);
+          // Delete candidates created by this batch
+          await supabaseAdmin.from('candidates').delete().in('id', candidateIds);
+        }
+      }
+
+      // Reset ALL items back to queued
+      await supabaseAdmin
+        .from('cv_import_items')
+        .update({
+          status: 'queued',
+          error_message: null,
+          candidate_id: null,
+          extracted_data: null,
+          field_confidence: null,
+          parse_confidence: null,
+          search_tags: null,
+          started_at: null,
+          completed_at: null,
+        })
+        .eq('batch_id', batchId);
+
+      // Reset batch counters completely
+      const { data: batch, error: updateError } = await supabaseAdmin
+        .from('cv_import_batches')
+        .update({
+          status: 'queued',
+          started_at: null,
+          completed_at: null,
+          processed_files: 0,
+          success_count: 0,
+          fail_count: 0,
+          error_summary: null,
+        })
+        .eq('id', batchId)
+        .select()
+        .single();
+
+      if (updateError || !batch) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Batch not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      await logAudit(supabase, userId, 'batch_full_reset', batchId, { itemsReset: linkedItems?.length || 0 });
+
+      return new Response(
+        JSON.stringify({ success: true, data: batch, message: 'Batch fully reset — all items queued for reprocessing' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Route: POST /cv-batch-import/:batchId/pause - Stop/pause processing
     if (method === 'POST' && pathParts.length === 3 && pathParts[2] === 'pause') {
       const batchId = pathParts[1];

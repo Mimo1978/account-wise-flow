@@ -264,7 +264,8 @@ export default function TalentDatabase() {
   });
 
   // Permissions
-  const { role, canInsert, canEdit, isLoading: permissionsLoading } = usePermissions();
+  const { role, canInsert, canEdit, isLoading: permissionsLoading, isAdmin } = usePermissions();
+  const queryClient = useQueryClient();
   const insertTooltip = getPermissionTooltip("insert", role);
   const editTooltip = getPermissionTooltip("edit", role);
 

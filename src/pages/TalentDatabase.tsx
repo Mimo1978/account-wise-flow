@@ -62,6 +62,7 @@ import { useColumnPinning } from "@/hooks/use-column-pinning";
 import { useViewPresets } from "@/hooks/use-view-presets";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { usePermissions, getPermissionTooltip } from "@/hooks/use-permissions";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   Users,
@@ -91,10 +92,22 @@ import {
   X,
   Trophy,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Toggle } from "@/components/ui/toggle";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { RowInlineActions } from "@/components/outreach/RowInlineActions";
 
@@ -185,6 +198,8 @@ export default function TalentDatabase() {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [snippetsPanelResult, setSnippetsPanelResult] = useState<BooleanSearchResult | null>(null);
   const [showAddCandidate, setShowAddCandidate] = useState(false);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // Match mode state
   const { data: matchResults = [], isLoading: matchLoading } = useQuery({
@@ -250,7 +265,8 @@ export default function TalentDatabase() {
   });
 
   // Permissions
-  const { role, canInsert, canEdit, isLoading: permissionsLoading } = usePermissions();
+  const { role, canInsert, canEdit, isLoading: permissionsLoading, isAdmin } = usePermissions();
+  const queryClient = useQueryClient();
   const insertTooltip = getPermissionTooltip("insert", role);
   const editTooltip = getPermissionTooltip("edit", role);
 
@@ -409,6 +425,44 @@ export default function TalentDatabase() {
 
   const isAllSelected = filteredTalents.length > 0 && selectedIds.size === filteredTalents.length;
   const isSomeSelected = selectedIds.size > 0 && selectedIds.size < filteredTalents.length;
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const ids = Array.from(selectedIds);
+      // Delete in batches of 50
+      for (let i = 0; i < ids.length; i += 50) {
+        const batch = ids.slice(i, i + 50);
+        // Delete related talent_documents first
+        await supabase.from("talent_documents" as any).delete().in("talent_id", batch);
+        // Delete related cv_import_items
+        await supabase.from("cv_import_items" as any).delete().in("candidate_id", batch);
+        // Delete candidate notes
+        await supabase.from("candidate_notes" as any).delete().in("candidate_id", batch);
+        // Delete candidate interviews
+        await supabase.from("candidate_interviews" as any).delete().in("candidate_id", batch);
+        // Delete candidate opportunities
+        await supabase.from("candidate_opportunities" as any).delete().in("candidate_id", batch);
+        // Delete canvas nodes referencing candidates
+        await supabase.from("canvas_nodes" as any).delete().in("candidate_id", batch);
+        // Delete the candidates themselves
+        const { error } = await supabase.from("candidates" as any).delete().in("id", batch);
+        if (error) throw error;
+      }
+      toast.success(`${ids.length} candidate(s) permanently deleted`);
+      setSelectedIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ["candidates"] });
+      queryClient.invalidateQueries({ queryKey: ["talent-documents"] });
+      refetchCandidates();
+    } catch (err: any) {
+      console.error("Bulk delete error:", err);
+      toast.error("Failed to delete: " + (err.message || "Unknown error"));
+    } finally {
+      setBulkDeleting(false);
+      setShowBulkDeleteConfirm(false);
+    }
+  };
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return "—";
@@ -822,6 +876,17 @@ export default function TalentDatabase() {
                     <Megaphone className="h-3.5 w-3.5" />
                     Add to Outreach…
                   </Button>
+                  {isAdmin && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="gap-1.5 text-sm"
+                      onClick={() => setShowBulkDeleteConfirm(true)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete Selected ({selectedIds.size})
+                    </Button>
+                  )}
                   <Separator orientation="vertical" className="h-6" />
                 </>
               )}
@@ -1537,6 +1602,48 @@ export default function TalentDatabase() {
           refetchCandidates();
         }}
       />
+
+      {/* Bulk Delete Confirmation Dialog (Admin only) */}
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Permanently Delete {selectedIds.size} Candidate{selectedIds.size !== 1 ? "s" : ""}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-3">
+                <p>
+                  This will <strong>permanently delete</strong> the selected {selectedIds.size} candidate(s)
+                  including their CVs, notes, interviews, and all linked records. This cannot be undone.
+                </p>
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <p className="text-destructive font-medium text-sm">
+                    ⚠ This action bypasses the recycle bin and is irreversible.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+            >
+              {bulkDeleting ? (
+                <>
+                  <span className="h-4 w-4 mr-1 animate-spin border-2 border-current border-t-transparent rounded-full inline-block" />
+                  Deleting…
+                </>
+              ) : (
+                <>Delete {selectedIds.size} Permanently</>
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

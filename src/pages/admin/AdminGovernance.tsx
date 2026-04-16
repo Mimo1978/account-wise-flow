@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -51,6 +52,7 @@ const TYPE_LABELS: Record<string, string> = {
   contacts: "Contact",
   jobs: "Job",
   engagements: "Project",
+  candidates: "Candidate",
 };
 
 export default function AdminGovernance() {
@@ -67,6 +69,10 @@ export default function AdminGovernance() {
   const [purgeTarget, setPurgeTarget] = useState<any>(null);
   const [confirmPurgeText, setConfirmPurgeText] = useState("");
   const [tab, setTab] = useState("requests");
+  const [selectedBinIds, setSelectedBinIds] = useState<Set<string>>(new Set());
+  const [bulkPurging, setBulkPurging] = useState(false);
+  const [showBulkPurge, setShowBulkPurge] = useState(false);
+  const [bulkPurgeConfirmText, setBulkPurgeConfirmText] = useState("");
 
   const pendingRequests = useMemo(() => requests.filter((r: any) => r.status === "pending"), [requests]);
 
@@ -108,6 +114,31 @@ export default function AdminGovernance() {
     setPurgeTarget(null);
     setConfirmPurgeText("");
   };
+
+  const handleBulkPurge = async () => {
+    if (bulkPurgeConfirmText !== "DELETE" || selectedBinIds.size === 0) return;
+    setBulkPurging(true);
+    try {
+      const items = recycleBin.filter((item: any) => selectedBinIds.has(`${item.record_type}-${item.id}`));
+      for (const item of items) {
+        await purgeRecord.mutateAsync({
+          recordType: item.record_type,
+          recordId: item.id,
+        });
+      }
+      toast.success(`${items.length} record(s) permanently purged`);
+      setSelectedBinIds(new Set());
+    } catch (err: any) {
+      toast.error("Purge failed: " + (err.message || "Unknown error"));
+    } finally {
+      setBulkPurging(false);
+      setShowBulkPurge(false);
+      setBulkPurgeConfirmText("");
+    }
+  };
+
+  const isAllBinSelected = recycleBin.length > 0 && selectedBinIds.size === recycleBin.length;
+  const isSomeBinSelected = selectedBinIds.size > 0 && selectedBinIds.size < recycleBin.length;
 
   return (
     <div className="space-y-6">
@@ -223,6 +254,20 @@ export default function AdminGovernance() {
         <TabsContent value="recycle">
           <Card>
             <CardContent className="p-0">
+              {selectedBinIds.size > 0 && perm.canPurge && (
+                <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-destructive/5">
+                  <span className="text-sm font-medium">{selectedBinIds.size} selected</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => { setShowBulkPurge(true); setBulkPurgeConfirmText(""); }}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Purge Selected
+                  </Button>
+                </div>
+              )}
               {binLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -235,6 +280,19 @@ export default function AdminGovernance() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={isAllBinSelected}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedBinIds(new Set(recycleBin.map((item: any) => `${item.record_type}-${item.id}`)));
+                            } else {
+                              setSelectedBinIds(new Set());
+                            }
+                          }}
+                          className={isSomeBinSelected ? "opacity-50" : ""}
+                        />
+                      </TableHead>
                       <TableHead>Record</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Deleted</TableHead>
@@ -252,8 +310,19 @@ export default function AdminGovernance() {
                         ? Math.max(0, Math.ceil((purgeDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
                         : null;
 
+                      const rowKey = `${item.record_type}-${item.id}`;
                       return (
-                        <TableRow key={`${item.record_type}-${item.id}`}>
+                        <TableRow key={rowKey}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedBinIds.has(rowKey)}
+                              onCheckedChange={(checked) => {
+                                const next = new Set(selectedBinIds);
+                                if (checked) next.add(rowKey); else next.delete(rowKey);
+                                setSelectedBinIds(next);
+                              }}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">{item.display_name}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-xs">
@@ -393,6 +462,48 @@ export default function AdminGovernance() {
             >
               {purgeRecord.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               Purge Permanently
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Purge confirmation dialog */}
+      <AlertDialog open={showBulkPurge} onOpenChange={(o) => { if (!o) setShowBulkPurge(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Permanently Purge {selectedBinIds.size} Record{selectedBinIds.size !== 1 ? "s" : ""}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  This will <strong>permanently delete</strong> all {selectedBinIds.size} selected records
+                  and their linked data. This cannot be undone.
+                </p>
+                <div className="space-y-1">
+                  <Label className="text-sm">
+                    Type <span className="font-mono font-bold">DELETE</span> to confirm:
+                  </Label>
+                  <Input
+                    value={bulkPurgeConfirmText}
+                    onChange={(e) => setBulkPurgeConfirmText(e.target.value)}
+                    placeholder="DELETE"
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkPurging}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={handleBulkPurge}
+              disabled={bulkPurgeConfirmText !== "DELETE" || bulkPurging}
+            >
+              {bulkPurging && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Purge {selectedBinIds.size} Permanently
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

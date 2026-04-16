@@ -590,3 +590,16 @@ thead > tr {
   inset: 0 !important;
   z-index: 9998 !important;
 }
+
+/* ── docx-preview (CVNativeRenderer) ── */
+.cv-docx-shell .docx-wrapper {
+  background: white !important;
+  padding: 0 !important;
+}
+.cv-docx-shell .docx-wrapper > section.docx {
+  box-shadow: none !important;
+  margin-bottom: 24px !important;
+  padding: 60px 72px !important;
+  width: 100% !important;
+  min-height: auto !important;
+}

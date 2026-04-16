@@ -280,21 +280,23 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
 
   const getSignedUrl = useCallback(
     async (filePath: string): Promise<string | null> => {
-      try {
-        const { data, error } = await supabase.storage
-          .from('candidate_cvs')
-          .createSignedUrl(filePath, 3600); // 1 hour expiry
+      // Try candidate_cvs bucket first, then cv-uploads as fallback (batch imports)
+      const buckets = ['candidate_cvs', 'cv-uploads'];
+      for (const bucket of buckets) {
+        try {
+          const { data, error } = await supabase.storage
+            .from(bucket)
+            .createSignedUrl(filePath, 3600);
 
-        if (error) {
-          console.error('[useTalentDocuments] Signed URL error:', error);
-          return null;
+          if (!error && data?.signedUrl) {
+            return data.signedUrl;
+          }
+        } catch {
+          // Try next bucket
         }
-
-        return data.signedUrl;
-      } catch (error) {
-        console.error('[useTalentDocuments] Unexpected error getting signed URL:', error);
-        return null;
       }
+      console.error('[useTalentDocuments] Could not get signed URL from any bucket for:', filePath);
+      return null;
     },
     []
   );
@@ -308,16 +310,21 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
 
       setIsDownloading(true);
 
-      try {
-        const { data, error } = await supabase.storage
-          .from('candidate_cvs')
-          .download(doc.filePath);
-
-        if (error) {
-          console.error('[useTalentDocuments] Download error:', error);
-          toast.error('Failed to download document');
-          return;
+      // Try candidate_cvs bucket first, then cv-uploads as fallback (batch imports)
+      let data: Blob | null = null;
+      for (const bucket of ['candidate_cvs', 'cv-uploads']) {
+        const result = await supabase.storage.from(bucket).download(doc.filePath);
+        if (!result.error && result.data) {
+          data = result.data;
+          break;
         }
+      }
+
+      if (!data) {
+        console.error('[useTalentDocuments] Download failed from all buckets');
+        toast.error('Failed to download document');
+        return;
+      }
 
         // Create download link
         const url = URL.createObjectURL(data);

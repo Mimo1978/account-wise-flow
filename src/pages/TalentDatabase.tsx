@@ -1602,6 +1602,48 @@ export default function TalentDatabase() {
           refetchCandidates();
         }}
       />
+
+      {/* Bulk Delete Confirmation Dialog (Admin only) */}
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Permanently Delete {selectedIds.size} Candidate{selectedIds.size !== 1 ? "s" : ""}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-3">
+                <p>
+                  This will <strong>permanently delete</strong> the selected {selectedIds.size} candidate(s)
+                  including their CVs, notes, interviews, and all linked records. This cannot be undone.
+                </p>
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <p className="text-destructive font-medium text-sm">
+                    ⚠ This action bypasses the recycle bin and is irreversible.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+            >
+              {bulkDeleting ? (
+                <>
+                  <span className="h-4 w-4 mr-1 animate-spin border-2 border-current border-t-transparent rounded-full inline-block" />
+                  Deleting…
+                </>
+              ) : (
+                <>Delete {selectedIds.size} Permanently</>
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

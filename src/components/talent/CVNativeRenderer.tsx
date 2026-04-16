@@ -7,7 +7,7 @@ import { createSignedDocumentUrl, downloadStoredFile, getDocumentKind } from "@/
 import { renderAsync } from "docx-preview";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.mjs", import.meta.url).toString();
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/legacy/build/pdf.worker.mjs", import.meta.url).toString();
 
 interface CVNativeRendererProps {
   document: TalentDocument;

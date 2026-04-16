@@ -975,7 +975,7 @@ async function processItem(supabase: any, item: any, apiKey: string) {
           ai_overview: aiOverview,
           raw_cv_text: rawCvText,
           source: 'cv_import',
-          status: 'active',
+          status: 'new',
         })
         .select('id')
         .single();

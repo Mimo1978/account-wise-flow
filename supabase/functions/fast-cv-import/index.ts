@@ -166,7 +166,7 @@ serve(async (req) => {
         skills: parsed.skills?.length ? { primary_skills: parsed.skills } : null,
         ai_overview: parsed.summary || null,
         source: 'cv_import',
-        status: 'active',
+        status: 'new',
         owner_id: userId,
       })
       .select('id, name')

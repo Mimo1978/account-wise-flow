@@ -32,8 +32,10 @@ interface CandidateProfileParse {
   };
   headline: {
     current_title?: string;
+    current_company?: string;
     seniority_level?: 'executive' | 'director' | 'manager' | 'senior' | 'mid' | 'junior';
   };
+  summary?: string;
   skills: {
     primary_skills: string[];
     secondary_skills: string[];

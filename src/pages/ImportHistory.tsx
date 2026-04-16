@@ -241,6 +241,38 @@ export default function ImportHistory() {
     }
   };
 
+  const resetImport = async (batchId: string) => {
+    setResetting(true);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/cv-batch-import/${batchId}/full-reset`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+        }
+      );
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Import fully reset — all files queued for reprocessing");
+        setShowResetDialog(false);
+        await fetchBatches();
+      } else {
+        toast.error(result.error || "Failed to reset import");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to reset import");
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const activeBatch = batches.find(b => b.status === "processing" || b.status === "queued" || b.status === "paused");
   const isBatchProcessing = activeBatch?.status === "processing";
   const isBatchPaused = activeBatch?.status === "paused";

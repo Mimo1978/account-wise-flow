@@ -1299,6 +1299,24 @@ export default function TalentDatabase() {
               </SelectContent>
             </Select>
             
+            {/* Reset Filters Button - only show when filters are active */}
+            {(availabilityFilter !== "all" || roleTypeFilter !== "all" || locationFilter !== "all" || hasCvFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setAvailabilityFilter("all");
+                  setRoleTypeFilter("all");
+                  setLocationFilter("all");
+                  setHasCvFilter("all");
+                }}
+                className="gap-1.5 text-xs h-9 text-muted-foreground hover:text-foreground"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Reset Filters
+              </Button>
+            )}
+            
             {/* Toggle for search results view */}
             {booleanSearch.isBooleanMode && booleanSearch.hasResults && (
               <Toggle

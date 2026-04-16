@@ -1160,16 +1160,19 @@ REQUIRED OUTPUT SCHEMA:
   "personal": {
     "full_name": "string (required)",
     "email": "string or null",
-    "phone": "string or null",
+    "phone": "string or null — include ALL phone numbers found (home, mobile, work)",
+    "home_address": "full home address if found, otherwise null",
     "location": "city/country string or null",
     "linkedin_url": "string or null"
   },
   "headline": {
-    "current_title": "string or null",
+    "current_title": "current or most recent job title or null",
+    "current_company": "current or most recent employer name or null",
     "seniority_level": "executive|director|manager|senior|mid|junior or null"
   },
+  "summary": "2-3 sentence professional summary capturing their expertise, key strengths, and career focus",
   "skills": {
-    "primary_skills": ["array of core/main skills"],
+    "primary_skills": ["array of core/main skills — up to 10"],
     "secondary_skills": ["array of supporting skills"],
     "keywords": ["array of other relevant keywords/technologies"]
   },
@@ -1211,6 +1214,12 @@ REQUIRED OUTPUT SCHEMA:
     "education": 0.0-1.0
   }
 }
+
+EXTRACTION PRIORITIES:
+- Extract EVERY personal detail found: full name, all email addresses, all phone numbers (mobile, home, work), full home address, city/country
+- current_company should be the MOST RECENT employer from experience section
+- Generate a concise professional summary even if none exists in the CV
+- Extract ALL skills mentioned anywhere in the document
 
 CONFIDENCE SCORING GUIDELINES:
 - 0.9-1.0: All information clearly visible and unambiguous

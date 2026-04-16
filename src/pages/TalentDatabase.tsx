@@ -1705,43 +1705,71 @@ export default function TalentDatabase() {
       />
 
       {/* Bulk Delete Confirmation Dialog (Admin only) */}
-      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
-        <AlertDialogContent>
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={(open) => {
+        setShowBulkDeleteConfirm(open);
+        if (!open) setBulkDeleteFailures([]);
+      }}>
+        <AlertDialogContent className="max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <Trash2 className="h-5 w-5" />
-              Permanently Delete {selectedIds.size} Candidate{selectedIds.size !== 1 ? "s" : ""}
+              {bulkDeleteFailures.length > 0
+                ? `${bulkDeleteFailures.length} Candidate(s) Could Not Be Deleted`
+                : `Permanently Delete ${selectedIds.size} Candidate${selectedIds.size !== 1 ? "s" : ""}`}
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription asChild>
               <div className="space-y-3">
-                <p>
-                  This will <strong>permanently delete</strong> the selected {selectedIds.size} candidate(s)
-                  including their CVs, notes, interviews, and all linked records. This cannot be undone.
-                </p>
-                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-                  <p className="text-destructive font-medium text-sm">
-                    ⚠ This action bypasses the recycle bin and is irreversible.
-                  </p>
-                </div>
+                {bulkDeleteFailures.length > 0 ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      The following candidates are linked to other records and could not be deleted.
+                      Unlink them first, or remove them from the selection.
+                    </p>
+                    <div className="max-h-60 overflow-y-auto space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                      {bulkDeleteFailures.map((f, i) => (
+                        <div key={i} className="text-sm">
+                          <span className="font-medium text-foreground">{f.name}</span>
+                          <span className="text-muted-foreground ml-1">— {f.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p>
+                      This will <strong>permanently delete</strong> the selected {selectedIds.size} candidate(s)
+                      including their CVs, notes, interviews, and all linked records. This cannot be undone.
+                    </p>
+                    <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                      <p className="text-destructive font-medium text-sm">
+                        ⚠ This action bypasses the recycle bin and is irreversible.
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={handleBulkDelete}
-              disabled={bulkDeleting}
-            >
-              {bulkDeleting ? (
-                <>
-                  <span className="h-4 w-4 mr-1 animate-spin border-2 border-current border-t-transparent rounded-full inline-block" />
-                  Deleting…
-                </>
-              ) : (
-                <>Delete {selectedIds.size} Permanently</>
-              )}
-            </Button>
+            <AlertDialogCancel disabled={bulkDeleting}>
+              {bulkDeleteFailures.length > 0 ? "Close" : "Cancel"}
+            </AlertDialogCancel>
+            {bulkDeleteFailures.length === 0 && (
+              <Button
+                variant="destructive"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+              >
+                {bulkDeleting ? (
+                  <>
+                    <span className="h-4 w-4 mr-1 animate-spin border-2 border-current border-t-transparent rounded-full inline-block" />
+                    Deleting…
+                  </>
+                ) : (
+                  <>Delete {selectedIds.size} Permanently</>
+                )}
+              </Button>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -93,6 +93,7 @@ import {
   Trophy,
   AlertTriangle,
   Trash2,
+  RotateCcw,
 } from "lucide-react";
 import {
   AlertDialog,

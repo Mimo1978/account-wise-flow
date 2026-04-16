@@ -170,6 +170,8 @@ export default function TalentDatabase() {
   const isMatchMode = !!matchSpecId;
   const [availabilityFilter, setAvailabilityFilter] = useState<string>("all");
   const [roleTypeFilter, setRoleTypeFilter] = useState<string>("all");
+  const [locationFilter, setLocationFilter] = useState<string>("all");
+  const [hasCvFilter, setHasCvFilter] = useState<string>("all");
   const [selectedTalent, setSelectedTalent] = useState<Talent | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showImportModal, setShowImportModal] = useState(false);
@@ -318,6 +320,12 @@ export default function TalentDatabase() {
     return Array.from(types).sort();
   }, [allTalents]);
 
+  // Get unique locations from data
+  const locations = useMemo(() => {
+    const locs = new Set(allTalents.map((t) => t.location).filter(Boolean) as string[]);
+    return Array.from(locs).sort();
+  }, [allTalents]);
+
   // Filter talents - use Boolean search results if active, otherwise filter locally
   const filteredTalents = useMemo(() => {
     // If Boolean search is active and has results, use those
@@ -329,7 +337,11 @@ export default function TalentDatabase() {
           availabilityFilter === "all" || talent.availability === availabilityFilter;
         const matchesRoleType =
           roleTypeFilter === "all" || talent.roleType === roleTypeFilter;
-        return matchesSearch && matchesAvailability && matchesRoleType;
+        const matchesLocation =
+          locationFilter === "all" || talent.location === locationFilter;
+        const matchesCv =
+          hasCvFilter === "all" || (hasCvFilter === "yes" ? !!talent.cvStoragePath : !talent.cvStoragePath);
+        return matchesSearch && matchesAvailability && matchesRoleType && matchesLocation && matchesCv;
       });
     }
 
@@ -351,9 +363,15 @@ export default function TalentDatabase() {
       const matchesRoleType =
         roleTypeFilter === "all" || talent.roleType === roleTypeFilter;
 
-      return matchesSearch && matchesAvailability && matchesRoleType;
+      const matchesLocation =
+        locationFilter === "all" || talent.location === locationFilter;
+
+      const matchesCv =
+        hasCvFilter === "all" || (hasCvFilter === "yes" ? !!talent.cvStoragePath : !talent.cvStoragePath);
+
+      return matchesSearch && matchesAvailability && matchesRoleType && matchesLocation && matchesCv;
     });
-  }, [booleanSearch.query, booleanSearch.isActive, booleanSearch.isBooleanMode, booleanSearch.hasResults, booleanSearch.results, availabilityFilter, roleTypeFilter, allTalents]);
+  }, [booleanSearch.query, booleanSearch.isActive, booleanSearch.isBooleanMode, booleanSearch.hasResults, booleanSearch.results, availabilityFilter, roleTypeFilter, locationFilter, hasCvFilter, allTalents]);
 
   const handleRowClick = (talent: Talent) => {
     // Store search result if in Boolean mode
@@ -1153,6 +1171,31 @@ export default function TalentDatabase() {
                     {type}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            {locations.length > 0 && (
+              <Select value={locationFilter} onValueChange={setLocationFilter}>
+                <SelectTrigger className="w-[180px]" data-jarvis-id="talent-filter-location">
+                  <SelectValue placeholder="Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locations.map((loc) => (
+                    <SelectItem key={loc} value={loc}>
+                      {loc}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={hasCvFilter} onValueChange={setHasCvFilter}>
+              <SelectTrigger className="w-[140px]" data-jarvis-id="talent-filter-cv">
+                <SelectValue placeholder="CV Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All CV Status</SelectItem>
+                <SelectItem value="yes">Has CV</SelectItem>
+                <SelectItem value="no">No CV</SelectItem>
               </SelectContent>
             </Select>
             

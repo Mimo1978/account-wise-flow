@@ -26,6 +26,7 @@ interface CandidateProfileParse {
     full_name: string;
     email?: string;
     phone?: string;
+    home_address?: string;
     location?: string;
     linkedin_url?: string;
   };

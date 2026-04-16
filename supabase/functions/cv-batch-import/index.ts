@@ -26,13 +26,16 @@ interface CandidateProfileParse {
     full_name: string;
     email?: string;
     phone?: string;
+    home_address?: string;
     location?: string;
     linkedin_url?: string;
   };
   headline: {
     current_title?: string;
+    current_company?: string;
     seniority_level?: 'executive' | 'director' | 'manager' | 'senior' | 'mid' | 'junior';
   };
+  summary?: string;
   skills: {
     primary_skills: string[];
     secondary_skills: string[];
@@ -449,6 +452,82 @@ serve(async (req) => {
       );
     }
 
+    // Route: POST /cv-batch-import/:batchId/full-reset - Reset ALL items to start from scratch
+    if (method === 'POST' && pathParts.length === 3 && pathParts[2] === 'full-reset') {
+      const batchId = pathParts[1];
+
+      // Admin only
+      if (role !== 'admin') {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Admin access required for full reset' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Delete any candidates that were created by this batch
+      const { data: linkedItems } = await supabaseAdmin
+        .from('cv_import_items')
+        .select('candidate_id')
+        .eq('batch_id', batchId)
+        .not('candidate_id', 'is', null);
+
+      if (linkedItems && linkedItems.length > 0) {
+        const candidateIds = linkedItems.map((i: any) => i.candidate_id).filter(Boolean);
+        if (candidateIds.length > 0) {
+          // Delete linked talent_documents first
+          await supabaseAdmin.from('talent_documents').delete().in('talent_id', candidateIds);
+          // Delete candidates created by this batch
+          await supabaseAdmin.from('candidates').delete().in('id', candidateIds);
+        }
+      }
+
+      // Reset ALL items back to queued
+      await supabaseAdmin
+        .from('cv_import_items')
+        .update({
+          status: 'queued',
+          error_message: null,
+          candidate_id: null,
+          extracted_data: null,
+          field_confidence: null,
+          parse_confidence: null,
+          search_tags: null,
+          started_at: null,
+          completed_at: null,
+        })
+        .eq('batch_id', batchId);
+
+      // Reset batch counters completely
+      const { data: batch, error: updateError } = await supabaseAdmin
+        .from('cv_import_batches')
+        .update({
+          status: 'queued',
+          started_at: null,
+          completed_at: null,
+          processed_files: 0,
+          success_count: 0,
+          fail_count: 0,
+          error_summary: null,
+        })
+        .eq('id', batchId)
+        .select()
+        .single();
+
+      if (updateError || !batch) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Batch not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      await logAudit(supabase, userId, 'batch_full_reset', batchId, { itemsReset: linkedItems?.length || 0 });
+
+      return new Response(
+        JSON.stringify({ success: true, data: batch, message: 'Batch fully reset — all items queued for reprocessing' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Route: POST /cv-batch-import/:batchId/pause - Stop/pause processing
     if (method === 'POST' && pathParts.length === 3 && pathParts[2] === 'pause') {
       const batchId = pathParts[1];
@@ -811,8 +890,38 @@ async function processItem(supabase: any, item: any, apiKey: string) {
   const name = extractedData.personal?.full_name || null;
   let candidateId: string | null = null;
 
+  // Derive current_company from headline or first experience role
+  const currentCompany = extractedData.headline?.current_company
+    || extractedData.experience?.roles?.[0]?.company
+    || null;
+
+  // Build ai_overview from summary or generate from extracted data
+  const aiOverview = extractedData.summary
+    || (extractedData.headline?.current_title && currentCompany
+      ? `${extractedData.headline.current_title} at ${currentCompany}. Key skills: ${extractedData.skills?.primary_skills?.slice(0, 5).join(', ') || 'N/A'}.`
+      : extractedData.headline?.current_title
+        ? `${extractedData.headline.current_title}. Key skills: ${extractedData.skills?.primary_skills?.slice(0, 5).join(', ') || 'N/A'}.`
+        : null);
+
+  // Build raw_cv_text from all extracted data for full-text search
+  const rawCvParts: string[] = [];
+  if (name) rawCvParts.push(name);
+  if (extractedData.headline?.current_title) rawCvParts.push(extractedData.headline.current_title);
+  if (currentCompany) rawCvParts.push(currentCompany);
+  if (extractedData.personal?.location) rawCvParts.push(extractedData.personal.location);
+  if (extractedData.skills?.primary_skills?.length) rawCvParts.push(extractedData.skills.primary_skills.join(', '));
+  if (extractedData.skills?.secondary_skills?.length) rawCvParts.push(extractedData.skills.secondary_skills.join(', '));
+  for (const role of (extractedData.experience?.roles || [])) {
+    rawCvParts.push(`${role.title} at ${role.company}`);
+    if (role.summary) rawCvParts.push(role.summary);
+  }
+  for (const edu of (extractedData.education?.items || [])) {
+    rawCvParts.push(`${edu.degree || ''} ${edu.field || ''} ${edu.institution}`.trim());
+  }
+  if (extractedData.certifications?.length) rawCvParts.push(extractedData.certifications.join(', '));
+  const rawCvText = rawCvParts.join('. ').slice(0, 10000) || null;
+
   if (name) {
-    // Check for existing candidate by email to avoid duplicates
     const email = extractedData.personal?.email || null;
     let existingId: string | null = null;
 
@@ -828,25 +937,26 @@ async function processItem(supabase: any, item: any, apiKey: string) {
     }
 
     if (existingId) {
-      // Update existing candidate with fresh CV data
       await supabase
         .from('candidates')
         .update({
           phone: extractedData.personal?.phone || undefined,
-          location: extractedData.personal?.location || undefined,
+          location: extractedData.personal?.location || extractedData.personal?.home_address || undefined,
           linkedin_url: extractedData.personal?.linkedin_url || undefined,
           current_title: extractedData.headline?.current_title || undefined,
-          current_company: extractedData.headline?.current_company || undefined,
+          current_company: currentCompany || undefined,
+          headline: extractedData.headline?.current_title || undefined,
           skills: extractedData.skills || {},
           experience: extractedData.experience?.roles || [],
-          education: extractedData.education?.qualifications || [],
+          education: extractedData.education?.items || [],
+          ai_overview: aiOverview || undefined,
+          raw_cv_text: rawCvText || undefined,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingId);
 
       candidateId = existingId;
     } else {
-      // Create new candidate record
       const { data: newCandidate, error: insertError } = await supabase
         .from('candidates')
         .insert({
@@ -854,17 +964,18 @@ async function processItem(supabase: any, item: any, apiKey: string) {
           name,
           email: extractedData.personal?.email || null,
           phone: extractedData.personal?.phone || null,
-          location: extractedData.personal?.location || null,
+          location: extractedData.personal?.location || extractedData.personal?.home_address || null,
           linkedin_url: extractedData.personal?.linkedin_url || null,
           current_title: extractedData.headline?.current_title || null,
-          current_company: extractedData.headline?.current_company || null,
+          current_company: currentCompany,
           headline: extractedData.headline?.current_title || null,
           skills: extractedData.skills || {},
           experience: extractedData.experience?.roles || [],
-          education: extractedData.education?.qualifications || [],
+          education: extractedData.education?.items || [],
+          ai_overview: aiOverview,
+          raw_cv_text: rawCvText,
           source: 'cv_import',
           status: 'active',
-          raw_cv_text: extractedData.raw_text || null,
         })
         .select('id')
         .single();
@@ -1049,16 +1160,19 @@ REQUIRED OUTPUT SCHEMA:
   "personal": {
     "full_name": "string (required)",
     "email": "string or null",
-    "phone": "string or null",
+    "phone": "string or null — include ALL phone numbers found (home, mobile, work)",
+    "home_address": "full home address if found, otherwise null",
     "location": "city/country string or null",
     "linkedin_url": "string or null"
   },
   "headline": {
-    "current_title": "string or null",
+    "current_title": "current or most recent job title or null",
+    "current_company": "current or most recent employer name or null",
     "seniority_level": "executive|director|manager|senior|mid|junior or null"
   },
+  "summary": "2-3 sentence professional summary capturing their expertise, key strengths, and career focus",
   "skills": {
-    "primary_skills": ["array of core/main skills"],
+    "primary_skills": ["array of core/main skills — up to 10"],
     "secondary_skills": ["array of supporting skills"],
     "keywords": ["array of other relevant keywords/technologies"]
   },
@@ -1100,6 +1214,12 @@ REQUIRED OUTPUT SCHEMA:
     "education": 0.0-1.0
   }
 }
+
+EXTRACTION PRIORITIES:
+- Extract EVERY personal detail found: full name, all email addresses, all phone numbers (mobile, home, work), full home address, city/country
+- current_company should be the MOST RECENT employer from experience section
+- Generate a concise professional summary even if none exists in the CV
+- Extract ALL skills mentioned anywhere in the document
 
 CONFIDENCE SCORING GUIDELINES:
 - 0.9-1.0: All information clearly visible and unambiguous
@@ -1204,17 +1324,20 @@ function normalizeToCanonicalSchema(parsed: any): CandidateProfileParse {
       full_name: talent.personal?.full_name || talent.name || 'Unknown',
       email: talent.personal?.email || talent.email || null,
       phone: talent.personal?.phone || talent.phone || null,
+      home_address: talent.personal?.home_address || talent.personal?.address || talent.address || null,
       location: talent.personal?.location || talent.location || null,
       linkedin_url: talent.personal?.linkedin_url || talent.linkedIn || talent.linkedin || null,
     },
     headline: {
       current_title: talent.headline?.current_title || talent.roleType || talent.current_title || null,
+      current_company: talent.headline?.current_company || talent.current_company || null,
       seniority_level: normalizeSeniority(talent.headline?.seniority_level || talent.seniority),
     },
+    summary: talent.summary || talent.professional_summary || null,
     skills: {
-      primary_skills: talent.skills?.primary_skills || (Array.isArray(talent.skills) ? talent.skills.slice(0, 5) : []),
-      secondary_skills: talent.skills?.secondary_skills || (Array.isArray(talent.skills) ? talent.skills.slice(5, 10) : []),
-      keywords: talent.skills?.keywords || (Array.isArray(talent.skills) ? talent.skills.slice(10) : []),
+      primary_skills: talent.skills?.primary_skills || (Array.isArray(talent.skills) ? talent.skills.slice(0, 10) : []),
+      secondary_skills: talent.skills?.secondary_skills || (Array.isArray(talent.skills) ? talent.skills.slice(10, 20) : []),
+      keywords: talent.skills?.keywords || (Array.isArray(talent.skills) ? talent.skills.slice(20) : []),
     },
     experience: {
       roles: normalizeExperience(talent.experience?.roles || talent.experience || []),

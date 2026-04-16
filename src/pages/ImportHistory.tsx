@@ -10,9 +10,20 @@ import { CMOrbital } from "@/components/ui/CMLoader";
 import { toast } from "sonner";
 import {
   CheckCircle2, XCircle, Clock, AlertCircle,
-  FileStack, Users, ChevronRight, RefreshCw, Square, PauseCircle
+  FileStack, Users, ChevronRight, RefreshCw, Square, PauseCircle, RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { usePermissions } from "@/hooks/use-permissions";
 
 interface ImportBatch {
   id: string;
@@ -34,6 +45,10 @@ export default function ImportHistory() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [triggering, setTriggering] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const { role } = usePermissions();
+  const isAdmin = role === "admin";
   const [summary, setSummary] = useState({
     importedCandidates: 0,
     filesRemaining: 0,
@@ -223,6 +238,38 @@ export default function ImportHistory() {
       toast.error(e.message || "Failed to pause");
     } finally {
       setStopping(false);
+    }
+  };
+
+  const resetImport = async (batchId: string) => {
+    setResetting(true);
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/cv-batch-import/${batchId}/full-reset`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+        }
+      );
+      const result = await response.json();
+      if (result.success) {
+        toast.success("Import fully reset — all files queued for reprocessing");
+        setShowResetDialog(false);
+        await fetchBatches();
+      } else {
+        toast.error(result.error || "Failed to reset import");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Failed to reset import");
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -479,6 +526,18 @@ export default function ImportHistory() {
                     )}
                   </Button>
                 )}
+                {isAdmin && isBatchPaused && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowResetDialog(true)}
+                    disabled={resetting}
+                    className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset & start over
+                  </Button>
+                )}
               </div>
 
               <p className="text-xs text-muted-foreground max-w-md">
@@ -572,6 +631,29 @@ export default function ImportHistory() {
         )}
 
       </div>
+
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset entire import?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete all candidates created from this batch and reset every file back to the queue.
+              All {activeBatch?.total_files.toLocaleString()} files will be reprocessed from scratch.
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => activeBatch && resetImport(activeBatch.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={resetting}
+            >
+              {resetting ? "Resetting…" : "Yes, reset everything"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

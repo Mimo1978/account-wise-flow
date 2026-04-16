@@ -254,6 +254,20 @@ export default function AdminGovernance() {
         <TabsContent value="recycle">
           <Card>
             <CardContent className="p-0">
+              {selectedBinIds.size > 0 && perm.canPurge && (
+                <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-destructive/5">
+                  <span className="text-sm font-medium">{selectedBinIds.size} selected</span>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => { setShowBulkPurge(true); setBulkPurgeConfirmText(""); }}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Purge Selected
+                  </Button>
+                </div>
+              )}
               {binLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -266,6 +280,19 @@ export default function AdminGovernance() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={isAllBinSelected}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setSelectedBinIds(new Set(recycleBin.map((item: any) => `${item.record_type}-${item.id}`)));
+                            } else {
+                              setSelectedBinIds(new Set());
+                            }
+                          }}
+                          className={isSomeBinSelected ? "opacity-50" : ""}
+                        />
+                      </TableHead>
                       <TableHead>Record</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Deleted</TableHead>

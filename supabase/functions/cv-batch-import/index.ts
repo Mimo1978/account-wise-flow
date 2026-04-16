@@ -873,10 +873,17 @@ serve(async (req) => {
   }
 });
 
-// Background processing function
-async function processQueuedItems(supabase: any, batchId: string, tenantId: string) {
-  console.log(`Starting background processing for batch ${batchId}`);
-  
+// Background processing function — processes a SINGLE chunk then self-schedules continuation
+// This avoids edge function CPU/wall-time limits that caused stalls after ~10-50 CVs.
+async function processQueuedItems(
+  supabase: any,
+  batchId: string,
+  tenantId: string,
+  supabaseUrl: string,
+  serviceKey: string,
+) {
+  console.log(`[batch ${batchId}] Processing chunk start`);
+
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
     console.error('LOVABLE_API_KEY not configured');
@@ -884,54 +891,94 @@ async function processQueuedItems(supabase: any, batchId: string, tenantId: stri
     return;
   }
 
-  // Process items in batches with concurrency limit
-  const CONCURRENT_LIMIT = MAX_CONCURRENT_ITEMS_PER_TENANT;
+  await syncBatchProgress(supabase, batchId);
+
+  // Re-check batch status before doing any work
+  const { data: batchCheck } = await supabase
+    .from('cv_import_batches')
+    .select('status')
+    .eq('id', batchId)
+    .single();
+
+  if (!batchCheck || batchCheck.status === 'paused' || isTerminalBatchStatus(batchCheck.status)) {
+    console.log(`[batch ${batchId}] status=${batchCheck?.status} — stopping`);
+    return;
+  }
+
+  // Atomically claim a small chunk of queued items
+  const claimed = await claimQueuedItems(supabase, batchId, PROCESSING_CHUNK_SIZE);
+
+  if (claimed.length === 0) {
+    // No queued items left — check if any are still processing (other workers); else finalise
+    const counts = await getBatchWorkCounts(supabase, batchId);
+    if (counts.queuedCount === 0 && counts.processingCount === 0) {
+      const progress = await syncBatchProgress(supabase, batchId);
+      const finalStatus = progress.failCount === 0
+        ? 'completed'
+        : (progress.successCount === 0 ? 'failed' : 'partial');
+      await updateBatchStatus(
+        supabase,
+        batchId,
+        finalStatus,
+        progress.failCount > 0 ? `${progress.failCount} items failed processing` : null,
+      );
+      console.log(`[batch ${batchId}] FINAL ${finalStatus}: ${progress.successCount} ok, ${progress.failCount} failed`);
+    } else {
+      console.log(`[batch ${batchId}] no queued; ${counts.processingCount} still processing — waiting`);
+    }
+    return;
+  }
+
+  // Process this chunk concurrently
+  await Promise.allSettled(
+    claimed.map(async (item: any) => {
+      try {
+        await processItemWithRetry(supabase, item, LOVABLE_API_KEY!);
+      } catch (e) {
+        console.error(`[batch ${batchId}] item ${item.id} failed:`, e);
+      }
+    }),
+  );
 
   await syncBatchProgress(supabase, batchId);
-  
-  while (true) {
-    // Check if batch was paused/stopped before picking up more work
-    const { data: batchCheck } = await supabase
+
+  // Check if more work remains; if so self-schedule continuation
+  const counts = await getBatchWorkCounts(supabase, batchId);
+  console.log(`[batch ${batchId}] chunk done; remaining queued=${counts.queuedCount} processing=${counts.processingCount}`);
+
+  if (counts.queuedCount > 0) {
+    // Re-check pause before scheduling next chunk
+    const { data: nextCheck } = await supabase
       .from('cv_import_batches')
       .select('status')
       .eq('id', batchId)
       .single();
 
-    if (batchCheck?.status === 'paused' || batchCheck?.status === 'completed' || batchCheck?.status === 'failed') {
-      console.log(`Batch ${batchId} status is ${batchCheck.status} — stopping processing loop`);
-      return; // Exit without finalising — user paused intentionally
+    if (nextCheck?.status === 'paused' || isTerminalBatchStatus(nextCheck?.status)) {
+      console.log(`[batch ${batchId}] paused/terminal — not scheduling next chunk`);
+      return;
     }
 
-    // Fetch next batch of queued items
-    const { data: items, error } = await supabase
-      .from('cv_import_items')
-      .select('*')
-      .eq('batch_id', batchId)
-      .eq('status', 'queued')
-      .limit(CONCURRENT_LIMIT);
-
-    if (error || !items || items.length === 0) {
-      console.log(`No more queued items for batch ${batchId}`);
-      break;
+    const continuation = scheduleBatchContinuation(batchId, supabaseUrl, serviceKey);
+    if (typeof (globalThis as any).EdgeRuntime?.waitUntil === 'function') {
+      (globalThis as any).EdgeRuntime.waitUntil(continuation);
+    } else {
+      continuation.catch((e) => console.error(`[batch ${batchId}] continuation error:`, e));
     }
-
-    // Process items concurrently
-    await Promise.allSettled(
-      items.map(async (item: any) => {
-        await processItemWithRetry(supabase, item, LOVABLE_API_KEY!);
-        await syncBatchProgress(supabase, batchId);
-      })
+  } else if (counts.processingCount === 0) {
+    // Nothing left at all — finalise
+    const progress = await syncBatchProgress(supabase, batchId);
+    const finalStatus = progress.failCount === 0
+      ? 'completed'
+      : (progress.successCount === 0 ? 'failed' : 'partial');
+    await updateBatchStatus(
+      supabase,
+      batchId,
+      finalStatus,
+      progress.failCount > 0 ? `${progress.failCount} items failed processing` : null,
     );
+    console.log(`[batch ${batchId}] FINAL ${finalStatus}: ${progress.successCount} ok, ${progress.failCount} failed`);
   }
-
-  const progress = await syncBatchProgress(supabase, batchId);
-
-  // Finalize batch status
-  const finalStatus = progress.failCount === 0 ? 'completed' : (progress.successCount === 0 ? 'failed' : 'partial');
-  await updateBatchStatus(supabase, batchId, finalStatus, 
-    progress.failCount > 0 ? `${progress.failCount} items failed processing` : null);
-  
-  console.log(`Completed processing for batch ${batchId}: ${progress.successCount} success, ${progress.failCount} failed`);
 }
 
 async function syncBatchProgress(supabase: any, batchId: string) {

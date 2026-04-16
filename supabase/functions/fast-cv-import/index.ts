@@ -192,7 +192,7 @@ serve(async (req) => {
     }
 
     const { error: uploadError } = await serviceClient.storage
-      .from('talent-documents')
+      .from('cv-uploads')
       .upload(storagePath, fileBytes, {
         contentType: mimeType || 'application/pdf',
         upsert: true,
@@ -209,11 +209,13 @@ serve(async (req) => {
       workspace_id: tenantId,
       file_name: fileName,
       file_path: storagePath,
-      file_type: ext,
+      file_type: mimeType || ext,
       file_size: fileBytes.length,
       doc_kind: 'cv',
-      parse_status: ext === 'pdf' ? 'not_needed' : 'pending',
+      parse_status: content ? 'parsed' : 'pending',
       parsed_text: content,
+      pdf_storage_path: ext === 'pdf' ? storagePath : null,
+      pdf_conversion_status: ext === 'pdf' ? 'not_needed' : 'pending',
       uploaded_by: userId,
     }).then(({ error }) => {
       if (error) console.warn(`[fast-cv-import][${requestId}] talent_documents insert warning:`, error.message);

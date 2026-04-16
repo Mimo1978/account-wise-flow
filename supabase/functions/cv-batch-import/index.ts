@@ -997,21 +997,44 @@ async function processItem(supabase: any, item: any, apiKey: string) {
       })
       .eq('id', candidateId);
 
-    // Create talent_documents record so CV appears in the document viewer
     const ext = item.file_name?.split('.').pop()?.toLowerCase() || 'pdf';
-    await supabase.from('talent_documents').insert({
+    const documentPayload = {
       talent_id: candidateId,
       workspace_id: item.tenant_id,
       file_name: item.file_name,
       file_path: item.storage_path,
-      file_type: ext,
-      file_size: 0,
+      file_type: item.file_type || ext,
+      file_size: item.file_size_bytes || 0,
       doc_kind: 'cv',
-      parse_status: 'completed',
-      parsed_text: extractedData.raw_text || null,
-    }).then(({ error }) => {
-      if (error) console.warn(`talent_documents insert warning for ${item.id}:`, error.message);
-    });
+      parse_status: (extractedData.raw_text || rawCvText) ? 'parsed' : 'pending',
+      parsed_text: extractedData.raw_text || rawCvText || null,
+      pdf_storage_path: ext === 'pdf' ? item.storage_path : null,
+      pdf_conversion_status: ext === 'pdf' ? 'not_needed' : 'pending',
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: existingDoc } = await supabase
+      .from('talent_documents')
+      .select('id')
+      .eq('talent_id', candidateId)
+      .eq('workspace_id', item.tenant_id)
+      .eq('doc_kind', 'cv')
+      .order('uploaded_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { error: talentDocError } = existingDoc?.id
+      ? await supabase
+          .from('talent_documents')
+          .update(documentPayload)
+          .eq('id', existingDoc.id)
+      : await supabase
+          .from('talent_documents')
+          .insert(documentPayload);
+
+    if (talentDocError) {
+      console.warn(`talent_documents sync warning for ${item.id}:`, talentDocError.message);
+    }
   }
 
   const completedAt = new Date().toISOString();

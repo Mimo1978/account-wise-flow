@@ -894,11 +894,10 @@ async function processItem(supabase: any, item: any, apiKey: string) {
       file_name: item.file_name,
       file_path: item.storage_path,
       file_type: ext,
-      file_size: item.file_size || 0,
+      file_size: 0,
       doc_kind: 'cv',
       parse_status: 'completed',
       parsed_text: extractedData.raw_text || null,
-      uploaded_by: item.uploaded_by || null,
     }).then(({ error }) => {
       if (error) console.warn(`talent_documents insert warning for ${item.id}:`, error.message);
     });

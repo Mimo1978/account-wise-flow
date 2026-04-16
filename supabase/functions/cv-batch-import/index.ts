@@ -328,6 +328,65 @@ serve(async (req) => {
     const url = new URL(req.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
     const method = req.method;
+    const isInternalBatchRequest = req.headers.get(INTERNAL_BATCH_TOKEN_HEADER) === supabaseServiceKey;
+
+    if (method === 'POST' && pathParts.length === 3 && pathParts[1] === 'internal' && pathParts[2] === 'continue') {
+      if (!isInternalBatchRequest) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const body = await req.json().catch(() => ({}));
+      const batchId = body.batchId as string | undefined;
+
+      if (!batchId) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'batchId required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: batch, error: batchError } = await supabaseAdmin
+        .from('cv_import_batches')
+        .select('id, tenant_id, status, started_at')
+        .eq('id', batchId)
+        .single();
+
+      if (batchError || !batch) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Batch not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (batch.status === 'paused' || isTerminalBatchStatus(batch.status)) {
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, status: batch.status }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (batch.status === 'queued') {
+        await supabaseAdmin
+          .from('cv_import_batches')
+          .update({
+            status: 'processing',
+            started_at: batch.started_at || new Date().toISOString(),
+            completed_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', batchId);
+      }
+
+      await processQueuedItems(supabaseAdmin, batchId, batch.tenant_id, supabaseUrl, supabaseServiceKey);
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Route: POST /cv-batch-import - Create new batch
     if (method === 'POST' && pathParts.length === 1) {
@@ -490,7 +549,7 @@ serve(async (req) => {
       await logAudit(supabase, userId, 'batch_processing_started', batchId, {});
 
       // Trigger background processing (fire and forget)
-      const processingPromise = processQueuedItems(supabaseAdmin, batchId, tenantId);
+      const processingPromise = scheduleBatchContinuation(batchId, supabaseUrl, supabaseServiceKey);
       if (typeof (globalThis as any).EdgeRuntime?.waitUntil === 'function') {
         (globalThis as any).EdgeRuntime.waitUntil(processingPromise);
       } else {
@@ -538,7 +597,7 @@ serve(async (req) => {
       const tenantId = batch.tenant_id;
 
       // Trigger background processing
-      const processingPromise = processQueuedItems(supabaseAdmin, batchId, tenantId);
+      const processingPromise = scheduleBatchContinuation(batchId, supabaseUrl, supabaseServiceKey);
       if (typeof (globalThis as any).EdgeRuntime?.waitUntil === 'function') {
         (globalThis as any).EdgeRuntime.waitUntil(processingPromise);
       } else {
@@ -710,7 +769,16 @@ serve(async (req) => {
       await logAudit(supabase, userId, 'item_retry', itemId, { batchId: item.batch_id });
 
       // Trigger processing
-      const processingPromise = processQueuedItems(supabaseAdmin, item.batch_id, tenantId);
+      await supabaseAdmin
+        .from('cv_import_batches')
+        .update({
+          status: 'processing',
+          completed_at: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', item.batch_id);
+
+      const processingPromise = scheduleBatchContinuation(item.batch_id, supabaseUrl, supabaseServiceKey);
       if (typeof (globalThis as any).EdgeRuntime?.waitUntil === 'function') {
         (globalThis as any).EdgeRuntime.waitUntil(processingPromise);
       } else {

@@ -273,64 +273,21 @@ serve(async (req) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const url = new URL(req.url);
+  const pathParts = url.pathname.split('/').filter(Boolean);
+  const method = req.method;
+  const isInternalBatchRequest = req.headers.get(INTERNAL_BATCH_TOKEN_HEADER) === supabaseServiceKey;
+  const isInternalContinueRequest =
+    method === 'POST' &&
+    pathParts.length === 3 &&
+    pathParts[1] === 'internal' &&
+    pathParts[2] === 'continue';
 
   try {
-    // 1. Require authentication
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
     // Service client for background operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 2. Validate JWT
-    const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    
-    if (claimsError || !claimsData?.claims) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid token' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const userId = claimsData.claims.sub as string;
-
-    // 3. Check user role and get team
-    const { data: roleData } = await supabase.rpc('get_user_role', { _user_id: userId });
-    const role = roleData as string | null;
-    
-    if (!role || role === 'viewer') {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Insufficient permissions' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { data: teamData } = await supabase.rpc('get_user_team_id', { _user_id: userId });
-    const tenantId = teamData as string | null;
-
-    if (!tenantId) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'No team found' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split('/').filter(Boolean);
-    const method = req.method;
-    const isInternalBatchRequest = req.headers.get(INTERNAL_BATCH_TOKEN_HEADER) === supabaseServiceKey;
-
-    if (method === 'POST' && pathParts.length === 3 && pathParts[1] === 'internal' && pathParts[2] === 'continue') {
+    if (isInternalContinueRequest) {
       if (!isInternalBatchRequest) {
         return new Response(
           JSON.stringify({ success: false, error: 'Unauthorized' }),
@@ -385,6 +342,53 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ success: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 1. Require authentication for user-facing routes
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    // 2. Validate JWT
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userId = claimsData.claims.sub as string;
+
+    // 3. Check user role and get team
+    const { data: roleData } = await supabase.rpc('get_user_role', { _user_id: userId });
+    const role = roleData as string | null;
+    
+    if (!role || role === 'viewer') {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Insufficient permissions' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { data: teamData } = await supabase.rpc('get_user_team_id', { _user_id: userId });
+    const tenantId = teamData as string | null;
+
+    if (!tenantId) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'No team found' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

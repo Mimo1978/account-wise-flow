@@ -51,6 +51,7 @@ const TYPE_LABELS: Record<string, string> = {
   contacts: "Contact",
   jobs: "Job",
   engagements: "Project",
+  candidates: "Candidate",
 };
 
 export default function AdminGovernance() {

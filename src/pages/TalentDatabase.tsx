@@ -876,6 +876,17 @@ export default function TalentDatabase() {
                     <Megaphone className="h-3.5 w-3.5" />
                     Add to Outreach…
                   </Button>
+                  {isAdmin && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="gap-1.5 text-sm"
+                      onClick={() => setShowBulkDeleteConfirm(true)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Delete Selected ({selectedIds.size})
+                    </Button>
+                  )}
                   <Separator orientation="vertical" className="h-6" />
                 </>
               )}

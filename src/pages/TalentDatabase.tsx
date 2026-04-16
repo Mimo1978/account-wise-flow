@@ -204,6 +204,7 @@ export default function TalentDatabase() {
   const [showAddCandidate, setShowAddCandidate] = useState(false);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteFailures, setBulkDeleteFailures] = useState<{ name: string; reason: string }[]>([]);
 
   // Match mode state
   const { data: matchResults = [], isLoading: matchLoading } = useQuery({

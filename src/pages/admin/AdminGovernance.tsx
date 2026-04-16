@@ -310,8 +310,19 @@ export default function AdminGovernance() {
                         ? Math.max(0, Math.ceil((purgeDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
                         : null;
 
+                      const rowKey = `${item.record_type}-${item.id}`;
                       return (
-                        <TableRow key={`${item.record_type}-${item.id}`}>
+                        <TableRow key={rowKey}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedBinIds.has(rowKey)}
+                              onCheckedChange={(checked) => {
+                                const next = new Set(selectedBinIds);
+                                if (checked) next.add(rowKey); else next.delete(rowKey);
+                                setSelectedBinIds(next);
+                              }}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">{item.display_name}</TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-xs">

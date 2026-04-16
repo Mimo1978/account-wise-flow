@@ -45,6 +45,10 @@ export default function ImportHistory() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [triggering, setTriggering] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const { role } = usePermissions();
+  const isAdmin = role === "admin";
   const [summary, setSummary] = useState({
     importedCandidates: 0,
     filesRemaining: 0,

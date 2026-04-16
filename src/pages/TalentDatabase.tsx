@@ -175,6 +175,8 @@ const initialColumns: ColumnConfig[] = [
   { id: "docs", label: "Docs", category: "Operational", minWidth: 80, defaultWidth: 90, visible: true },
 ];
 
+const REQUIRED_VISIBLE_COLUMNS = ["hasCV"];
+
 export default function TalentDatabase() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -309,9 +311,32 @@ export default function TalentDatabase() {
   // Apply preset when it changes
   useEffect(() => {
     if (activePreset) {
-      setColumnsVisibility(activePreset.columns);
+      const required = new Set([...activePreset.columns, ...REQUIRED_VISIBLE_COLUMNS]);
+      setColumnsVisibility(Array.from(required));
     }
   }, [activePresetId, activePreset, setColumnsVisibility]);
+
+  useEffect(() => {
+    if (columns.find((column) => column.id === "hasCV")?.visible) return;
+    toggleColumnVisibility("hasCV");
+  }, [columns, toggleColumnVisibility]);
+
+  const handleToggleColumnVisibility = useCallback((columnId: string) => {
+    if (REQUIRED_VISIBLE_COLUMNS.includes(columnId)) return;
+    toggleColumnVisibility(columnId);
+  }, [toggleColumnVisibility]);
+
+  const handleToggleAllColumns = useCallback((visible: boolean) => {
+    setAllColumnsVisibility(visible);
+    if (!visible) {
+      setTimeout(() => {
+        const hasCvColumn = columns.find((column) => column.id === "hasCV");
+        if (hasCvColumn?.visible === false) {
+          toggleColumnVisibility("hasCV");
+        }
+      }, 0);
+    }
+  }, [columns, setAllColumnsVisibility, toggleColumnVisibility]);
 
   // Column pinning
   const {
@@ -598,7 +623,7 @@ export default function TalentDatabase() {
           </div>
         );
       case "hasCV":
-        return talent.cvStoragePath ? (
+        return talentDocs?.hasPrimaryCV ? (
           <Badge variant="outline" className="gap-1 text-xs font-normal text-emerald-400 border-emerald-500/30 bg-emerald-500/10">
             <FileText className="h-3 w-3" />
             Yes
@@ -952,8 +977,8 @@ export default function TalentDatabase() {
 
               <TalentColumnPicker
                 columns={columns}
-                onToggleColumn={toggleColumnVisibility}
-                onToggleAll={setAllColumnsVisibility}
+                onToggleColumn={handleToggleColumnVisibility}
+                onToggleAll={handleToggleAllColumns}
                 isPinned={isPinned}
                 canPin={canPin}
                 onTogglePin={togglePin}

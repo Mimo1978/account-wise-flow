@@ -48,6 +48,7 @@ export function TalentColumnPicker({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(["Core", "Contact", "AI-Derived", "Operational"])
   );
+  const requiredVisibleColumns = new Set(["hasCV"]);
 
   const categories = [
     { id: "Core", label: "Core" },
@@ -141,6 +142,7 @@ export function TalentColumnPicker({
                           <label className="flex items-center gap-2 cursor-pointer flex-1">
                             <Checkbox
                               checked={column.visible}
+                              disabled={requiredVisibleColumns.has(column.id)}
                               onCheckedChange={() => onToggleColumn(column.id)}
                               className="h-4 w-4"
                             />
@@ -152,6 +154,9 @@ export function TalentColumnPicker({
                               )}
                             >
                               {column.label}
+                              {requiredVisibleColumns.has(column.id) && (
+                                <span className="ml-1 text-xs text-muted-foreground">(required)</span>
+                              )}
                             </span>
                           </label>
                           

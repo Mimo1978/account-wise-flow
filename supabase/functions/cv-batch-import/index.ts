@@ -15,6 +15,8 @@ const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
 const MAX_CONCURRENT_ITEMS_PER_TENANT = 5;
 const MAX_FILES_PER_BATCH = 20000;
 const MIN_FILES_PER_BATCH = 1;
+const PROCESSING_CHUNK_SIZE = 2;
+const INTERNAL_BATCH_TOKEN_HEADER = 'x-internal-batch-token';
 
 // Retry configuration
 const MAX_RETRIES = 3;
@@ -164,6 +166,103 @@ function sleep(ms: number): Promise<void> {
 // Exponential backoff delay calculation
 function getRetryDelay(attempt: number): number {
   return BASE_RETRY_DELAY_MS * Math.pow(2, attempt) + Math.random() * 500;
+}
+
+function isTerminalBatchStatus(status: string | null | undefined): boolean {
+  return status === 'completed' || status === 'failed' || status === 'partial';
+}
+
+function toBase64(bytes: Uint8Array): string {
+  const chunkSize = 0x8000;
+  let binary = '';
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+    let chunkBinary = '';
+
+    for (let j = 0; j < chunk.length; j++) {
+      chunkBinary += String.fromCharCode(chunk[j]);
+    }
+
+    binary += chunkBinary;
+  }
+
+  return btoa(binary);
+}
+
+async function scheduleBatchContinuation(batchId: string, supabaseUrl: string, serviceKey: string) {
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/cv-batch-import/internal/continue`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        [INTERNAL_BATCH_TOKEN_HEADER]: serviceKey,
+      },
+      body: JSON.stringify({ batchId }),
+    });
+
+    if (!response.ok) {
+      console.error(`Failed to schedule continuation for batch ${batchId}: ${response.status}`);
+    }
+  } catch (error) {
+    console.error(`Failed to schedule continuation for batch ${batchId}:`, error);
+  }
+}
+
+async function claimQueuedItems(supabase: any, batchId: string, limit: number) {
+  const { data: queuedItems, error } = await supabase
+    .from('cv_import_items')
+    .select('*')
+    .eq('batch_id', batchId)
+    .eq('status', 'queued')
+    .order('created_at', { ascending: true })
+    .limit(limit);
+
+  if (error || !queuedItems?.length) {
+    if (error) console.error(`Failed to fetch queued items for batch ${batchId}:`, error);
+    return [];
+  }
+
+  const claimedAt = new Date().toISOString();
+  const queuedIds = queuedItems.map((item: any) => item.id);
+  const { data: claimedItems, error: claimError } = await supabase
+    .from('cv_import_items')
+    .update({
+      status: 'processing',
+      started_at: claimedAt,
+      updated_at: claimedAt,
+    })
+    .in('id', queuedIds)
+    .eq('status', 'queued')
+    .select('*');
+
+  if (claimError) {
+    console.error(`Failed to claim queued items for batch ${batchId}:`, claimError);
+    return [];
+  }
+
+  const claimedLookup = new Map((claimedItems || []).map((item: any) => [item.id, item]));
+  return queuedIds.filter((id) => claimedLookup.has(id)).map((id) => claimedLookup.get(id));
+}
+
+async function getBatchWorkCounts(supabase: any, batchId: string) {
+  const [queuedResult, processingResult] = await Promise.all([
+    supabase
+      .from('cv_import_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('batch_id', batchId)
+      .eq('status', 'queued'),
+    supabase
+      .from('cv_import_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('batch_id', batchId)
+      .eq('status', 'processing'),
+  ]);
+
+  return {
+    queuedCount: queuedResult.count || 0,
+    processingCount: processingResult.count || 0,
+  };
 }
 
 serve(async (req) => {

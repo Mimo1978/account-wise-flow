@@ -526,6 +526,18 @@ export default function ImportHistory() {
                     )}
                   </Button>
                 )}
+                {isAdmin && isBatchPaused && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowResetDialog(true)}
+                    disabled={resetting}
+                    className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/10"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Reset & start over
+                  </Button>
+                )}
               </div>
 
               <p className="text-xs text-muted-foreground max-w-md">

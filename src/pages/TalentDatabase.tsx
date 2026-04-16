@@ -252,14 +252,9 @@ export default function TalentDatabase() {
     invalidateCandidates 
   } = useCandidates();
 
-  // Use real data if available, fallback to mock for demo
+  // Always use real database candidates
   const allTalents = useMemo(() => {
-    // If we have real candidates, use them; otherwise use mock data for demo purposes
-    if (dbCandidates.length > 0) {
-      return dbCandidates;
-    }
-    // Fallback to mock data when no real candidates (for demo workspace)
-    return mockTalents;
+    return dbCandidates;
   }, [dbCandidates]);
 
   // Fetch document counts for all visible talents
@@ -459,7 +454,12 @@ export default function TalentDatabase() {
     setBulkDeleting(true);
     setBulkDeleteFailures([]);
 
-    const ids = Array.from(selectedIds);
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const ids = Array.from(selectedIds).filter(id => uuidRegex.test(id));
+    const skippedCount = selectedIds.size - ids.length;
+    if (skippedCount > 0) {
+      toast.info(`${skippedCount} demo record(s) skipped (not in database)`);
+    }
     const failures: { name: string; reason: string }[] = [];
     let successCount = 0;
 

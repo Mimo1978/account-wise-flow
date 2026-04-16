@@ -224,7 +224,7 @@ async function claimQueuedItems(supabase: any, batchId: string, limit: number) {
   }
 
   const claimedAt = new Date().toISOString();
-  const queuedIds = queuedItems.map((item: any) => item.id);
+  const queuedIds: string[] = queuedItems.map((item: any) => item.id as string);
   const { data: claimedItems, error: claimError } = await supabase
     .from('cv_import_items')
     .update({
@@ -242,7 +242,9 @@ async function claimQueuedItems(supabase: any, batchId: string, limit: number) {
   }
 
   const claimedLookup = new Map((claimedItems || []).map((item: any) => [item.id, item]));
-  return queuedIds.filter((id) => claimedLookup.has(id)).map((id) => claimedLookup.get(id));
+  return queuedIds
+    .filter((id: string) => claimedLookup.has(id))
+    .map((id: string) => claimedLookup.get(id));
 }
 
 async function getBatchWorkCounts(supabase: any, batchId: string) {

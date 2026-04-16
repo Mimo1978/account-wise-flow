@@ -890,8 +890,38 @@ async function processItem(supabase: any, item: any, apiKey: string) {
   const name = extractedData.personal?.full_name || null;
   let candidateId: string | null = null;
 
+  // Derive current_company from headline or first experience role
+  const currentCompany = extractedData.headline?.current_company
+    || extractedData.experience?.roles?.[0]?.company
+    || null;
+
+  // Build ai_overview from summary or generate from extracted data
+  const aiOverview = extractedData.summary
+    || (extractedData.headline?.current_title && currentCompany
+      ? `${extractedData.headline.current_title} at ${currentCompany}. Key skills: ${extractedData.skills?.primary_skills?.slice(0, 5).join(', ') || 'N/A'}.`
+      : extractedData.headline?.current_title
+        ? `${extractedData.headline.current_title}. Key skills: ${extractedData.skills?.primary_skills?.slice(0, 5).join(', ') || 'N/A'}.`
+        : null);
+
+  // Build raw_cv_text from all extracted data for full-text search
+  const rawCvParts: string[] = [];
+  if (name) rawCvParts.push(name);
+  if (extractedData.headline?.current_title) rawCvParts.push(extractedData.headline.current_title);
+  if (currentCompany) rawCvParts.push(currentCompany);
+  if (extractedData.personal?.location) rawCvParts.push(extractedData.personal.location);
+  if (extractedData.skills?.primary_skills?.length) rawCvParts.push(extractedData.skills.primary_skills.join(', '));
+  if (extractedData.skills?.secondary_skills?.length) rawCvParts.push(extractedData.skills.secondary_skills.join(', '));
+  for (const role of (extractedData.experience?.roles || [])) {
+    rawCvParts.push(`${role.title} at ${role.company}`);
+    if (role.summary) rawCvParts.push(role.summary);
+  }
+  for (const edu of (extractedData.education?.items || [])) {
+    rawCvParts.push(`${edu.degree || ''} ${edu.field || ''} ${edu.institution}`.trim());
+  }
+  if (extractedData.certifications?.length) rawCvParts.push(extractedData.certifications.join(', '));
+  const rawCvText = rawCvParts.join('. ').slice(0, 10000) || null;
+
   if (name) {
-    // Check for existing candidate by email to avoid duplicates
     const email = extractedData.personal?.email || null;
     let existingId: string | null = null;
 
@@ -907,25 +937,26 @@ async function processItem(supabase: any, item: any, apiKey: string) {
     }
 
     if (existingId) {
-      // Update existing candidate with fresh CV data
       await supabase
         .from('candidates')
         .update({
           phone: extractedData.personal?.phone || undefined,
-          location: extractedData.personal?.location || undefined,
+          location: extractedData.personal?.location || extractedData.personal?.home_address || undefined,
           linkedin_url: extractedData.personal?.linkedin_url || undefined,
           current_title: extractedData.headline?.current_title || undefined,
-          current_company: extractedData.headline?.current_company || undefined,
+          current_company: currentCompany || undefined,
+          headline: extractedData.headline?.current_title || undefined,
           skills: extractedData.skills || {},
           experience: extractedData.experience?.roles || [],
-          education: extractedData.education?.qualifications || [],
+          education: extractedData.education?.items || [],
+          ai_overview: aiOverview || undefined,
+          raw_cv_text: rawCvText || undefined,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingId);
 
       candidateId = existingId;
     } else {
-      // Create new candidate record
       const { data: newCandidate, error: insertError } = await supabase
         .from('candidates')
         .insert({
@@ -933,17 +964,18 @@ async function processItem(supabase: any, item: any, apiKey: string) {
           name,
           email: extractedData.personal?.email || null,
           phone: extractedData.personal?.phone || null,
-          location: extractedData.personal?.location || null,
+          location: extractedData.personal?.location || extractedData.personal?.home_address || null,
           linkedin_url: extractedData.personal?.linkedin_url || null,
           current_title: extractedData.headline?.current_title || null,
-          current_company: extractedData.headline?.current_company || null,
+          current_company: currentCompany,
           headline: extractedData.headline?.current_title || null,
           skills: extractedData.skills || {},
           experience: extractedData.experience?.roles || [],
-          education: extractedData.education?.qualifications || [],
+          education: extractedData.education?.items || [],
+          ai_overview: aiOverview,
+          raw_cv_text: rawCvText,
           source: 'cv_import',
           status: 'active',
-          raw_cv_text: extractedData.raw_text || null,
         })
         .select('id')
         .single();

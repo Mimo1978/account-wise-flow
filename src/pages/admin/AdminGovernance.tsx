@@ -69,6 +69,10 @@ export default function AdminGovernance() {
   const [purgeTarget, setPurgeTarget] = useState<any>(null);
   const [confirmPurgeText, setConfirmPurgeText] = useState("");
   const [tab, setTab] = useState("requests");
+  const [selectedBinIds, setSelectedBinIds] = useState<Set<string>>(new Set());
+  const [bulkPurging, setBulkPurging] = useState(false);
+  const [showBulkPurge, setShowBulkPurge] = useState(false);
+  const [bulkPurgeConfirmText, setBulkPurgeConfirmText] = useState("");
 
   const pendingRequests = useMemo(() => requests.filter((r: any) => r.status === "pending"), [requests]);
 

@@ -310,24 +310,25 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
 
       setIsDownloading(true);
 
-      // Try candidate_cvs bucket first, then cv-uploads as fallback (batch imports)
-      let data: Blob | null = null;
-      for (const bucket of ['candidate_cvs', 'cv-uploads']) {
-        const result = await supabase.storage.from(bucket).download(doc.filePath);
-        if (!result.error && result.data) {
-          data = result.data;
-          break;
+      try {
+        // Try candidate_cvs bucket first, then cv-uploads as fallback (batch imports)
+        let downloadedData: Blob | null = null;
+        for (const bucket of ['candidate_cvs', 'cv-uploads']) {
+          const result = await supabase.storage.from(bucket).download(doc.filePath);
+          if (!result.error && result.data) {
+            downloadedData = result.data;
+            break;
+          }
         }
-      }
 
-      if (!data) {
-        console.error('[useTalentDocuments] Download failed from all buckets');
-        toast.error('Failed to download document');
-        return;
-      }
+        if (!downloadedData) {
+          console.error('[useTalentDocuments] Download failed from all buckets');
+          toast.error('Failed to download document');
+          return;
+        }
 
         // Create download link
-        const url = URL.createObjectURL(data);
+        const url = URL.createObjectURL(downloadedData);
         const a = window.document.createElement('a');
         a.href = url;
         a.download = doc.fileName;

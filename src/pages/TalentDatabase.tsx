@@ -454,7 +454,12 @@ export default function TalentDatabase() {
     setBulkDeleting(true);
     setBulkDeleteFailures([]);
 
-    const ids = Array.from(selectedIds);
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const ids = Array.from(selectedIds).filter(id => uuidRegex.test(id));
+    const skippedCount = selectedIds.size - ids.length;
+    if (skippedCount > 0) {
+      toast.info(`${skippedCount} demo record(s) skipped (not in database)`);
+    }
     const failures: { name: string; reason: string }[] = [];
     let successCount = 0;
 

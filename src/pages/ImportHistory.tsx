@@ -10,9 +10,20 @@ import { CMOrbital } from "@/components/ui/CMLoader";
 import { toast } from "sonner";
 import {
   CheckCircle2, XCircle, Clock, AlertCircle,
-  FileStack, Users, ChevronRight, RefreshCw, Square, PauseCircle
+  FileStack, Users, ChevronRight, RefreshCw, Square, PauseCircle, RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface ImportBatch {
   id: string;

@@ -251,6 +251,20 @@ export function useTalentDocuments({ talentId }: UseTalentDocumentsOptions): Use
           return false;
         }
 
+        // If this is a CV document, also update the candidate's cv_storage_path
+        if (docKind === 'cv') {
+          const { error: updateError } = await supabase
+            .from('candidates')
+            .update({
+              cv_storage_path: storagePath,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', talentId);
+          if (updateError) {
+            console.error('[useTalentDocuments] Failed to update cv_storage_path:', updateError);
+          }
+        }
+
         toast.success('Document uploaded successfully');
         
         // Refresh document list first

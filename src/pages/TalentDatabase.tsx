@@ -169,6 +169,7 @@ const initialColumns: ColumnConfig[] = [
   { id: "aiOverview", label: "Experience Summary", category: "AI-Derived", minWidth: 200, defaultWidth: 300, visible: false },
   { id: "keySkills", label: "Key Skills (AI)", category: "AI-Derived", minWidth: 150, defaultWidth: 200, visible: false },
   // Operational
+  { id: "hasCV", label: "CV", category: "Operational", minWidth: 60, defaultWidth: 70, visible: true },
   { id: "lastUpdated", label: "Last Updated", category: "Operational", minWidth: 100, defaultWidth: 120, visible: true },
   { id: "cvSource", label: "CV Source", category: "Operational", minWidth: 100, defaultWidth: 110, visible: true },
   { id: "docs", label: "Docs", category: "Operational", minWidth: 80, defaultWidth: 90, visible: true },

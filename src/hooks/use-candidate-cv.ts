@@ -130,8 +130,8 @@ export function useCandidateCV(): UseCandidateCVReturn {
 
         // Generate unique path with timestamp
         const timestamp = Date.now();
-        const ext = file.name.substring(file.name.lastIndexOf("."));
-        const storagePath = `${currentWorkspace.id}/${candidateId}/${timestamp}_cv${ext}`;
+        const fileExtension = file.name.substring(file.name.lastIndexOf("."));
+        const storagePath = `${currentWorkspace.id}/${candidateId}/${timestamp}_cv${fileExtension}`;
 
         // Upload to storage bucket
         const { error: uploadError } = await supabase.storage
@@ -164,7 +164,7 @@ export function useCandidateCV(): UseCandidateCVReturn {
           return false;
         }
 
-        const ext = file.name.split(".").pop()?.toLowerCase() || "pdf";
+        const normalizedExtension = file.name.split(".").pop()?.toLowerCase() || "pdf";
         const { data: existingDoc } = await supabase
           .from("talent_documents")
           .select("id")
@@ -180,13 +180,13 @@ export function useCandidateCV(): UseCandidateCVReturn {
           talent_id: candidateId,
           file_path: storagePath,
           file_name: file.name,
-          file_type: ext,
+          file_type: normalizedExtension,
           file_size: file.size,
           uploaded_by: user.id,
           doc_kind: "cv" as const,
           parse_status: "pending" as const,
           pdf_storage_path: null,
-          pdf_conversion_status: file.type === "application/pdf" || ext === "pdf" ? "not_needed" : "pending",
+          pdf_conversion_status: file.type === "application/pdf" || normalizedExtension === "pdf" ? "not_needed" : "pending",
           updated_at: new Date().toISOString(),
         };
 

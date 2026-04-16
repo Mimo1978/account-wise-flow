@@ -466,6 +466,48 @@ export default function AdminGovernance() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Purge confirmation dialog */}
+      <AlertDialog open={showBulkPurge} onOpenChange={(o) => { if (!o) setShowBulkPurge(false); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Permanently Purge {selectedBinIds.size} Record{selectedBinIds.size !== 1 ? "s" : ""}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  This will <strong>permanently delete</strong> all {selectedBinIds.size} selected records
+                  and their linked data. This cannot be undone.
+                </p>
+                <div className="space-y-1">
+                  <Label className="text-sm">
+                    Type <span className="font-mono font-bold">DELETE</span> to confirm:
+                  </Label>
+                  <Input
+                    value={bulkPurgeConfirmText}
+                    onChange={(e) => setBulkPurgeConfirmText(e.target.value)}
+                    placeholder="DELETE"
+                    className="font-mono"
+                  />
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkPurging}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={handleBulkPurge}
+              disabled={bulkPurgeConfirmText !== "DELETE" || bulkPurging}
+            >
+              {bulkPurging && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              Purge {selectedBinIds.size} Permanently
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

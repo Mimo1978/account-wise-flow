@@ -631,6 +631,29 @@ export default function ImportHistory() {
         )}
 
       </div>
+
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset entire import?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete all candidates created from this batch and reset every file back to the queue.
+              All {activeBatch?.total_files.toLocaleString()} files will be reprocessed from scratch.
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => activeBatch && resetImport(activeBatch.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={resetting}
+            >
+              {resetting ? "Resetting…" : "Yes, reset everything"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

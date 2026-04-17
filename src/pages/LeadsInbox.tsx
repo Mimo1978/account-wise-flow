@@ -12,6 +12,7 @@ import {
   UserPlus, Briefcase, PhoneCall, FileText, Search,
   Calendar, Send, Ban, HelpCircle, Loader2,
 } from "lucide-react";
+import AddLeadModal from "@/components/leads/AddLeadModal";
 
 interface Lead {
   id: string;
@@ -81,6 +82,7 @@ export default function LeadsInbox() {
   const [selected, setSelected] = useState<Lead | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [filter, setFilter] = useState<string>("all");
+  const [addOpen, setAddOpen] = useState(false);
 
   const fetchLeads = useCallback(async () => {
     if (!currentWorkspace?.id) return;
@@ -238,7 +240,7 @@ export default function LeadsInbox() {
                 {newCount} unread {newCount === 1 ? "lead" : "leads"}
               </p>
             </div>
-            <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1">
+            <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={() => setAddOpen(true)}>
               <Plus className="h-3 w-3" /> Add
             </Button>
           </div>
@@ -497,6 +499,7 @@ export default function LeadsInbox() {
           </div>
         )}
       </main>
+      <AddLeadModal open={addOpen} onOpenChange={setAddOpen} onCreated={fetchLeads} />
     </div>
   );
 }

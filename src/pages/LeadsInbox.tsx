@@ -82,6 +82,7 @@ export default function LeadsInbox() {
   const [selected, setSelected] = useState<Lead | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [filter, setFilter] = useState<string>("all");
+  const [addOpen, setAddOpen] = useState(false);
 
   const fetchLeads = useCallback(async () => {
     if (!currentWorkspace?.id) return;

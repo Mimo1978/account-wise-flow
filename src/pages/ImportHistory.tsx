@@ -581,6 +581,10 @@ export default function ImportHistory() {
                           <span className="font-medium text-foreground">
                             {batch.total_files.toLocaleString()} CVs
                           </span>
+                          <span className="text-muted-foreground">·</span>
+                          <span className="rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-primary">
+                            {batch.source === "background_import" ? "Retry run" : "Original upload"}
+                          </span>
                           ·
                           <span className="text-muted-foreground">
                             {format(new Date(batch.created_at), "dd MMM yyyy 'at' HH:mm")}
@@ -607,9 +611,16 @@ export default function ImportHistory() {
                         <span className="text-muted-foreground">{pct}% success rate</span>
                       </div>
 
-                      <Button onClick={() => navigate(`/imports/${batch.id}/review`)} variant="ghost" size="sm" className="flex-shrink-0">
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {batch.fail_count > 0 && (
+                          <Button onClick={() => navigate(`/imports/${batch.id}/review`)} variant="outline" size="sm">
+                            Review issues
+                          </Button>
+                        )}
+                        <Button onClick={() => navigate(`/imports/${batch.id}/review`)} variant="ghost" size="sm">
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </CardContent>
                     </Card>
                   );

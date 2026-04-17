@@ -730,9 +730,137 @@ serve(async (req) => {
       );
     }
 
+    // Route: POST /cv-batch-import/:batchId/reprocess-failed - Create a new retry batch from failed items
+    if (method === 'POST' && pathParts.length === 3 && pathParts[2] === 'reprocess-failed') {
+      const batchId = pathParts[1];
+      const body = await req.json().catch(() => ({}));
+      const requestedItemIds = Array.isArray(body.itemIds)
+        ? body.itemIds.filter((value: unknown): value is string => typeof value === 'string' && value.length > 0)
+        : [];
+
+      const { data: sourceBatch, error: sourceBatchError } = await supabase
+        .from('cv_import_batches')
+        .select('id, tenant_id')
+        .eq('id', batchId)
+        .single();
+
+      if (sourceBatchError || !sourceBatch) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Source batch not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      let failedItemsQuery = supabaseAdmin
+        .from('cv_import_items')
+        .select('tenant_id, file_name, file_type, file_size_bytes, storage_path, checksum_sha256')
+        .eq('batch_id', batchId)
+        .eq('status', 'failed');
+
+      if (requestedItemIds.length > 0) {
+        failedItemsQuery = failedItemsQuery.in('id', requestedItemIds);
+      }
+
+      const { data: failedItems, error: failedItemsError } = await failedItemsQuery;
+
+      if (failedItemsError) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to collect failed items' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!failedItems || failedItems.length === 0) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'No failed files available for reprocessing' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const startedAt = new Date().toISOString();
+      const { data: retryBatch, error: retryBatchError } = await supabaseAdmin
+        .from('cv_import_batches')
+        .insert({
+          tenant_id: sourceBatch.tenant_id,
+          created_by_user_id: userId,
+          source: 'background_import',
+          status: 'processing',
+          total_files: failedItems.length,
+          processed_files: 0,
+          success_count: 0,
+          fail_count: 0,
+          started_at: startedAt,
+          completed_at: null,
+          error_summary: null,
+        })
+        .select('*')
+        .single();
+
+      if (retryBatchError || !retryBatch) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to create retry batch' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const retryItemsPayload = failedItems.map((item: any) => ({
+        tenant_id: sourceBatch.tenant_id,
+        batch_id: retryBatch.id,
+        file_name: item.file_name,
+        file_type: item.file_type,
+        file_size_bytes: item.file_size_bytes,
+        storage_path: item.storage_path,
+        checksum_sha256: item.checksum_sha256,
+        status: 'queued',
+        parse_confidence: null,
+        candidate_id: null,
+        dedupe_candidate_ids: null,
+        error_message: null,
+        extracted_data: null,
+        field_confidence: null,
+        search_tags: null,
+        started_at: null,
+        completed_at: null,
+      }));
+
+      const { error: insertRetryItemsError } = await supabaseAdmin
+        .from('cv_import_items')
+        .insert(retryItemsPayload);
+
+      if (insertRetryItemsError) {
+        await supabaseAdmin.from('cv_import_batches').delete().eq('id', retryBatch.id);
+        return new Response(
+          JSON.stringify({ success: false, error: 'Failed to create retry items' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      await logAudit(supabase, userId, 'batch_reprocess_created', retryBatch.id, {
+        sourceBatchId: batchId,
+        sourceBatchType: 'failed_items',
+        reprocessedCount: failedItems.length,
+      });
+
+      const processingPromise = scheduleBatchContinuation(retryBatch.id, supabaseUrl, supabaseServiceKey);
+      if (typeof (globalThis as any).EdgeRuntime?.waitUntil === 'function') {
+        (globalThis as any).EdgeRuntime.waitUntil(processingPromise);
+      } else {
+        processingPromise.catch(e => console.error('Retry batch processing error:', e));
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, data: retryBatch }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Route: POST /cv-batch-import/items/:itemId/retry - Retry failed item
-    if (method === 'POST' && pathParts.length === 3 && pathParts[1] === 'items' && pathParts[2] !== 'resolve-dedupe') {
-      const itemId = pathParts[2].replace('/retry', '');
+    if (
+      method === 'POST' &&
+      ((pathParts.length === 4 && pathParts[1] === 'items' && pathParts[3] === 'retry') ||
+        (pathParts.length === 3 && pathParts[1] === 'items' && pathParts[2] !== 'resolve-dedupe'))
+    ) {
+      const itemId = pathParts.length === 4 ? pathParts[2] : pathParts[2].replace('/retry', '');
 
       const { data: item, error: fetchError } = await supabase
         .from('cv_import_items')
@@ -1303,7 +1431,7 @@ async function extractTextFromFile(
     
     // For PDF files - send as image/document for AI vision processing
     if (fileType === 'application/pdf' || fileName.toLowerCase().endsWith('.pdf')) {
-      const base64 = btoa(String.fromCharCode(...bytes));
+      const base64 = toBase64(bytes);
       return {
         success: true,
         imageBase64: base64,
@@ -1338,7 +1466,7 @@ async function extractTextFromFile(
       }
       
       // For .doc or failed .docx extraction, send to AI for vision processing
-      const base64 = btoa(String.fromCharCode(...bytes));
+      const base64 = toBase64(bytes);
       return {
         success: true,
         imageBase64: base64,
@@ -1355,7 +1483,7 @@ async function extractTextFromFile(
     }
     
     // Fallback to image processing
-    const base64 = btoa(String.fromCharCode(...bytes));
+    const base64 = toBase64(bytes);
     return {
       success: true,
       imageBase64: base64,

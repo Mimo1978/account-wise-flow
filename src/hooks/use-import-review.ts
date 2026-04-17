@@ -54,6 +54,7 @@ export interface ApprovalOptions {
 export interface ImportBatchDetails {
   id: string;
   tenant_id: string;
+  source: "ui_upload" | "background_import";
   status: string;
   total_files: number;
   processed_files: number;

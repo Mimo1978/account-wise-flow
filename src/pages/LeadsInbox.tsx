@@ -12,6 +12,7 @@ import {
   UserPlus, Briefcase, PhoneCall, FileText, Search,
   Calendar, Send, Ban, HelpCircle, Loader2,
 } from "lucide-react";
+import AddLeadModal from "@/components/leads/AddLeadModal";
 
 interface Lead {
   id: string;

@@ -240,7 +240,7 @@ export default function LeadsInbox() {
                 {newCount} unread {newCount === 1 ? "lead" : "leads"}
               </p>
             </div>
-            <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1">
+            <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1" onClick={() => setAddOpen(true)}>
               <Plus className="h-3 w-3" /> Add
             </Button>
           </div>

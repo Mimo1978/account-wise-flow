@@ -313,7 +313,7 @@ export default function LeadsInbox() {
                       </span>
                     </div>
                     <span className="text-[10px] text-muted-foreground flex-shrink-0">
-                      {formatDistanceToNow(new Date(lead.created_at), { addSuffix: false })}
+                      {formatDistanceToNow(new Date(lead.created_at), { addSuffix: true })}
                     </span>
                   </div>
                   <div className="text-[12px] text-muted-foreground truncate">

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -26,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { EntityEditForm } from "@/components/import/EntityEditForm";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { FailedFilesReviewPanel } from "@/components/import/FailedFilesReviewPanel";
 
 interface FileItem {
   id: string;
@@ -88,6 +91,8 @@ export default function ImportReview() {
   const navigate = useNavigate();
   const [isApprovingAll, setIsApprovingAll] = useState(false);
   const [approveProgress, setApproveProgress] = useState<{ current: number; total: number } | null>(null);
+  const [activeTab, setActiveTab] = useState<"entities" | "failed">("entities");
+  const [isCreatingRetryBatch, setIsCreatingRetryBatch] = useState(false);
 
   const {
     isLoading,
@@ -199,6 +204,55 @@ export default function ImportReview() {
     return () => clearInterval(interval);
   }, [batchId, filesPolling]);
 
+  const failedItems = fileItems.filter((file) => file.status === "failed");
+  const processingItems = fileItems.filter((file) => file.status === "processing");
+  const extractedItems = fileItems.filter((file) => file.status === "parsed" || file.status === "done");
+
+  useEffect(() => {
+    if (failedItems.length > 0 && entities.length === 0) {
+      setActiveTab("failed");
+      return;
+    }
+
+    if (entities.length > 0 && activeTab !== "failed") {
+      setActiveTab("entities");
+    }
+  }, [activeTab, entities.length, failedItems.length]);
+
+  const handleCreateRetryBatch = async (itemIds: string[]) => {
+    if (!batchId || itemIds.length === 0) return;
+
+    setIsCreatingRetryBatch(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cv-batch-import/${batchId}/reprocess-failed`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ itemIds }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || "Failed to create retry batch");
+      }
+
+      toast.success(`Created retry batch for ${itemIds.length} failed CV${itemIds.length === 1 ? "" : "s"}`);
+      navigate(`/imports/${result.data.id}/review`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create retry batch");
+    } finally {
+      setIsCreatingRetryBatch(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="h-full flex flex-col">
@@ -270,13 +324,16 @@ export default function ImportReview() {
                 )}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {statusCounts.total} entities from {batch.total_files} file(s)
+                {statusCounts.total} extracted entities from {batch.total_files} file(s)
                 {isStillProcessing && " (more may appear as processing completes)"}
               </p>
             </div>
           </div>
           
           <div className="flex items-center gap-3">
+            <Badge variant="outline" className="border-primary/20 bg-primary/5 text-primary">
+              {batch.source === "background_import" ? "Retry run" : "Original import"}
+            </Badge>
             {/* Status summary badges */}
             <div className="flex items-center gap-2 text-sm">
               {statusCounts.pending > 0 && (
@@ -321,9 +378,23 @@ export default function ImportReview() {
       {/* Per-file status section */}
       {fileItems.length > 0 && (
         <div className="border-b bg-muted/20 px-6 py-3">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-            Files
-          </p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Live file activity</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                <Badge variant="outline" className="bg-muted text-muted-foreground">{fileItems.length} total</Badge>
+                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">{extractedItems.length} extracted</Badge>
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20">{processingItems.length} processing</Badge>
+                <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20">{failedItems.length} failed</Badge>
+              </div>
+            </div>
+
+            {failedItems.length > 0 && (
+              <Button type="button" variant="outline" size="sm" onClick={() => setActiveTab("failed")}>
+                Review failed files
+              </Button>
+            )}
+          </div>
           <div className="grid gap-1.5 max-h-[160px] overflow-y-auto">
             {fileItems.map((file) => {
               const isProcessing = file.status === "processing";
@@ -375,151 +446,172 @@ export default function ImportReview() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Entity list sidebar */}
-        <div className="w-80 border-r flex flex-col">
-          <div className="p-3 border-b bg-muted/30">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Extracted Entities
-            </p>
-          </div>
-          <ScrollArea className="flex-1">
-            <div className="p-2 space-y-1">
-              {entities.map((entity) => {
-                const typeConfig = entityTypeConfig[entity.entity_type];
-                const status = statusConfig[entity.status];
-                const isSelected = selectedEntity?.id === entity.id;
-                const name = getEntityName(entity);
-                const recordLink = getRecordLink(entity);
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "entities" | "failed")} className="flex-1 flex flex-col overflow-hidden">
+        <div className="border-b px-6 py-3">
+          <TabsList className="h-auto bg-transparent p-0">
+            <TabsTrigger value="entities" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
+              Extracted data
+            </TabsTrigger>
+            <TabsTrigger value="failed" className="data-[state=active]:bg-destructive/10 data-[state=active]:text-destructive">
+              Failed files {failedItems.length > 0 ? `(${failedItems.length})` : ""}
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-                return (
-                  <button
-                    key={entity.id}
-                    onClick={() => setSelectedEntity(entity)}
-                    className={cn(
-                      "w-full text-left p-3 rounded-lg border transition-all",
-                      isSelected
-                        ? "bg-primary/10 border-primary/30"
-                        : "bg-card hover:bg-muted/50 border-transparent"
-                    )}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={cn("mt-0.5", typeConfig.color)}>
-                        {typeConfig.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium truncate">{name}</span>
-                          {entity.confidence >= 0.8 && (
-                            <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className={cn("text-xs", status.color)}>
-                            {status.icon}
-                            <span className="ml-1">{status.label}</span>
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {typeConfig.label}
-                          </span>
-                        </div>
-                        {entity.file_name && (
-                          <p className="text-xs text-muted-foreground mt-1 truncate">
-                            {entity.file_name}
-                          </p>
+        <TabsContent value="entities" className="m-0 flex-1 overflow-hidden">
+          <div className="flex h-full overflow-hidden">
+            <div className="w-80 border-r flex flex-col">
+              <div className="p-3 border-b bg-muted/30">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Extracted Entities
+                </p>
+              </div>
+              <ScrollArea className="flex-1">
+                <div className="p-2 space-y-1">
+                  {entities.map((entity) => {
+                    const typeConfig = entityTypeConfig[entity.entity_type];
+                    const status = statusConfig[entity.status];
+                    const isSelected = selectedEntity?.id === entity.id;
+                    const name = getEntityName(entity);
+                    const recordLink = getRecordLink(entity);
+
+                    return (
+                      <button
+                        key={entity.id}
+                        onClick={() => setSelectedEntity(entity)}
+                        className={cn(
+                          "w-full text-left p-3 rounded-lg border transition-all",
+                          isSelected
+                            ? "bg-primary/10 border-primary/30"
+                            : "bg-card hover:bg-muted/50 border-transparent"
                         )}
-                        {/* Extracted field indicators */}
-                        {(() => {
-                          const d = entity.edited_json || entity.extracted_json;
-                          const fields = [
-                            { key: "Name", has: !!(d as any).personal?.full_name || !!(d as any).name },
-                            { key: "Email", has: !!(d as any).personal?.email || !!(d as any).email },
-                            { key: "Phone", has: !!(d as any).personal?.phone || !!(d as any).phone },
-                            { key: "Skills", has: Array.isArray((d as any).skills) && (d as any).skills.length > 0 || (typeof (d as any).skills === 'object' && Object.keys((d as any).skills || {}).length > 0) },
-                            { key: "LinkedIn", has: !!(d as any).personal?.linkedin || !!(d as any).linkedin },
-                          ];
-                          return (
-                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
-                              {fields.map(f => (
-                                <span key={f.key} className={cn("text-[10px]", f.has ? "text-green-500" : "text-muted-foreground/50")}>
-                                  {f.has ? "✓" : "✗"} {f.key}
-                                </span>
-                              ))}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={cn("mt-0.5", typeConfig.color)}>
+                            {typeConfig.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium truncate">{name}</span>
+                              {entity.confidence >= 0.8 && (
+                                <CheckCircle2 className="h-3 w-3 text-green-500 flex-shrink-0" />
+                              )}
                             </div>
-                          );
-                        })()}
-                        {recordLink && entity.status === "approved" && (
-                          <Link
-                            to={recordLink}
-                            className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-1"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            Open {entity.created_record_type}
-                            <ExternalLink className="h-3 w-3" />
-                          </Link>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant="outline" className={cn("text-xs", status.color)}>
+                                {status.icon}
+                                <span className="ml-1">{status.label}</span>
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {typeConfig.label}
+                              </span>
+                            </div>
+                            {entity.file_name && (
+                              <p className="text-xs text-muted-foreground mt-1 truncate">
+                                {entity.file_name}
+                              </p>
+                            )}
+                            {(() => {
+                              const d = entity.edited_json || entity.extracted_json;
+                              const fields = [
+                                { key: "Name", has: !!(d as any).personal?.full_name || !!(d as any).name },
+                                { key: "Email", has: !!(d as any).personal?.email || !!(d as any).email },
+                                { key: "Phone", has: !!(d as any).personal?.phone || !!(d as any).phone },
+                                { key: "Skills", has: Array.isArray((d as any).skills) && (d as any).skills.length > 0 || (typeof (d as any).skills === 'object' && Object.keys((d as any).skills || {}).length > 0) },
+                                { key: "LinkedIn", has: !!(d as any).personal?.linkedin || !!(d as any).linkedin },
+                              ];
+                              return (
+                                <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-1.5">
+                                  {fields.map(f => (
+                                    <span key={f.key} className={cn("text-[10px]", f.has ? "text-green-500" : "text-muted-foreground/50")}>
+                                      {f.has ? "✓" : "✗"} {f.key}
+                                    </span>
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                            {recordLink && entity.status === "approved" && (
+                              <Link
+                                to={recordLink}
+                                className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                Open {entity.created_record_type}
+                                <ExternalLink className="h-3 w-3" />
+                              </Link>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
 
-              {entities.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  {isStillProcessing ? (
-                    <>
-                      <Loader2 className="h-8 w-8 mx-auto mb-2 opacity-50 animate-spin" />
-                      <p className="text-sm">Extracting data from files...</p>
-                      <p className="text-xs mt-1">Entities will appear here as processing completes</p>
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm font-medium">No entities extracted</p>
-                      <p className="text-xs mt-1">The files may not contain extractable data</p>
-                    </>
+                  {entities.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      {isStillProcessing ? (
+                        <>
+                          <Loader2 className="h-8 w-8 mx-auto mb-2 opacity-50 animate-spin" />
+                          <p className="text-sm">Extracting data from files...</p>
+                          <p className="text-xs mt-1">Entities will appear here as processing completes</p>
+                        </>
+                      ) : (
+                        <>
+                          <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm font-medium">No entities extracted</p>
+                          <p className="text-xs mt-1">Use the Failed files tab to review and retry anything that did not process.</p>
+                        </>
+                      )}
+                    </div>
                   )}
+                </div>
+              </ScrollArea>
+            </div>
+
+            <div className="flex-1 overflow-auto">
+              {singleNeedsInput && (
+                <div className="flex items-center gap-3 p-4 mx-6 mt-4 mb-0 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                  <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium">
+                      We couldn't automatically extract data from this CV — this happens with some PDF formats.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Please fill in the key details below and click Approve to add this candidate to your database. Full Name is required.
+                    </p>
+                  </div>
+                </div>
+              )}
+              {selectedEntity ? (
+                <EntityEditForm
+                  entity={selectedEntity}
+                  onUpdate={updateEntity}
+                  onApprove={approveEntity}
+                  onReject={rejectEntity}
+                  onCheckDuplicates={checkDuplicates}
+                  onFetchCompanies={fetchCompanies}
+                  autoFocusName={singleNeedsInput}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <FileUser className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>Select an entity to review</p>
+                  </div>
                 </div>
               )}
             </div>
-          </ScrollArea>
-        </div>
+          </div>
+        </TabsContent>
 
-        {/* Entity detail/edit panel */}
-        <div className="flex-1 overflow-auto">
-          {singleNeedsInput && (
-            <div className="flex items-center gap-3 p-4 mx-6 mt-4 mb-0 rounded-lg bg-amber-500/10 border border-amber-500/30">
-              <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium">
-                  We couldn't automatically extract data from this CV — this happens with some PDF formats.
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Please fill in the key details below and click Approve to add this candidate to your database. Full Name is required.
-                </p>
-              </div>
-            </div>
-          )}
-          {selectedEntity ? (
-            <EntityEditForm
-              entity={selectedEntity}
-              onUpdate={updateEntity}
-              onApprove={approveEntity}
-              onReject={rejectEntity}
-              onCheckDuplicates={checkDuplicates}
-              onFetchCompanies={fetchCompanies}
-              autoFocusName={singleNeedsInput}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <FileUser className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p>Select an entity to review</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+        <TabsContent value="failed" className="m-0 flex-1 overflow-auto p-6">
+          <FailedFilesReviewPanel
+            failedItems={failedItems}
+            totalFiles={batch.total_files}
+            isCreatingRetryBatch={isCreatingRetryBatch}
+            onCreateRetryBatch={handleCreateRetryBatch}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -499,6 +499,7 @@ export default function LeadsInbox() {
           </div>
         )}
       </main>
+      <AddLeadModal open={addOpen} onOpenChange={setAddOpen} onCreated={fetchLeads} />
     </div>
   );
 }

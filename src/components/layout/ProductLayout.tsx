@@ -34,6 +34,7 @@ import {
   UserCheck,
   ClipboardList,
   UserCog,
+  Zap,
 } from 'lucide-react';
 import { NAV_COLOURS, getNavColour } from '@/lib/nav-colours';
 import { useTheme } from 'next-themes';
@@ -103,6 +104,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
 
   const navItems = [
     { path: '/home',       label: 'Home',       icon: Home,          jarvisId: 'nav-home' },
+    { path: '/leads',      label: 'Leads',      icon: Zap,           jarvisId: 'nav-leads' },
     { path: '/companies',  label: 'Companies',  icon: Building2,     jarvisId: 'nav-companies' },
     { path: '/contacts',   label: 'Contacts',   icon: Users,         jarvisId: 'nav-contacts' },
     { path: '/crm/deals',  label: 'Pipeline',   icon: TrendingUp,    jarvisId: 'nav-deals' },

@@ -156,12 +156,7 @@ Return ONLY valid JSON:
               from: keys.FROM_EMAIL_ADDRESS,
               to: email,
               subject: `Re: ${subject || "Your enquiry"}`,
-              html: `
-
-${classification.draft_reply.replace(/\n/g, "
-")}
-
-`,
+              html: `<p>${classification.draft_reply.replace(/\n/g, "<br>")}</p>`,
             }),
           });
 

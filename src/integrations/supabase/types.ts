@@ -4350,42 +4350,81 @@ export type Database = {
       }
       leads: {
         Row: {
+          ai_draft_reply: string | null
+          ai_intent: string | null
+          ai_sentiment: string | null
+          ai_summary: string | null
+          assigned_to: string | null
           company_id: string | null
           contact_id: string | null
           created_at: string
           created_by: string
           deal_id: string | null
           id: string
+          message: string | null
           notes: string | null
+          raw_payload: Json | null
+          responded_at: string | null
+          responded_by: string | null
+          sender_email: string | null
+          sender_name: string | null
+          sender_phone: string | null
           source: string
+          source_channel: string
           status: string
           title: string
           updated_at: string
           workspace_id: string | null
         }
         Insert: {
+          ai_draft_reply?: string | null
+          ai_intent?: string | null
+          ai_sentiment?: string | null
+          ai_summary?: string | null
+          assigned_to?: string | null
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
           created_by?: string
           deal_id?: string | null
           id?: string
+          message?: string | null
           notes?: string | null
+          raw_payload?: Json | null
+          responded_at?: string | null
+          responded_by?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sender_phone?: string | null
           source?: string
+          source_channel?: string
           status?: string
           title: string
           updated_at?: string
           workspace_id?: string | null
         }
         Update: {
+          ai_draft_reply?: string | null
+          ai_intent?: string | null
+          ai_sentiment?: string | null
+          ai_summary?: string | null
+          assigned_to?: string | null
           company_id?: string | null
           contact_id?: string | null
           created_at?: string
           created_by?: string
           deal_id?: string | null
           id?: string
+          message?: string | null
           notes?: string | null
+          raw_payload?: Json | null
+          responded_at?: string | null
+          responded_by?: string | null
+          sender_email?: string | null
+          sender_name?: string | null
+          sender_phone?: string | null
           source?: string
+          source_channel?: string
           status?: string
           title?: string
           updated_at?: string
@@ -6324,6 +6363,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          inbound_api_key: string | null
           is_demo: boolean
           name: string
           stripe_customer_id: string | null
@@ -6337,6 +6377,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          inbound_api_key?: string | null
           is_demo?: boolean
           name: string
           stripe_customer_id?: string | null
@@ -6350,6 +6391,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          inbound_api_key?: string | null
           is_demo?: boolean
           name?: string
           stripe_customer_id?: string | null

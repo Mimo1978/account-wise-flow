@@ -76,6 +76,7 @@ import EmailTemplatesSettings from "./pages/settings/EmailTemplatesSettings";
 import Dashboard from "./pages/Dashboard";
 import PlacementDetail from "./pages/PlacementDetail";
 import PlacementsList from "./pages/PlacementsList";
+import LeadsInbox from "./pages/LeadsInbox";
 import { Loader2 } from "lucide-react";
 import { JarvisFloatingButton } from "@/components/jarvis/JarvisChat";
 
@@ -165,6 +166,7 @@ const App = () => {
 
             {/* PROTECTED ROUTES */}
             <Route path="/home" element={<ProtectedRoute><ProductLayout><HomeCommandCenter /></ProductLayout></ProtectedRoute>} />
+            <Route path="/leads" element={<ProtectedRoute><ProductLayout><LeadsInbox /></ProductLayout></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><ProductLayout><Dashboard /></ProductLayout></ProtectedRoute>} />
             
             <Route path="/workspace" element={<ProtectedRoute><WorkspaceSelector /></ProtectedRoute>} />

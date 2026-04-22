@@ -256,6 +256,104 @@ export default function AdminIntegrations() {
         </CardContent>
       </Card>
 
+      {/* Twilio (AI Calling) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Phone className="w-5 h-5" />
+            Twilio (AI Calling)
+            {twLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin ml-2" />
+            ) : twConfigured ? (
+              <Badge variant="default" className="gap-1 ml-2"><CheckCircle2 className="w-3 h-3" />Active</Badge>
+            ) : (
+              <Badge variant="secondary" className="gap-1 ml-2">Not configured</Badge>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Required for Jarvis AI voice calls. Add your Twilio Account SID, Auth Token and the Twilio phone number to call from.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="tw-sid" className="text-sm font-medium">TWILIO_ACCOUNT_SID</Label>
+            <Input id="tw-sid" type={twShow ? 'text' : 'password'} placeholder={twConfigured ? '••••••••••••••••' : 'ACxxxxxxxxxxxxxxxx'} value={twAccountSid} onChange={(e) => setTwAccountSid(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tw-token" className="text-sm font-medium">TWILIO_AUTH_TOKEN</Label>
+            <Input id="tw-token" type={twShow ? 'text' : 'password'} placeholder={twConfigured ? '••••••••••••••••' : 'Your auth token'} value={twAuthToken} onChange={(e) => setTwAuthToken(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tw-phone" className="text-sm font-medium">TWILIO_PHONE_NUMBER</Label>
+            <Input id="tw-phone" type="text" placeholder="+15551234567 (E.164 format)" value={twPhoneNumber} onChange={(e) => setTwPhoneNumber(e.target.value)} />
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setTwShow(!twShow)} className="text-muted-foreground">
+              {twShow ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+              {twShow ? 'Hide' : 'Show'} secrets
+            </Button>
+            <Button onClick={handleSaveTwilio} disabled={saveKeys.isPending} className="gap-1.5">
+              {saveKeys.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save Twilio
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <a href="https://console.twilio.com/" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+              Open Twilio Console <ExternalLink className="w-3 h-3" />
+            </a>
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* ElevenLabs (Voice Synthesis) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Mic className="w-5 h-5" />
+            ElevenLabs (Voice)
+            {elLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin ml-2" />
+            ) : elConfigured ? (
+              <Badge variant="default" className="gap-1 ml-2"><CheckCircle2 className="w-3 h-3" />Active</Badge>
+            ) : (
+              <Badge variant="secondary" className="gap-1 ml-2">Not configured</Badge>
+            )}
+          </CardTitle>
+          <CardDescription>
+            Natural AI voice for Jarvis calls. Voice ID is optional — defaults to "21m00Tcm4TlvDq8ikWAM" (Rachel).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="el-key" className="text-sm font-medium">ELEVEN_LABS_API_KEY</Label>
+            <Input id="el-key" type={elShow ? 'text' : 'password'} placeholder={elConfigured ? '••••••••••••••••' : 'sk_...'} value={elApiKey} onChange={(e) => setElApiKey(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="el-voice" className="text-sm font-medium">ELEVEN_LABS_VOICE_ID <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input id="el-voice" type="text" placeholder="21m00Tcm4TlvDq8ikWAM (Rachel — default)" value={elVoiceId} onChange={(e) => setElVoiceId(e.target.value)} />
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setElShow(!elShow)} className="text-muted-foreground">
+              {elShow ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+              {elShow ? 'Hide' : 'Show'} key
+            </Button>
+            <Button onClick={handleSaveElevenLabs} disabled={saveKeys.isPending} className="gap-1.5">
+              {saveKeys.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save ElevenLabs
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <a href="https://elevenlabs.io/app/settings/api-keys" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+              Get API key <ExternalLink className="w-3 h-3" />
+            </a>
+            {' • '}
+            <a href="https://elevenlabs.io/app/voice-library" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+              Browse voices <ExternalLink className="w-3 h-3" />
+            </a>
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Google Calendar Integration - Coming Soon */}
       <Card>
         <CardHeader>

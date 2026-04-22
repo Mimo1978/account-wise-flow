@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertTriangle, CheckCircle2, Mail, Loader2, Calendar, FileText, ExternalLink, Eye, EyeOff, Save } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Mail, Loader2, Calendar, FileText, ExternalLink, Eye, EyeOff, Save, Phone, Mic } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useIsServiceConfigured, useSaveIntegrationKeys, useIntegrationSettings } from '@/hooks/use-integration-settings';
 import { toast } from 'sonner';
@@ -26,6 +26,19 @@ export default function AdminIntegrations() {
   const { isConfigured: ccConfigured, isLoading: ccLoading } = useIsServiceConfigured('cloudconvert');
   const { data: ccSettings } = useIntegrationSettings('cloudconvert');
   const saveKeys = useSaveIntegrationKeys();
+
+  // Twilio state
+  const [twAccountSid, setTwAccountSid] = useState('');
+  const [twAuthToken, setTwAuthToken] = useState('');
+  const [twPhoneNumber, setTwPhoneNumber] = useState('');
+  const [twShow, setTwShow] = useState(false);
+  const { isConfigured: twConfigured, isLoading: twLoading } = useIsServiceConfigured('twilio');
+
+  // ElevenLabs state
+  const [elApiKey, setElApiKey] = useState('');
+  const [elVoiceId, setElVoiceId] = useState('');
+  const [elShow, setElShow] = useState(false);
+  const { isConfigured: elConfigured, isLoading: elLoading } = useIsServiceConfigured('elevenlabs');
 
   useEffect(() => {
     async function fetchConfig() {
@@ -58,6 +71,43 @@ export default function AdminIntegrations() {
         onError: (err: any) => toast.error(err.message || 'Failed to save'),
       }
     );
+  };
+
+  const handleSaveTwilio = () => {
+    const keys = [
+      { service: 'twilio', key_name: 'TWILIO_ACCOUNT_SID', key_value: twAccountSid },
+      { service: 'twilio', key_name: 'TWILIO_AUTH_TOKEN', key_value: twAuthToken },
+      { service: 'twilio', key_name: 'TWILIO_PHONE_NUMBER', key_value: twPhoneNumber },
+    ].filter(k => k.key_value.trim() !== '');
+    if (keys.length === 0) {
+      toast.error('Enter at least one Twilio value');
+      return;
+    }
+    saveKeys.mutate(keys, {
+      onSuccess: () => {
+        toast.success('Twilio keys saved');
+        setTwAccountSid(''); setTwAuthToken(''); setTwPhoneNumber('');
+      },
+      onError: (err: any) => toast.error(err.message || 'Failed to save'),
+    });
+  };
+
+  const handleSaveElevenLabs = () => {
+    const keys = [
+      { service: 'elevenlabs', key_name: 'ELEVEN_LABS_API_KEY', key_value: elApiKey },
+      { service: 'elevenlabs', key_name: 'ELEVEN_LABS_VOICE_ID', key_value: elVoiceId },
+    ].filter(k => k.key_value.trim() !== '');
+    if (keys.length === 0) {
+      toast.error('Enter at least one ElevenLabs value');
+      return;
+    }
+    saveKeys.mutate(keys, {
+      onSuccess: () => {
+        toast.success('ElevenLabs keys saved');
+        setElApiKey(''); setElVoiceId('');
+      },
+      onError: (err: any) => toast.error(err.message || 'Failed to save'),
+    });
   };
 
   return (

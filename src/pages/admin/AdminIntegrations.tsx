@@ -40,6 +40,11 @@ export default function AdminIntegrations() {
   const [elShow, setElShow] = useState(false);
   const { isConfigured: elConfigured, isLoading: elLoading } = useIsServiceConfigured('elevenlabs');
 
+  // Bland.ai state
+  const [blandApiKey, setBlandApiKey] = useState('');
+  const [blandShow, setBlandShow] = useState(false);
+  const { isConfigured: blandConfigured, isLoading: blandLoading } = useIsServiceConfigured('bland');
+
   useEffect(() => {
     async function fetchConfig() {
       try {

@@ -115,6 +115,23 @@ export default function AdminIntegrations() {
     });
   };
 
+  const handleSaveBland = () => {
+    if (!blandApiKey.trim()) {
+      toast.error('Please enter your Bland.ai API key');
+      return;
+    }
+    saveKeys.mutate(
+      [{ service: 'bland', key_name: 'BLAND_API_KEY', key_value: blandApiKey }],
+      {
+        onSuccess: () => {
+          toast.success('Bland.ai configured — AI calling is ready');
+          setBlandApiKey('');
+        },
+        onError: (err: any) => toast.error(err.message || 'Failed to save'),
+      }
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div>

@@ -40,6 +40,11 @@ export default function AdminIntegrations() {
   const [elShow, setElShow] = useState(false);
   const { isConfigured: elConfigured, isLoading: elLoading } = useIsServiceConfigured('elevenlabs');
 
+  // Bland.ai state
+  const [blandApiKey, setBlandApiKey] = useState('');
+  const [blandShow, setBlandShow] = useState(false);
+  const { isConfigured: blandConfigured, isLoading: blandLoading } = useIsServiceConfigured('bland');
+
   useEffect(() => {
     async function fetchConfig() {
       try {
@@ -108,6 +113,23 @@ export default function AdminIntegrations() {
       },
       onError: (err: any) => toast.error(err.message || 'Failed to save'),
     });
+  };
+
+  const handleSaveBland = () => {
+    if (!blandApiKey.trim()) {
+      toast.error('Please enter your Bland.ai API key');
+      return;
+    }
+    saveKeys.mutate(
+      [{ service: 'bland', key_name: 'BLAND_API_KEY', key_value: blandApiKey }],
+      {
+        onSuccess: () => {
+          toast.success('Bland.ai configured — AI calling is ready');
+          setBlandApiKey('');
+        },
+        onError: (err: any) => toast.error(err.message || 'Failed to save'),
+      }
+    );
   };
 
   return (
@@ -256,6 +278,70 @@ export default function AdminIntegrations() {
         </CardContent>
       </Card>
 
+      {/* Bland.ai — Two-way AI Calling */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Phone className="w-5 h-5" />
+            Bland.ai — Two-way AI Calling
+            {blandLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin ml-2" />
+            ) : blandConfigured ? (
+              <Badge variant="default" className="gap-1 ml-2"><CheckCircle2 className="w-3 h-3" />Active</Badge>
+            ) : (
+              <Badge variant="secondary" className="gap-1 ml-2">Not configured</Badge>
+            )}
+            <Badge className="ml-1 text-[10px] bg-amber-500 text-white">Recommended</Badge>
+          </CardTitle>
+          <CardDescription>
+            Full two-way AI conversations. Bland dials the candidate, listens, responds naturally, handles the entire call, and sends a transcript back. Bring your own key — £0.09/min. No limit on call duration.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="bland-key" className="text-sm font-medium">BLAND_API_KEY</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  id="bland-key"
+                  type={blandShow ? 'text' : 'password'}
+                  placeholder={blandConfigured ? '••••••••••••••••' : 'sk-...'}
+                  value={blandApiKey}
+                  onChange={(e) => setBlandApiKey(e.target.value)}
+                  className="pr-10"
+                />
+                <Button
+                  type="button" variant="ghost" size="sm"
+                  className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
+                  onClick={() => setBlandShow(!blandShow)}
+                >
+                  {blandShow ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+              <Button onClick={handleSaveBland} disabled={!blandApiKey.trim() || saveKeys.isPending} className="gap-1.5">
+                {saveKeys.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save
+              </Button>
+            </div>
+          </div>
+          <div className="rounded-md bg-muted/50 border border-border p-3 space-y-1.5">
+            <p className="text-xs font-medium text-foreground">How it works</p>
+            <p className="text-xs text-muted-foreground">1. Say "Jarvis, call [name]" or click the Call button on any contact or candidate</p>
+            <p className="text-xs text-muted-foreground">2. Bland dials them immediately using your script and call purpose</p>
+            <p className="text-xs text-muted-foreground">3. The AI listens and responds naturally — full two-way conversation</p>
+            <p className="text-xs text-muted-foreground">4. Call transcript and outcome log automatically in Client Mapper</p>
+          </div>
+          <div className="flex items-center gap-4 pt-1">
+            <a href="https://app.bland.ai" target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+              Sign up at bland.ai <ExternalLink className="w-3 h-3" />
+            </a>
+            <span className="text-xs text-muted-foreground">•</span>
+            <span className="text-xs text-muted-foreground">Free trial includes test calls</span>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Twilio (AI Calling) */}
       <Card>
         <CardHeader>
@@ -271,7 +357,7 @@ export default function AdminIntegrations() {
             )}
           </CardTitle>
           <CardDescription>
-            Required for Jarvis AI voice calls. Add your Twilio Account SID, Auth Token and the Twilio phone number to call from.
+            Fallback for one-way scripted calls when Bland.ai is not configured. If you have Bland.ai set up, Twilio is optional. Required only if you want basic outbound SMS.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

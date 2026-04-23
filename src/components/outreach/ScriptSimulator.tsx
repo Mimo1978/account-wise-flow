@@ -103,6 +103,10 @@ export function ScriptSimulator({ body, callBlocks, subject, channel }: Props) {
               <CtxField label="Phone" value={ctx.recruiter.phone} onChange={(v) => update("recruiter.phone", v)} />
             </ContextSection>
 
+            <ContextSection title="Agency">
+              <CtxField label="Name" value={ctx.agency?.name ?? ""} onChange={(v) => update("agency.name", v)} />
+            </ContextSection>
+
             <ContextSection title="Campaign">
               <CtxField label="Name" value={ctx.campaign.name} onChange={(v) => update("campaign.name", v)} />
             </ContextSection>

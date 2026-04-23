@@ -244,10 +244,75 @@ serve(async (req) => {
       }
     }
 
+    // ─────────────────────────────────────────────────────────────
+    // Auto-create a Note on the contact / candidate record so the
+    // call summary lives where the rep expects to find it.
+    // ─────────────────────────────────────────────────────────────
+    let noteId: string | null = null;
+    try {
+      const noteEntityType = candidateId ? "candidate" : (contactId ? "contact" : null);
+      const noteEntityId = candidateId || contactId || null;
+      if (noteEntityType && noteEntityId && workspaceId) {
+        const noteContent = [
+          `📞 AI Call · ${analysis.outcome}`,
+          analysis.summary,
+          analysis.meeting_agreed && analysis.meeting_when
+            ? `📅 Meeting agreed — ${analysis.meeting_when}`
+            : "",
+          analysis.next_step ? `Next step: ${analysis.next_step}` : "",
+          durationMin !== null ? `Duration: ${durationMin.toFixed(1)} min · Sentiment: ${analysis.sentiment}` : `Sentiment: ${analysis.sentiment}`,
+          payload.recording_url ? `Recording: ${payload.recording_url}` : "",
+        ].filter(Boolean).join("\n\n");
+
+        const { data: note, error: noteErr } = await supabase
+          .from("notes")
+          .insert({
+            entity_type: noteEntityType,
+            entity_id: noteEntityId,
+            content: noteContent.slice(0, 8000),
+            visibility: "team",
+            source: "ai_call",
+            owner_id: userId || null,
+            team_id: workspaceId,
+            pinned: analysis.meeting_agreed,
+          })
+          .select("id")
+          .single();
+        if (noteErr) console.error("notes insert failed:", noteErr);
+        else noteId = note?.id ?? null;
+      }
+    } catch (e) {
+      console.error("note creation error:", e);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // In-app notification so the rep sees the bell counter increment
+    // ─────────────────────────────────────────────────────────────
+    if (userId) {
+      try {
+        const link = candidateId
+          ? `/talent/${candidateId}`
+          : (contactId ? `/contacts/${contactId}` : "/home");
+        const titlePrefix = analysis.meeting_agreed ? "📅 Meeting booked" : "📞 Call ended";
+        await supabase.from("notifications").insert({
+          user_id: userId,
+          workspace_id: workspaceId || null,
+          type: analysis.meeting_agreed ? "call_meeting_booked" : "call_completed",
+          title: `${titlePrefix} — ${entityName}`,
+          body: `${analysis.outcome}. ${analysis.summary}`.slice(0, 500),
+          link,
+          read: false,
+        });
+      } catch (e) {
+        console.error("notification insert failed:", e);
+      }
+    }
+
     return new Response(JSON.stringify({
       ok: true,
       meeting_agreed: analysis.meeting_agreed,
       diary_event_id: diaryEventId,
+      note_id: noteId,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

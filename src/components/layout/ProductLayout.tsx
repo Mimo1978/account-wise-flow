@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { PendingRequestsBadge } from '@/components/access/PendingRequestsBadge';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useDemoIndicator } from '@/hooks/use-workspace-mode';
@@ -342,7 +343,8 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
             {/* Right Side Actions */}
             <div className="flex items-center gap-2 shrink-0">
               <PendingRequestsBadge />
-              
+              <NotificationBell />
+
               {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

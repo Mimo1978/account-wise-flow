@@ -382,7 +382,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
           )}
 
           {/* Results list */}
-          <ScrollArea className="h-60 rounded-md border border-border/50 bg-muted/20">
+          <ScrollArea className={(fullscreen ? "h-[calc(100vh-320px)]" : "h-[55vh] max-h-[520px] min-h-[260px]") + " rounded-md border border-border/50 bg-muted/20"}>
             <div className="p-1.5 space-y-0.5">
               {isLoading ? (
                 <div className="flex items-center justify-center py-10">

@@ -91,6 +91,27 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
   const { mutateAsync: updateScript, isPending: updating } = useUpdateScript();
   const isPending = creating || updating;
 
+  // ── AI assist state ────────────────────────────────────────────────────────
+  const [aiBusy, setAiBusy] = useState<null | "polish" | "link_job">(null);
+  const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
+  const { data: jobs = [] } = useJobs();
+  const activeJobs = jobs.filter((j) => j.status === "active" || j.status === "draft");
+
+  // Reset all per-channel state when the modal is opened fresh for a new script,
+  // and when an existing script is loaded into the modal.
+  useEffect(() => {
+    if (!open) return;
+    setName(script?.name ?? "");
+    setChannel(script?.channel ?? "email");
+    setSubject(script?.subject ?? "");
+    setBody(script?.body ?? getDefaultScriptBody(script?.channel ?? "email"));
+    setCallBlocks(script?.call_blocks ?? getDefaultCallBlocks());
+    setExpandedBlock("intro");
+    setLinkedJobId(null);
+    setTab("editor");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, script?.id]);
+
   // Live guardrail check
   const effectiveBody = channel === "call"
     ? callBlocks.map((b) => b.content).join("\n")
@@ -99,12 +120,64 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
   const errors = violations.filter((v) => v.rule.severity === "error");
   const warnings = violations.filter((v) => v.rule.severity === "warning");
 
-  // When channel changes, reset body to default template
+  // When channel changes, reset the relevant per-channel state cleanly.
+  // Always reset both body and call_blocks so the editor never shows stale
+  // content from the previous channel.
   const handleChannelChange = (ch: ScriptChannel) => {
+    if (ch === channel) return;
     setChannel(ch);
-    if (ch !== "call") setBody(getDefaultScriptBody(ch));
-    else setCallBlocks(getDefaultCallBlocks());
+    setSubject(ch === "email" ? subject : "");
+    if (ch === "call") {
+      setBody("");
+      setCallBlocks(getDefaultCallBlocks());
+      setExpandedBlock("intro");
+    } else {
+      setBody(getDefaultScriptBody(ch));
+      setCallBlocks([]);
+    }
   };
+
+  // ── AI Assist ──────────────────────────────────────────────────────────────
+  async function runAiAssist(mode: "polish" | "link_job") {
+    if (mode === "link_job" && !linkedJobId) {
+      toast.error("Pick a job to link first");
+      return;
+    }
+    setAiBusy(mode);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-script-assist", {
+        body: {
+          mode,
+          channel,
+          subject: channel === "email" ? subject : undefined,
+          body: channel === "call" ? undefined : body,
+          call_blocks: channel === "call" ? callBlocks : undefined,
+          job_id: mode === "link_job" ? linkedJobId : undefined,
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.message || data?.error || "AI failed");
+
+      if (channel === "call" && Array.isArray(data.call_blocks)) {
+        setCallBlocks(data.call_blocks);
+      } else {
+        if (typeof data.body === "string") setBody(data.body);
+        if (channel === "email" && typeof data.subject === "string" && data.subject.trim()) {
+          setSubject(data.subject);
+        }
+      }
+      toast.success(
+        mode === "polish"
+          ? "Script polished"
+          : `Job linked — company anonymised as "${data.anon_company || "a leading client"}"`
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "AI assist failed";
+      toast.error(msg);
+    } finally {
+      setAiBusy(null);
+    }
+  }
 
   // Insert a variable at cursor (for textarea)
   const insertVariable = useCallback((varKey: string) => {

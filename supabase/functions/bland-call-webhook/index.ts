@@ -191,7 +191,64 @@ serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, meeting_agreed: analysis.meeting_agreed }), {
+    // ─────────────────────────────────────────────────────────────
+    // Auto-create a diary event when the AI detected an agreed slot
+    // ─────────────────────────────────────────────────────────────
+    let diaryEventId: string | null = null;
+    const workspaceId = payload.metadata?.workspace_id;
+    const candidateId = payload.metadata?.candidate_id;
+    const companyId = payload.metadata?.company_id;
+    const entityName = payload.metadata?.entity_name || "contact";
+
+    if (analysis.meeting_agreed && userId && workspaceId) {
+      let startIso: string | null = null;
+      if (analysis.meeting_iso) {
+        const d = new Date(analysis.meeting_iso);
+        if (!isNaN(d.getTime())) startIso = d.toISOString();
+      }
+      // Fallback: schedule for tomorrow 09:00 UTC if AI gave us no parseable time
+      if (!startIso) {
+        const t = new Date();
+        t.setUTCDate(t.getUTCDate() + 1);
+        t.setUTCHours(9, 0, 0, 0);
+        startIso = t.toISOString();
+      }
+      const durationMin = Math.max(15, Math.min(180, analysis.duration_minutes ?? 30));
+      const endIso = new Date(new Date(startIso).getTime() + durationMin * 60_000).toISOString();
+
+      const title = `${analysis.outcome.toLowerCase().includes("callback") ? "Callback" : "Meeting"} — ${entityName}`;
+      const description = `Auto-booked from AI call.\n\n${analysis.summary}${analysis.next_step ? `\n\nNext step: ${analysis.next_step}` : ""}${payload.recording_url ? `\n\nRecording: ${payload.recording_url}` : ""}`;
+
+      const { data: diary, error: diaryErr } = await supabase
+        .from("diary_events")
+        .insert({
+          workspace_id: workspaceId,
+          user_id: userId,
+          title: title.slice(0, 200),
+          description: description.slice(0, 4000),
+          start_time: startIso,
+          end_time: endIso,
+          event_type: "call",
+          contact_id: contactId || null,
+          candidate_id: candidateId || null,
+          company_id: companyId || null,
+          status: "scheduled",
+        })
+        .select("id")
+        .single();
+
+      if (diaryErr) {
+        console.error("diary_events insert failed:", diaryErr);
+      } else {
+        diaryEventId = diary?.id ?? null;
+      }
+    }
+
+    return new Response(JSON.stringify({
+      ok: true,
+      meeting_agreed: analysis.meeting_agreed,
+      diary_event_id: diaryEventId,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {

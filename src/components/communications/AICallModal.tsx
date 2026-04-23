@@ -66,6 +66,14 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
         onOpenChange(false);
         return;
       }
+      if (data?.error === "rate_limit_exceeded") {
+        toast.error(data.message || "Too many international calls are being placed right now. Please try again in a few minutes.");
+        setStatus("idle");
+        return;
+      }
+      if (data?.error === "provider_error" || data?.fallback) {
+        throw new Error(data?.message || "Call provider is temporarily unavailable");
+      }
       if (!data?.success) throw new Error(data?.message || "Call failed");
       setStatus("success");
       qc.invalidateQueries({ queryKey: ["crm_activities"] });

@@ -166,6 +166,43 @@ export function AICallAgentModal({ target, open, onOpenChange }: Props) {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
+
+      // ─── REAL DIAL via Bland.ai (or Twilio fallback) ───────────────────────
+      // This actually rings the contact's phone. The simulation below is the
+      // recruiter-facing conversation preview / logging UI.
+      if (target.entity_phone) {
+        try {
+          const { data: dialData, error: dialErr } = await supabase.functions.invoke(
+            "initiate-ai-call",
+            {
+              body: {
+                contact_id: target.candidate_id || target.contact_id || target.id,
+                to_number: target.entity_phone,
+                purpose: "Outreach campaign call",
+                custom_instructions: "",
+              },
+            }
+          );
+          if (dialErr) throw dialErr;
+          if (dialData?.error === "integration_not_configured") {
+            toast.error("No calling provider configured — go to Admin → Integrations and add your Bland.ai key");
+            setIsLoading(false);
+            return;
+          }
+          if (dialData?.success) {
+            toast.success(`Dialing ${target.entity_phone} via ${dialData.provider}…`);
+          }
+        } catch (dialError: any) {
+          toast.error(`Could not place call: ${dialError.message || "unknown error"}`);
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        toast.error("No phone number on this target");
+        setIsLoading(false);
+        return;
+      }
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-call-agent`,
         {

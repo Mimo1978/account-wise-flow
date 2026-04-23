@@ -100,3 +100,6 @@ verify_jwt = false
 
 [functions.ai-enhance-call-brief]
 verify_jwt = true
+
+[functions.transcribe-call-brief]
+verify_jwt = true

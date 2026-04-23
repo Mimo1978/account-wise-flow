@@ -303,6 +303,72 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
               </Select>
             </div>
           </div>
+
+          {/* AI assist toolbar */}
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5"
+              onClick={() => runAiAssist("polish")}
+              disabled={
+                aiBusy !== null ||
+                (channel === "call" ? callBlocks.every((b) => !b.content.trim()) : !body.trim())
+              }
+            >
+              {aiBusy === "polish" ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              <span className="text-xs">AI Polish</span>
+            </Button>
+
+            <div className="flex items-center gap-1.5">
+              <Briefcase className="w-3.5 h-3.5 text-muted-foreground" />
+              <Select
+                value={linkedJobId ?? "__none"}
+                onValueChange={(v) => setLinkedJobId(v === "__none" ? null : v)}
+              >
+                <SelectTrigger className="h-8 w-[260px] text-xs">
+                  <SelectValue placeholder="Link an active job…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none" className="text-xs">
+                    No job linked
+                  </SelectItem>
+                  {activeJobs.length === 0 && (
+                    <SelectItem value="__empty" disabled className="text-xs">
+                      No active jobs
+                    </SelectItem>
+                  )}
+                  {activeJobs.map((j) => (
+                    <SelectItem key={j.id} value={j.id} className="text-xs">
+                      {j.title}
+                      {j.companies?.name ? ` · ${j.companies.name}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1.5"
+                onClick={() => runAiAssist("link_job")}
+                disabled={!linkedJobId || aiBusy !== null}
+                title="Weave anonymised job details into the script. Real company name is hidden until candidate confirms interest and availability."
+              >
+                {aiBusy === "link_job" ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                <span className="text-xs">Inject Job (anonymised)</span>
+              </Button>
+            </div>
+          </div>
         </DialogHeader>
 
         {/* Tabs */}

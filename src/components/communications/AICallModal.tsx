@@ -6,10 +6,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Phone, CheckCircle2, Loader2, XCircle, Sparkles, Maximize2, Minimize2, CalendarCheck, PhoneIncoming, Briefcase, MessageSquare, RefreshCw, ChevronRight } from "lucide-react";
+import { Phone, CheckCircle2, Loader2, XCircle, Sparkles, Maximize2, Minimize2, CalendarCheck, PhoneIncoming, Briefcase, MessageSquare, RefreshCw, ChevronRight, Mic, Square, Save, BookmarkCheck, Trash2, Library } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { useVoiceDictation } from "@/hooks/use-voice-dictation";
+import { useCallBriefTemplates, useSaveCallBriefTemplate, useDeleteCallBriefTemplate, useTouchCallBriefTemplate, type CallBriefTemplate } from "@/hooks/use-call-brief-templates";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatDistanceToNow } from "date-fns";
 
 type PresetKey = "book_meeting" | "callback_check" | "intro" | "follow_up" | "demo_confirm" | "custom";
 

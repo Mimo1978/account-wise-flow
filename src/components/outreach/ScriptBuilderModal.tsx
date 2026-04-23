@@ -99,6 +99,18 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
   const { data: jobs = [] } = useJobs();
   const activeJobs = jobs.filter((j) => j.status === "active" || j.status === "draft");
 
+  // ── Agency name (workspace setting) ───────────────────────────────────────
+  const { settings, updateSettings } = useWorkspaceSettings();
+  const [agencyName, setAgencyName] = useState<string>("");
+  useEffect(() => {
+    if (settings?.agency_name != null) setAgencyName(settings.agency_name ?? "");
+  }, [settings?.agency_name]);
+  const persistAgencyName = () => {
+    const trimmed = agencyName.trim();
+    if (trimmed === (settings?.agency_name ?? "")) return;
+    updateSettings({ agency_name: trimmed });
+  };
+
   // Reset all per-channel state when the modal is opened fresh for a new script,
   // and when an existing script is loaded into the modal.
   useEffect(() => {

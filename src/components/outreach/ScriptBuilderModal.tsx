@@ -41,6 +41,8 @@ import { useCreateScript, useUpdateScript } from "@/hooks/use-scripts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useJobs } from "@/hooks/use-jobs";
+import { useWorkspaceSettings } from "@/hooks/use-workspace-settings";
+import { Building2 } from "lucide-react";
 
 import { ScriptSimulator } from "./ScriptSimulator";
 import { cn } from "@/lib/utils";
@@ -96,6 +98,18 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
   const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
   const { data: jobs = [] } = useJobs();
   const activeJobs = jobs.filter((j) => j.status === "active" || j.status === "draft");
+
+  // ── Agency name (workspace setting) ───────────────────────────────────────
+  const { settings, updateSettings } = useWorkspaceSettings();
+  const [agencyName, setAgencyName] = useState<string>("");
+  useEffect(() => {
+    if (settings?.agency_name != null) setAgencyName(settings.agency_name ?? "");
+  }, [settings?.agency_name]);
+  const persistAgencyName = () => {
+    const trimmed = agencyName.trim();
+    if (trimmed === (settings?.agency_name ?? "")) return;
+    updateSettings({ agency_name: trimmed });
+  };
 
   // Reset all per-channel state when the modal is opened fresh for a new script,
   // and when an existing script is loaded into the modal.
@@ -153,6 +167,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
           body: channel === "call" ? undefined : body,
           call_blocks: channel === "call" ? callBlocks : undefined,
           job_id: mode === "link_job" ? linkedJobId : undefined,
+          agency_name: agencyName.trim() || undefined,
         },
       });
       if (error) throw error;
@@ -306,6 +321,25 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
 
           {/* AI assist toolbar */}
           <div className="flex items-center gap-2 mt-3 flex-wrap">
+            {/* Agency name (workspace-wide, used by {{agency.name}}) */}
+            <div className="flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                value={agencyName}
+                onChange={(e) => setAgencyName(e.target.value)}
+                onBlur={persistAgencyName}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                placeholder="Your agency name (e.g. Bluebridge Data)"
+                className="h-8 w-[220px] text-xs"
+                title="Saved to workspace settings. Used to resolve {{agency.name}} in scripts."
+              />
+            </div>
+
             <Button
               type="button"
               size="sm"
@@ -575,6 +609,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
               callBlocks={channel === "call" ? callBlocks : undefined}
               subject={subject}
               channel={channel}
+              agencyName={agencyName}
             />
           </TabsContent>
         </Tabs>
@@ -611,7 +646,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
 // ─── Variable Picker ──────────────────────────────────────────────────────────
 
 function VariablePicker({ onInsert }: { onInsert: (key: string) => void }) {
-  const categories = ["candidate", "job", "recruiter", "campaign"] as const;
+  const categories = ["candidate", "job", "recruiter", "agency", "campaign"] as const;
   return (
     <div className="border border-border rounded-lg bg-popover shadow-md p-3 space-y-3">
       {categories.map((cat) => {

@@ -6619,6 +6619,8 @@ export type Database = {
       }
       workspace_settings: {
         Row: {
+          agency_name: string | null
+          agency_short_pitch: string | null
           contract_hop_lookback_months: number
           contract_hop_min_stints: number
           created_at: string
@@ -6633,6 +6635,8 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          agency_name?: string | null
+          agency_short_pitch?: string | null
           contract_hop_lookback_months?: number
           contract_hop_min_stints?: number
           created_at?: string
@@ -6647,6 +6651,8 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          agency_name?: string | null
+          agency_short_pitch?: string | null
           contract_hop_lookback_months?: number
           contract_hop_min_stints?: number
           created_at?: string

@@ -35,6 +35,8 @@ export interface WorkspaceSettings {
   top_tier_companies: Record<string, string[]>;
   outreach_rules: OutreachRules;
   data_quality_rules: DataQualityRules;
+  agency_name?: string | null;
+  agency_short_pitch?: string | null;
   created_at: string;
   updated_at: string;
 }

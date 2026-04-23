@@ -25,6 +25,7 @@ interface Body {
   body?: string;
   call_blocks?: Array<{ id: string; type: string; title: string; content: string }>;
   job_id?: string;
+  agency_name?: string;
 }
 
 function tierDescriptor(industry: string | null, name: string): string {
@@ -142,6 +143,8 @@ Your job is to rewrite recruitment outreach scripts so they are:
 - preserve EVERY {{variable}} placeholder exactly (do not invent new variables, do not remove existing ones unless instructed)
 
 CHANNEL: ${channelDescription}
+
+${payload.agency_name ? `AGENCY: The recruiter is calling on behalf of "${payload.agency_name}". Use the {{agency.name}} variable when introducing the firm so it stays editable. Do NOT hard-code the agency name.` : "AGENCY: Use the {{agency.name}} variable wherever the recruiter introduces their firm — never hard-code an agency name."}
 
 ${jobContext}
 

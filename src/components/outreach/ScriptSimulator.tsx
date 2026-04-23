@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,10 +23,19 @@ interface Props {
   callBlocks?: CallBlock[];
   subject?: string;
   channel: ScriptChannel;
+  agencyName?: string;
 }
 
-export function ScriptSimulator({ body, callBlocks, subject, channel }: Props) {
-  const [ctx, setCtx] = useState<SimulatorContext>(DEFAULT_SIMULATOR_CONTEXT);
+export function ScriptSimulator({ body, callBlocks, subject, channel, agencyName }: Props) {
+  const [ctx, setCtx] = useState<SimulatorContext>(() => ({
+    ...DEFAULT_SIMULATOR_CONTEXT,
+    agency: { name: agencyName || DEFAULT_SIMULATOR_CONTEXT.agency.name },
+  }));
+  // Keep simulator agency in sync when the agency input above the modal changes
+  useEffect(() => {
+    if (agencyName == null) return;
+    setCtx((prev) => ({ ...prev, agency: { name: agencyName || prev.agency.name } }));
+  }, [agencyName]);
   const [activeCallBlock, setActiveCallBlock] = useState<string | null>(
     callBlocks?.[0]?.id ?? null
   );
@@ -101,6 +110,10 @@ export function ScriptSimulator({ body, callBlocks, subject, channel }: Props) {
             <ContextSection title="Recruiter">
               <CtxField label="Name" value={ctx.recruiter.name} onChange={(v) => update("recruiter.name", v)} />
               <CtxField label="Phone" value={ctx.recruiter.phone} onChange={(v) => update("recruiter.phone", v)} />
+            </ContextSection>
+
+            <ContextSection title="Agency">
+              <CtxField label="Name" value={ctx.agency?.name ?? ""} onChange={(v) => update("agency.name", v)} />
             </ContextSection>
 
             <ContextSection title="Campaign">

@@ -330,13 +330,14 @@ export function useAddTargets() {
     onSuccess: async ({ inserted, skipped, campaignId }) => {
       // Increment campaign target_count
       if (inserted.length > 0 && campaignId) {
-        await db.rpc("increment_campaign_target_count", {
-          p_campaign_id: campaignId,
-          p_count: inserted.length,
-        }).catch(() => {
-          // Fallback: manual increment if RPC doesn't exist
-          // The count will be eventually consistent via query
-        });
+        try {
+          await db.rpc("increment_campaign_target_count", {
+            p_campaign_id: campaignId,
+            p_count: inserted.length,
+          });
+        } catch {
+          // Fallback: count will be eventually consistent via query
+        }
 
         // Log added_to_campaign events
         const events = inserted.map((t) => ({

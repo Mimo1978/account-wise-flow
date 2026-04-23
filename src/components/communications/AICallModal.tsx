@@ -62,7 +62,7 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       });
       if (error) throw error;
       if (data?.error === "integration_not_configured") {
-        toast.error("Twilio not configured — go to Settings > Integrations");
+        toast.error("No calling provider configured — go to Admin → Integrations and add your Bland.ai key");
         onOpenChange(false);
         return;
       }

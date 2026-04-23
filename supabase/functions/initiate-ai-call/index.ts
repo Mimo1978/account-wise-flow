@@ -218,7 +218,7 @@ End the call professionally and confirm any agreed next step.`;
       direction: "outbound",
       subject: `AI Call: ${purpose || "Outreach"}`,
       body: `Provider: ${provider}. Call ID: ${callId}. Purpose: ${purpose || "General outreach"}. ${custom_instructions || ""}`.substring(0, 2000),
-      contact_id: contact_id || null,
+      contact_id: resolvedContactId,
       company_id: companyId,
       status: provider === "bland" ? "in_progress" : "completed",
       created_by: user.id,

@@ -26,7 +26,15 @@ interface BlandWebhook {
   concatenated_transcript?: string;
   transcripts?: Array<{ user: string; text: string; created_at?: string }>;
   recording_url?: string;
-  metadata?: { contact_id?: string; user_id?: string; purpose?: string };
+  metadata?: {
+    contact_id?: string;
+    candidate_id?: string;
+    company_id?: string;
+    workspace_id?: string;
+    user_id?: string;
+    purpose?: string;
+    entity_name?: string;
+  };
   answered_by?: string;
   variables?: Record<string, unknown>;
 }
@@ -36,15 +44,21 @@ async function aiSummarise(transcript: string, purpose: string, apiKey: string):
   outcome: string;
   meeting_agreed: boolean;
   meeting_when?: string;
+  meeting_iso?: string;
+  duration_minutes?: number;
   next_step?: string;
   sentiment: "positive" | "neutral" | "negative";
 }> {
+  const nowIso = new Date().toISOString();
   const sys = `You analyse outbound recruitment/sales call transcripts.
+The current date/time is ${nowIso} (UTC). Use this to resolve relative references like "tomorrow", "next Tuesday", "in 2 weeks".
 Return ONLY a JSON object with these fields:
 - summary: 2-4 sentence neutral summary of what happened on the call
 - outcome: short label e.g. "Meeting booked", "Callback requested", "Not interested", "No answer", "Voicemail", "Follow-up agreed"
-- meeting_agreed: boolean — true ONLY if a specific meeting / demo / call slot was agreed
-- meeting_when: human-readable when (e.g. "Thursday 2pm", "next week"), or omit
+- meeting_agreed: boolean — true if a meeting, demo, OR a callback at a specific time was agreed
+- meeting_when: human-readable when (e.g. "Thursday 2pm", "tomorrow morning"), or omit
+- meeting_iso: ISO 8601 datetime in UTC for the agreed slot (e.g. "2026-04-25T13:00:00Z"). If only a vague day is given, pick a sensible default (mornings = 09:00, afternoons = 14:00, "next week" = next Monday 09:00). Omit only if truly no time was discussed.
+- duration_minutes: expected meeting length in minutes (default 30 if not stated)
 - next_step: the concrete next action the rep should take
 - sentiment: "positive" | "neutral" | "negative"`;
   const user = `Call purpose: ${purpose || "n/a"}\n\nTranscript:\n"""\n${transcript.slice(0, 12000)}\n"""`;
@@ -67,6 +81,8 @@ Return ONLY a JSON object with these fields:
               outcome: { type: "string" },
               meeting_agreed: { type: "boolean" },
               meeting_when: { type: "string" },
+              meeting_iso: { type: "string", description: "ISO 8601 UTC datetime of the agreed slot" },
+              duration_minutes: { type: "number" },
               next_step: { type: "string" },
               sentiment: { type: "string", enum: ["positive", "neutral", "negative"] },
             },

@@ -609,6 +609,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
               callBlocks={channel === "call" ? callBlocks : undefined}
               subject={subject}
               channel={channel}
+              agencyName={agencyName}
             />
           </TabsContent>
         </Tabs>
@@ -645,7 +646,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
 // ─── Variable Picker ──────────────────────────────────────────────────────────
 
 function VariablePicker({ onInsert }: { onInsert: (key: string) => void }) {
-  const categories = ["candidate", "job", "recruiter", "campaign"] as const;
+  const categories = ["candidate", "job", "recruiter", "agency", "campaign"] as const;
   return (
     <div className="border border-border rounded-lg bg-popover shadow-md p-3 space-y-3">
       {categories.map((cat) => {

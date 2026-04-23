@@ -123,7 +123,21 @@ End the call professionally and confirm any agreed next step.`;
 
       if (!blandRes.ok) {
         const errText = await blandRes.text();
-        throw new Error(`Bland.ai error ${blandRes.status}: ${errText}`);
+        if (blandRes.status === 429) {
+          return new Response(JSON.stringify({
+            error: "rate_limit_exceeded",
+            message: "Bland.ai has temporarily rate-limited international calls. Please try again in a few minutes.",
+            provider: "bland",
+            fallback: true,
+          }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        return new Response(JSON.stringify({
+          error: "provider_error",
+          message: `Bland.ai could not place the call (${blandRes.status}). Please try again later.`,
+          provider: "bland",
+          fallback: true,
+          details: errText.slice(0, 500),
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const blandData = await blandRes.json();
       callId = blandData.call_id;
@@ -151,7 +165,13 @@ End the call professionally and confirm any agreed next step.`;
 
       if (!twilioRes.ok) {
         const errText = await twilioRes.text();
-        throw new Error(`Twilio error ${twilioRes.status}: ${errText}`);
+        return new Response(JSON.stringify({
+          error: "provider_error",
+          message: `Twilio could not place the call (${twilioRes.status}). Please try again later.`,
+          provider: "twilio",
+          fallback: true,
+          details: errText.slice(0, 500),
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const twilioData = await twilioRes.json();
       callId = twilioData.sid;
@@ -188,8 +208,8 @@ End the call professionally and confirm any agreed next step.`;
   } catch (err: any) {
     console.error("initiate-ai-call error:", err);
     return new Response(
-      JSON.stringify({ error: "server_error", message: err.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: "server_error", message: err.message, fallback: true }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

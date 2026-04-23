@@ -189,6 +189,16 @@ export function AICallAgentModal({ target, open, onOpenChange }: Props) {
             setIsLoading(false);
             return;
           }
+          if (dialData?.error === "rate_limit_exceeded") {
+            toast.error(dialData.message || "Too many international calls are being placed right now. Please try again in a few minutes.");
+            setIsLoading(false);
+            return;
+          }
+          if (dialData?.error === "provider_error" || dialData?.fallback) {
+            toast.error(dialData.message || "Call provider is temporarily unavailable");
+            setIsLoading(false);
+            return;
+          }
           if (dialData?.success) {
             toast.success(`Dialing ${target.entity_phone} via ${dialData.provider}…`);
           }

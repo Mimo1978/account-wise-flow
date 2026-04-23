@@ -444,10 +444,14 @@ export function useUpdateTargetState() {
       if (campaignId) {
         // First contact → increment contacted_count
         if (isContactEvent(eventType) && !target.last_contacted_at) {
-          await db.rpc("increment_campaign_target_count", {
-            p_campaign_id: campaignId,
-            p_count: 0, // reuse RPC shape but we need a contacted_count one
-          }).catch(() => {});
+          try {
+            await db.rpc("increment_campaign_target_count", {
+              p_campaign_id: campaignId,
+              p_count: 0,
+            });
+          } catch {
+            // ignore
+          }
           // Direct increment for contacted_count
           await db
             .from("outreach_campaigns")

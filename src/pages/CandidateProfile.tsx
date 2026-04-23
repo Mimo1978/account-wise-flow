@@ -74,6 +74,7 @@ import { EmailComposeModal } from "@/components/communications/EmailComposeModal
 import { SMSComposeModal } from "@/components/communications/SMSComposeModal";
 import { ScheduleCallbackPopover } from "@/components/outreach/ScheduleCallbackPopover";
 import type { OutreachTarget } from "@/hooks/use-outreach";
+import { AddToCampaignButton } from "@/components/outreach/AddToCampaignButton";
 import type { TalentDocument } from "@/lib/talent-document-types";
 import { Bot } from "lucide-react";
 import {
@@ -373,6 +374,14 @@ export default function CandidateProfile() {
               workspaceId={currentWorkspace?.id || ""}
               entityName={candidate.name}
               candidateId={candidate.id}
+            />
+            <AddToCampaignButton
+              entityType="candidate"
+              entityId={candidate.id}
+              entityName={candidate.name}
+              entityEmail={candidate.email}
+              entityPhone={candidate.phone}
+              entityTitle={candidate.roleType}
             />
             <Button variant="outline" size="sm" onClick={() => setShowExportModal(true)}>
               <Download className="h-4 w-4 mr-1.5" />

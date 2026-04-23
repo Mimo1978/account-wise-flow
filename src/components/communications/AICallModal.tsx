@@ -309,21 +309,76 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                     <Label htmlFor="ai-call-brief" className="text-xs uppercase tracking-wide text-muted-foreground">
                       Your brief
                     </Label>
-                    <Button
-                      type="button" variant="ghost" size="sm"
-                      onClick={handleEnhance}
-                      disabled={enhancing || !brief.trim()}
-                      className="h-7 px-2 text-xs gap-1.5"
-                    >
-                      {enhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-primary" />}
-                      {enhanced ? "Re-enhance" : "Enhance with AI"}
-                    </Button>
+                    <div className="flex items-center gap-0.5">
+                      <Button
+                        type="button" variant="ghost" size="sm"
+                        onClick={handleVoiceToggle}
+                        disabled={voice.transcribing}
+                        className={cn(
+                          "h-7 px-2 text-xs gap-1.5",
+                          voice.recording && "text-destructive hover:text-destructive"
+                        )}
+                        title={voice.recording ? "Stop & transcribe" : "Dictate with mic"}
+                      >
+                        {voice.transcribing ? (
+                          <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Transcribing…</>
+                        ) : voice.recording ? (
+                          <>
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
+                            </span>
+                            <Square className="w-3 h-3" /> {voice.elapsed}s
+                          </>
+                        ) : (
+                          <><Mic className="w-3.5 h-3.5" /> Dictate</>
+                        )}
+                      </Button>
+                      <Popover open={saveOpen} onOpenChange={setSaveOpen}>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button" variant="ghost" size="sm"
+                            disabled={!brief.trim()}
+                            className="h-7 px-2 text-xs gap-1.5"
+                            title="Save this brief as a template"
+                          >
+                            <Save className="w-3.5 h-3.5" /> Save
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-72 p-3">
+                          <Label className="text-xs">Template name</Label>
+                          <input
+                            value={saveName}
+                            onChange={e => setSaveName(e.target.value)}
+                            placeholder="e.g. Warm intro – C-suite"
+                            className="w-full mt-1 h-8 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            onKeyDown={e => { if (e.key === "Enter") handleSaveTemplate(); }}
+                          />
+                          <div className="flex justify-end gap-2 mt-3">
+                            <Button size="sm" variant="ghost" onClick={() => setSaveOpen(false)}>Cancel</Button>
+                            <Button size="sm" onClick={handleSaveTemplate} disabled={saveTemplate.isPending || !saveName.trim()}>
+                              {saveTemplate.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BookmarkCheck className="w-3.5 h-3.5" />}
+                              Save
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      <Button
+                        type="button" variant="ghost" size="sm"
+                        onClick={handleEnhance}
+                        disabled={enhancing || !brief.trim()}
+                        className="h-7 px-2 text-xs gap-1.5"
+                      >
+                        {enhancing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-primary" />}
+                        {enhanced ? "Re-enhance" : "Enhance"}
+                      </Button>
+                    </div>
                   </div>
                   <Textarea
                     id="ai-call-brief"
                     value={brief}
                     onChange={e => { setBrief(e.target.value); if (enhanced) setEnhanced(""); }}
-                    placeholder="Write a few words. e.g. 'Confirm interest in our Q2 advisory offer, propose a 15-min slot next Tue or Wed.'"
+                    placeholder="Type or hit Dictate to speak. e.g. 'Confirm interest in our Q2 advisory offer, propose a 15-min slot next Tue or Wed.'"
                     rows={expanded ? 8 : 5}
                     className="resize-none text-sm"
                   />

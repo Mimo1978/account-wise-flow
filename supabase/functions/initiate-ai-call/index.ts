@@ -95,6 +95,7 @@ End the call professionally and confirm any agreed next step.`;
     if (blandKeys.BLAND_API_KEY) {
       // === BLAND.AI — full two-way conversation ===
       provider = "bland";
+      const webhookUrl = `${supabaseUrl}/functions/v1/bland-call-webhook`;
       const blandRes = await fetch("https://api.bland.ai/v1/calls", {
         method: "POST",
         headers: {
@@ -113,6 +114,13 @@ End the call professionally and confirm any agreed next step.`;
           amd: true,
           interruption_threshold: 150,
           temperature: 0.7,
+          webhook: webhookUrl,
+          analysis_schema: {
+            meeting_agreed: "boolean",
+            meeting_when: "string",
+            outcome: "string",
+            sentiment: "string",
+          },
           metadata: {
             contact_id: contact_id || null,
             user_id: user.id,

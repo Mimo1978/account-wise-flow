@@ -94,3 +94,9 @@ verify_jwt = false
 
 [functions.ai-refine-spec]
 verify_jwt = false
+
+[functions.bland-call-webhook]
+verify_jwt = false
+
+[functions.ai-enhance-call-brief]
+verify_jwt = true

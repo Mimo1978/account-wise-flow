@@ -423,6 +423,48 @@ export type Database = {
           },
         ]
       }
+      call_brief_templates: {
+        Row: {
+          brief: string
+          created_at: string
+          enhanced: string | null
+          id: string
+          last_used_at: string | null
+          name: string
+          purpose: string | null
+          updated_at: string
+          use_count: number
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          brief: string
+          created_at?: string
+          enhanced?: string | null
+          id?: string
+          last_used_at?: string | null
+          name: string
+          purpose?: string | null
+          updated_at?: string
+          use_count?: number
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          brief?: string
+          created_at?: string
+          enhanced?: string | null
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          purpose?: string | null
+          updated_at?: string
+          use_count?: number
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       call_outcomes: {
         Row: {
           ai_transcript: Json | null

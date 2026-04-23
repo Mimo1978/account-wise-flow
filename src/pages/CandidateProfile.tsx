@@ -69,6 +69,7 @@ import { RowInlineActions } from "@/components/outreach/RowInlineActions";
 import { CandidateEditForm } from "@/components/talent/CandidateEditForm";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
+import { AICallModal } from "@/components/communications/AICallModal";
 import { EmailComposeModal } from "@/components/communications/EmailComposeModal";
 import { SMSComposeModal } from "@/components/communications/SMSComposeModal";
 import { ScheduleCallbackPopover } from "@/components/outreach/ScheduleCallbackPopover";
@@ -644,24 +645,13 @@ export default function CandidateProfile() {
       </Sheet>
 
       {/* AI Call Modal */}
-      <AICallAgentModal
-        target={{
-          id: candidate.id,
-          workspace_id: currentWorkspace?.id || "",
-          campaign_id: "",
-          candidate_id: candidate.id,
-          entity_type: "candidate",
-          entity_name: candidate.name,
-          entity_email: candidate.email,
-          entity_phone: candidate.phone,
-          entity_title: candidate.roleType,
-          state: "queued",
-          priority: 5,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        } as OutreachTarget}
+      <AICallModal
         open={callOpen}
         onOpenChange={setCallOpen}
+        contactId={candidate.id}
+        contactFirstName={candidate.name?.split(" ")[0] || ""}
+        contactLastName={candidate.name?.split(" ").slice(1).join(" ") || ""}
+        contactMobile={candidate.phone}
       />
 
       {/* Email Compose Modal */}

@@ -288,12 +288,30 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-xl p-0 gap-0 overflow-hidden">
+      <DialogContent
+        className={
+          fullscreen
+            ? "max-w-[100vw] w-screen h-screen p-0 gap-0 overflow-hidden rounded-none sm:rounded-none"
+            : "max-w-4xl w-[95vw] p-0 gap-0 overflow-hidden"
+        }
+      >
         <DialogHeader className="px-5 pt-5 pb-0">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <UserPlus className="w-4 h-4" />
-            Add Targets
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <UserPlus className="w-4 h-4" />
+              Add Targets
+            </DialogTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 mr-6"
+              onClick={() => setFullscreen((v) => !v)}
+              title={fullscreen ? "Exit full screen" : "Expand to full screen"}
+            >
+              {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </Button>
+          </div>
         </DialogHeader>
 
         {/* ── Quick Add Section ── */}

@@ -132,6 +132,44 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
     }
   };
 
+  const handleVoiceToggle = async () => {
+    try {
+      if (voice.recording) {
+        const text = await voice.stopAndTranscribe();
+        if (!text) { toast.error("Couldn't hear anything — try again"); return; }
+        setBrief(prev => (prev ? `${prev.trim()} ${text}`.trim() : text));
+        if (enhanced) setEnhanced("");
+        toast.success("Transcribed");
+      } else {
+        await voice.start();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Voice dictation failed");
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!saveName.trim() || !brief.trim()) { toast.error("Add a name and a brief"); return; }
+    try {
+      await saveTemplate.mutateAsync({ name: saveName.trim(), purpose, brief, enhanced });
+      toast.success("Template saved");
+      setSaveOpen(false);
+      setSaveName("");
+    } catch (e: any) {
+      toast.error(e.message || "Couldn't save template");
+    }
+  };
+
+  const applyTemplate = (t: CallBriefTemplate) => {
+    setPurpose(t.purpose || "");
+    setBrief(t.brief);
+    setEnhanced(t.enhanced || "");
+    setPresetKey("custom");
+    setTemplatesOpen(false);
+    touchTemplate.mutate(t.id);
+    toast.success(`Loaded "${t.name}"`);
+  };
+
   const handleCall = async () => {
     if (!purpose.trim()) { toast.error("Pick a purpose or preset"); return; }
     if (!finalScript.trim()) { toast.error("Add a brief for the AI agent"); return; }

@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, UserPlus, Users, ExternalLink, Loader2, Info } from "lucide-react";
+import { Search, UserPlus, Users, ExternalLink, Loader2, Info, Maximize2, Minimize2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -95,6 +95,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<EntityKind>("both");
   const [selected, setSelected] = useState<Map<string, ResultRow>>(new Map());
+  const [fullscreen, setFullscreen] = useState(false);
   const { mutateAsync: addTargets, isPending } = useAddTargets();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -287,12 +288,30 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-xl p-0 gap-0 overflow-hidden">
+      <DialogContent
+        className={
+          fullscreen
+            ? "max-w-[100vw] w-screen h-screen p-0 gap-0 overflow-hidden rounded-none sm:rounded-none"
+            : "max-w-4xl w-[95vw] p-0 gap-0 overflow-hidden"
+        }
+      >
         <DialogHeader className="px-5 pt-5 pb-0">
-          <DialogTitle className="flex items-center gap-2 text-base">
-            <UserPlus className="w-4 h-4" />
-            Add Targets
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <UserPlus className="w-4 h-4" />
+              Add Targets
+            </DialogTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 mr-6"
+              onClick={() => setFullscreen((v) => !v)}
+              title={fullscreen ? "Exit full screen" : "Expand to full screen"}
+            >
+              {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </Button>
+          </div>
         </DialogHeader>
 
         {/* ── Quick Add Section ── */}
@@ -363,7 +382,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
           )}
 
           {/* Results list */}
-          <ScrollArea className="h-60 rounded-md border border-border/50 bg-muted/20">
+          <ScrollArea className={(fullscreen ? "h-[calc(100vh-320px)]" : "h-[55vh] max-h-[520px] min-h-[260px]") + " rounded-md border border-border/50 bg-muted/20"}>
             <div className="p-1.5 space-y-0.5">
               {isLoading ? (
                 <div className="flex items-center justify-center py-10">

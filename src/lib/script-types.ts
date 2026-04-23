@@ -20,6 +20,7 @@ export const ALLOWED_VARIABLES = [
   { key: "{{job.type}}", label: "Job Type (perm/contract)", category: "job", requiresEvidence: false },
   { key: "{{recruiter.name}}", label: "Recruiter Name", category: "recruiter", requiresEvidence: false },
   { key: "{{recruiter.phone}}", label: "Recruiter Phone", category: "recruiter", requiresEvidence: false },
+  { key: "{{agency.name}}", label: "Agency / Firm Name", category: "agency", requiresEvidence: false },
   { key: "{{campaign.name}}", label: "Campaign Name", category: "campaign", requiresEvidence: false },
   // Evidence-gated variables — require consent/source proof
   { key: "{{candidate.registered}}", label: "Registered Status", category: "candidate", requiresEvidence: true, evidenceField: "source" },
@@ -188,6 +189,7 @@ export interface SimulatorContext {
   candidate: SimulatorCandidate;
   job: SimulatorJob;
   recruiter: { name: string; phone: string };
+  agency: { name: string };
   campaign: { name: string };
 }
 
@@ -209,6 +211,7 @@ export function resolveTemplate(template: string, ctx: SimulatorContext): string
   out = out.replace(/\{\{job\.type\}\}/g, ctx.job.type);
   out = out.replace(/\{\{recruiter\.name\}\}/g, ctx.recruiter.name);
   out = out.replace(/\{\{recruiter\.phone\}\}/g, ctx.recruiter.phone);
+  out = out.replace(/\{\{agency\.name\}\}/g, ctx.agency?.name ?? "");
   out = out.replace(/\{\{campaign\.name\}\}/g, ctx.campaign.name);
   return out;
 }
@@ -219,7 +222,7 @@ export function getDefaultScriptBody(channel: ScriptChannel): string {
   if (channel === "email") {
     return `Hi {{candidate.first_name}},
 
-I hope this finds you well. My name is {{recruiter.name}} and I'm reaching out about an exciting {{job.type}} opportunity as a {{job.title}} at {{job.company}}.
+I hope this finds you well. My name is {{recruiter.name}} from {{agency.name}}, and I'm reaching out about a {{job.type}} {{job.title}} opportunity with {{job.company}}.
 
 Based on your background in {{candidate.current_title}}, this could be a strong fit. The role is based in {{job.location}} at a rate of {{job.rate}}.
 
@@ -227,10 +230,11 @@ If you'd like to hear more, I'd love to schedule a quick call at your convenienc
 
 Best regards,
 {{recruiter.name}}
+{{agency.name}}
 {{recruiter.phone}}`;
   }
   if (channel === "sms") {
-    return `Hi {{candidate.first_name}}, it's {{recruiter.name}}. I have a {{job.type}} {{job.title}} role at {{job.company}} ({{job.location}}) that may suit you. Worth a quick chat?`;
+    return `Hi {{candidate.first_name}}, it's {{recruiter.name}} at {{agency.name}}. I have a {{job.type}} {{job.title}} role with {{job.company}} ({{job.location}}) that may suit you. Worth a quick chat?`;
   }
   return "";
 }
@@ -244,7 +248,7 @@ export function getDefaultCallBlocks(): CallBlock[] {
       type: "intro",
       title: "Introduction",
       content:
-        "Hi, am I speaking with {{candidate.first_name}}? Great – my name is {{recruiter.name}}, I'm a recruiter specialising in {{job.title}} roles. I've got about 2 minutes – is now an okay time to speak?",
+        "Hi, am I speaking with {{candidate.first_name}}? Great – my name is {{recruiter.name}} calling from {{agency.name}}. I specialise in {{job.title}} roles. I've got about 2 minutes – is now an okay time to speak?",
     },
     {
       id: "permission",
@@ -296,6 +300,9 @@ export const DEFAULT_SIMULATOR_CONTEXT: SimulatorContext = {
   recruiter: {
     name: "Sarah Mitchell",
     phone: "+1 (555) 000-1234",
+  },
+  agency: {
+    name: "Bluebridge Data",
   },
   campaign: {
     name: "Q1 Data Engineering Push",

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ChevronLeft, Pencil, Trash2, AlertTriangle } from "lucide-react";
+import { ChevronLeft, Pencil, Trash2, AlertTriangle, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeleteRecordModal } from "@/components/deletion/DeleteRecordModal";
 import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBanner";
 import { useDeletionPermission } from "@/hooks/use-deletion";
 import { EditContactModal } from "./EditContactModal";
+import { AICallModal } from "@/components/communications/AICallModal";
 
 interface Props {
   contact: any;
@@ -16,6 +17,7 @@ export function ContactDetailHeader({ contact }: Props) {
   const location = useLocation();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [callOpen, setCallOpen] = useState(false);
   const perm = useDeletionPermission();
 
   return (
@@ -34,6 +36,12 @@ export function ContactDetailHeader({ contact }: Props) {
         </div>
 
         <div className="flex items-center gap-2">
+          {contact.phone && (
+            <Button variant="outline" size="sm" onClick={() => setCallOpen(true)} className="gap-1.5">
+              <Phone className="h-4 w-4" />
+              AI Call
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Pencil className="h-4 w-4 mr-1" /> Edit
           </Button>
@@ -62,6 +70,14 @@ export function ContactDetailHeader({ contact }: Props) {
         onDeleted={() => navigate(location.state?.from || "/contacts")}
       />
       <EditContactModal open={editOpen} onOpenChange={setEditOpen} contact={contact} />
+      <AICallModal
+        open={callOpen}
+        onOpenChange={setCallOpen}
+        contactId={contact.id}
+        contactFirstName={contact.first_name || contact.name?.split(" ")[0] || ""}
+        contactLastName={contact.last_name || contact.name?.split(" ").slice(1).join(" ") || ""}
+        contactMobile={contact.phone || contact.mobile}
+      />
     </>
   );
 }

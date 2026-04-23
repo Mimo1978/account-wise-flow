@@ -75,7 +75,15 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
   const [expanded, setExpanded] = useState(false);
   const [status, setStatus] = useState<"idle" | "calling" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [templatesOpen, setTemplatesOpen] = useState(false);
   const qc = useQueryClient();
+  const voice = useVoiceDictation();
+  const { data: templates = [] } = useCallBriefTemplates();
+  const saveTemplate = useSaveCallBriefTemplate();
+  const deleteTemplate = useDeleteCallBriefTemplate();
+  const touchTemplate = useTouchCallBriefTemplate();
 
   useEffect(() => {
     if (open) {
@@ -87,6 +95,9 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       setExpanded(false);
       setStatus("idle");
       setErrorMsg("");
+      setSaveOpen(false);
+      setSaveName("");
+      setTemplatesOpen(false);
     }
   }, [open]);
 

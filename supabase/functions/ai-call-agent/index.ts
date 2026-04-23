@@ -452,7 +452,7 @@ serve(async (req) => {
           call_type: "ai",
           outcome: structuredAnswers.outcome,
           structured_answers: structuredAnswers,
-          performed_by_user: user.id,
+          performed_by_user: null,
         },
       });
 

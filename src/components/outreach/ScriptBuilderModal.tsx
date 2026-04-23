@@ -167,6 +167,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
           body: channel === "call" ? undefined : body,
           call_blocks: channel === "call" ? callBlocks : undefined,
           job_id: mode === "link_job" ? linkedJobId : undefined,
+          agency_name: agencyName.trim() || undefined,
         },
       });
       if (error) throw error;
@@ -320,6 +321,25 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
 
           {/* AI assist toolbar */}
           <div className="flex items-center gap-2 mt-3 flex-wrap">
+            {/* Agency name (workspace-wide, used by {{agency.name}}) */}
+            <div className="flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                value={agencyName}
+                onChange={(e) => setAgencyName(e.target.value)}
+                onBlur={persistAgencyName}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+                placeholder="Your agency name (e.g. Bluebridge Data)"
+                className="h-8 w-[220px] text-xs"
+                title="Saved to workspace settings. Used to resolve {{agency.name}} in scripts."
+              />
+            </div>
+
             <Button
               type="button"
               size="sm"

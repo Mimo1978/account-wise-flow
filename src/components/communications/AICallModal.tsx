@@ -106,9 +106,12 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
 
   const pickPreset = (p: typeof PRESETS[number]) => {
     setPresetKey(p.key);
-    setPurpose(p.purpose);
-    if (p.key !== "custom") setBrief(p.brief);
-    setEnhanced("");
+    // Never overwrite what the user has typed or dictated.
+    setPurpose(prev => (prev.trim() ? prev : p.purpose));
+    if (p.key !== "custom") {
+      setBrief(prev => (prev.trim() ? prev : p.brief));
+    }
+    if (enhanced) setEnhanced("");
   };
 
   const handleEnhance = async () => {

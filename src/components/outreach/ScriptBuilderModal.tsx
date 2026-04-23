@@ -41,6 +41,8 @@ import { useCreateScript, useUpdateScript } from "@/hooks/use-scripts";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useJobs } from "@/hooks/use-jobs";
+import { useWorkspaceSettings } from "@/hooks/use-workspace-settings";
+import { Building2 } from "lucide-react";
 
 import { ScriptSimulator } from "./ScriptSimulator";
 import { cn } from "@/lib/utils";

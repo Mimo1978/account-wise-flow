@@ -7,6 +7,7 @@ import { DeletionRequestBanner } from "@/components/deletion/DeletionRequestBann
 import { useDeletionPermission } from "@/hooks/use-deletion";
 import { EditContactModal } from "./EditContactModal";
 import { AICallModal } from "@/components/communications/AICallModal";
+import { AddToCampaignButton } from "@/components/outreach/AddToCampaignButton";
 
 interface Props {
   contact: any;
@@ -42,6 +43,15 @@ export function ContactDetailHeader({ contact }: Props) {
               AI Call
             </Button>
           )}
+          <AddToCampaignButton
+            entityType="contact"
+            entityId={contact.id}
+            entityName={contact.name}
+            entityEmail={contact.email}
+            entityPhone={contact.phone || contact.mobile}
+            entityTitle={contact.title || contact.job_title}
+            entityCompany={contact.companies?.name}
+          />
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Pencil className="h-4 w-4 mr-1" /> Edit
           </Button>

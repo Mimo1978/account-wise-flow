@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,9 @@ import {
   Trash2,
   Variable,
   FlaskConical,
+  Sparkles,
+  Briefcase,
+  Loader2,
 } from "lucide-react";
 import {
   ALLOWED_VARIABLES,
@@ -35,6 +38,9 @@ import {
   type CallBlockType,
 } from "@/lib/script-types";
 import { useCreateScript, useUpdateScript } from "@/hooks/use-scripts";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useJobs } from "@/hooks/use-jobs";
 
 import { ScriptSimulator } from "./ScriptSimulator";
 import { cn } from "@/lib/utils";

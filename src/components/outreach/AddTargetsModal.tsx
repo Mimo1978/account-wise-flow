@@ -95,6 +95,7 @@ export function AddTargetsModal({ open, onOpenChange, campaignId }: Props) {
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState<EntityKind>("both");
   const [selected, setSelected] = useState<Map<string, ResultRow>>(new Map());
+  const [fullscreen, setFullscreen] = useState(false);
   const { mutateAsync: addTargets, isPending } = useAddTargets();
   const inputRef = useRef<HTMLInputElement>(null);
 

@@ -39,23 +39,40 @@ serve(async (req) => {
 
     // Get contact name and company
     let firstName = "there";
+    let entityName = "";
     let companyName = "";
     let companyId = null;
+    let resolvedContactId: string | null = null;
+    let resolvedCandidateId: string | null = null;
 
     if (contact_id) {
       const { data: c } = await supabase.from("contacts").select("name, company_id").eq("id", contact_id).maybeSingle();
-      if (c?.name) firstName = c.name.split(" ")[0];
-      companyId = c?.company_id || null;
-      if (companyId) {
-        const { data: co } = await supabase.from("companies").select("name").eq("id", companyId).maybeSingle();
-        if (co?.name) companyName = co.name;
-      }
-      // Fallback to candidates table
-      if (!c) {
+      if (c) {
+        resolvedContactId = contact_id;
+        if (c.name) { firstName = c.name.split(" ")[0]; entityName = c.name; }
+        companyId = c.company_id || null;
+        if (companyId) {
+          const { data: co } = await supabase.from("companies").select("name").eq("id", companyId).maybeSingle();
+          if (co?.name) companyName = co.name;
+        }
+      } else {
+        // Fallback to candidates table
         const { data: cand } = await supabase.from("candidates").select("name").eq("id", contact_id).maybeSingle();
-        if (cand?.name) firstName = cand.name.split(" ")[0];
+        if (cand) {
+          resolvedCandidateId = contact_id;
+          if (cand.name) { firstName = cand.name.split(" ")[0]; entityName = cand.name; }
+        }
       }
     }
+
+    // Resolve workspace (team) for diary booking
+    const { data: roleRow } = await supabase
+      .from("user_roles")
+      .select("team_id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    const workspaceId = roleRow?.team_id || null;
 
     // Get call script from outreach_scripts if one exists for 'call' channel
     const { data: scripts } = await supabase
@@ -122,9 +139,13 @@ End the call professionally and confirm any agreed next step.`;
             sentiment: "string",
           },
           metadata: {
-            contact_id: contact_id || null,
+            contact_id: resolvedContactId,
+            candidate_id: resolvedCandidateId,
+            company_id: companyId,
+            workspace_id: workspaceId,
             user_id: user.id,
             purpose: purpose || "",
+            entity_name: entityName || firstName,
           },
         }),
       });
@@ -197,7 +218,7 @@ End the call professionally and confirm any agreed next step.`;
       direction: "outbound",
       subject: `AI Call: ${purpose || "Outreach"}`,
       body: `Provider: ${provider}. Call ID: ${callId}. Purpose: ${purpose || "General outreach"}. ${custom_instructions || ""}`.substring(0, 2000),
-      contact_id: contact_id || null,
+      contact_id: resolvedContactId,
       company_id: companyId,
       status: provider === "bland" ? "in_progress" : "completed",
       created_by: user.id,

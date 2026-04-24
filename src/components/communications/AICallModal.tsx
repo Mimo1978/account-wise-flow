@@ -77,7 +77,9 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
   const [errorMsg, setErrorMsg] = useState("");
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
+  const [saveWhich, setSaveWhich] = useState<"both" | "original" | "enhanced">("both");
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [autoSavedId, setAutoSavedId] = useState<string | null>(null);
   const qc = useQueryClient();
   const voice = useVoiceDictation();
   const { data: templates = [] } = useCallBriefTemplates();
@@ -98,6 +100,8 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       setSaveOpen(false);
       setSaveName("");
       setTemplatesOpen(false);
+      setSaveWhich("both");
+      setAutoSavedId(null);
     }
   }, [open]);
 
@@ -126,8 +130,19 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       });
       if (error) throw error;
       if (data?.error) throw new Error(data?.message || data.error);
-      setEnhanced(data?.enhanced || "");
-      toast.success("Brief enhanced");
+      const enhancedText = data?.enhanced || "";
+      setEnhanced(enhancedText);
+      toast.success("Brief enhanced for voice agent");
+      // Auto-save to templates so nothing is ever lost, even if the user forgets.
+      if (enhancedText && !autoSavedId) {
+        try {
+          const autoName = `Auto · ${(purpose || "Outbound call").slice(0, 40)} · ${new Date().toLocaleDateString()}`;
+          const saved = await saveTemplate.mutateAsync({ name: autoName, purpose, brief, enhanced: enhancedText });
+          setAutoSavedId(saved.id);
+        } catch {
+          // silent — auto-save is best effort
+        }
+      }
     } catch (err: any) {
       toast.error(err.message || "Couldn't enhance brief");
     } finally {
@@ -154,10 +169,22 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
   const handleSaveTemplate = async () => {
     if (!saveName.trim() || !brief.trim()) { toast.error("Add a name and a brief"); return; }
     try {
-      await saveTemplate.mutateAsync({ name: saveName.trim(), purpose, brief, enhanced });
-      toast.success("Template saved");
+      // Decide what to persist based on the user's choice.
+      const payload = {
+        name: saveName.trim(),
+        purpose,
+        brief: saveWhich === "enhanced" && enhanced ? enhanced : brief,
+        enhanced: saveWhich === "original" ? "" : enhanced,
+      };
+      await saveTemplate.mutateAsync(payload);
+      toast.success(
+        saveWhich === "original" ? "Original brief saved"
+        : saveWhich === "enhanced" ? "Enhanced script saved"
+        : "Template saved (original + enhanced)"
+      );
       setSaveOpen(false);
       setSaveName("");
+      setSaveWhich("both");
     } catch (e: any) {
       toast.error(e.message || "Couldn't save template");
     }
@@ -396,7 +423,7 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                             <Save className="w-3.5 h-3.5" /> Save
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent align="end" className="w-72 p-3">
+                        <PopoverContent align="end" className="w-80 p-3">
                           <Label className="text-xs">Template name</Label>
                           <input
                             value={saveName}
@@ -405,6 +432,35 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                             className="w-full mt-1 h-8 px-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                             onKeyDown={e => { if (e.key === "Enter") handleSaveTemplate(); }}
                           />
+                          <Label className="text-xs mt-3 block">What to save</Label>
+                          <div className="mt-1 grid grid-cols-3 gap-1.5">
+                            {([
+                              { k: "both", l: "Both" },
+                              { k: "original", l: "Original" },
+                              { k: "enhanced", l: "Enhanced" },
+                            ] as const).map(opt => {
+                              const disabled = opt.k === "enhanced" && !enhanced;
+                              const active = saveWhich === opt.k;
+                              return (
+                                <button
+                                  key={opt.k}
+                                  type="button"
+                                  disabled={disabled}
+                                  onClick={() => setSaveWhich(opt.k)}
+                                  className={cn(
+                                    "h-7 rounded-md border text-[11px] font-medium transition-colors",
+                                    active ? "border-primary bg-primary/10 text-foreground" : "border-border bg-background text-muted-foreground hover:text-foreground",
+                                    disabled && "opacity-50 cursor-not-allowed"
+                                  )}
+                                >
+                                  {opt.l}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-1.5 leading-snug">
+                            {autoSavedId ? "Already auto-saved once — this adds a named version." : "Tip: enhanced scripts are auto-saved so you never lose one."}
+                          </p>
                           <div className="flex justify-end gap-2 mt-3">
                             <Button size="sm" variant="ghost" onClick={() => setSaveOpen(false)}>Cancel</Button>
                             <Button size="sm" onClick={handleSaveTemplate} disabled={saveTemplate.isPending || !saveName.trim()}>
@@ -434,7 +490,7 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                     className="resize-none text-sm"
                   />
                   <p className="text-[11px] text-muted-foreground mt-1.5">
-                    The AI will polish your brief into a natural script with pauses, suitable for Bland.ai or Twilio voice agents.
+                    AI converts your brief into a turn-by-turn conversation — the agent speaks one line, <em>waits</em> for a reply, then responds. No blurted monologues.
                   </p>
                 </div>
               </div>

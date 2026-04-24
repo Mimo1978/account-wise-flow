@@ -100,6 +100,8 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       setSaveOpen(false);
       setSaveName("");
       setTemplatesOpen(false);
+      setSaveWhich("both");
+      setAutoSavedId(null);
     }
   }, [open]);
 

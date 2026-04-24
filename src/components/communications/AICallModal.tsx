@@ -64,9 +64,10 @@ interface Props {
   contactLastName: string;
   companyName?: string;
   contactMobile?: string | null;
+  entityType?: "contact" | "crm_contact" | "candidate";
 }
 
-export function AICallModal({ open, onOpenChange, contactId, contactFirstName, contactLastName, companyName, contactMobile }: Props) {
+export function AICallModal({ open, onOpenChange, contactId, contactFirstName, contactLastName, companyName, contactMobile, entityType = "contact" }: Props) {
   const [presetKey, setPresetKey] = useState<PresetKey | null>(null);
   const [purpose, setPurpose] = useState("");
   const [brief, setBrief] = useState("");
@@ -207,7 +208,8 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
     try {
       const { data, error } = await supabase.functions.invoke("initiate-ai-call", {
         body: {
-          contact_id: contactId,
+          entity_id: contactId,
+          entity_type: entityType,
           to_number: contactMobile || "",
           purpose,
           custom_instructions: finalScript,

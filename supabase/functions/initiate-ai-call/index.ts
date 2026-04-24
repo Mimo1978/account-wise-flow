@@ -30,7 +30,16 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
     if (authError || !user) return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const { contact_id, to_number, purpose, custom_instructions } = await req.json();
+    const body = await req.json();
+    const {
+      to_number,
+      purpose,
+      custom_instructions,
+    } = body;
+    // Accept both legacy `contact_id` and new `entity_id`/`entity_type`
+    const entityType: "contact" | "crm_contact" | "candidate" =
+      body.entity_type || (body.contact_id ? "contact" : "contact");
+    const entityId: string | null = body.entity_id || body.contact_id || null;
     if (!to_number) return new Response(JSON.stringify({ error: "to_number is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Get all integration keys
@@ -45,22 +54,43 @@ serve(async (req) => {
     let resolvedContactId: string | null = null;
     let resolvedCandidateId: string | null = null;
 
-    if (contact_id) {
-      const { data: c } = await supabase.from("contacts").select("name, company_id").eq("id", contact_id).maybeSingle();
-      if (c) {
-        resolvedContactId = contact_id;
-        if (c.name) { firstName = c.name.split(" ")[0]; entityName = c.name; }
-        companyId = c.company_id || null;
-        if (companyId) {
-          const { data: co } = await supabase.from("companies").select("name").eq("id", companyId).maybeSingle();
-          if (co?.name) companyName = co.name;
+    if (entityId) {
+      if (entityType === "candidate") {
+        const { data: cand } = await supabase.from("candidates").select("name").eq("id", entityId).maybeSingle();
+        if (cand) {
+          resolvedCandidateId = entityId;
+          if (cand.name) { firstName = cand.name.split(" ")[0]; entityName = cand.name; }
+        }
+      } else if (entityType === "crm_contact") {
+        const { data: c } = await supabase.from("crm_contacts").select("first_name, last_name, company_id").eq("id", entityId).maybeSingle();
+        if (c) {
+          resolvedContactId = entityId;
+          firstName = c.first_name || "there";
+          entityName = `${c.first_name || ""} ${c.last_name || ""}`.trim();
+          companyId = c.company_id || null;
+          if (companyId) {
+            const { data: co } = await supabase.from("crm_companies").select("name").eq("id", companyId).maybeSingle();
+            if (co?.name) companyName = co.name;
+          }
         }
       } else {
-        // Fallback to candidates table
-        const { data: cand } = await supabase.from("candidates").select("name").eq("id", contact_id).maybeSingle();
-        if (cand) {
-          resolvedCandidateId = contact_id;
-          if (cand.name) { firstName = cand.name.split(" ")[0]; entityName = cand.name; }
+        // contact (canonical)
+        const { data: c } = await supabase.from("contacts").select("name, company_id").eq("id", entityId).maybeSingle();
+        if (c) {
+          resolvedContactId = entityId;
+          if (c.name) { firstName = c.name.split(" ")[0]; entityName = c.name; }
+          companyId = c.company_id || null;
+          if (companyId) {
+            const { data: co } = await supabase.from("companies").select("name").eq("id", companyId).maybeSingle();
+            if (co?.name) companyName = co.name;
+          }
+        } else {
+          // Last-ditch fallback: maybe it's a candidate id
+          const { data: cand } = await supabase.from("candidates").select("name").eq("id", entityId).maybeSingle();
+          if (cand) {
+            resolvedCandidateId = entityId;
+            if (cand.name) { firstName = cand.name.split(" ")[0]; entityName = cand.name; }
+          }
         }
       }
     }
@@ -212,17 +242,66 @@ End the call professionally and confirm any agreed next step.`;
       }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Log the call to crm_activities
+    // Initiator profile (for audit trail)
+    const { data: initiatorProfile } = await supabase
+      .from("profiles")
+      .select("first_name, last_name")
+      .eq("id", user.id)
+      .maybeSingle();
+    const initiatorName = `${initiatorProfile?.first_name || ""} ${initiatorProfile?.last_name || ""}`.trim() || user.email || user.id;
+
+    const scriptForLog = (custom_instructions || "").slice(0, 4000);
+
+    // Log the call to crm_activities (kept for CRM timeline)
     await supabase.from("crm_activities").insert({
       type: "call",
       direction: "outbound",
       subject: `AI Call: ${purpose || "Outreach"}`,
-      body: `Provider: ${provider}. Call ID: ${callId}. Purpose: ${purpose || "General outreach"}. ${custom_instructions || ""}`.substring(0, 2000),
+      body: `Provider: ${provider}. Call ID: ${callId}. Initiated by: ${initiatorName}. Purpose: ${purpose || "General outreach"}.\n\n--- Script ---\n${scriptForLog}`.substring(0, 8000),
       contact_id: resolvedContactId,
+      candidate_id: resolvedCandidateId,
       company_id: companyId,
       status: provider === "bland" ? "in_progress" : "completed",
       created_by: user.id,
     });
+
+    // Log a "Call started" note immediately on the person's record so it's
+    // traceable even before the webhook fires.
+    const startedAt = new Date().toISOString();
+    const startNoteBody = [
+      `📞 AI Call started — ${purpose || "Outbound call"}`,
+      `Initiated by: ${initiatorName}`,
+      `To: ${to_number}`,
+      `Provider: ${provider} · Call ID: ${callId}`,
+      `Time: ${startedAt}`,
+      scriptForLog ? `\n--- Script delivered to AI agent ---\n${scriptForLog}` : "",
+    ].filter(Boolean).join("\n");
+
+    try {
+      if (resolvedCandidateId && workspaceId) {
+        await supabase.from("candidate_notes").insert({
+          candidate_id: resolvedCandidateId,
+          title: `📞 AI Call started — ${purpose || "Outreach"}`,
+          body: startNoteBody.slice(0, 8000),
+          visibility: "team",
+          owner_id: user.id,
+          team_id: workspaceId,
+          tags: ["ai-call", "started"],
+        });
+      } else if (resolvedContactId && workspaceId) {
+        await supabase.from("notes").insert({
+          entity_type: "contact",
+          entity_id: resolvedContactId,
+          content: startNoteBody.slice(0, 8000),
+          visibility: "team",
+          source: "ai_call",
+          owner_id: user.id,
+          team_id: workspaceId,
+        });
+      }
+    } catch (noteErr) {
+      console.error("initiate-ai-call: start-note insert failed:", noteErr);
+    }
 
     return new Response(JSON.stringify({
       success: true,

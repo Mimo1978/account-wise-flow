@@ -661,6 +661,7 @@ export default function CandidateProfile() {
         contactFirstName={candidate.name?.split(" ")[0] || ""}
         contactLastName={candidate.name?.split(" ").slice(1).join(" ") || ""}
         contactMobile={candidate.phone}
+        entityType="candidate"
       />
 
       {/* Email Compose Modal */}

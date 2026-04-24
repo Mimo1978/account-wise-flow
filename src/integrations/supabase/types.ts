@@ -1419,6 +1419,7 @@ export type Database = {
       crm_activities: {
         Row: {
           body: string | null
+          candidate_id: string | null
           company_id: string | null
           completed_at: string | null
           contact_id: string | null
@@ -1434,6 +1435,7 @@ export type Database = {
         }
         Insert: {
           body?: string | null
+          candidate_id?: string | null
           company_id?: string | null
           completed_at?: string | null
           contact_id?: string | null
@@ -1449,6 +1451,7 @@ export type Database = {
         }
         Update: {
           body?: string | null
+          candidate_id?: string | null
           company_id?: string | null
           completed_at?: string | null
           contact_id?: string | null

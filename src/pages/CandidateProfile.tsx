@@ -671,6 +671,7 @@ export default function CandidateProfile() {
         contactId={candidate.id}
         contactEmail={candidate.email}
         contactFirstName={candidate.name?.split(" ")[0]}
+        entityType="candidate"
       />
 
       {/* SMS Compose Modal */}
@@ -681,6 +682,7 @@ export default function CandidateProfile() {
         contactMobile={candidate.phone}
         contactFirstName={candidate.name?.split(" ")[0]}
         gdprConsent={true}
+        entityType="candidate"
       />
     </div>
   );

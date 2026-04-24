@@ -43,7 +43,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Rate limit reached. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { to, subject, html_body, contact_id, company_id, opportunity_id } = await req.json();
+    const { to, subject, html_body, contact_id, company_id, opportunity_id, candidate_id, entity_type } = await req.json();
 
     // Get user's Resend keys
     const keys = await getUserKeys(supabase, user.id, "resend");
@@ -78,6 +78,16 @@ serve(async (req) => {
     // Strip HTML for plain text body
     const plainBody = html_body.replace(/<[^>]*>/g, "").substring(0, 2000);
 
+    // Initiator name for traceable audit trail
+    const { data: initiatorProfile } = await supabase
+      .from("profiles").select("first_name, last_name").eq("id", user.id).maybeSingle();
+    const initiatorName = `${initiatorProfile?.first_name || ""} ${initiatorProfile?.last_name || ""}`.trim() || user.email || user.id;
+
+    // Resolve workspace
+    const { data: roleRow } = await supabase
+      .from("user_roles").select("team_id").eq("user_id", user.id).limit(1).maybeSingle();
+    const workspaceId = roleRow?.team_id || null;
+
     // Log activity
     const { data: activity, error: actError } = await supabase.from("crm_activities").insert({
       type: "email",
@@ -93,6 +103,47 @@ serve(async (req) => {
     }).select("id").single();
 
     if (actError) console.error("Activity log error:", actError);
+
+    // ─────────────────────────────────────────────────
+    // Persist a Note on the recipient's record so every
+    // outbound email is visible in the contact / talent
+    // file for audit + reporting.
+    // ─────────────────────────────────────────────────
+    try {
+      const noteContent = [
+        `✉️ Email sent — ${subject}`,
+        `Sent by: ${initiatorName}`,
+        `To: ${to}`,
+        `Time: ${new Date().toISOString()}`,
+        "",
+        "--- Body ---",
+        plainBody,
+      ].join("\n");
+
+      if (entity_type === "candidate" && candidate_id && workspaceId) {
+        await supabase.from("candidate_notes").insert({
+          candidate_id,
+          title: `✉️ Email · ${subject}`.slice(0, 200),
+          body: noteContent.slice(0, 8000),
+          visibility: "team",
+          owner_id: user.id,
+          team_id: workspaceId,
+          tags: ["email", "outbound"],
+        });
+      } else if (contact_id && workspaceId) {
+        await supabase.from("notes").insert({
+          entity_type: "contact",
+          entity_id: contact_id,
+          content: noteContent.slice(0, 8000),
+          visibility: "team",
+          source: "email",
+          owner_id: user.id,
+          team_id: workspaceId,
+        });
+      }
+    } catch (noteErr) {
+      console.error("send-email: note insert failed:", noteErr);
+    }
 
     return new Response(JSON.stringify({ success: true, activity_id: activity?.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

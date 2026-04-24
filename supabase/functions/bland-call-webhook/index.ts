@@ -128,13 +128,21 @@ serve(async (req) => {
     const contactId = payload.metadata?.contact_id;
 
     // AI summary (if we have any transcript)
-    let analysis = {
+    type Analysis = {
+      summary: string;
+      outcome: string;
+      meeting_agreed: boolean;
+      meeting_when?: string;
+      meeting_iso?: string;
+      duration_minutes?: number;
+      next_step?: string;
+      sentiment: "positive" | "neutral" | "negative";
+    };
+    let analysis: Analysis = {
       summary: payload.summary || "Call completed — no transcript captured.",
       outcome: payload.completed ? "Call completed" : (payload.status || "Unknown"),
-      meeting_agreed: false as boolean,
-      meeting_when: undefined as string | undefined,
-      next_step: undefined as string | undefined,
-      sentiment: "neutral" as "positive" | "neutral" | "negative",
+      meeting_agreed: false,
+      sentiment: "neutral",
     };
     if (transcript.trim().length > 30 && Deno.env.get("LOVABLE_API_KEY")) {
       try {
@@ -250,9 +258,7 @@ serve(async (req) => {
     // ─────────────────────────────────────────────────────────────
     let noteId: string | null = null;
     try {
-      const noteEntityType = candidateId ? "candidate" : (contactId ? "contact" : null);
-      const noteEntityId = candidateId || contactId || null;
-      if (noteEntityType && noteEntityId && workspaceId) {
+      if (workspaceId) {
         const noteContent = [
           `📞 AI Call · ${analysis.outcome}`,
           analysis.summary,
@@ -262,24 +268,49 @@ serve(async (req) => {
           analysis.next_step ? `Next step: ${analysis.next_step}` : "",
           durationMin !== null ? `Duration: ${durationMin.toFixed(1)} min · Sentiment: ${analysis.sentiment}` : `Sentiment: ${analysis.sentiment}`,
           payload.recording_url ? `Recording: ${payload.recording_url}` : "",
+          purpose ? `\n--- Original purpose ---\n${purpose}` : "",
+          transcript ? `\n--- Full transcript ---\n${transcript.slice(0, 4000)}` : "",
+          `\nProvider: bland · Call ID: ${callId}`,
         ].filter(Boolean).join("\n\n");
 
-        const { data: note, error: noteErr } = await supabase
-          .from("notes")
-          .insert({
-            entity_type: noteEntityType,
-            entity_id: noteEntityId,
-            content: noteContent.slice(0, 8000),
-            visibility: "team",
-            source: "ai_call",
-            owner_id: userId || null,
-            team_id: workspaceId,
-            pinned: analysis.meeting_agreed,
-          })
-          .select("id")
-          .single();
-        if (noteErr) console.error("notes insert failed:", noteErr);
-        else noteId = note?.id ?? null;
+        if (candidateId) {
+          // Talent uses dedicated candidate_notes table
+          const { data: note, error: noteErr } = await supabase
+            .from("candidate_notes")
+            .insert({
+              candidate_id: candidateId,
+              title: analysis.meeting_agreed
+                ? `📅 AI Call → Meeting agreed`
+                : `📞 AI Call · ${analysis.outcome}`,
+              body: noteContent.slice(0, 8000),
+              visibility: "team",
+              owner_id: userId || null,
+              team_id: workspaceId,
+              pinned: analysis.meeting_agreed,
+              tags: ["ai-call", "completed", analysis.meeting_agreed ? "meeting-booked" : "outcome"],
+            })
+            .select("id")
+            .single();
+          if (noteErr) console.error("candidate_notes insert failed:", noteErr);
+          else noteId = note?.id ?? null;
+        } else if (contactId) {
+          const { data: note, error: noteErr } = await supabase
+            .from("notes")
+            .insert({
+              entity_type: "contact",
+              entity_id: contactId,
+              content: noteContent.slice(0, 8000),
+              visibility: "team",
+              source: "ai_call",
+              owner_id: userId || null,
+              team_id: workspaceId,
+              pinned: analysis.meeting_agreed,
+            })
+            .select("id")
+            .single();
+          if (noteErr) console.error("notes insert failed:", noteErr);
+          else noteId = note?.id ?? null;
+        }
       }
     } catch (e) {
       console.error("note creation error:", e);

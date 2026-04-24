@@ -42,7 +42,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Rate limit reached. Please try again later." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    const { to_number, message, contact_id, company_id } = await req.json();
+    const { to_number, message, contact_id, company_id, candidate_id, entity_type } = await req.json();
 
     const keys = await getUserKeys(supabase, user.id, "twilio");
     if (!keys.TWILIO_ACCOUNT_SID || !keys.TWILIO_AUTH_TOKEN || !keys.TWILIO_PHONE_NUMBER) {
@@ -77,17 +77,68 @@ serve(async (req) => {
 
     const twilioData = await twilioRes.json();
 
-    // Log activity
+    // Initiator + workspace for traceable audit trail
+    const { data: initiatorProfile } = await supabase
+      .from("profiles").select("first_name, last_name").eq("id", user.id).maybeSingle();
+    const initiatorName = `${initiatorProfile?.first_name || ""} ${initiatorProfile?.last_name || ""}`.trim() || user.email || user.id;
+    const { data: roleRow } = await supabase
+      .from("user_roles").select("team_id").eq("user_id", user.id).limit(1).maybeSingle();
+    const workspaceId = roleRow?.team_id || null;
+
+    // Log activity (CRM timeline)
     await supabase.from("crm_activities").insert({
       type: "sms",
       direction: "outbound",
       body: message,
       contact_id: contact_id || null,
+      candidate_id: candidate_id || null,
       company_id: company_id || null,
       status: "completed",
       completed_at: new Date().toISOString(),
       created_by: user.id,
     });
+
+    // ─────────────────────────────────────────────────
+    // Persist a Note on the recipient's record so every
+    // outbound SMS is traceable in the contact / talent
+    // file.
+    // ─────────────────────────────────────────────────
+    try {
+      const noteContent = [
+        `💬 SMS sent`,
+        `Sent by: ${initiatorName}`,
+        `To: ${to_number}`,
+        `Time: ${new Date().toISOString()}`,
+        `Provider: twilio · SID: ${twilioData.sid}`,
+        "",
+        "--- Message ---",
+        message,
+      ].join("\n");
+
+      if (entity_type === "candidate" && candidate_id && workspaceId) {
+        await supabase.from("candidate_notes").insert({
+          candidate_id,
+          title: `💬 SMS sent`,
+          body: noteContent.slice(0, 8000),
+          visibility: "team",
+          owner_id: user.id,
+          team_id: workspaceId,
+          tags: ["sms", "outbound"],
+        });
+      } else if (contact_id && workspaceId) {
+        await supabase.from("notes").insert({
+          entity_type: "contact",
+          entity_id: contact_id,
+          content: noteContent.slice(0, 8000),
+          visibility: "team",
+          source: "sms",
+          owner_id: user.id,
+          team_id: workspaceId,
+        });
+      }
+    } catch (noteErr) {
+      console.error("send-sms: note insert failed:", noteErr);
+    }
 
     return new Response(JSON.stringify({ success: true, twilio_message_sid: twilioData.sid }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

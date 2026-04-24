@@ -20,9 +20,10 @@ interface Props {
   contactFirstName?: string;
   companyId?: string | null;
   gdprConsent: boolean;
+  entityType?: "contact" | "crm_contact" | "candidate";
 }
 
-export function SMSComposeModal({ open, onOpenChange, contactId, contactMobile, contactFirstName, companyId, gdprConsent }: Props) {
+export function SMSComposeModal({ open, onOpenChange, contactId, contactMobile, contactFirstName, companyId, gdprConsent, entityType = "contact" }: Props) {
   const [to, setTo] = useState(contactMobile || "");
   const [message, setMessage] = useState("");
   const [consentConfirmed, setConsentConfirmed] = useState(false);
@@ -68,7 +69,14 @@ export function SMSComposeModal({ open, onOpenChange, contactId, contactMobile, 
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-sms", {
-        body: { to_number: to.trim(), message, contact_id: contactId, company_id: companyId || null },
+        body: {
+          to_number: to.trim(),
+          message,
+          contact_id: entityType === "candidate" ? null : contactId,
+          candidate_id: entityType === "candidate" ? contactId : null,
+          entity_type: entityType,
+          company_id: companyId || null,
+        },
       });
       if (error) throw error;
       if (data?.error === "integration_not_configured") {

@@ -21,9 +21,10 @@ interface Props {
   companyId?: string | null;
   companyName?: string;
   opportunityId?: string | null;
+  entityType?: "contact" | "crm_contact" | "candidate";
 }
 
-export function EmailComposeModal({ open, onOpenChange, contactId, contactEmail, contactFirstName, companyId, companyName, opportunityId }: Props) {
+export function EmailComposeModal({ open, onOpenChange, contactId, contactEmail, contactFirstName, companyId, companyName, opportunityId, entityType = "contact" }: Props) {
   const [to, setTo] = useState(contactEmail || "");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -72,7 +73,16 @@ export function EmailComposeModal({ open, onOpenChange, contactId, contactEmail,
     setSending(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-email", {
-        body: { to: to.trim(), subject, html_body: body, contact_id: contactId, company_id: companyId || null, opportunity_id: opportunityId || null },
+        body: {
+          to: to.trim(),
+          subject,
+          html_body: body,
+          contact_id: entityType === "candidate" ? null : contactId,
+          candidate_id: entityType === "candidate" ? contactId : null,
+          entity_type: entityType,
+          company_id: companyId || null,
+          opportunity_id: opportunityId || null,
+        },
       });
       if (error) throw error;
       if (data?.error === "integration_not_configured") {

@@ -26,18 +26,26 @@ serve(async (req) => {
     }
     const { purpose, brief, contact_name, company_name, agency_name, provider } = (await req.json()) as Body;
 
-    const sys = `You enhance short call briefs into clear, natural AI-voice agent instructions.
+    const sys = `You turn short call briefs into a CONVERSATIONAL script for an AI VOICE agent (Bland.ai / Twilio).
 
-Rules:
-- Output ONLY the enhanced script/instruction text. No preamble, no markdown, no headings.
-- Keep it concise (90–160 words).
-- Use a warm, professional tone — first-person as the AI agent calling on behalf of ${agency_name || "the agency"}.
-- Open with a greeting using the contact's first name${contact_name ? ` ("${contact_name}")` : ""}.
-- State the purpose clearly within the first two sentences.
-- Include natural pauses for the contact to respond (use short sentences, no "[pause]" markers — Bland.ai/Twilio pace naturally).
-- End with a clear next step (book a meeting, confirm callback time, etc.).
-- Never invent facts not in the brief.
-- Do not use emojis or special formatting.`;
+Critical — this is NOT a monologue. The AI must talk like a human calling: it says ONE thought, then STOPS and listens.
+
+Output format — a turn-by-turn script using these exact labels, one per line:
+AGENT: <one short spoken sentence, 1–2 lines max>
+WAIT_FOR_RESPONSE: <what we expect the person to say or do>
+AGENT: <short follow-up, acknowledging or pivoting>
+WAIT_FOR_RESPONSE: ...
+(repeat until the goal is reached)
+
+Hard rules:
+- NEVER let an AGENT turn dump the whole pitch. Break it into 4–8 small turns with WAIT_FOR_RESPONSE between each.
+- Each AGENT line is spoken aloud — keep it under ~25 words, plain speech, contractions OK.
+- Open warmly, greet using the contact's first name${contact_name ? ` ("${contact_name}")` : ""}, and check "is now a good time?" — then WAIT.
+- State the reason for the call in the NEXT turn, not the first. Calling on behalf of ${agency_name || "the agency"}.
+- Include natural filler / acknowledgements between turns ("Got it.", "Makes sense.", "Thanks for that.").
+- End with a single concrete next step (book a slot, confirm callback time, send an email) — then one final WAIT_FOR_RESPONSE to capture confirmation.
+- If they say "not a good time" early on, have a polite fallback AGENT line offering a callback.
+- Never invent facts outside the brief. No markdown, no emojis, no headings, no commentary — ONLY the AGENT/WAIT_FOR_RESPONSE lines.`;
 
     const user = `Purpose: ${purpose}
 ${company_name ? `Company: ${company_name}\n` : ""}Brief from the user:

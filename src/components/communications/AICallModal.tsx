@@ -77,7 +77,9 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
   const [errorMsg, setErrorMsg] = useState("");
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
+  const [saveWhich, setSaveWhich] = useState<"both" | "original" | "enhanced">("both");
   const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [autoSavedId, setAutoSavedId] = useState<string | null>(null);
   const qc = useQueryClient();
   const voice = useVoiceDictation();
   const { data: templates = [] } = useCallBriefTemplates();
@@ -126,8 +128,19 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       });
       if (error) throw error;
       if (data?.error) throw new Error(data?.message || data.error);
-      setEnhanced(data?.enhanced || "");
-      toast.success("Brief enhanced");
+      const enhancedText = data?.enhanced || "";
+      setEnhanced(enhancedText);
+      toast.success("Brief enhanced for voice agent");
+      // Auto-save to templates so nothing is ever lost, even if the user forgets.
+      if (enhancedText && !autoSavedId) {
+        try {
+          const autoName = `Auto · ${(purpose || "Outbound call").slice(0, 40)} · ${new Date().toLocaleDateString()}`;
+          const saved = await saveTemplate.mutateAsync({ name: autoName, purpose, brief, enhanced: enhancedText });
+          setAutoSavedId(saved.id);
+        } catch {
+          // silent — auto-save is best effort
+        }
+      }
     } catch (err: any) {
       toast.error(err.message || "Couldn't enhance brief");
     } finally {
@@ -154,10 +167,22 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
   const handleSaveTemplate = async () => {
     if (!saveName.trim() || !brief.trim()) { toast.error("Add a name and a brief"); return; }
     try {
-      await saveTemplate.mutateAsync({ name: saveName.trim(), purpose, brief, enhanced });
-      toast.success("Template saved");
+      // Decide what to persist based on the user's choice.
+      const payload = {
+        name: saveName.trim(),
+        purpose,
+        brief: saveWhich === "enhanced" && enhanced ? enhanced : brief,
+        enhanced: saveWhich === "original" ? "" : enhanced,
+      };
+      await saveTemplate.mutateAsync(payload);
+      toast.success(
+        saveWhich === "original" ? "Original brief saved"
+        : saveWhich === "enhanced" ? "Enhanced script saved"
+        : "Template saved (original + enhanced)"
+      );
       setSaveOpen(false);
       setSaveName("");
+      setSaveWhich("both");
     } catch (e: any) {
       toast.error(e.message || "Couldn't save template");
     }

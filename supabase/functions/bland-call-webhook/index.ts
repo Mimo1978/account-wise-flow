@@ -128,13 +128,21 @@ serve(async (req) => {
     const contactId = payload.metadata?.contact_id;
 
     // AI summary (if we have any transcript)
-    let analysis = {
+    type Analysis = {
+      summary: string;
+      outcome: string;
+      meeting_agreed: boolean;
+      meeting_when?: string;
+      meeting_iso?: string;
+      duration_minutes?: number;
+      next_step?: string;
+      sentiment: "positive" | "neutral" | "negative";
+    };
+    let analysis: Analysis = {
       summary: payload.summary || "Call completed — no transcript captured.",
       outcome: payload.completed ? "Call completed" : (payload.status || "Unknown"),
-      meeting_agreed: false as boolean,
-      meeting_when: undefined as string | undefined,
-      next_step: undefined as string | undefined,
-      sentiment: "neutral" as "positive" | "neutral" | "negative",
+      meeting_agreed: false,
+      sentiment: "neutral",
     };
     if (transcript.trim().length > 30 && Deno.env.get("LOVABLE_API_KEY")) {
       try {

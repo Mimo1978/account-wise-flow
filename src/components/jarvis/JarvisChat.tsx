@@ -540,9 +540,15 @@ function useElevenLabsTTS(
 /* ------------------------------------------------------------------ */
 /*  Hook: detect modals & focused inputs to auto-pause Jarvis          */
 /* ------------------------------------------------------------------ */
-function useJarvisPauseDetection(onPause: () => void) {
+function useJarvisPauseDetection(
+  onPause: () => void,
+  suppressRef?: React.MutableRefObject<boolean>
+) {
   useEffect(() => {
+    const isSuppressed = () => !!suppressRef?.current;
+
     const handleFocusIn = (e: FocusEvent) => {
+      if (isSuppressed()) return;
       const el = e.target as HTMLElement;
       if (!el) return;
       const tag = el.tagName?.toLowerCase();
@@ -558,6 +564,7 @@ function useJarvisPauseDetection(onPause: () => void) {
     };
 
     const observer = new MutationObserver(() => {
+      if (isSuppressed()) return;
       const hasModal = document.querySelector(
         '[role="dialog"], [role="alertdialog"], [data-radix-portal], .modal, [data-state="open"][data-radix-dialog-overlay]'
       );
@@ -573,7 +580,7 @@ function useJarvisPauseDetection(onPause: () => void) {
       document.removeEventListener("focusin", handleFocusIn);
       observer.disconnect();
     };
-  }, [onPause]);
+  }, [onPause, suppressRef]);
 }
 
 /* ------------------------------------------------------------------ */

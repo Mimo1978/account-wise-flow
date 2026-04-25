@@ -65,9 +65,14 @@ interface Props {
   companyName?: string;
   contactMobile?: string | null;
   entityType?: "contact" | "crm_contact" | "candidate";
+  /** Optional Jarvis-driven prefill so the modal arrives partially completed. */
+  initialPurpose?: string;
+  initialBrief?: string;
+  /** When true, the modal will auto-trigger AI enhancement once the brief is set. */
+  autoEnhance?: boolean;
 }
 
-export function AICallModal({ open, onOpenChange, contactId, contactFirstName, contactLastName, companyName, contactMobile, entityType = "contact" }: Props) {
+export function AICallModal({ open, onOpenChange, contactId, contactFirstName, contactLastName, companyName, contactMobile, entityType = "contact", initialPurpose, initialBrief, autoEnhance }: Props) {
   const [presetKey, setPresetKey] = useState<PresetKey | null>(null);
   const [purpose, setPurpose] = useState("");
   const [brief, setBrief] = useState("");

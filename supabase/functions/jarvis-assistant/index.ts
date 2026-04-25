@@ -3967,6 +3967,7 @@ Return ONLY valid JSON, no markdown fences.`,
       };
     }
     case "initiate_ai_call": {
+      // Direct background call — kept for backward compatibility / explicit requests.
       let toNumber = input.phone_number as string;
       if (!toNumber && input.contact_id) {
         const { data: callContact } = await supabaseAdmin

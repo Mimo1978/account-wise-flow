@@ -2788,6 +2788,171 @@ async function executeTool(
       }
       return { result: { matches: allMatches, message: `Found ${allMatches.length} candidates matching "${name}". Did you mean ${allMatches.slice(0, 3).map((c: any) => c.name).join(", or ")}?` }, entityType: "candidates" };
     }
+    case "universal_search": {
+      const rawQ = ((input.query as string) || "").trim();
+      if (!rawQ) {
+        return { result: { error: "Query is required" }, entityType: "search" };
+      }
+      const q = rawQ.replace(/[%,()]/g, " ").trim();
+      const tokens = q.split(/\s+/).filter(Boolean);
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      const types: string[] = Array.isArray(input.entity_types) && (input.entity_types as string[]).length > 0
+        ? (input.entity_types as string[])
+        : ["candidate","contact","crm_contact","company","crm_company","project","deal","opportunity","invoice","job"];
+      const limit = Math.max(1, Math.min(25, Number(input.limit_per_type) || 10));
+      const dateFrom = (input.date_from as string) || null;
+      const dateTo = (input.date_to as string) || null;
+
+      const buildOr = (fields: string[]) => {
+        const parts: string[] = fields.map((f) => `${f}.ilike.%${q}%`);
+        if (tokens.length > 1) {
+          for (const t of tokens) for (const f of fields) parts.push(`${f}.ilike.%${t}%`);
+        }
+        return parts.join(",");
+      };
+
+      const applyDates = (qb: any, col = "created_at") => {
+        if (dateFrom) qb = qb.gte(col, dateFrom);
+        if (dateTo) qb = qb.lte(col, dateTo);
+        return qb;
+      };
+
+      const out: Record<string, any[]> = {};
+      const summary: Record<string, number> = {};
+
+      try {
+        if (types.includes("candidate")) {
+          let qb = supabaseAdmin.from("candidates")
+            .select("id, name, email, phone, current_title, current_company, location, headline, created_at")
+            .or(buildOr(["name","email","phone","current_title","current_company","location","headline"]))
+            .limit(limit);
+          if (teamId) qb = qb.eq("tenant_id", teamId);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.candidates = data || [];
+          summary.candidates = out.candidates.length;
+        }
+        if (types.includes("contact")) {
+          let qb = supabaseAdmin.from("contacts")
+            .select("id, name, email, title, company_id, created_at")
+            .or(buildOr(["name","email","title"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          if (teamId) qb = qb.eq("team_id", teamId);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.contacts = data || [];
+          summary.contacts = out.contacts.length;
+        }
+        if (types.includes("crm_contact")) {
+          let qb = supabaseAdmin.from("crm_contacts")
+            .select("id, first_name, last_name, email, phone, job_title, company_id, created_at")
+            .or(buildOr(["first_name","last_name","email","phone","job_title"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.crm_contacts = (data || []).map((c: any) => ({ ...c, name: `${c.first_name || ""} ${c.last_name || ""}`.trim() }));
+          summary.crm_contacts = out.crm_contacts.length;
+        }
+        if (types.includes("company")) {
+          let qb = supabaseAdmin.from("companies")
+            .select("id, name, industry, headquarters, website, created_at")
+            .or(buildOr(["name","industry","headquarters","website"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          if (teamId) qb = qb.eq("team_id", teamId);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.companies = data || [];
+          summary.companies = out.companies.length;
+        }
+        if (types.includes("crm_company")) {
+          let qb = supabaseAdmin.from("crm_companies")
+            .select("id, name, industry, website, city, country, created_at")
+            .or(buildOr(["name","industry","website","city","country"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.crm_companies = data || [];
+          summary.crm_companies = out.crm_companies.length;
+        }
+        if (types.includes("project")) {
+          let qb = supabaseAdmin.from("crm_projects")
+            .select("id, name, description, status, company_id, start_date, end_date, created_at")
+            .or(buildOr(["name","description","status"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.projects = data || [];
+          summary.projects = out.projects.length;
+        }
+        if (types.includes("deal")) {
+          let qb = supabaseAdmin.from("crm_deals")
+            .select("id, title, stage, status, value, company_id, start_date, end_date, created_at")
+            .or(buildOr(["title","stage","status"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          if (teamId) qb = qb.eq("workspace_id", teamId);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.deals = data || [];
+          summary.deals = out.deals.length;
+        }
+        if (types.includes("opportunity")) {
+          let qb = supabaseAdmin.from("crm_opportunities")
+            .select("id, title, stage, value, company_id, created_at")
+            .or(buildOr(["title","stage"]))
+            .limit(limit);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.opportunities = data || [];
+          summary.opportunities = out.opportunities.length;
+        }
+        if (types.includes("invoice")) {
+          let qb = supabaseAdmin.from("crm_invoices")
+            .select("id, invoice_number, status, total, company_id, due_date, created_at")
+            .or(buildOr(["invoice_number","status"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.invoices = data || [];
+          summary.invoices = out.invoices.length;
+        }
+        if (types.includes("job")) {
+          let qb = supabaseAdmin.from("jobs")
+            .select("id, title, status, company_id, start_date, end_date, created_at")
+            .or(buildOr(["title","status"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          if (teamId) qb = qb.eq("workspace_id", teamId);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.jobs = data || [];
+          summary.jobs = out.jobs.length;
+        }
+      } catch (e) {
+        console.error("[universal_search] error:", e);
+      }
+
+      const total = Object.values(summary).reduce((a, b) => a + b, 0);
+      console.log("[universal_search] query:", q, "types:", types.join(","), "summary:", summary);
+      return {
+        result: {
+          query: rawQ,
+          total,
+          summary,
+          results: out,
+          message: total === 0
+            ? `No matches found for "${rawQ}".`
+            : `Found ${total} record${total === 1 ? "" : "s"} across ${Object.entries(summary).filter(([,v]) => v > 0).map(([k,v]) => `${v} ${k}`).join(", ")}.`,
+        },
+        entityType: "search",
+      };
+    }
     case "generate_job_spec": {
       const rawBrief = input.raw_brief as string;
       const jobTitle = (input.job_title as string) || "";

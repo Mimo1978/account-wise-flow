@@ -815,7 +815,7 @@ const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "initiate_ai_call",
-      description: "Make an AI-powered outbound phone call to a contact or candidate using Twilio + ElevenLabs. Use when user says 'call [name]', 'phone [name]', 'make a call to [name]', 'initiate a call'.",
+      description: "DIRECT BACKGROUND CALL — only use when the user explicitly asks to dial immediately WITHOUT review (e.g. 'just dial them now, no script review'). For the standard 'call [name]' / 'AI call [name]' workflow, prefer start_ai_call_workflow which opens the AI Call modal on the candidate's screen so the user can review the script and press Initiate manually.",
       parameters: {
         type: "object",
         properties: {
@@ -825,6 +825,24 @@ const TOOL_DEFINITIONS = [
           custom_instructions: { type: "string", description: "Any specific talking points or instructions" },
         },
         required: ["purpose"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "start_ai_call_workflow",
+      description: "PREFERRED for 'AI call [name]' / 'phone [name]' / 'call [candidate]'. Opens the candidate's profile in the Talent screen and automatically opens the AI Call modal, optionally pre-filling the purpose and brief in real time. Use this so the user can SEE the workflow happen on screen, review/edit the script, then press Initiate Call themselves. Do NOT place the call yourself — this tool only navigates and prepares the modal.",
+      parameters: {
+        type: "object",
+        properties: {
+          candidate_query: { type: "string", description: "Name, email, or fragment used to look up the candidate (e.g. 'Michael Smith', 'mike@acme')." },
+          candidate_id: { type: "string", description: "Optional: candidate ID if already known from earlier in the conversation." },
+          purpose: { type: "string", description: "Optional: nature of the call to pre-fill (e.g. 'Book a meeting', 'Intro Call', 'Follow Up', 'Demo Confirmation')." },
+          brief: { type: "string", description: "Optional: short brief / talking points to pre-fill the script box. The user can refine before sending." },
+          auto_enhance: { type: "boolean", description: "If true, the modal automatically asks the AI to enhance the brief into a full voice-agent script as soon as it opens." },
+        },
+        required: ["candidate_query"],
       },
     },
   },

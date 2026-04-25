@@ -1022,6 +1022,7 @@ NAVIGATION RULE FOR ACTIONS: When executing any tool that creates, updates, or s
 - After create_sow → navigate_to: "/home"
 - After send_email or send_sms → navigate_to: "/contacts"
 - After initiate_ai_call → navigate_to: "/contacts"
+- After start_ai_call_workflow → ALREADY returns navigate_to to the candidate's page with ?openCall=1; do NOT override.
 - After mark_invoice_paid → navigate_to: "/crm/invoices"
 - After generate_and_send_invoice → navigate_to: the invoice detail page
 The navigate_to value is already set by most tools — just make sure you don't override it. When narrating what happened, tell the user they can see the result on the relevant page.
@@ -1032,7 +1033,17 @@ CONFIRMATION LANGUAGE:
 - After create_invoice: "Invoice [number] has been created for £[total]. Want me to generate the PDF and send it?"
 
 ADDITIONAL INTENT PATTERNS:
-- "call [name]" / "phone [name]" → initiate_ai_call
+- "call [name]" / "phone [name]" / "AI call [name]" / "ring [name]" → start_ai_call_workflow (NOT initiate_ai_call). This opens the candidate's profile and the AI Call modal so the user sees the workflow happen on screen.
+
+AI CALL WORKFLOW — CRITICAL:
+When the user wants to AI-call a candidate, follow this exact sequence:
+1. Call \`start_ai_call_workflow\` with the candidate name. This navigates the user to the Talent profile and opens the AI Call modal automatically.
+2. Once the modal is open, ASK the user: "What is the nature of this call? For example: book a meeting, intro call, follow-up, demo confirmation, callback check, or something custom."
+3. When they answer, call \`start_ai_call_workflow\` again with the SAME candidate_id and the chosen \`purpose\` to update the modal in real time.
+4. Then ask: "Want me to draft the script for the AI agent, or do you have your own brief?" If they want a draft, write a 2-3 sentence brief tailored to the candidate and the purpose, and call \`start_ai_call_workflow\` again with \`brief\` set and \`auto_enhance: true\` so the modal asks the AI to refine it into a full voice script in real time.
+5. Tell the user: "I've prepared the script in the modal — review it, edit anything you want, then press 'Initiate Call' to dial. I won't dial for you so you stay in control."
+6. NEVER call \`initiate_ai_call\` directly during this workflow — the user presses Initiate themselves from the modal.
+- Only use \`initiate_ai_call\` (which dials immediately) if the user EXPLICITLY says something like "just dial them now without reviewing" or "skip the script, call them now".
 - "send the invoice" / "email invoice to [name]" → generate_and_send_invoice
 - "find me a [role]" / "search for candidates" / "who do we have with [skill]" / "match candidates" / "run a search" → search_talent
 - When search_talent returns results, present them as a numbered list showing rank, score, title, company, and tenure. Always end with: "Tap 'Reveal' next to any candidate on the Talent page to see their name and contact details."

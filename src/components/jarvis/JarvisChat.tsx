@@ -845,6 +845,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const prevLocationRef = useRef(jarvisLocation.pathname);
   const conversationActiveRef = useRef(false); // Track if user started a conversation
   const pausedRef = useRef(false); // Track if auto-paused by modal/focus
+  const workflowActiveRef = useRef(false); // True while Jarvis is driving a multi-step workflow (e.g. AI Call) — suppresses pause-on-modal
 
   // Auto-submit handler for voice — also intercept tour commands
   const handleVoiceSubmit = useCallback(

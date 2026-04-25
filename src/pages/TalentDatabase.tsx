@@ -244,6 +244,15 @@ export default function TalentDatabase() {
   // Search context for passing results to profile page
   const searchContext = useSearchContext();
 
+  // If Jarvis (or anyone) navigates here with ?q=…  pre-fill the search box.
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && q !== booleanSearch.query) {
+      booleanSearch.setQuery(q);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   // Fetch real candidates from database
   const { 
     candidates: dbCandidates, 

@@ -388,10 +388,17 @@ const AccountsBillingHub = () => {
   const updateInvoice = useUpdateInvoice();
   const createInvoice = useCreateInvoice();
   const [createOpen, setCreateOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('filter') || 'all');
   const [companyFilter, setCompanyFilter] = useState<string | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+
+  // Sync invoice search box from ?q= when Jarvis navigates here.
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) setSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const today = startOfDay(new Date());
   const thisMonthStart = startOfMonth(today);

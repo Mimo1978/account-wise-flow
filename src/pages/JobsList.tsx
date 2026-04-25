@@ -32,10 +32,17 @@ const JobsList = () => {
   const { data: counts } = useJobCounts(currentWorkspace?.id);
   const createJob = useCreateJob();
 
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('q') || '');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [showUnlinked, setShowUnlinked] = useState(searchParams.get('filter') === 'unlinked');
+
+  // Sync search box from ?q= when Jarvis (or any nav) sets it.
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) setSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Fetch all job-project links with project names and deal values
   const { data: jobLinks = [] } = useQuery({

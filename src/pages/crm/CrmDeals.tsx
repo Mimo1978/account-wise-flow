@@ -35,7 +35,7 @@ export default function CrmDealsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialStage = searchParams.get("stage");
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(searchParams.get("q") || "");
   const [statusFilter, setStatusFilter] = useState("");
   const [companyFilter, setCompanyFilter] = useState("");
   const [stageFilter, setStageFilter] = useState<string | null>(initialStage);
@@ -46,6 +46,13 @@ export default function CrmDealsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     return (localStorage.getItem("deals_view_mode") as ViewMode) || "cards";
   });
+
+  // Sync search box with ?q= when Jarvis (or any nav) sets it.
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q !== null) setSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   useEffect(() => {
     localStorage.setItem("deals_view_mode", viewMode);

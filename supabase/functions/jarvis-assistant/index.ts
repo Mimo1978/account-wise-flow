@@ -4959,24 +4959,37 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 });
 
 async function callLovableAI(apiKey: string, messages: any[]) {
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      max_completion_tokens: 4096,
-      messages,
-      tools: TOOL_DEFINITIONS,
-    }),
-  });
+  // Per-call hard timeout so a stalled gateway can't push us past the 150s edge limit
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 35000); // 35s
+  try {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        max_completion_tokens: 4096,
+        messages,
+        tools: TOOL_DEFINITIONS,
+      }),
+      signal: controller.signal,
+    });
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`AI API error ${res.status}: ${errorText}`);
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`AI API error ${res.status}: ${errorText}`);
+    }
+
+    return await res.json();
+  } catch (e: any) {
+    if (e?.name === "AbortError") {
+      throw new Error("AI gateway timeout (35s) — request aborted to stay within edge limits");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return await res.json();
 }

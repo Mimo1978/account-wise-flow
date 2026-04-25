@@ -1141,6 +1141,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
         conversationActiveRef.current = false;
         setKeepListening(false);
         speech.stopListening();
+        workflowActiveRef.current = false;
       } else {
         sleepTimerRef.current = setTimeout(checkSleep, 15_000);
       }

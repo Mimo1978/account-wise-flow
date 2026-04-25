@@ -936,6 +936,28 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "universal_search",
+      description: "GLOBAL SEARCH across the entire system. Use this when the user asks to find ANY record by ANY field — first name only, surname only, partial email, phone digits, company, job title, project name, deal title, invoice number, candidate skill, location, headline, etc. Also use it for date-bounded queries ('deals closing this month', 'projects started in Jan'). Searches: candidates, contacts, crm_contacts, companies, crm_companies, crm_projects, crm_deals, crm_opportunities, crm_invoices, jobs. Prefer this over lookup_* when the user gives a fragment, a single token, or asks broadly ('find Michael', 'anything about Acme', 'invoice 1042').",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Free-text query — any fragment, token, name, email, phone, number, keyword. Required." },
+          entity_types: {
+            type: "array",
+            items: { type: "string", enum: ["candidate","contact","crm_contact","company","crm_company","project","deal","opportunity","invoice","job"] },
+            description: "Optional — restrict to specific entity types. Leave empty to search everything.",
+          },
+          date_from: { type: "string", description: "Optional ISO date (YYYY-MM-DD) — only return records created on/after this date." },
+          date_to: { type: "string", description: "Optional ISO date (YYYY-MM-DD) — only return records created on/before this date." },
+          limit_per_type: { type: "number", description: "Max results per entity type. Default 10." },
+        },
+        required: ["query"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.

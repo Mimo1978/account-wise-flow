@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -115,7 +115,7 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
   // Jarvis-driven auto-enhance: when the modal is opened with a brief and
   // autoEnhance=true, run the AI refinement automatically so the user sees
   // the enhanced script appear in real time.
-  const enhanceTriggeredRef = (typeof window !== "undefined") ? (window as any).__aiCallEnhanceRef ||= { current: false } : { current: false };
+  const enhanceTriggeredRef = useRef(false);
   useEffect(() => {
     if (!open) { enhanceTriggeredRef.current = false; return; }
     if (autoEnhance && brief.trim() && !enhanced && !enhancing && !enhanceTriggeredRef.current) {

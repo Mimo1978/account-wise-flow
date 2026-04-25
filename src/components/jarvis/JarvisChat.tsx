@@ -951,7 +951,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
       // Auto-navigate after successful creation/mutation actions
       const hasSuccessfulMutation = last.actionsExecuted?.some(
-        (a) => a.success && /^(create_|generate_|initiate_|mark_|send_|update_|delete_)/.test(a.tool)
+        (a) => a.success && /^(create_|generate_|initiate_|mark_|send_|update_|delete_|start_)/.test(a.tool)
       );
       const isSearchAction = last.actionsExecuted?.some(a => a.tool === 'search_talent');
       if (last.navigateTo && hasSuccessfulMutation) {

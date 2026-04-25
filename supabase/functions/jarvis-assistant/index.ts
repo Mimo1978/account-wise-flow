@@ -3966,6 +3966,78 @@ Return ONLY valid JSON, no markdown fences.`,
         entityId: input.invoice_id as string,
       };
     }
+    case "start_ai_call_workflow": {
+      // Open the AI Call modal on the candidate's profile so the user can
+      // review the script in real time, edit it, and press Initiate themselves.
+      // We DO NOT place the call here — that happens from the modal.
+      const query = String(input.candidate_query || "").trim();
+      let candidateId = (input.candidate_id as string) || "";
+      let candidateName = "";
+      let candidatePhone = "";
+
+      if (!candidateId && query) {
+        const tokens = query.split(/\s+/).filter(Boolean);
+        const fields = ["name", "email", "phone", "current_title", "current_company", "headline"];
+        const orParts: string[] = [];
+        for (const f of fields) orParts.push(`${f}.ilike.%${query}%`);
+        if (tokens.length > 1) {
+          for (const t of tokens) for (const f of fields) orParts.push(`${f}.ilike.%${t}%`);
+        }
+        const { data: cands } = await supabaseAdmin
+          .from("candidates")
+          .select("id, name, phone")
+          .or(orParts.join(","))
+          .limit(5);
+        if (cands && cands.length > 0) {
+          candidateId = (cands[0] as any).id;
+          candidateName = (cands[0] as any).name || "";
+          candidatePhone = (cands[0] as any).phone || "";
+          if (cands.length > 1) {
+            return {
+              result: {
+                multiple_matches: true,
+                matches: cands.map((c: any) => ({ id: c.id, name: c.name })),
+                message: `I found ${cands.length} candidates matching "${query}". Which one should I open?`,
+              },
+              entityType: "candidates",
+            };
+          }
+        }
+      } else if (candidateId) {
+        const { data: c } = await supabaseAdmin
+          .from("candidates")
+          .select("name, phone")
+          .eq("id", candidateId)
+          .maybeSingle();
+        candidateName = (c as any)?.name || "";
+        candidatePhone = (c as any)?.phone || "";
+      }
+
+      if (!candidateId) {
+        return { result: { error: `I couldn't find a candidate matching "${query}". Try a different name or email.` }, entityType: "candidates" };
+      }
+
+      const params = new URLSearchParams({ openCall: "1" });
+      if (input.purpose) params.set("callPurpose", String(input.purpose));
+      if (input.brief) params.set("callBrief", String(input.brief));
+      if (input.auto_enhance) params.set("callAutoEnhance", "1");
+      const navigate_to = `/candidates/${candidateId}?${params.toString()}`;
+
+      return {
+        result: {
+          success: true,
+          candidate_id: candidateId,
+          candidate_name: candidateName,
+          has_phone: !!candidatePhone,
+          navigate_to,
+          message: candidatePhone
+            ? `Opening ${candidateName}'s profile and the AI Call modal so we can prepare the script together.`
+            : `Opening ${candidateName}'s profile, but no phone number is on file — you'll need to add one before initiating the call.`,
+        },
+        entityType: "calls",
+        entityId: candidateId,
+      };
+    }
     case "initiate_ai_call": {
       // Direct background call — kept for backward compatibility / explicit requests.
       let toNumber = input.phone_number as string;

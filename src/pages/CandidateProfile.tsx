@@ -671,12 +671,15 @@ export default function CandidateProfile() {
       {/* AI Call Modal */}
       <AICallModal
         open={callOpen}
-        onOpenChange={setCallOpen}
+        onOpenChange={(o) => { setCallOpen(o); if (!o) setCallPrefill(undefined); }}
         contactId={candidate.id}
         contactFirstName={candidate.name?.split(" ")[0] || ""}
         contactLastName={candidate.name?.split(" ").slice(1).join(" ") || ""}
         contactMobile={candidate.phone}
         entityType="candidate"
+        initialPurpose={callPrefill?.purpose}
+        initialBrief={callPrefill?.brief}
+        autoEnhance={callPrefill?.autoEnhance}
       />
 
       {/* Email Compose Modal */}

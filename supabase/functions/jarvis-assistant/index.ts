@@ -2949,12 +2949,57 @@ async function executeTool(
 
       const total = Object.values(summary).reduce((a, b) => a + b, 0);
       console.log("[universal_search] query:", q, "types:", types.join(","), "summary:", summary);
+
+      // Decide where to navigate the user so they SEE the search visually.
+      // Priority: explicit entity_types[0] → entity type with the most matches → /talent default.
+      const TYPE_TO_PATH: Record<string, string> = {
+        candidate: "/talent",
+        contact: "/contacts",
+        crm_contact: "/contacts",
+        company: "/companies",
+        crm_company: "/companies",
+        project: "/crm/projects",
+        deal: "/crm/deals",
+        opportunity: "/crm/deals",
+        invoice: "/accounts",
+        job: "/jobs",
+      };
+      const TYPE_TO_BUCKET: Record<string, string> = {
+        candidate: "candidates",
+        contact: "contacts",
+        crm_contact: "crm_contacts",
+        company: "companies",
+        crm_company: "crm_companies",
+        project: "projects",
+        deal: "deals",
+        opportunity: "opportunities",
+        invoice: "invoices",
+        job: "jobs",
+      };
+      let primaryType: string | null = null;
+      const explicit = Array.isArray(input.entity_types) ? (input.entity_types as string[]) : [];
+      if (explicit.length === 1) {
+        primaryType = explicit[0];
+      } else {
+        // pick the type with the most results (deterministic order via TYPE_TO_PATH keys)
+        let best = -1;
+        for (const t of Object.keys(TYPE_TO_PATH)) {
+          const bucket = TYPE_TO_BUCKET[t];
+          const n = (summary as Record<string, number>)[bucket] ?? 0;
+          if (n > best) { best = n; primaryType = t; }
+        }
+      }
+      const basePath = (primaryType && TYPE_TO_PATH[primaryType]) || "/talent";
+      const navigate_to = `${basePath}?q=${encodeURIComponent(rawQ)}`;
+
       return {
         result: {
           query: rawQ,
           total,
           summary,
           results: out,
+          navigate_to,
+          primary_type: primaryType,
           message: total === 0
             ? `No matches found for "${rawQ}".`
             : `Found ${total} record${total === 1 ? "" : "s"} across ${Object.entries(summary).filter(([,v]) => v > 0).map(([k,v]) => `${v} ${k}`).join(", ")}.`,

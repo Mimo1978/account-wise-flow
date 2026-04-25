@@ -936,6 +936,28 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "universal_search",
+      description: "GLOBAL SEARCH across the entire system. Use this when the user asks to find ANY record by ANY field — first name only, surname only, partial email, phone digits, company, job title, project name, deal title, invoice number, candidate skill, location, headline, etc. Also use it for date-bounded queries ('deals closing this month', 'projects started in Jan'). Searches: candidates, contacts, crm_contacts, companies, crm_companies, crm_projects, crm_deals, crm_opportunities, crm_invoices, jobs. Prefer this over lookup_* when the user gives a fragment, a single token, or asks broadly ('find Michael', 'anything about Acme', 'invoice 1042').",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Free-text query — any fragment, token, name, email, phone, number, keyword. Required." },
+          entity_types: {
+            type: "array",
+            items: { type: "string", enum: ["candidate","contact","crm_contact","company","crm_company","project","deal","opportunity","invoice","job"] },
+            description: "Optional — restrict to specific entity types. Leave empty to search everything.",
+          },
+          date_from: { type: "string", description: "Optional ISO date (YYYY-MM-DD) — only return records created on/after this date." },
+          date_to: { type: "string", description: "Optional ISO date (YYYY-MM-DD) — only return records created on/before this date." },
+          limit_per_type: { type: "number", description: "Max results per entity type. Default 10." },
+        },
+        required: ["query"],
+      },
+    },
+  },
 ];
 
 const SYSTEM_PROMPT = `You are Jarvis, the AI assistant for this CRM. You help users manage their contacts, companies, projects, opportunities, deals, documents, and invoices through natural conversation.
@@ -990,6 +1012,14 @@ ADDITIONAL INTENT PATTERNS:
 - "find me a [role]" / "search for candidates" / "who do we have with [skill]" / "match candidates" / "run a search" → search_talent
 - When search_talent returns results, present them as a numbered list showing rank, score, title, company, and tenure. Always end with: "Tap 'Reveal' next to any candidate on the Talent page to see their name and contact details."
 - PRIVACY RULE: Never reveal candidate names from search_talent results. The match engine anonymises all results. Names are only shown after the user taps Reveal in the UI.
+
+UNIVERSAL SEARCH — use \`universal_search\` when the user gives ANY fragment that could match across the database:
+- Single token like "Michael", "Acme", "1042", "London", a partial email, a phone fragment.
+- "find anything about X", "who is X", "show me everything for X", "search for X".
+- Date-bounded queries like "deals from this month", "projects started in January" (pass date_from/date_to).
+- When the user wants a specific entity type, set entity_types e.g. ["candidate"], ["deal","invoice"]. Otherwise leave empty to search ALL.
+- ALWAYS prefer universal_search over lookup_candidate / lookup_contact / lookup_company when the input is a single word or fragment — it returns matches across every field (name, email, phone, title, company, location, headline, project name, deal title, invoice number, etc.) and across every entity type.
+- Present results grouped by type, e.g. "Candidates: Michael Smith (Senior Dev @ Acme), Michael Jones (PM)…  Contacts: Michael Brown @ Globex…  Deals: Michael Project Phase 2 (£40k, Won)…". Include id-less names only — never expose UUIDs.
 - "mark [company] invoice paid" / "[company] paid" → mark_invoice_paid
 - "create a SOW for [company]" → create_sow
 - "new campaign" / "create outreach campaign" → create_outreach_campaign
@@ -2725,7 +2755,37 @@ async function executeTool(
       const name = (input.name as string).trim();
       const teamId = await getUserTeamId(supabaseAdmin, userId);
 
-      const allMatches = await lookupRecord("candidates", "name", name, teamId, supabaseAdmin, "tenant_id");
+      // Search across ALL identifying fields so partial first-name, surname-only,
+      // email fragment, phone digits, job title, company, location or headline all match.
+      const safe = name.replace(/[%,()]/g, " ").trim();
+      const tokens = safe.split(/\s+/).filter(Boolean);
+      let q = supabaseAdmin
+        .from("candidates")
+        .select("id, name, email, phone, current_title, current_company, location, headline")
+        .limit(15);
+      if (teamId) q = q.eq("tenant_id", teamId);
+      // Build OR across every searchable field for the full query…
+      const fields = ["name","email","phone","current_title","current_company","location","headline"];
+      const orParts: string[] = fields.map((f) => `${f}.ilike.%${safe}%`);
+      // …and for each individual token (so "Michael Smith" still hits "Michael" only records)
+      if (tokens.length > 1) {
+        for (const t of tokens) {
+          for (const f of fields) orParts.push(`${f}.ilike.%${t}%`);
+        }
+      }
+      q = q.or(orParts.join(","));
+      const { data, error } = await q;
+      if (error) console.error("[lookup_candidate] error:", error.message);
+      const allMatches = (data || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        title: c.current_title,
+        company: c.current_company,
+        location: c.location,
+        headline: c.headline,
+      }));
       console.log("[lookup_candidate] query:", name, "workspace:", teamId, "total_matches:", allMatches.length);
 
       if (allMatches.length === 0) {
@@ -2735,6 +2795,171 @@ async function executeTool(
         return { result: { matches: allMatches, auto_selected: allMatches[0], message: `Found "${allMatches[0].name}" — using this candidate.` }, entityType: "candidates" };
       }
       return { result: { matches: allMatches, message: `Found ${allMatches.length} candidates matching "${name}". Did you mean ${allMatches.slice(0, 3).map((c: any) => c.name).join(", or ")}?` }, entityType: "candidates" };
+    }
+    case "universal_search": {
+      const rawQ = ((input.query as string) || "").trim();
+      if (!rawQ) {
+        return { result: { error: "Query is required" }, entityType: "search" };
+      }
+      const q = rawQ.replace(/[%,()]/g, " ").trim();
+      const tokens = q.split(/\s+/).filter(Boolean);
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      const types: string[] = Array.isArray(input.entity_types) && (input.entity_types as string[]).length > 0
+        ? (input.entity_types as string[])
+        : ["candidate","contact","crm_contact","company","crm_company","project","deal","opportunity","invoice","job"];
+      const limit = Math.max(1, Math.min(25, Number(input.limit_per_type) || 10));
+      const dateFrom = (input.date_from as string) || null;
+      const dateTo = (input.date_to as string) || null;
+
+      const buildOr = (fields: string[]) => {
+        const parts: string[] = fields.map((f) => `${f}.ilike.%${q}%`);
+        if (tokens.length > 1) {
+          for (const t of tokens) for (const f of fields) parts.push(`${f}.ilike.%${t}%`);
+        }
+        return parts.join(",");
+      };
+
+      const applyDates = (qb: any, col = "created_at") => {
+        if (dateFrom) qb = qb.gte(col, dateFrom);
+        if (dateTo) qb = qb.lte(col, dateTo);
+        return qb;
+      };
+
+      const out: Record<string, any[]> = {};
+      const summary: Record<string, number> = {};
+
+      try {
+        if (types.includes("candidate")) {
+          let qb = supabaseAdmin.from("candidates")
+            .select("id, name, email, phone, current_title, current_company, location, headline, created_at")
+            .or(buildOr(["name","email","phone","current_title","current_company","location","headline"]))
+            .limit(limit);
+          if (teamId) qb = qb.eq("tenant_id", teamId);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.candidates = data || [];
+          summary.candidates = out.candidates.length;
+        }
+        if (types.includes("contact")) {
+          let qb = supabaseAdmin.from("contacts")
+            .select("id, name, email, title, company_id, created_at")
+            .or(buildOr(["name","email","title"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          if (teamId) qb = qb.eq("team_id", teamId);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.contacts = data || [];
+          summary.contacts = out.contacts.length;
+        }
+        if (types.includes("crm_contact")) {
+          let qb = supabaseAdmin.from("crm_contacts")
+            .select("id, first_name, last_name, email, phone, job_title, company_id, created_at")
+            .or(buildOr(["first_name","last_name","email","phone","job_title"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.crm_contacts = (data || []).map((c: any) => ({ ...c, name: `${c.first_name || ""} ${c.last_name || ""}`.trim() }));
+          summary.crm_contacts = out.crm_contacts.length;
+        }
+        if (types.includes("company")) {
+          let qb = supabaseAdmin.from("companies")
+            .select("id, name, industry, headquarters, website, created_at")
+            .or(buildOr(["name","industry","headquarters","website"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          if (teamId) qb = qb.eq("team_id", teamId);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.companies = data || [];
+          summary.companies = out.companies.length;
+        }
+        if (types.includes("crm_company")) {
+          let qb = supabaseAdmin.from("crm_companies")
+            .select("id, name, industry, website, city, country, created_at")
+            .or(buildOr(["name","industry","website","city","country"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.crm_companies = data || [];
+          summary.crm_companies = out.crm_companies.length;
+        }
+        if (types.includes("project")) {
+          let qb = supabaseAdmin.from("crm_projects")
+            .select("id, name, description, status, company_id, start_date, end_date, created_at")
+            .or(buildOr(["name","description","status"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.projects = data || [];
+          summary.projects = out.projects.length;
+        }
+        if (types.includes("deal")) {
+          let qb = supabaseAdmin.from("crm_deals")
+            .select("id, title, stage, status, value, company_id, start_date, end_date, created_at")
+            .or(buildOr(["title","stage","status"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          if (teamId) qb = qb.eq("workspace_id", teamId);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.deals = data || [];
+          summary.deals = out.deals.length;
+        }
+        if (types.includes("opportunity")) {
+          let qb = supabaseAdmin.from("crm_opportunities")
+            .select("id, title, stage, value, company_id, created_at")
+            .or(buildOr(["title","stage"]))
+            .limit(limit);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.opportunities = data || [];
+          summary.opportunities = out.opportunities.length;
+        }
+        if (types.includes("invoice")) {
+          let qb = supabaseAdmin.from("crm_invoices")
+            .select("id, invoice_number, status, total, company_id, due_date, created_at")
+            .or(buildOr(["invoice_number","status"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.invoices = data || [];
+          summary.invoices = out.invoices.length;
+        }
+        if (types.includes("job")) {
+          let qb = supabaseAdmin.from("jobs")
+            .select("id, title, status, company_id, start_date, end_date, created_at")
+            .or(buildOr(["title","status"]))
+            .is("deleted_at", null)
+            .limit(limit);
+          if (teamId) qb = qb.eq("workspace_id", teamId);
+          qb = applyDates(qb);
+          const { data } = await qb;
+          out.jobs = data || [];
+          summary.jobs = out.jobs.length;
+        }
+      } catch (e) {
+        console.error("[universal_search] error:", e);
+      }
+
+      const total = Object.values(summary).reduce((a, b) => a + b, 0);
+      console.log("[universal_search] query:", q, "types:", types.join(","), "summary:", summary);
+      return {
+        result: {
+          query: rawQ,
+          total,
+          summary,
+          results: out,
+          message: total === 0
+            ? `No matches found for "${rawQ}".`
+            : `Found ${total} record${total === 1 ? "" : "s"} across ${Object.entries(summary).filter(([,v]) => v > 0).map(([k,v]) => `${v} ${k}`).join(", ")}.`,
+        },
+        entityType: "search",
+      };
     }
     case "generate_job_spec": {
       const rawBrief = input.raw_brief as string;

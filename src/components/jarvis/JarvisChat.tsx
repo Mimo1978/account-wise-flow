@@ -540,9 +540,15 @@ function useElevenLabsTTS(
 /* ------------------------------------------------------------------ */
 /*  Hook: detect modals & focused inputs to auto-pause Jarvis          */
 /* ------------------------------------------------------------------ */
-function useJarvisPauseDetection(onPause: () => void) {
+function useJarvisPauseDetection(
+  onPause: () => void,
+  suppressRef?: React.MutableRefObject<boolean>
+) {
   useEffect(() => {
+    const isSuppressed = () => !!suppressRef?.current;
+
     const handleFocusIn = (e: FocusEvent) => {
+      if (isSuppressed()) return;
       const el = e.target as HTMLElement;
       if (!el) return;
       const tag = el.tagName?.toLowerCase();
@@ -558,6 +564,7 @@ function useJarvisPauseDetection(onPause: () => void) {
     };
 
     const observer = new MutationObserver(() => {
+      if (isSuppressed()) return;
       const hasModal = document.querySelector(
         '[role="dialog"], [role="alertdialog"], [data-radix-portal], .modal, [data-state="open"][data-radix-dialog-overlay]'
       );
@@ -573,7 +580,7 @@ function useJarvisPauseDetection(onPause: () => void) {
       document.removeEventListener("focusin", handleFocusIn);
       observer.disconnect();
     };
-  }, [onPause]);
+  }, [onPause, suppressRef]);
 }
 
 /* ------------------------------------------------------------------ */
@@ -838,6 +845,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   const prevLocationRef = useRef(jarvisLocation.pathname);
   const conversationActiveRef = useRef(false); // Track if user started a conversation
   const pausedRef = useRef(false); // Track if auto-paused by modal/focus
+  const workflowActiveRef = useRef(false); // True while Jarvis is driving a multi-step workflow (e.g. AI Call) — suppresses pause-on-modal
 
   // Auto-submit handler for voice — also intercept tour commands
   const handleVoiceSubmit = useCallback(
@@ -879,12 +887,17 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   // Re-listen after TTS finishes (conversational flow)
   const relistenAfterSpeech = useCallback(() => {
     if (!speech.supported) return;
-    if (pausedRef.current) return;
+    // While a workflow is active, ALWAYS re-listen — ignore stale pause flag.
+    if (workflowActiveRef.current) {
+      pausedRef.current = false;
+    } else if (pausedRef.current) {
+      return;
+    }
     // Always re-listen after Jarvis speaks during an active conversation
-    if (conversationActiveRef.current || keepListening) {
+    if (conversationActiveRef.current || keepListening || workflowActiveRef.current) {
       if (tts.enabled) playYourTurnChime();
       setTimeout(() => {
-        if (!pausedRef.current) {
+        if (!pausedRef.current || workflowActiveRef.current) {
           speech.startListening();
         }
       }, 200);
@@ -893,11 +906,14 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
   // --- Auto-pause on modals/form focus ---
   const pauseListening = useCallback(() => {
+    // Don't pause while a Jarvis-driven workflow is in progress —
+    // modals opened by Jarvis itself must NOT mute the mic.
+    if (workflowActiveRef.current) return;
     pausedRef.current = true;
     speech.stopListening();
   }, [speech]);
 
-  useJarvisPauseDetection(pauseListening);
+  useJarvisPauseDetection(pauseListening, workflowActiveRef);
 
   // --- Stop listening on route change ---
   useEffect(() => {
@@ -932,6 +948,23 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
+      // Detect workflow-driving tools (e.g. start_ai_call_workflow). When Jarvis
+      // launches a multi-step workflow, keep the mic engaged through modal opens.
+      const startedWorkflow = last.actionsExecuted?.some(
+        (a) => a.success && /^start_/.test(a.tool)
+      );
+      if (startedWorkflow) {
+        workflowActiveRef.current = true;
+        pausedRef.current = false;
+      }
+      // Workflow ends when an action explicitly completes it (initiate_/create_ on the same flow)
+      const endedWorkflow = last.actionsExecuted?.some(
+        (a) => a.success && /^(initiate_ai_call|cancel_workflow)$/.test(a.tool)
+      );
+      if (endedWorkflow) {
+        workflowActiveRef.current = false;
+      }
+
       // Show success banner for completed actions
       const msgIdx = messages.length - 1;
       if (
@@ -1108,6 +1141,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
         conversationActiveRef.current = false;
         setKeepListening(false);
         speech.stopListening();
+        workflowActiveRef.current = false;
       } else {
         sleepTimerRef.current = setTimeout(checkSleep, 15_000);
       }

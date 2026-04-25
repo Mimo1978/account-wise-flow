@@ -901,11 +901,14 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
 
   // --- Auto-pause on modals/form focus ---
   const pauseListening = useCallback(() => {
+    // Don't pause while a Jarvis-driven workflow is in progress —
+    // modals opened by Jarvis itself must NOT mute the mic.
+    if (workflowActiveRef.current) return;
     pausedRef.current = true;
     speech.stopListening();
   }, [speech]);
 
-  useJarvisPauseDetection(pauseListening);
+  useJarvisPauseDetection(pauseListening, workflowActiveRef);
 
   // --- Stop listening on route change ---
   useEffect(() => {

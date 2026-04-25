@@ -160,6 +160,7 @@ export default function CandidateProfile() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
+  const [callPrefill, setCallPrefill] = useState<{ purpose?: string; brief?: string; autoEnhance?: boolean } | undefined>(undefined);
   const [emailOpen, setEmailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [callbackOpen, setCallbackOpen] = useState(false);

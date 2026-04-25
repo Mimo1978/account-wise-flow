@@ -4510,6 +4510,9 @@ serve(async (req) => {
 
     // Build messages for Lovable AI (OpenAI format)
     let systemWithName = SYSTEM_PROMPT;
+    const memoryWorkspaceId = (typeof teamId === "string" ? teamId : "") || "";
+    const memoryContext = await loadUserMemories(supabaseAdmin, userId, memoryWorkspaceId);
+    systemWithName = systemWithName + memoryContext;
     if (user_first_name) {
       systemWithName += `\n\nThe user's first name is "${user_first_name}". Use it when greeting them.`;
     }

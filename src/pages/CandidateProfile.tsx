@@ -179,6 +179,20 @@ export default function CandidateProfile() {
     }
   }, [autoExpandSection]);
 
+  // Jarvis-driven AI Call workflow: open the modal automatically when the URL
+  // says ?openCall=1, optionally with a pre-filled purpose / brief.
+  useEffect(() => {
+    if (searchParams.get("openCall") === "1") {
+      setCallPrefill({
+        purpose: searchParams.get("callPurpose") || undefined,
+        brief: searchParams.get("callBrief") || undefined,
+        autoEnhance: searchParams.get("callAutoEnhance") === "1",
+      });
+      setCallOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidateId, searchParams.get("openCall")]);
+
   const candidate = useMemo(() => {
     return candidates.find((c) => c.id === candidateId) || null;
   }, [candidates, candidateId]);

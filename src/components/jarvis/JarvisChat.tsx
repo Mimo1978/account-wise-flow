@@ -948,6 +948,23 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   useEffect(() => {
     const last = messages[messages.length - 1];
     if (last?.role === "assistant") {
+      // Detect workflow-driving tools (e.g. start_ai_call_workflow). When Jarvis
+      // launches a multi-step workflow, keep the mic engaged through modal opens.
+      const startedWorkflow = last.actionsExecuted?.some(
+        (a) => a.success && /^start_/.test(a.tool)
+      );
+      if (startedWorkflow) {
+        workflowActiveRef.current = true;
+        pausedRef.current = false;
+      }
+      // Workflow ends when an action explicitly completes it (initiate_/create_ on the same flow)
+      const endedWorkflow = last.actionsExecuted?.some(
+        (a) => a.success && /^(initiate_ai_call|cancel_workflow)$/.test(a.tool)
+      );
+      if (endedWorkflow) {
+        workflowActiveRef.current = false;
+      }
+
       // Show success banner for completed actions
       const msgIdx = messages.length - 1;
       if (

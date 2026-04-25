@@ -4337,6 +4337,113 @@ async function logAudit(
   });
 }
 
+async function loadUserMemories(supabase: any, userId: string, workspaceId: string): Promise<string> {
+  if (!userId || !workspaceId) return "";
+  const { data: memories } = await supabase
+    .from("jarvis_memories")
+    .select("memory_type, content, entity_type")
+    .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
+    .order("importance", { ascending: false })
+    .order("last_recalled_at", { ascending: false })
+    .limit(20);
+
+  if (!memories || memories.length === 0) return "";
+
+  const grouped = {
+    preference: memories.filter((m: any) => m.memory_type === "preference"),
+    entity: memories.filter((m: any) => m.memory_type === "entity"),
+    learning: memories.filter((m: any) => m.memory_type === "learning"),
+    correction: memories.filter((m: any) => m.memory_type === "correction"),
+  };
+
+  let memoryBlock = "\n\n--- JARVIS MEMORY (what you know about this user) ---\n";
+
+  if (grouped.preference.length > 0) {
+    memoryBlock += "\nUser preferences:\n";
+    grouped.preference.forEach((m: any) => { memoryBlock += `- ${m.content}\n`; });
+  }
+  if (grouped.entity.length > 0) {
+    memoryBlock += "\nKey entities this user works with:\n";
+    grouped.entity.forEach((m: any) => { memoryBlock += `- ${m.content}\n`; });
+  }
+  if (grouped.learning.length > 0) {
+    memoryBlock += "\nThings you have learned:\n";
+    grouped.learning.forEach((m: any) => { memoryBlock += `- ${m.content}\n`; });
+  }
+  if (grouped.correction.length > 0) {
+    memoryBlock += "\nCorrections the user has made:\n";
+    grouped.correction.forEach((m: any) => { memoryBlock += `- ${m.content}\n`; });
+  }
+
+  memoryBlock += "--- END MEMORY ---\n";
+  return memoryBlock;
+}
+
+async function extractAndSaveMemories(
+  supabase: any,
+  userId: string,
+  workspaceId: string,
+  userMessage: string,
+  assistantResponse: string,
+  lovableKey: string
+): Promise<void> {
+  try {
+    if (!userId || !workspaceId) return;
+    const extractPrompt = `You are a memory extraction system for an AI recruitment assistant called Jarvis.
+
+Analyze this conversation exchange and extract any memories worth storing for future conversations.
+Only extract genuinely useful information — not every conversation needs a memory.
+
+User said: "${userMessage.slice(0, 500)}"
+Jarvis responded: "${assistantResponse.slice(0, 500)}"
+
+Extract memories in these categories ONLY if clearly present:
+- preference: how the user likes to work, their communication style, what they prefer
+- entity: key people, companies, or deals this user regularly works with
+- learning: something Jarvis learned about this user's business or workflow
+- correction: the user corrected Jarvis or clarified how something should work
+
+Return JSON array (empty array if nothing worth remembering):
+[
+  { "type": "preference|entity|learning|correction", "content": "plain English description", "importance": 1-10 }
+]
+
+Return ONLY the JSON array, nothing else.`;
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        max_tokens: 300,
+        messages: [{ role: "user", content: extractPrompt }],
+      }),
+    });
+
+    if (!res.ok) return;
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || "[]";
+    const clean = text.replace(/```json|```/g, "").trim();
+    const memories = JSON.parse(clean);
+
+    if (!Array.isArray(memories) || memories.length === 0) return;
+
+    for (const memory of memories) {
+      if (!memory.content || !memory.type) continue;
+      await supabase.from("jarvis_memories").insert({
+        workspace_id: workspaceId,
+        user_id: userId,
+        memory_type: memory.type,
+        content: memory.content,
+        importance: memory.importance || 5,
+      });
+    }
+  } catch (e) {
+    console.error("Memory extraction failed:", e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

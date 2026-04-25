@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Search, ArrowUpDown, FolderKanban } from "lucide-react";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,13 @@ type SortKey = "name" | "status" | "project_type" | "budget" | "start_date";
 
 export default function CrmProjectsPage() {
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q !== null) setSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [status, setStatus] = useState("");
   const [panelOpen, setPanelOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("name");

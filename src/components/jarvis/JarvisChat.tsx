@@ -1244,7 +1244,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
         "fixed z-[60] flex flex-col border border-border bg-background shadow-2xl overflow-hidden",
         isMobile
           ? "inset-0 rounded-none"
-          : "w-[420px] h-[580px] rounded-2xl",
+          : "w-[420px] h-[580px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)] rounded-2xl",
         isDragging && "select-none"
       )}
       style={isMobile ? undefined : { left: panelPos.x, top: panelPos.y }}

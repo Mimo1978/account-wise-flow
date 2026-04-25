@@ -887,12 +887,17 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
   // Re-listen after TTS finishes (conversational flow)
   const relistenAfterSpeech = useCallback(() => {
     if (!speech.supported) return;
-    if (pausedRef.current) return;
+    // While a workflow is active, ALWAYS re-listen — ignore stale pause flag.
+    if (workflowActiveRef.current) {
+      pausedRef.current = false;
+    } else if (pausedRef.current) {
+      return;
+    }
     // Always re-listen after Jarvis speaks during an active conversation
-    if (conversationActiveRef.current || keepListening) {
+    if (conversationActiveRef.current || keepListening || workflowActiveRef.current) {
       if (tts.enabled) playYourTurnChime();
       setTimeout(() => {
-        if (!pausedRef.current) {
+        if (!pausedRef.current || workflowActiveRef.current) {
           speech.startListening();
         }
       }, 200);

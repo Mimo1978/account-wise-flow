@@ -3673,6 +3673,65 @@ export type Database = {
           },
         ]
       }
+      jarvis_memories: {
+        Row: {
+          content: string
+          created_at: string | null
+          embedding_text: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          importance: number | null
+          last_recalled_at: string | null
+          memory_type: string
+          source_conversation_id: string | null
+          times_recalled: number | null
+          updated_at: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          embedding_text?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          importance?: number | null
+          last_recalled_at?: string | null
+          memory_type?: string
+          source_conversation_id?: string | null
+          times_recalled?: number | null
+          updated_at?: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          embedding_text?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          importance?: number | null
+          last_recalled_at?: string | null
+          memory_type?: string
+          source_conversation_id?: string | null
+          times_recalled?: number | null
+          updated_at?: string | null
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jarvis_memories_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_adverts: {
         Row: {
           board: string | null

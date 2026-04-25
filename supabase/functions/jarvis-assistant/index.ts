@@ -4916,6 +4916,24 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
       }
     }
 
+    // Extract memories in background — don't await so it doesn't slow the response
+    try {
+      const lastUserMsg = user_message;
+      const lastAssistantMsg = responseText || "";
+      if (lastUserMsg && lastAssistantMsg && lovableApiKey) {
+        extractAndSaveMemories(
+          supabaseAdmin,
+          userId,
+          outerTeamId || "",
+          typeof lastUserMsg === "string" ? lastUserMsg : JSON.stringify(lastUserMsg),
+          lastAssistantMsg,
+          lovableApiKey
+        ).catch((e) => console.error("Background memory extraction error:", e));
+      }
+    } catch (e) {
+      console.error("Memory extraction scheduling error:", e);
+    }
+
     return new Response(
       JSON.stringify({
         response: responseText,

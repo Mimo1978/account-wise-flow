@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -65,9 +65,14 @@ interface Props {
   companyName?: string;
   contactMobile?: string | null;
   entityType?: "contact" | "crm_contact" | "candidate";
+  /** Optional Jarvis-driven prefill so the modal arrives partially completed. */
+  initialPurpose?: string;
+  initialBrief?: string;
+  /** When true, the modal will auto-trigger AI enhancement once the brief is set. */
+  autoEnhance?: boolean;
 }
 
-export function AICallModal({ open, onOpenChange, contactId, contactFirstName, contactLastName, companyName, contactMobile, entityType = "contact" }: Props) {
+export function AICallModal({ open, onOpenChange, contactId, contactFirstName, contactLastName, companyName, contactMobile, entityType = "contact", initialPurpose, initialBrief, autoEnhance }: Props) {
   const [presetKey, setPresetKey] = useState<PresetKey | null>(null);
   const [purpose, setPurpose] = useState("");
   const [brief, setBrief] = useState("");
@@ -90,9 +95,9 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
 
   useEffect(() => {
     if (open) {
-      setPresetKey(null);
-      setPurpose("");
-      setBrief("");
+      setPresetKey(initialBrief || initialPurpose ? "custom" : null);
+      setPurpose(initialPurpose || "");
+      setBrief(initialBrief || "");
       setEnhanced("");
       setEnhancing(false);
       setExpanded(false);
@@ -104,7 +109,21 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       setSaveWhich("both");
       setAutoSavedId(null);
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialPurpose, initialBrief]);
+
+  // Jarvis-driven auto-enhance: when the modal is opened with a brief and
+  // autoEnhance=true, run the AI refinement automatically so the user sees
+  // the enhanced script appear in real time.
+  const enhanceTriggeredRef = useRef(false);
+  useEffect(() => {
+    if (!open) { enhanceTriggeredRef.current = false; return; }
+    if (autoEnhance && brief.trim() && !enhanced && !enhancing && !enhanceTriggeredRef.current) {
+      enhanceTriggeredRef.current = true;
+      handleEnhance();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, autoEnhance, brief]);
 
   const fullName = `${contactFirstName} ${contactLastName}`.trim();
   const finalScript = useMemo(() => enhanced || brief, [enhanced, brief]);

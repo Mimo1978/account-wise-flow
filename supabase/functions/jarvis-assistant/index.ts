@@ -815,7 +815,7 @@ const TOOL_DEFINITIONS = [
     type: "function",
     function: {
       name: "initiate_ai_call",
-      description: "Make an AI-powered outbound phone call to a contact or candidate using Twilio + ElevenLabs. Use when user says 'call [name]', 'phone [name]', 'make a call to [name]', 'initiate a call'.",
+      description: "DIRECT BACKGROUND CALL — only use when the user explicitly asks to dial immediately WITHOUT review (e.g. 'just dial them now, no script review'). For the standard 'call [name]' / 'AI call [name]' workflow, prefer start_ai_call_workflow which opens the AI Call modal on the candidate's screen so the user can review the script and press Initiate manually.",
       parameters: {
         type: "object",
         properties: {
@@ -825,6 +825,24 @@ const TOOL_DEFINITIONS = [
           custom_instructions: { type: "string", description: "Any specific talking points or instructions" },
         },
         required: ["purpose"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "start_ai_call_workflow",
+      description: "PREFERRED for 'AI call [name]' / 'phone [name]' / 'call [candidate]'. Opens the candidate's profile in the Talent screen and automatically opens the AI Call modal, optionally pre-filling the purpose and brief in real time. Use this so the user can SEE the workflow happen on screen, review/edit the script, then press Initiate Call themselves. Do NOT place the call yourself — this tool only navigates and prepares the modal.",
+      parameters: {
+        type: "object",
+        properties: {
+          candidate_query: { type: "string", description: "Name, email, or fragment used to look up the candidate (e.g. 'Michael Smith', 'mike@acme')." },
+          candidate_id: { type: "string", description: "Optional: candidate ID if already known from earlier in the conversation." },
+          purpose: { type: "string", description: "Optional: nature of the call to pre-fill (e.g. 'Book a meeting', 'Intro Call', 'Follow Up', 'Demo Confirmation')." },
+          brief: { type: "string", description: "Optional: short brief / talking points to pre-fill the script box. The user can refine before sending." },
+          auto_enhance: { type: "boolean", description: "If true, the modal automatically asks the AI to enhance the brief into a full voice-agent script as soon as it opens." },
+        },
+        required: ["candidate_query"],
       },
     },
   },
@@ -1004,6 +1022,7 @@ NAVIGATION RULE FOR ACTIONS: When executing any tool that creates, updates, or s
 - After create_sow → navigate_to: "/home"
 - After send_email or send_sms → navigate_to: "/contacts"
 - After initiate_ai_call → navigate_to: "/contacts"
+- After start_ai_call_workflow → ALREADY returns navigate_to to the candidate's page with ?openCall=1; do NOT override.
 - After mark_invoice_paid → navigate_to: "/crm/invoices"
 - After generate_and_send_invoice → navigate_to: the invoice detail page
 The navigate_to value is already set by most tools — just make sure you don't override it. When narrating what happened, tell the user they can see the result on the relevant page.
@@ -1014,7 +1033,17 @@ CONFIRMATION LANGUAGE:
 - After create_invoice: "Invoice [number] has been created for £[total]. Want me to generate the PDF and send it?"
 
 ADDITIONAL INTENT PATTERNS:
-- "call [name]" / "phone [name]" → initiate_ai_call
+- "call [name]" / "phone [name]" / "AI call [name]" / "ring [name]" → start_ai_call_workflow (NOT initiate_ai_call). This opens the candidate's profile and the AI Call modal so the user sees the workflow happen on screen.
+
+AI CALL WORKFLOW — CRITICAL:
+When the user wants to AI-call a candidate, follow this exact sequence:
+1. Call \`start_ai_call_workflow\` with the candidate name. This navigates the user to the Talent profile and opens the AI Call modal automatically.
+2. Once the modal is open, ASK the user: "What is the nature of this call? For example: book a meeting, intro call, follow-up, demo confirmation, callback check, or something custom."
+3. When they answer, call \`start_ai_call_workflow\` again with the SAME candidate_id and the chosen \`purpose\` to update the modal in real time.
+4. Then ask: "Want me to draft the script for the AI agent, or do you have your own brief?" If they want a draft, write a 2-3 sentence brief tailored to the candidate and the purpose, and call \`start_ai_call_workflow\` again with \`brief\` set and \`auto_enhance: true\` so the modal asks the AI to refine it into a full voice script in real time.
+5. Tell the user: "I've prepared the script in the modal — review it, edit anything you want, then press 'Initiate Call' to dial. I won't dial for you so you stay in control."
+6. NEVER call \`initiate_ai_call\` directly during this workflow — the user presses Initiate themselves from the modal.
+- Only use \`initiate_ai_call\` (which dials immediately) if the user EXPLICITLY says something like "just dial them now without reviewing" or "skip the script, call them now".
 - "send the invoice" / "email invoice to [name]" → generate_and_send_invoice
 - "find me a [role]" / "search for candidates" / "who do we have with [skill]" / "match candidates" / "run a search" → search_talent
 - When search_talent returns results, present them as a numbered list showing rank, score, title, company, and tenure. Always end with: "Tap 'Reveal' next to any candidate on the Talent page to see their name and contact details."
@@ -3948,7 +3977,80 @@ Return ONLY valid JSON, no markdown fences.`,
         entityId: input.invoice_id as string,
       };
     }
+    case "start_ai_call_workflow": {
+      // Open the AI Call modal on the candidate's profile so the user can
+      // review the script in real time, edit it, and press Initiate themselves.
+      // We DO NOT place the call here — that happens from the modal.
+      const query = String(input.candidate_query || "").trim();
+      let candidateId = (input.candidate_id as string) || "";
+      let candidateName = "";
+      let candidatePhone = "";
+
+      if (!candidateId && query) {
+        const tokens = query.split(/\s+/).filter(Boolean);
+        const fields = ["name", "email", "phone", "current_title", "current_company", "headline"];
+        const orParts: string[] = [];
+        for (const f of fields) orParts.push(`${f}.ilike.%${query}%`);
+        if (tokens.length > 1) {
+          for (const t of tokens) for (const f of fields) orParts.push(`${f}.ilike.%${t}%`);
+        }
+        const { data: cands } = await supabaseAdmin
+          .from("candidates")
+          .select("id, name, phone")
+          .or(orParts.join(","))
+          .limit(5);
+        if (cands && cands.length > 0) {
+          candidateId = (cands[0] as any).id;
+          candidateName = (cands[0] as any).name || "";
+          candidatePhone = (cands[0] as any).phone || "";
+          if (cands.length > 1) {
+            return {
+              result: {
+                multiple_matches: true,
+                matches: cands.map((c: any) => ({ id: c.id, name: c.name })),
+                message: `I found ${cands.length} candidates matching "${query}". Which one should I open?`,
+              },
+              entityType: "candidates",
+            };
+          }
+        }
+      } else if (candidateId) {
+        const { data: c } = await supabaseAdmin
+          .from("candidates")
+          .select("name, phone")
+          .eq("id", candidateId)
+          .maybeSingle();
+        candidateName = (c as any)?.name || "";
+        candidatePhone = (c as any)?.phone || "";
+      }
+
+      if (!candidateId) {
+        return { result: { error: `I couldn't find a candidate matching "${query}". Try a different name or email.` }, entityType: "candidates" };
+      }
+
+      const params = new URLSearchParams({ openCall: "1" });
+      if (input.purpose) params.set("callPurpose", String(input.purpose));
+      if (input.brief) params.set("callBrief", String(input.brief));
+      if (input.auto_enhance) params.set("callAutoEnhance", "1");
+      const navigate_to = `/candidates/${candidateId}?${params.toString()}`;
+
+      return {
+        result: {
+          success: true,
+          candidate_id: candidateId,
+          candidate_name: candidateName,
+          has_phone: !!candidatePhone,
+          navigate_to,
+          message: candidatePhone
+            ? `Opening ${candidateName}'s profile and the AI Call modal so we can prepare the script together.`
+            : `Opening ${candidateName}'s profile, but no phone number is on file — you'll need to add one before initiating the call.`,
+        },
+        entityType: "calls",
+        entityId: candidateId,
+      };
+    }
     case "initiate_ai_call": {
+      // Direct background call — kept for backward compatibility / explicit requests.
       let toNumber = input.phone_number as string;
       if (!toNumber && input.contact_id) {
         const { data: callContact } = await supabaseAdmin
@@ -4640,7 +4742,7 @@ IMPORTANT: You are in the middle of a ${flow_state.flow} flow. Continue from whe
 
     // Build invalidation list for frontend cache
     const invalidateQueries: string[] = [];
-    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate", "book_diary_event", "cancel_diary_event", "reschedule_diary_event", "update_record", "delete_record", "create_candidate", "generate_and_send_invoice", "initiate_ai_call", "create_sow", "create_outreach_campaign", "add_to_outreach", "mark_invoice_paid", "search_talent"]);
+    const mutationTools = new Set(["create_company", "create_contact", "create_project", "create_opportunity", "update_opportunity_stage", "create_deal", "create_invoice", "log_call", "send_email", "send_sms", "create_job", "generate_adverts", "update_advert", "run_shortlist", "approve_all_shortlist", "update_shortlist_entry", "describe_shortlist_candidate", "book_diary_event", "cancel_diary_event", "reschedule_diary_event", "update_record", "delete_record", "create_candidate", "generate_and_send_invoice", "initiate_ai_call", "start_ai_call_workflow", "create_sow", "create_outreach_campaign", "add_to_outreach", "mark_invoice_paid", "search_talent"]);
     const entityQueryMap: Record<string, string[]> = {
       companies: ["companies", "canvas-companies", "crm_companies"],
       contacts: ["contacts", "company-contacts", "crm_contacts", "all-contacts"],

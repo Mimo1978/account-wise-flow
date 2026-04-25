@@ -160,6 +160,7 @@ export default function CandidateProfile() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
+  const [callPrefill, setCallPrefill] = useState<{ purpose?: string; brief?: string; autoEnhance?: boolean } | undefined>(undefined);
   const [emailOpen, setEmailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [callbackOpen, setCallbackOpen] = useState(false);
@@ -177,6 +178,20 @@ export default function CandidateProfile() {
       }, 100);
     }
   }, [autoExpandSection]);
+
+  // Jarvis-driven AI Call workflow: open the modal automatically when the URL
+  // says ?openCall=1, optionally with a pre-filled purpose / brief.
+  useEffect(() => {
+    if (searchParams.get("openCall") === "1") {
+      setCallPrefill({
+        purpose: searchParams.get("callPurpose") || undefined,
+        brief: searchParams.get("callBrief") || undefined,
+        autoEnhance: searchParams.get("callAutoEnhance") === "1",
+      });
+      setCallOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candidateId, searchParams.get("openCall")]);
 
   const candidate = useMemo(() => {
     return candidates.find((c) => c.id === candidateId) || null;
@@ -656,12 +671,15 @@ export default function CandidateProfile() {
       {/* AI Call Modal */}
       <AICallModal
         open={callOpen}
-        onOpenChange={setCallOpen}
+        onOpenChange={(o) => { setCallOpen(o); if (!o) setCallPrefill(undefined); }}
         contactId={candidate.id}
         contactFirstName={candidate.name?.split(" ")[0] || ""}
         contactLastName={candidate.name?.split(" ").slice(1).join(" ") || ""}
         contactMobile={candidate.phone}
         entityType="candidate"
+        initialPurpose={callPrefill?.purpose}
+        initialBrief={callPrefill?.brief}
+        autoEnhance={callPrefill?.autoEnhance}
       />
 
       {/* Email Compose Modal */}

@@ -95,9 +95,9 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
 
   useEffect(() => {
     if (open) {
-      setPresetKey(null);
-      setPurpose("");
-      setBrief("");
+      setPresetKey(initialBrief || initialPurpose ? "custom" : null);
+      setPurpose(initialPurpose || "");
+      setBrief(initialBrief || "");
       setEnhanced("");
       setEnhancing(false);
       setExpanded(false);
@@ -109,7 +109,21 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       setSaveWhich("both");
       setAutoSavedId(null);
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialPurpose, initialBrief]);
+
+  // Jarvis-driven auto-enhance: when the modal is opened with a brief and
+  // autoEnhance=true, run the AI refinement automatically so the user sees
+  // the enhanced script appear in real time.
+  const enhanceTriggeredRef = (typeof window !== "undefined") ? (window as any).__aiCallEnhanceRef ||= { current: false } : { current: false };
+  useEffect(() => {
+    if (!open) { enhanceTriggeredRef.current = false; return; }
+    if (autoEnhance && brief.trim() && !enhanced && !enhancing && !enhanceTriggeredRef.current) {
+      enhanceTriggeredRef.current = true;
+      handleEnhance();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, autoEnhance, brief]);
 
   const fullName = `${contactFirstName} ${contactLastName}`.trim();
   const finalScript = useMemo(() => enhanced || brief, [enhanced, brief]);

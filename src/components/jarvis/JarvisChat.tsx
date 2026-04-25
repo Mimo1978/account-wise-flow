@@ -664,6 +664,27 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     }
   }, [panelPos, isDragging, isMobile]);
 
+  // Clamp panel position into viewport whenever the window resizes or zoom changes.
+  // Prevents the chat box from opening off-screen when the user has zoomed/resized
+  // since the position was last persisted.
+  useEffect(() => {
+    if (isMobile) return;
+    const clamp = () => {
+      setPanelPos((prev) => {
+        const margin = 8;
+        const maxX = Math.max(margin, window.innerWidth - PANEL_W - margin);
+        const maxY = Math.max(margin, window.innerHeight - PANEL_H - margin);
+        const nx = Math.min(Math.max(margin, prev.x), maxX);
+        const ny = Math.min(Math.max(margin, prev.y), maxY);
+        if (nx === prev.x && ny === prev.y) return prev;
+        return { x: nx, y: ny };
+      });
+    };
+    clamp();
+    window.addEventListener("resize", clamp);
+    return () => window.removeEventListener("resize", clamp);
+  }, [isMobile]);
+
   const isGuideMode =
     jarvisNav.tourState.status === "running" || jarvisNav.tourState.status === "paused";
 
@@ -1223,7 +1244,7 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
         "fixed z-[60] flex flex-col border border-border bg-background shadow-2xl overflow-hidden",
         isMobile
           ? "inset-0 rounded-none"
-          : "w-[420px] h-[580px] rounded-2xl",
+          : "w-[420px] h-[580px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)] rounded-2xl",
         isDragging && "select-none"
       )}
       style={isMobile ? undefined : { left: panelPos.x, top: panelPos.y }}

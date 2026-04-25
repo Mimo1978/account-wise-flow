@@ -2725,7 +2725,37 @@ async function executeTool(
       const name = (input.name as string).trim();
       const teamId = await getUserTeamId(supabaseAdmin, userId);
 
-      const allMatches = await lookupRecord("candidates", "name", name, teamId, supabaseAdmin, "tenant_id");
+      // Search across ALL identifying fields so partial first-name, surname-only,
+      // email fragment, phone digits, job title, company, location or headline all match.
+      const safe = name.replace(/[%,()]/g, " ").trim();
+      const tokens = safe.split(/\s+/).filter(Boolean);
+      let q = supabaseAdmin
+        .from("candidates")
+        .select("id, name, email, phone, current_title, current_company, location, headline")
+        .limit(15);
+      if (teamId) q = q.eq("tenant_id", teamId);
+      // Build OR across every searchable field for the full query…
+      const fields = ["name","email","phone","current_title","current_company","location","headline"];
+      const orParts: string[] = fields.map((f) => `${f}.ilike.%${safe}%`);
+      // …and for each individual token (so "Michael Smith" still hits "Michael" only records)
+      if (tokens.length > 1) {
+        for (const t of tokens) {
+          for (const f of fields) orParts.push(`${f}.ilike.%${t}%`);
+        }
+      }
+      q = q.or(orParts.join(","));
+      const { data, error } = await q;
+      if (error) console.error("[lookup_candidate] error:", error.message);
+      const allMatches = (data || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        title: c.current_title,
+        company: c.current_company,
+        location: c.location,
+        headline: c.headline,
+      }));
       console.log("[lookup_candidate] query:", name, "workspace:", teamId, "total_matches:", allMatches.length);
 
       if (allMatches.length === 0) {

@@ -1012,6 +1012,14 @@ ADDITIONAL INTENT PATTERNS:
 - "find me a [role]" / "search for candidates" / "who do we have with [skill]" / "match candidates" / "run a search" → search_talent
 - When search_talent returns results, present them as a numbered list showing rank, score, title, company, and tenure. Always end with: "Tap 'Reveal' next to any candidate on the Talent page to see their name and contact details."
 - PRIVACY RULE: Never reveal candidate names from search_talent results. The match engine anonymises all results. Names are only shown after the user taps Reveal in the UI.
+
+UNIVERSAL SEARCH — use \`universal_search\` when the user gives ANY fragment that could match across the database:
+- Single token like "Michael", "Acme", "1042", "London", a partial email, a phone fragment.
+- "find anything about X", "who is X", "show me everything for X", "search for X".
+- Date-bounded queries like "deals from this month", "projects started in January" (pass date_from/date_to).
+- When the user wants a specific entity type, set entity_types e.g. ["candidate"], ["deal","invoice"]. Otherwise leave empty to search ALL.
+- ALWAYS prefer universal_search over lookup_candidate / lookup_contact / lookup_company when the input is a single word or fragment — it returns matches across every field (name, email, phone, title, company, location, headline, project name, deal title, invoice number, etc.) and across every entity type.
+- Present results grouped by type, e.g. "Candidates: Michael Smith (Senior Dev @ Acme), Michael Jones (PM)…  Contacts: Michael Brown @ Globex…  Deals: Michael Project Phase 2 (£40k, Won)…". Include id-less names only — never expose UUIDs.
 - "mark [company] invoice paid" / "[company] paid" → mark_invoice_paid
 - "create a SOW for [company]" → create_sow
 - "new campaign" / "create outreach campaign" → create_outreach_campaign

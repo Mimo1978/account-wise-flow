@@ -4032,7 +4032,7 @@ Return ONLY valid JSON, no markdown fences.`,
       if (input.purpose) params.set("callPurpose", String(input.purpose));
       if (input.brief) params.set("callBrief", String(input.brief));
       if (input.auto_enhance) params.set("callAutoEnhance", "1");
-      const navigate_to = `/candidates/${candidateId}?${params.toString()}`;
+      const navigate_to = `/talent/${candidateId}?${params.toString()}`;
 
       return {
         result: {

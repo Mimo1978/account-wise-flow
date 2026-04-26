@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Volume2, Mic, Sparkles, Settings2, RotateCcw, Loader2 } from 'lucide-react';
-import { useJarvisSettings, DEFAULT_JARVIS_SETTINGS, JarvisSettings, ELEVENLABS_VOICES } from '@/hooks/use-jarvis-settings';
+import { useJarvisSettings, DEFAULT_JARVIS_SETTINGS, JarvisSettings, getJarvisVoiceForGender } from '@/hooks/use-jarvis-settings';
 import { cn } from '@/lib/utils';
 
 function speedLabel(v: number): string {
@@ -86,49 +86,31 @@ export default function AdminJarvisSettings() {
 
       {/* ==================== VOICE ==================== */}
       <Section icon={Volume2} title="Voice Settings" description="Control how Jarvis sounds">
-        {/* ElevenLabs Voice */}
+        {/* Jarvis Character Voice — single source of truth */}
         <div className="space-y-2">
-          <Label>Voice</Label>
-          <Select
-            value={draft.elevenlabs_voice_id}
-            onValueChange={(v) => {
-              const voice = ELEVENLABS_VOICES.find(ev => ev.id === v);
-              update('elevenlabs_voice_id', v);
-              if (voice) update('elevenlabs_voice_name', voice.name);
-            }}
-          >
-            <SelectTrigger className="w-64">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ELEVENLABS_VOICES.map((v) => (
-                <SelectItem key={v.id} value={v.id}>
-                  {v.name} — {v.description}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            Requires ElevenLabs API key in Integrations. Falls back to browser voice if not configured.
-          </p>
-        </div>
-
-        {/* Gender (fallback) */}
-        <div className="space-y-2">
-          <Label>Fallback Voice Gender <Badge variant="secondary" className="text-[10px] ml-1">Browser TTS</Badge></Label>
+          <Label>Jarvis Voice</Label>
           <div className="flex gap-2">
             {(['male', 'female'] as const).map((g) => (
               <Button
                 key={g}
                 size="sm"
                 variant={draft.voice_gender === g ? 'default' : 'outline'}
-                onClick={() => update('voice_gender', g)}
+                onClick={() => {
+                  const v = getJarvisVoiceForGender(g);
+                  update('voice_gender', g);
+                  update('elevenlabs_voice_id', v.id);
+                  update('elevenlabs_voice_name', v.name);
+                }}
                 className="capitalize"
               >
-                {g}
+                {g === 'male' ? 'Male — Brian' : 'Female — Sarah'}
               </Button>
             ))}
           </div>
+          <p className="text-xs text-muted-foreground">
+            Jarvis has one signature character voice per gender. Male is <strong>Brian</strong> (calm, composed),
+            female is <strong>Sarah</strong> (warm, professional). Used for ElevenLabs and the browser fallback.
+          </p>
         </div>
 
         {/* Speed */}

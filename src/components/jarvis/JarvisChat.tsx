@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useJarvis, JarvisMessage, JarvisSuggestion, JarvisActionPayload, JarvisFlowState, getFlowHighlightId } from "@/hooks/use-jarvis";
-import { useJarvisSettings } from "@/hooks/use-jarvis-settings";
+import { useJarvisSettings, getJarvisVoiceForGender } from "@/hooks/use-jarvis-settings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -600,7 +600,9 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     jarvisSettings.speaking_speed,
     jarvisSettings.volume,
     jarvisSettings.mute_by_default,
-    jarvisSettings.elevenlabs_voice_id
+    // Always derive the ElevenLabs voice from the gender toggle so Jarvis
+    // keeps ONE consistent character voice (Brian = male, Sarah = female).
+    getJarvisVoiceForGender(jarvisSettings.voice_gender).id
   );
 
   // Sync spotlight settings to the singleton manager

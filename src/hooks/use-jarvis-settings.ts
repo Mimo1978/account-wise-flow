@@ -32,12 +32,26 @@ export interface JarvisSettings {
   tooltip_labels_enabled: boolean;
 }
 
-export const ELEVENLABS_VOICES = [
-  { id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam', description: 'British male, natural' },
-  { id: 'ErXwobaYiN019PkySvjV', name: 'Antoni', description: 'American male, warm' },
-  { id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh', description: 'American male, deep' },
-  { id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold', description: 'Strong male' },
-] as const;
+// Jarvis has ONE consistent character voice per gender — never random.
+// Male: "Brian" (deep, calm, British-leaning) — the signature Jarvis voice.
+// Female: "Sarah" (warm, professional) — the signature female alternative.
+export const JARVIS_VOICE_MALE = {
+  id: 'nPczCjzI2devNBz1zQrb',
+  name: 'Brian',
+  description: 'Signature Jarvis — calm, composed, British-leaning male',
+} as const;
+
+export const JARVIS_VOICE_FEMALE = {
+  id: 'EXAVITQu4vr4xnSDxMaL',
+  name: 'Sarah',
+  description: 'Signature Jarvis — warm, confident, professional female',
+} as const;
+
+export const ELEVENLABS_VOICES = [JARVIS_VOICE_MALE, JARVIS_VOICE_FEMALE] as const;
+
+export function getJarvisVoiceForGender(gender: 'male' | 'female') {
+  return gender === 'female' ? JARVIS_VOICE_FEMALE : JARVIS_VOICE_MALE;
+}
 
 export const DEFAULT_JARVIS_SETTINGS: JarvisSettings = {
   voice_gender: 'male',
@@ -45,8 +59,8 @@ export const DEFAULT_JARVIS_SETTINGS: JarvisSettings = {
   speaking_speed: 1.0,
   volume: 80,
   mute_by_default: false,
-  elevenlabs_voice_id: 'pNInz6obpgDQGcFmaJgB',
-  elevenlabs_voice_name: 'Adam',
+  elevenlabs_voice_id: JARVIS_VOICE_MALE.id,
+  elevenlabs_voice_name: JARVIS_VOICE_MALE.name,
   assistant_name: 'Jarvis',
   greeting_message: 'Hello {{name}}. I\'m {{assistant}}. How can I help you today?',
   auto_sleep_minutes: 3,

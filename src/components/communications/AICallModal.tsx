@@ -368,6 +368,7 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(

@@ -756,5 +756,11 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
         )}
       </DialogContent>
     </Dialog>
+    <CallTemplatesManager
+      open={templatesOpen}
+      onOpenChange={setTemplatesOpen}
+      onUseTemplate={(t) => applyTemplate(t)}
+    />
+    </>
   );
 }

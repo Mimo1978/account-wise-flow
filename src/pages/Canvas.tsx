@@ -713,6 +713,7 @@ const Canvas = () => {
             onNodeSelect={handleNodeSelect}
             onStructuralDrop={handleStructuralDrop}
             workspaceId={currentWorkspace?.id}
+            onAddContact={() => setShowAddContactModal(true)}
           />
         ) : (
           <CompanyDatabaseView

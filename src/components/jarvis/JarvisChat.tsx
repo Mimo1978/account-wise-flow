@@ -35,43 +35,15 @@ import { GuidedTourPlayer } from "@/components/jarvis/GuidedTourPlayer";
 import { TourTooltipBubble } from "@/components/jarvis/TourTooltipBubble";
 import { jarvisSpotlight } from "@/lib/JarvisSpotlight";
 import { playYourTurnChime, playListeningPing } from "@/lib/jarvis-sounds";
+import { JarvisWorking } from "@/components/ui/JarvisWorking";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                   */
 /* ------------------------------------------------------------------ */
 function TypingDots() {
   return (
-    <div className="flex items-center gap-1 px-4 py-3">
-      <div className="flex items-center gap-1.5">
-        <Sparkles className="h-4 w-4 text-primary shrink-0" />
-        <div className="flex items-end gap-[3px] h-5">
-          {[
-            { h: 8,  d: '0ms'   },
-            { h: 14, d: '80ms'  },
-            { h: 20, d: '160ms' },
-            { h: 16, d: '120ms' },
-            { h: 20, d: '200ms' },
-            { h: 10, d: '240ms' },
-            { h: 18, d: '280ms' },
-            { h: 8,  d: '320ms' },
-          ].map((bar, i) => (
-            <div
-              key={i}
-              className="w-[2px] rounded-full bg-primary/70"
-              style={{
-                height: `${bar.h}px`,
-                animation: `cmPipelinePulse 0.8s ease-in-out ${bar.d} infinite alternate`,
-              }}
-            />
-          ))}
-        </div>
-      </div>
-      <style>{`
-        @keyframes cmPipelinePulse {
-          from { opacity: 0.25; transform: scaleY(0.5); }
-          to   { opacity: 1;    transform: scaleY(1);   }
-        }
-      `}</style>
+    <div className="flex items-center gap-3 px-4 py-3">
+      <JarvisWorking size={28} inline label="Jarvis is working" />
     </div>
   );
 }

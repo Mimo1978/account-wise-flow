@@ -14,6 +14,7 @@ import { useVoiceDictation } from "@/hooks/use-voice-dictation";
 import { useCallBriefTemplates, useSaveCallBriefTemplate, useDeleteCallBriefTemplate, useTouchCallBriefTemplate, type CallBriefTemplate } from "@/hooks/use-call-brief-templates";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatDistanceToNow } from "date-fns";
+import { JarvisWorking } from "@/components/ui/JarvisWorking";
 
 type PresetKey = "book_meeting" | "callback_check" | "intro" | "follow_up" | "demo_confirm" | "custom";
 
@@ -93,12 +94,35 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
   const deleteTemplate = useDeleteCallBriefTemplate();
   const touchTemplate = useTouchCallBriefTemplate();
 
+  // ── Draft persistence ────────────────────────────────────────────────────
+  // Keep the user's in-progress brief/script alive across modal closes,
+  // navigation, and even Jarvis interruptions. Keyed by contact so each
+  // person retains their own pending draft.
+  const draftKey = `aiCallDraft:${contactId || "none"}`;
+  const draftHydratedRef = useRef(false);
+
   useEffect(() => {
     if (open) {
-      setPresetKey(initialBrief || initialPurpose ? "custom" : null);
-      setPurpose(initialPurpose || "");
-      setBrief(initialBrief || "");
-      setEnhanced("");
+      // Try to restore an in-flight draft first so nothing is ever lost.
+      let restored: { purpose?: string; brief?: string; enhanced?: string } | null = null;
+      try {
+        const raw = localStorage.getItem(draftKey);
+        if (raw) restored = JSON.parse(raw);
+      } catch { /* ignore */ }
+
+      const hasJarvisPrefill = !!(initialBrief || initialPurpose);
+      const hasDraft = !!(restored && (restored.brief || restored.purpose || restored.enhanced));
+
+      // Jarvis prefill wins on a fresh open ONLY if there is no saved draft
+      // for this contact — otherwise we resume exactly where the user left off.
+      const nextPurpose = hasDraft ? (restored!.purpose || initialPurpose || "") : (initialPurpose || "");
+      const nextBrief   = hasDraft ? (restored!.brief   || initialBrief   || "") : (initialBrief   || "");
+      const nextEnhanced = hasDraft ? (restored!.enhanced || "") : "";
+
+      setPresetKey(nextBrief || nextPurpose ? "custom" : null);
+      setPurpose(nextPurpose);
+      setBrief(nextBrief);
+      setEnhanced(nextEnhanced);
       setEnhancing(false);
       setExpanded(false);
       setStatus("idle");
@@ -108,9 +132,30 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       setTemplatesOpen(false);
       setSaveWhich("both");
       setAutoSavedId(null);
+      draftHydratedRef.current = true;
+
+      if (hasDraft && !hasJarvisPrefill) {
+        toast.info("Resumed your in-progress call brief", { duration: 2500 });
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialPurpose, initialBrief]);
+
+  // Auto-save the draft on every meaningful change while the modal is open.
+  useEffect(() => {
+    if (!open || !draftHydratedRef.current) return;
+    try {
+      if (!purpose.trim() && !brief.trim() && !enhanced.trim()) {
+        localStorage.removeItem(draftKey);
+      } else {
+        localStorage.setItem(draftKey, JSON.stringify({ purpose, brief, enhanced, savedAt: Date.now() }));
+      }
+    } catch { /* quota errors ignored */ }
+  }, [open, purpose, brief, enhanced, draftKey]);
+
+  const clearDraft = () => {
+    try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+  };
 
   // Jarvis-driven auto-enhance: when the modal is opened with a brief and
   // autoEnhance=true, run the AI refinement automatically so the user sees
@@ -250,6 +295,8 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       }
       if (!data?.success) throw new Error(data?.message || "Call failed");
       setStatus("success");
+      // Successful dial — wipe the draft so we don't resurrect a stale brief.
+      clearDraft();
       qc.invalidateQueries({ queryKey: ["crm_activities"] });
     } catch (err: any) {
       setStatus("error");
@@ -264,6 +311,16 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
           "p-0 gap-0 overflow-hidden transition-all duration-200",
           expanded ? "sm:max-w-5xl max-h-[92vh]" : "sm:max-w-xl max-h-[88vh]"
         )}
+        // Prevent accidental dismissal while Jarvis (or the user) is mid-flow.
+        // The modal can still be closed via the X button, Cancel, or success.
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => {
+          // Only allow ESC to close on the success/error confirmation screens.
+          if (status === "calling" || (status === "idle" && (brief.trim() || enhanced.trim()))) {
+            e.preventDefault();
+          }
+        }}
       >
         {/* Header */}
         <DialogHeader className="px-6 py-4 border-b border-border bg-gradient-to-br from-primary/5 to-transparent">
@@ -533,7 +590,19 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                     "rounded-lg border p-3 text-sm leading-relaxed whitespace-pre-wrap min-h-[140px]",
                     enhanced ? "border-primary/30 bg-primary/5 text-foreground" : "border-dashed border-border bg-muted/30 text-muted-foreground italic"
                   )}>
-                    {enhanced || (enhancing ? "Enhancing your brief…" : "Click 'Enhance with AI' to preview the script the agent will speak.")}
+                    {enhanced ? (
+                      enhanced
+                    ) : enhancing ? (
+                      <div className="flex items-center justify-center min-h-[120px]">
+                        <JarvisWorking
+                          size={56}
+                          label="Enhancing your brief"
+                          sublabel="Jarvis is drafting a turn-by-turn script"
+                        />
+                      </div>
+                    ) : (
+                      "Click 'Enhance with AI' to preview the script the agent will speak."
+                    )}
                   </div>
                   {enhanced && (
                     <p className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -547,15 +616,12 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
           )}
 
           {status === "calling" && (
-            <div className="flex flex-col items-center gap-3 py-12 px-6">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-                <div className="relative h-12 w-12 rounded-full bg-primary/10 grid place-items-center">
-                  <Phone className="w-5 h-5 text-primary" />
-                </div>
-              </div>
-              <p className="text-sm text-foreground font-medium">Dialling {contactFirstName}…</p>
-              <p className="text-xs text-muted-foreground">Connecting through your AI voice provider</p>
+            <div className="flex flex-col items-center gap-2 py-12 px-6">
+              <JarvisWorking
+                size={88}
+                label={`Dialling ${contactFirstName}`}
+                sublabel="Connecting through your AI voice provider"
+              />
             </div>
           )}
 

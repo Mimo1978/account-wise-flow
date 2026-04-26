@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   MessageSquare, Briefcase, FolderOpen, Mic, Square, Globe, Users, Lock, Pin,
   Loader2, Search, ExternalLink, Trash2, Pencil, X, Check, Sparkles, ChevronDown, ChevronRight,
-  Link2, CalendarIcon, Mail, Phone, MapPin, Linkedin, Clock, Megaphone, Plus,
+  Link2, CalendarIcon, Mail, Phone, MapPin, Linkedin, Clock, Megaphone, Plus, Maximize2,
 } from "lucide-react";
 import { format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { toast } from "sonner";
@@ -282,6 +282,7 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
   const [noteSearch, setNoteSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showAllNotes, setShowAllNotes] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
 
   // Current user
   const { data: currentUser } = useQuery({
@@ -533,6 +534,15 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
               Notes
               {notes.length > 0 && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">{notes.length}</span>}
             </CardTitle>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+              onClick={() => setNotesExpanded(true)}
+              title="Expand notes"
+            >
+              <Maximize2 className="w-3 h-3"/> Expand
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -664,6 +674,126 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
           )}
         </CardContent>
       </Card>
+
+      {/* ── NOTES — EXPANDED MODAL ── */}
+      <Dialog open={notesExpanded} onOpenChange={setNotesExpanded}>
+        <DialogContent className="max-w-4xl w-[92vw] h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b border-border bg-gradient-to-r from-amber-500/5 to-transparent flex-shrink-0">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle className="text-lg flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-amber-500"/> Notes
+                  <span className="text-xs font-normal text-muted-foreground">· {candidate.name || ""}</span>
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {notes.length} {notes.length === 1 ? "note" : "notes"} · full editor view
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+            {/* Composer */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <NoteComposer candidateId={candidate.id} currentUserId={currentUserId} workspaceId={workspaceId} onSaved={refetchNotes}/>
+            </div>
+
+            {/* Search */}
+            {notes.length > 0 && (
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground"/>
+                <Input
+                  placeholder="Search notes..."
+                  value={noteSearch}
+                  onChange={e => setNoteSearch(e.target.value)}
+                  className="pl-9 h-9"
+                />
+              </div>
+            )}
+
+            {/* List */}
+            {notes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-border rounded-xl">
+                <MessageSquare className="w-8 h-8 text-muted-foreground/30 mb-2"/>
+                <p className="text-sm text-muted-foreground">No notes yet</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {notes
+                  .filter((n: any) => {
+                    if (!noteSearch) return true;
+                    const q = noteSearch.toLowerCase();
+                    return n.body?.toLowerCase().includes(q) || n.title?.toLowerCase().includes(q);
+                  })
+                  .map((n: any) => {
+                    const author = getAuthor(n);
+                    return (
+                      <div key={n.id} className="rounded-xl border border-border bg-card hover:border-amber-500/40 hover:shadow-md transition-all p-4">
+                        {editingNoteId === n.id ? (
+                          <div className="space-y-2">
+                            <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} className="min-h-[140px] text-sm" autoFocus/>
+                            <div className="flex gap-2">
+                              <Button size="sm" className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!editContent.trim() || editNote.isPending}
+                                onClick={() => editNote.mutate({ id: n.id, content: editContent })}>
+                                <Check className="w-3.5 h-3.5"/> Save
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => { setEditingNoteId(null); setEditContent(""); }}>Cancel</Button>
+                            </div>
+                          </div>
+                        ) : deletingNoteId === n.id ? (
+                          <div className="space-y-2">
+                            <p className="text-xs text-muted-foreground">Delete this note?</p>
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="destructive" className="gap-1" disabled={deleteNote.isPending}
+                                onClick={() => deleteNote.mutate(n.id)}>
+                                <Trash2 className="w-3.5 h-3.5"/> Delete
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => setDeletingNoteId(null)}>Cancel</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-[10px] font-semibold text-primary shrink-0">
+                                  {author.initials}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-xs font-medium truncate">{author.name}</div>
+                                  <div className="text-[10px] text-muted-foreground">{format(new Date(n.created_at), "dd MMM yyyy · HH:mm")}</div>
+                                </div>
+                                {n.pinned && <span className="text-[9px] border border-amber-500/40 text-amber-600 dark:text-amber-400 rounded px-1.5 py-0.5">PIN</span>}
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button onClick={() => pinNote.mutate({ id: n.id, pinned: n.pinned })}
+                                  className={cn("p-1.5 rounded transition-colors", n.pinned ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" : "text-muted-foreground hover:bg-amber-100 hover:text-amber-600")} title={n.pinned?"Unpin":"Pin"}>
+                                  <Pin className={cn("w-3.5 h-3.5", n.pinned && "fill-current")}/>
+                                </button>
+                                {(currentUser?.id === n.owner_id || canDelete) && (
+                                  <button onClick={() => { setEditingNoteId(n.id); setEditContent(n.body); }}
+                                    className="p-1.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 transition-colors" title="Edit">
+                                    <Pencil className="w-3.5 h-3.5"/>
+                                  </button>
+                                )}
+                                {(currentUser?.id === n.owner_id || canDelete) && (
+                                  <button onClick={() => setDeletingNoteId(n.id)}
+                                    className="p-1.5 rounded bg-red-50 text-red-500 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 transition-colors" title="Delete">
+                                    <Trash2 className="w-3.5 h-3.5"/>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            {n.title && <p className="text-sm font-medium mb-1">{n.title}</p>}
+                            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{n.body}</p>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── DEALS ── */}
       <Card>

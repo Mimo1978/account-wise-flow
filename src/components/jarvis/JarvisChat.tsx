@@ -35,6 +35,7 @@ import { GuidedTourPlayer } from "@/components/jarvis/GuidedTourPlayer";
 import { TourTooltipBubble } from "@/components/jarvis/TourTooltipBubble";
 import { jarvisSpotlight } from "@/lib/JarvisSpotlight";
 import { playYourTurnChime, playListeningPing } from "@/lib/jarvis-sounds";
+import { JarvisWorking } from "@/components/ui/JarvisWorking";
 
 /* ------------------------------------------------------------------ */
 /*  Typing indicator                                                   */

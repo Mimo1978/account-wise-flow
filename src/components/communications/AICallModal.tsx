@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useVoiceDictation } from "@/hooks/use-voice-dictation";
 import { useCallBriefTemplates, useSaveCallBriefTemplate, useDeleteCallBriefTemplate, useTouchCallBriefTemplate, type CallBriefTemplate } from "@/hooks/use-call-brief-templates";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CallTemplatesManager } from "./CallTemplatesManager";
 import { formatDistanceToNow } from "date-fns";
 import { JarvisWorking } from "@/components/ui/JarvisWorking";
 

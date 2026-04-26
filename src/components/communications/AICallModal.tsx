@@ -345,9 +345,21 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          "p-0 gap-0 overflow-hidden transition-all duration-200",
-          expanded ? "sm:max-w-5xl max-h-[92vh]" : "sm:max-w-xl max-h-[88vh]"
+          "p-0 gap-0 overflow-hidden flex flex-col transition-[width,max-width,height,max-height] duration-200",
+          fullscreen
+            ? "!fixed !inset-2 !left-2 !top-2 !translate-x-0 !translate-y-0 !w-[calc(100vw-1rem)] !max-w-none !h-[calc(100vh-1rem)] !max-h-none !rounded-lg"
+            : expanded
+              ? "sm:max-w-5xl max-h-[92vh] h-[92vh]"
+              : "sm:max-w-xl max-h-[88vh] h-[88vh]"
         )}
+        style={
+          !fullscreen && dragPos
+            ? {
+                left: `calc(50% + ${dragPos.x}px)`,
+                top: `calc(50% + ${dragPos.y}px)`,
+              }
+            : undefined
+        }
         // Prevent accidental dismissal while Jarvis (or the user) is mid-flow.
         // The modal can still be closed via the X button, Cancel, or success.
         onPointerDownOutside={(e) => e.preventDefault()}
@@ -360,7 +372,13 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
         }}
       >
         {/* Header */}
-        <DialogHeader className="px-6 py-4 border-b border-border bg-gradient-to-br from-primary/5 to-transparent">
+        <DialogHeader
+          onMouseDown={handleDragStart}
+          className={cn(
+            "px-6 py-4 border-b border-border bg-gradient-to-br from-primary/5 to-transparent shrink-0 select-none",
+            !fullscreen && (dragging ? "cursor-grabbing" : "cursor-grab")
+          )}
+        >
           <div className="flex items-center justify-between gap-3">
             <DialogTitle className="flex items-center gap-2 text-base">
               <div className="h-8 w-8 rounded-full bg-primary/10 grid place-items-center">
@@ -368,9 +386,12 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
               </div>
               AI Outbound Call
               <Badge variant="secondary" className="ml-1 text-[10px] uppercase tracking-wide">Beta</Badge>
+              {!fullscreen && (
+                <GripHorizontal className="w-3.5 h-3.5 text-muted-foreground/60 ml-1" aria-hidden />
+              )}
             </DialogTitle>
             {status === "idle" && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
                 <Popover open={templatesOpen} onOpenChange={setTemplatesOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground gap-1.5">

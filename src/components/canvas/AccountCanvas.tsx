@@ -82,11 +82,13 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   const selectedNodeIdRef = useRef(selectedNodeId);
   const onNodeSelectRef = useRef(onNodeSelect);
   const onContactClickRef = useRef(onContactClick);
+  const onAddContactRef = useRef(onAddContact);
   
   useEffect(() => { interactionModeRef.current = interactionMode; }, [interactionMode]);
   useEffect(() => { selectedNodeIdRef.current = selectedNodeId; }, [selectedNodeId]);
   useEffect(() => { onContactClickRef.current = onContactClick; }, [onContactClick]);
   useEffect(() => { onNodeSelectRef.current = onNodeSelect; }, [onNodeSelect]);
+  useEffect(() => { onAddContactRef.current = onAddContact; }, [onAddContact]);
 
   // ── Canvas lifecycle ──
   const isCanvasDisposedRef = useRef(false);

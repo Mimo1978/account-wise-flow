@@ -418,52 +418,18 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
             </DialogTitle>
             {status === "idle" && (
               <div className="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
-                <Popover open={templatesOpen} onOpenChange={setTemplatesOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground gap-1.5">
-                      <Library className="w-4 h-4" />
-                      <span className="text-xs hidden sm:inline">Templates</span>
-                      {templates.length > 0 && (
-                        <Badge variant="secondary" className="h-4 px-1 text-[10px]">{templates.length}</Badge>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-80 p-0">
-                    <div className="px-3 py-2 border-b border-border">
-                      <p className="text-xs font-medium text-foreground">Saved briefs</p>
-                      <p className="text-[11px] text-muted-foreground">Click to load — your best scripts, reusable.</p>
-                    </div>
-                    <div className="max-h-72 overflow-y-auto">
-                      {templates.length === 0 ? (
-                        <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-                          No saved briefs yet.<br />Write or dictate one and hit <span className="text-foreground font-medium">Save</span>.
-                        </div>
-                      ) : (
-                        templates.map(t => (
-                          <div key={t.id} className="group flex items-start gap-2 px-3 py-2 hover:bg-accent/50 border-b border-border/50 last:border-0">
-                            <button
-                              onClick={() => applyTemplate(t)}
-                              className="flex-1 text-left min-w-0"
-                            >
-                              <p className="text-sm font-medium text-foreground truncate">{t.name}</p>
-                              <p className="text-[11px] text-muted-foreground truncate">{t.brief}</p>
-                              <p className="text-[10px] text-muted-foreground mt-0.5">
-                                Used {t.use_count}× · {t.last_used_at ? formatDistanceToNow(new Date(t.last_used_at), { addSuffix: true }) : "never used"}
-                              </p>
-                            </button>
-                            <Button
-                              variant="ghost" size="sm"
-                              onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${t.name}"?`)) deleteTemplate.mutate(t.id); }}
-                              className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={() => setTemplatesOpen(true)}
+                  className="h-8 px-2 text-muted-foreground gap-1.5"
+                  title="Browse, edit and reuse saved templates"
+                >
+                  <Library className="w-4 h-4" />
+                  <span className="text-xs hidden sm:inline">Templates</span>
+                  {templates.length > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1 text-[10px]">{templates.length}</Badge>
+                  )}
+                </Button>
                 <Button
                   variant="ghost" size="sm"
                   onClick={() => setExpanded(v => !v)}

@@ -80,6 +80,7 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
   const [enhanced, setEnhanced] = useState("");
   const [enhancing, setEnhancing] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [status, setStatus] = useState<"idle" | "calling" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [saveOpen, setSaveOpen] = useState(false);
@@ -125,6 +126,7 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       setEnhanced(nextEnhanced);
       setEnhancing(false);
       setExpanded(false);
+      setFullscreen(false);
       setStatus("idle");
       setErrorMsg("");
       setSaveOpen(false);

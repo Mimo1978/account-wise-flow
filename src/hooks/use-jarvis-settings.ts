@@ -32,7 +32,6 @@ export interface JarvisSettings {
   tooltip_labels_enabled: boolean;
 }
 
-export const ELEVENLABS_VOICES = [
 // Jarvis has ONE consistent character voice per gender — never random.
 // Male: "Brian" (deep, calm, British-leaning) — the signature Jarvis voice.
 // Female: "Sarah" (warm, professional) — the signature female alternative.

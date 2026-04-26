@@ -282,6 +282,7 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
   const [noteSearch, setNoteSearch] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [showAllNotes, setShowAllNotes] = useState(false);
+  const [notesExpanded, setNotesExpanded] = useState(false);
 
   // Current user
   const { data: currentUser } = useQuery({

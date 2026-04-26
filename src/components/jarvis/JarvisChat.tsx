@@ -600,7 +600,9 @@ function JarvisChatPanel({ onClose, onActiveChange }: { onClose: () => void; onA
     jarvisSettings.speaking_speed,
     jarvisSettings.volume,
     jarvisSettings.mute_by_default,
-    jarvisSettings.elevenlabs_voice_id
+    // Always derive the ElevenLabs voice from the gender toggle so Jarvis
+    // keeps ONE consistent character voice (Brian = male, Sarah = female).
+    getJarvisVoiceForGender(jarvisSettings.voice_gender).id
   );
 
   // Sync spotlight settings to the singleton manager

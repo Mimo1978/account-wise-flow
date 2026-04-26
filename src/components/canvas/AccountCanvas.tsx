@@ -28,6 +28,7 @@ interface AccountCanvasProps {
   onNodeSelect?: (contactId: string | null) => void;
   onStructuralDrop?: (draggedContactId: string, targetContactId: string | null, zone: DropZone) => void;
   workspaceId?: string;
+  onAddContact?: () => void;
 }
 export interface AccountCanvasRef {
   clearSearch: () => void;

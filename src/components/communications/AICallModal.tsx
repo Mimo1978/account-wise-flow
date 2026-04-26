@@ -302,6 +302,31 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
     toast.success(`Loaded "${t.name}"`);
   };
 
+  // Quick one-click save from below the AI Agent Script.
+  // Auto-names the template and confirms with a date stamp.
+  const handleQuickSaveScript = async () => {
+    const sourceText = (enhanced || brief).trim();
+    if (!sourceText) { toast.error("Nothing to save yet — write a brief or enhance one first."); return; }
+    try {
+      const now = new Date();
+      const stamp = now.toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      const baseName = (purpose?.trim() || "Call script");
+      const name = `${baseName} – ${stamp}`;
+      await saveTemplate.mutateAsync({
+        name,
+        purpose: purpose || "",
+        brief,
+        enhanced: enhanced || "",
+      });
+      toast.success("Saved to your templates", {
+        description: `"${name}" — available on every contact for future AI calls.`,
+        duration: 4000,
+      });
+    } catch (e: any) {
+      toast.error(e.message || "Couldn't save template");
+    }
+  };
+
   const handleCall = async () => {
     if (!purpose.trim()) { toast.error("Pick a purpose or preset"); return; }
     if (!finalScript.trim()) { toast.error("Add a brief for the AI agent"); return; }
@@ -681,6 +706,27 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                       <ChevronRight className="w-3 h-3" />
                       You can still edit your brief on the left — re-enhance to refresh.
                     </p>
+                  )}
+                  {(enhanced || brief.trim()) && (
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <p className="text-[11px] text-muted-foreground">
+                        Save this {enhanced ? "script" : "brief"} so you can reuse it on any contact.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleQuickSaveScript}
+                        disabled={saveTemplate.isPending || !(enhanced || brief.trim())}
+                        className="h-8 px-3 gap-1.5"
+                        title="Save to your call templates"
+                      >
+                        {saveTemplate.isPending
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <BookmarkCheck className="w-3.5 h-3.5 text-primary" />}
+                        Save to templates
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}

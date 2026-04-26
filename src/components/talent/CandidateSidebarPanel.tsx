@@ -534,6 +534,15 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
               Notes
               {notes.length > 0 && <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded-full font-medium">{notes.length}</span>}
             </CardTitle>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+              onClick={() => setNotesExpanded(true)}
+              title="Expand notes"
+            >
+              <Maximize2 className="w-3 h-3"/> Expand
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">

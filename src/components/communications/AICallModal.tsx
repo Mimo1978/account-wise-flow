@@ -446,12 +446,21 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                   {expanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                   <span className="ml-1.5 text-xs hidden sm:inline">{expanded ? "Compact" : "Expand"}</span>
                 </Button>
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={() => setFullscreen(v => !v)}
+                  className="h-8 px-2 text-muted-foreground"
+                  title={fullscreen ? "Exit full screen" : "Full screen"}
+                >
+                  {fullscreen ? <Shrink className="w-4 h-4" /> : <Expand className="w-4 h-4" />}
+                  <span className="ml-1.5 text-xs hidden sm:inline">{fullscreen ? "Windowed" : "Full"}</span>
+                </Button>
               </div>
             )}
           </div>
         </DialogHeader>
 
-        <div className="overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {/* Contact strip */}
           <div className="px-6 py-3 flex items-center gap-3 border-b border-border bg-muted/30">
             <Avatar className="h-10 w-10">

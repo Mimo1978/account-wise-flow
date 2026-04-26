@@ -1229,6 +1229,54 @@ const createCompanyNode = (name: string, x: number, y: number): Group => {
   return new Group([badge, dot1, dot2, label], { left: x, top: y, originX: "center", originY: "center", selectable: false, hasControls: false, hasBorders: false });
 };
 
+// Empty-state ghost contact card — same dimensions as a contact card but
+// styled as a dashed call-to-action that disappears once a real contact exists.
+const createEmptyStateNode = (x: number, y: number): Group => {
+  const cardBg = new Rect({
+    width: 200, height: 96,
+    fill: "hsl(222 47% 14%)",
+    stroke: "hsl(221 83% 53%)",
+    strokeWidth: 1.5,
+    strokeDashArray: [6, 4],
+    rx: 8, ry: 8,
+    left: -100, top: -48,
+    opacity: 0.95,
+  });
+  const profileCircle = new Circle({
+    radius: 22,
+    fill: "hsl(217 33% 22%)",
+    stroke: "hsl(221 83% 53%)",
+    strokeWidth: 1,
+    strokeDashArray: [3, 3],
+    left: -82, top: -22,
+  });
+  const plusIcon = new Text("+", {
+    fontSize: 26, fontWeight: "300", fill: "hsl(221 83% 65%)",
+    left: -82, top: -22, originX: "center", originY: "center",
+  });
+  const headline = new Text("Add your first contact", {
+    fontSize: 12, fontWeight: "600", fill: "hsl(210 40% 98%)",
+    left: -45, top: -30, width: 140,
+  });
+  const sub1 = new Text("Start building your", {
+    fontSize: 9, fill: "hsl(215 20% 65%)", left: -45, top: -12, width: 140,
+  });
+  const sub2 = new Text("org chart →", {
+    fontSize: 9, fontWeight: "600", fill: "hsl(199 89% 60%)", left: -45, top: 2, width: 140,
+  });
+  const statusIndicator = new Circle({
+    radius: 5, fill: "hsl(221 83% 53%)", left: 75, top: -38, opacity: 0.8,
+  });
+  return new Group(
+    [cardBg, profileCircle, plusIcon, headline, sub1, sub2, statusIndicator],
+    {
+      left: x, top: y, originX: "center", originY: "center",
+      selectable: false, evented: true, hasControls: false, hasBorders: false,
+      hoverCursor: "pointer",
+    }
+  );
+};
+
 const createContactNode = (contact: Contact, x: number, y: number): Group => {
   const statusColors: Record<string, string> = {
     champion: "hsl(142 71% 45%)", engaged: "hsl(142 71% 45%)", warm: "hsl(38 92% 50%)",

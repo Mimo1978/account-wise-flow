@@ -590,7 +590,19 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                     "rounded-lg border p-3 text-sm leading-relaxed whitespace-pre-wrap min-h-[140px]",
                     enhanced ? "border-primary/30 bg-primary/5 text-foreground" : "border-dashed border-border bg-muted/30 text-muted-foreground italic"
                   )}>
-                    {enhanced || (enhancing ? "Enhancing your brief…" : "Click 'Enhance with AI' to preview the script the agent will speak.")}
+                    {enhanced ? (
+                      enhanced
+                    ) : enhancing ? (
+                      <div className="flex items-center justify-center min-h-[120px]">
+                        <JarvisWorking
+                          size={56}
+                          label="Enhancing your brief"
+                          sublabel="Jarvis is drafting a turn-by-turn script"
+                        />
+                      </div>
+                    ) : (
+                      "Click 'Enhance with AI' to preview the script the agent will speak."
+                    )}
                   </div>
                   {enhanced && (
                     <p className="text-[11px] text-muted-foreground flex items-center gap-1">

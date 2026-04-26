@@ -654,7 +654,12 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                     )}
                   </div>
                   <div className={cn(
-                    "rounded-lg border p-3 text-sm leading-relaxed whitespace-pre-wrap min-h-[140px]",
+                    "rounded-lg border p-3 text-sm leading-relaxed whitespace-pre-wrap min-h-[140px] overflow-y-auto",
+                    fullscreen
+                      ? "max-h-[calc(100vh-22rem)]"
+                      : expanded
+                        ? "max-h-[60vh]"
+                        : "max-h-[40vh]",
                     enhanced ? "border-primary/30 bg-primary/5 text-foreground" : "border-dashed border-border bg-muted/30 text-muted-foreground italic"
                   )}>
                     {enhanced ? (

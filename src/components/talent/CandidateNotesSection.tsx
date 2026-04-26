@@ -36,7 +36,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, MoreVertical, Edit2, Trash2, Clock, User, Tag, Eye, Lock } from "lucide-react";
+import { Plus, MoreVertical, Edit2, Trash2, Clock, User, Tag, Eye, Lock, Maximize2, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -86,6 +86,7 @@ export function CandidateNotesSection({
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingNote, setEditingNote] = useState<CandidateNote | null>(null);
   const [deleteConfirmNote, setDeleteConfirmNote] = useState<CandidateNote | null>(null);
+  const [showExpanded, setShowExpanded] = useState(false);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -251,12 +252,26 @@ export function CandidateNotesSection({
   return (
     <div className="space-y-4">
       {/* Add Note Button */}
-      {canEdit && (
-        <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Note
-        </Button>
-      )}
+      <div className="flex items-center gap-2">
+        {canEdit && (
+          <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Note
+          </Button>
+        )}
+        {notes.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowExpanded(true)}
+            className="ml-auto text-muted-foreground hover:text-foreground"
+            title="Expand notes"
+          >
+            <Maximize2 className="h-4 w-4 mr-1.5" />
+            Expand
+          </Button>
+        )}
+      </div>
 
       {/* Notes List */}
       {notes.length === 0 ? (
@@ -448,6 +463,106 @@ export function CandidateNotesSection({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Expanded Notes Viewer */}
+      <Dialog open={showExpanded} onOpenChange={setShowExpanded}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b border-border bg-gradient-to-r from-muted/40 to-transparent flex-shrink-0">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle className="text-lg">Candidate Notes</DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {notes.length} {notes.length === 1 ? "note" : "notes"} · click any note to edit
+                </p>
+              </div>
+              {canEdit && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setShowExpanded(false);
+                    setShowAddModal(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Note
+                </Button>
+              )}
+            </div>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            {notes.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-12">No notes yet.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {notes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="group p-5 rounded-xl border border-border bg-card hover:border-primary/40 hover:shadow-lg transition-all duration-200"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex-1 min-w-0">
+                        {note.title && (
+                          <h4 className="font-semibold text-sm mb-2 text-foreground">{note.title}</h4>
+                        )}
+                      </div>
+                      {(canEditNote(note) || canDeleteNote(note)) && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {canEditNote(note) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setShowExpanded(false);
+                                openEditModal(note);
+                              }}
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          {canDeleteNote(note) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => setDeleteConfirmNote(note)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap text-foreground/90 leading-relaxed">
+                      {note.body}
+                    </p>
+                    {note.tags && note.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-3">
+                        {note.tags.map((tag) => (
+                          <Badge key={tag} variant="secondary" className="text-xs">
+                            <Tag className="h-3 w-3 mr-1" />
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 mt-4 pt-3 border-t border-border/60 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {format(new Date(note.created_at), "MMM d, yyyy 'at' h:mm a")}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        {visibilityIcons[note.visibility]}
+                        {visibilityLabels[note.visibility]}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

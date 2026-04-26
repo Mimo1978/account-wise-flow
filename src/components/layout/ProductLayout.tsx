@@ -105,23 +105,23 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
 
   const navItems = [
     { path: '/home',       label: 'Home',       icon: Home,          jarvisId: 'nav-home' },
-    { path: '/leads',      label: 'Leads',      icon: Zap,           jarvisId: 'nav-leads' },
-    { path: '/companies',  label: 'Companies',  icon: Building2,     jarvisId: 'nav-companies' },
     { path: '/contacts',   label: 'Contacts',   icon: Users,         jarvisId: 'nav-contacts' },
-    { path: '/crm/deals',  label: 'Pipeline',   icon: TrendingUp,    jarvisId: 'nav-deals' },
-    { path: '/placements', label: 'Placements', icon: UserCog,       jarvisId: 'nav-placements' },
-    { path: '/accounts',   label: 'Accounts',   icon: Receipt,       jarvisId: 'nav-accounts' },
+    { path: '/companies',  label: 'Companies',  icon: Building2,     jarvisId: 'nav-companies' },
+    { path: '/canvas',     label: 'Org Chart',  icon: Network,       jarvisId: 'nav-canvas' },
     { path: '/talent',     label: 'Talent',     icon: UserCheck,     jarvisId: 'nav-talent' },
-    { path: '/jobs',       label: 'Jobs',       icon: ClipboardList, jarvisId: 'nav-jobs', badge: true },
+    { path: '/leads',      label: 'Leads',      icon: Zap,           jarvisId: 'nav-leads' },
+    { path: '/crm/deals',  label: 'Pipeline',   icon: TrendingUp,    jarvisId: 'nav-deals' },
+    { path: '/projects',   label: 'Delivery',   icon: FolderKanban,  jarvisId: 'nav-projects' },
     { path: '/outreach',   label: 'Outreach',   icon: Megaphone,     jarvisId: 'nav-outreach' },
+    { path: '/jobs',       label: 'Jobs',       icon: ClipboardList, jarvisId: 'nav-jobs', badge: true },
   ];
 
   // These collapse into "More" dropdown below 1280px
   const overflowNavItems = [
-    { path: '/projects',  label: 'Delivery',   icon: FolderKanban, jarvisId: 'nav-projects' },
-    { path: '/documents', label: 'Documents',  icon: FileText,     jarvisId: 'nav-documents' },
     { path: '/insights',  label: 'Analytics',  icon: BarChart3,    jarvisId: 'nav-analytics' },
-    { path: '/canvas',    label: 'Org Chart',  icon: Network,      jarvisId: 'nav-canvas' },
+    { path: '/placements', label: 'Placements', icon: UserCog,     jarvisId: 'nav-placements' },
+    { path: '/accounts',  label: 'Accounts',   icon: Receipt,      jarvisId: 'nav-accounts' },
+    { path: '/documents', label: 'Documents',  icon: FileText,     jarvisId: 'nav-documents' },
   ];
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');

@@ -63,6 +63,28 @@ export function useDeleteCallBriefTemplate() {
   });
 }
 
+export function useUpdateCallBriefTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; name?: string; purpose?: string; brief?: string; enhanced?: string | null }) => {
+      const patch: Record<string, any> = { updated_at: new Date().toISOString() };
+      if (input.name !== undefined) patch.name = input.name;
+      if (input.purpose !== undefined) patch.purpose = input.purpose || null;
+      if (input.brief !== undefined) patch.brief = input.brief;
+      if (input.enhanced !== undefined) patch.enhanced = input.enhanced || null;
+      const { data, error } = await supabase
+        .from("call_brief_templates")
+        .update(patch)
+        .eq("id", input.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as CallBriefTemplate;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["call_brief_templates"] }),
+  });
+}
+
 export function useTouchCallBriefTemplate() {
   const qc = useQueryClient();
   return useMutation({

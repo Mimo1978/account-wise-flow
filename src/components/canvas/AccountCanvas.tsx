@@ -886,7 +886,6 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
       );
       fabricCanvas.add(connector);
       fabricCanvas.add(ghostNode);
-      drawFreshEdges(fabricCanvas, canvasW, depthMap, false);
       fabricCanvas.renderAll();
       return;
     }

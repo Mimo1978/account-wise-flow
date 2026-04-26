@@ -848,6 +848,49 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
     companyNodeRef.current = companyNode;
     fabricCanvas.add(companyNode);
 
+    // ── Empty state: no contacts yet ──
+    // Show a ghost "first contact" card connected to the company emblem so the
+    // user has a visible starting point for building their org chart.
+    if (account.contacts.length === 0) {
+      const ghostX = canvasW / 2;
+      const ghostY = 260;
+      const ghostNode = createEmptyStateNode(ghostX, ghostY);
+      ghostNode.on('mouseover', function() {
+        try {
+          (this as FabricObject).set({ shadow: { color: 'hsl(221 83% 53%)', blur: 24, offsetX: 0, offsetY: 4 } });
+          fabricCanvas.setCursor('pointer');
+          fabricCanvas.requestRenderAll();
+        } catch {}
+      });
+      ghostNode.on('mouseout', function() {
+        try {
+          (this as FabricObject).set({ shadow: null });
+          fabricCanvas.setCursor('default');
+          fabricCanvas.requestRenderAll();
+        } catch {}
+      });
+      ghostNode.on('mousedown', () => {
+        if (onAddContactRef.current) onAddContactRef.current();
+      });
+      // Connector line from company emblem to ghost card (matches hierarchy edge style)
+      const connector = new Line(
+        [canvasW / 2, 80 + 22, ghostX, ghostY - 45],
+        {
+          stroke: 'hsl(221 83% 53%)',
+          strokeWidth: 1.5,
+          strokeDashArray: [6, 4],
+          opacity: 0.6,
+          selectable: false,
+          evented: false,
+        }
+      );
+      fabricCanvas.add(connector);
+      fabricCanvas.add(ghostNode);
+      drawFreshEdges(fabricCanvas, canvasW, depthMap, false);
+      fabricCanvas.renderAll();
+      return;
+    }
+
     // Build hierarchy maps
     const contactMap = new Map<string, Contact>();
     const depthMap = new Map<string, number>();

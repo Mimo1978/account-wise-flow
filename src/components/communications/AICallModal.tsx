@@ -159,6 +159,41 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
     try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
   };
 
+  // ── Draggable positioning ────────────────────────────────────────────────
+  // When not in fullscreen, the user can drag the modal by its header.
+  // null position = use default centered Radix positioning.
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const dragStateRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    if (!open) setDragPos(null);
+  }, [open]);
+  useEffect(() => {
+    // Reset drag offset whenever fullscreen toggles to avoid orphan positions.
+    if (fullscreen) setDragPos(null);
+  }, [fullscreen]);
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    if (fullscreen) return;
+    e.preventDefault();
+    const base = dragPos ?? { x: 0, y: 0 };
+    dragStateRef.current = { startX: e.clientX, startY: e.clientY, baseX: base.x, baseY: base.y };
+    setDragging(true);
+  }, [fullscreen, dragPos]);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const move = (e: MouseEvent) => {
+      const s = dragStateRef.current; if (!s) return;
+      setDragPos({ x: s.baseX + (e.clientX - s.startX), y: s.baseY + (e.clientY - s.startY) });
+    };
+    const up = () => { setDragging(false); dragStateRef.current = null; };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+    return () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
+  }, [dragging]);
+
   // Jarvis-driven auto-enhance: when the modal is opened with a brief and
   // autoEnhance=true, run the AI refinement automatically so the user sees
   // the enhanced script appear in real time.

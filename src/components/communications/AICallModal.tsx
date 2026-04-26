@@ -604,15 +604,12 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
           )}
 
           {status === "calling" && (
-            <div className="flex flex-col items-center gap-3 py-12 px-6">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
-                <div className="relative h-12 w-12 rounded-full bg-primary/10 grid place-items-center">
-                  <Phone className="w-5 h-5 text-primary" />
-                </div>
-              </div>
-              <p className="text-sm text-foreground font-medium">Dialling {contactFirstName}…</p>
-              <p className="text-xs text-muted-foreground">Connecting through your AI voice provider</p>
+            <div className="flex flex-col items-center gap-2 py-12 px-6">
+              <JarvisWorking
+                size={88}
+                label={`Dialling ${contactFirstName}`}
+                sublabel="Connecting through your AI voice provider"
+              />
             </div>
           )}
 

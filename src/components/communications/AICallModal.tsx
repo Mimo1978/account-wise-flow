@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Phone, CheckCircle2, Loader2, XCircle, Sparkles, Maximize2, Minimize2, CalendarCheck, PhoneIncoming, Briefcase, MessageSquare, RefreshCw, ChevronRight, Mic, Square, Save, BookmarkCheck, Trash2, Library } from "lucide-react";
+import { Phone, CheckCircle2, Loader2, XCircle, Sparkles, Maximize2, Minimize2, CalendarCheck, PhoneIncoming, Briefcase, MessageSquare, RefreshCw, ChevronRight, Mic, Square, Save, BookmarkCheck, Trash2, Library, Expand, Shrink, GripHorizontal } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -80,6 +80,7 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
   const [enhanced, setEnhanced] = useState("");
   const [enhancing, setEnhancing] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const [status, setStatus] = useState<"idle" | "calling" | "success" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [saveOpen, setSaveOpen] = useState(false);
@@ -125,6 +126,7 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
       setEnhanced(nextEnhanced);
       setEnhancing(false);
       setExpanded(false);
+      setFullscreen(false);
       setStatus("idle");
       setErrorMsg("");
       setSaveOpen(false);
@@ -156,6 +158,41 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
   const clearDraft = () => {
     try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
   };
+
+  // ── Draggable positioning ────────────────────────────────────────────────
+  // When not in fullscreen, the user can drag the modal by its header.
+  // null position = use default centered Radix positioning.
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
+  const dragStateRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  useEffect(() => {
+    if (!open) setDragPos(null);
+  }, [open]);
+  useEffect(() => {
+    // Reset drag offset whenever fullscreen toggles to avoid orphan positions.
+    if (fullscreen) setDragPos(null);
+  }, [fullscreen]);
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    if (fullscreen) return;
+    e.preventDefault();
+    const base = dragPos ?? { x: 0, y: 0 };
+    dragStateRef.current = { startX: e.clientX, startY: e.clientY, baseX: base.x, baseY: base.y };
+    setDragging(true);
+  }, [fullscreen, dragPos]);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const move = (e: MouseEvent) => {
+      const s = dragStateRef.current; if (!s) return;
+      setDragPos({ x: s.baseX + (e.clientX - s.startX), y: s.baseY + (e.clientY - s.startY) });
+    };
+    const up = () => { setDragging(false); dragStateRef.current = null; };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+    return () => { document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
+  }, [dragging]);
 
   // Jarvis-driven auto-enhance: when the modal is opened with a brief and
   // autoEnhance=true, run the AI refinement automatically so the user sees
@@ -308,9 +345,21 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={cn(
-          "p-0 gap-0 overflow-hidden transition-all duration-200",
-          expanded ? "sm:max-w-5xl max-h-[92vh]" : "sm:max-w-xl max-h-[88vh]"
+          "p-0 gap-0 overflow-hidden flex flex-col transition-[width,max-width,height,max-height] duration-200",
+          fullscreen
+            ? "!fixed !inset-2 !left-2 !top-2 !translate-x-0 !translate-y-0 !w-[calc(100vw-1rem)] !max-w-none !h-[calc(100vh-1rem)] !max-h-none !rounded-lg"
+            : expanded
+              ? "sm:max-w-5xl max-h-[92vh] h-[92vh]"
+              : "sm:max-w-xl max-h-[88vh] h-[88vh]"
         )}
+        style={
+          !fullscreen && dragPos
+            ? {
+                left: `calc(50% + ${dragPos.x}px)`,
+                top: `calc(50% + ${dragPos.y}px)`,
+              }
+            : undefined
+        }
         // Prevent accidental dismissal while Jarvis (or the user) is mid-flow.
         // The modal can still be closed via the X button, Cancel, or success.
         onPointerDownOutside={(e) => e.preventDefault()}
@@ -323,7 +372,13 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
         }}
       >
         {/* Header */}
-        <DialogHeader className="px-6 py-4 border-b border-border bg-gradient-to-br from-primary/5 to-transparent">
+        <DialogHeader
+          onMouseDown={handleDragStart}
+          className={cn(
+            "px-6 py-4 border-b border-border bg-gradient-to-br from-primary/5 to-transparent shrink-0 select-none",
+            !fullscreen && (dragging ? "cursor-grabbing" : "cursor-grab")
+          )}
+        >
           <div className="flex items-center justify-between gap-3">
             <DialogTitle className="flex items-center gap-2 text-base">
               <div className="h-8 w-8 rounded-full bg-primary/10 grid place-items-center">
@@ -331,9 +386,12 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
               </div>
               AI Outbound Call
               <Badge variant="secondary" className="ml-1 text-[10px] uppercase tracking-wide">Beta</Badge>
+              {!fullscreen && (
+                <GripHorizontal className="w-3.5 h-3.5 text-muted-foreground/60 ml-1" aria-hidden />
+              )}
             </DialogTitle>
             {status === "idle" && (
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1" onMouseDown={(e) => e.stopPropagation()}>
                 <Popover open={templatesOpen} onOpenChange={setTemplatesOpen}>
                   <PopoverTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground gap-1.5">
@@ -388,12 +446,21 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                   {expanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                   <span className="ml-1.5 text-xs hidden sm:inline">{expanded ? "Compact" : "Expand"}</span>
                 </Button>
+                <Button
+                  variant="ghost" size="sm"
+                  onClick={() => setFullscreen(v => !v)}
+                  className="h-8 px-2 text-muted-foreground"
+                  title={fullscreen ? "Exit full screen" : "Full screen"}
+                >
+                  {fullscreen ? <Shrink className="w-4 h-4" /> : <Expand className="w-4 h-4" />}
+                  <span className="ml-1.5 text-xs hidden sm:inline">{fullscreen ? "Windowed" : "Full"}</span>
+                </Button>
               </div>
             )}
           </div>
         </DialogHeader>
 
-        <div className="overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {/* Contact strip */}
           <div className="px-6 py-3 flex items-center gap-3 border-b border-border bg-muted/30">
             <Avatar className="h-10 w-10">
@@ -587,7 +654,12 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                     )}
                   </div>
                   <div className={cn(
-                    "rounded-lg border p-3 text-sm leading-relaxed whitespace-pre-wrap min-h-[140px]",
+                    "rounded-lg border p-3 text-sm leading-relaxed whitespace-pre-wrap min-h-[140px] overflow-y-auto",
+                    fullscreen
+                      ? "max-h-[calc(100vh-22rem)]"
+                      : expanded
+                        ? "max-h-[60vh]"
+                        : "max-h-[40vh]",
                     enhanced ? "border-primary/30 bg-primary/5 text-foreground" : "border-dashed border-border bg-muted/30 text-muted-foreground italic"
                   )}>
                     {enhanced ? (

@@ -683,7 +683,7 @@ export function CandidateSidebarPanel({ candidate, canEdit, canDelete, currentUs
               <div>
                 <DialogTitle className="text-lg flex items-center gap-2">
                   <MessageSquare className="w-4 h-4 text-amber-500"/> Notes
-                  <span className="text-xs font-normal text-muted-foreground">· {candidate.first_name || candidate.name || ""}</span>
+                  <span className="text-xs font-normal text-muted-foreground">· {candidate.name || ""}</span>
                 </DialogTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {notes.length} {notes.length === 1 ? "note" : "notes"} · full editor view

@@ -64,6 +64,7 @@ export const AccountCanvas = forwardRef<AccountCanvasRef, AccountCanvasProps>(({
   onNodeSelect,
   onStructuralDrop,
   workspaceId,
+  onAddContact,
 }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);

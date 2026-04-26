@@ -413,6 +413,22 @@ export function DiarySection({ workspaceId, userId }: { workspaceId: string | un
     else if (evt.company_id) navigate(`/companies/${evt.company_id}`);
   }, [navigate]);
 
+  // Live updates: refresh diary the moment AI calls (or anyone) book a new event
+  useEffect(() => {
+    if (!workspaceId) return;
+    const channel = supabase
+      .channel(`diary_events:${workspaceId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'diary_events', filter: `workspace_id=eq.${workspaceId}` },
+        () => qc.invalidateQueries({ queryKey: ['diary_events'], exact: false }),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [workspaceId, qc]);
+
   // ─── Auto-reminders (Monday mornings) ───
   useEffect(() => {
     if (!workspaceId || !userId) return;

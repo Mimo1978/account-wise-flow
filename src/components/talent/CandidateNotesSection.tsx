@@ -97,6 +97,22 @@ export function CandidateNotesSection({
     fetchNotes();
   }, [candidateId]);
 
+  // Live updates: refresh notes when the AI call webhook (or anyone) writes to candidate_notes for this candidate
+  useEffect(() => {
+    if (!candidateId) return;
+    const channel = supabase
+      .channel(`candidate_notes:${candidateId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "candidate_notes", filter: `candidate_id=eq.${candidateId}` },
+        () => fetchNotes(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [candidateId]);
+
   const fetchNotes = async () => {
     setIsLoading(true);
     try {

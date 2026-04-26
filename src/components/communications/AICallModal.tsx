@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Phone, CheckCircle2, Loader2, XCircle, Sparkles, Maximize2, Minimize2, CalendarCheck, PhoneIncoming, Briefcase, MessageSquare, RefreshCw, ChevronRight, Mic, Square, Save, BookmarkCheck, Trash2, Library } from "lucide-react";
+import { Phone, CheckCircle2, Loader2, XCircle, Sparkles, Maximize2, Minimize2, CalendarCheck, PhoneIncoming, Briefcase, MessageSquare, RefreshCw, ChevronRight, Mic, Square, Save, BookmarkCheck, Trash2, Library, Expand, Shrink, GripHorizontal } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";

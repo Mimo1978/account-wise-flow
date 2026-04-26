@@ -707,6 +707,27 @@ export function AICallModal({ open, onOpenChange, contactId, contactFirstName, c
                       You can still edit your brief on the left — re-enhance to refresh.
                     </p>
                   )}
+                  {(enhanced || brief.trim()) && (
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <p className="text-[11px] text-muted-foreground">
+                        Save this {enhanced ? "script" : "brief"} so you can reuse it on any contact.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleQuickSaveScript}
+                        disabled={saveTemplate.isPending || !(enhanced || brief.trim())}
+                        className="h-8 px-3 gap-1.5"
+                        title="Save to your call templates"
+                      >
+                        {saveTemplate.isPending
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <BookmarkCheck className="w-3.5 h-3.5 text-primary" />}
+                        Save to templates
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

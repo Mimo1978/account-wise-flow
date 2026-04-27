@@ -838,12 +838,15 @@ function CallBlockCard({
 
           <div className="space-y-1">
             <Label className="text-[11px]">Script Content</Label>
-            <Textarea
+            <EnhancedTextField
               value={block.content}
-              onChange={(e) => onChange({ content: e.target.value })}
+              onChange={(v) => onChange({ content: v })}
               rows={4}
-              className="text-xs font-mono resize-none"
               placeholder="What the recruiter says in this block…"
+              channel="call"
+              quickTemplates={QUICK_TEMPLATES_CALL}
+              expandTitle={`Edit "${block.title}" content`}
+              className="text-xs"
             />
           </div>
 

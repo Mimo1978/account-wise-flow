@@ -89,6 +89,16 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
   const [guardrails] = useState(script?.guardrails ?? DEFAULT_GUARDRAILS);
   const [varPickerOpen, setVarPickerOpen] = useState(false);
 
+  // Remember per-channel drafts so swapping the channel dropdown is
+  // non-destructive and immediately reflects the right template.
+  const initialChannel: ScriptChannel = script?.channel ?? "email";
+  const [emailDraft, setEmailDraft] = useState<string>(
+    initialChannel === "email" ? (script?.body ?? getDefaultScriptBody("email")) : getDefaultScriptBody("email"),
+  );
+  const [smsDraft, setSmsDraft] = useState<string>(
+    initialChannel === "sms" ? (script?.body ?? getDefaultScriptBody("sms")) : getDefaultScriptBody("sms"),
+  );
+
   const { mutateAsync: createScript, isPending: creating } = useCreateScript();
   const { mutateAsync: updateScript, isPending: updating } = useUpdateScript();
   const isPending = creating || updating;
@@ -116,9 +126,12 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
   useEffect(() => {
     if (!open) return;
     setName(script?.name ?? "");
-    setChannel(script?.channel ?? "email");
+    const ch: ScriptChannel = script?.channel ?? "email";
+    setChannel(ch);
     setSubject(script?.subject ?? "");
-    setBody(script?.body ?? getDefaultScriptBody(script?.channel ?? "email"));
+    setBody(ch === "call" ? "" : (script?.body ?? getDefaultScriptBody(ch)));
+    setEmailDraft(ch === "email" ? (script?.body ?? getDefaultScriptBody("email")) : getDefaultScriptBody("email"));
+    setSmsDraft(ch === "sms" ? (script?.body ?? getDefaultScriptBody("sms")) : getDefaultScriptBody("sms"));
     setCallBlocks(script?.call_blocks ?? getDefaultCallBlocks());
     setExpandedBlock("intro");
     setLinkedJobId(null);
@@ -139,15 +152,24 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
   // content from the previous channel.
   const handleChannelChange = (ch: ScriptChannel) => {
     if (ch === channel) return;
+    // Stash the current channel's content into its draft slot so we can
+    // restore it if the user switches back without losing edits.
+    if (channel === "email") setEmailDraft(body);
+    if (channel === "sms") setSmsDraft(body);
+
     setChannel(ch);
-    setSubject(ch === "email" ? subject : "");
+    // Subject only applies to email — keep it stashed so toggling back restores it.
+    if (ch !== "email") {
+      // no-op: we keep `subject` in state so it returns when the user comes back
+    }
     if (ch === "call") {
       setBody("");
-      setCallBlocks(getDefaultCallBlocks());
+      if (callBlocks.length === 0) setCallBlocks(getDefaultCallBlocks());
       setExpandedBlock("intro");
-    } else {
-      setBody(getDefaultScriptBody(ch));
-      setCallBlocks([]);
+    } else if (ch === "email") {
+      setBody(emailDraft || getDefaultScriptBody("email"));
+    } else if (ch === "sms") {
+      setBody(smsDraft || getDefaultScriptBody("sms"));
     }
   };
 
@@ -310,7 +332,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
                 <SelectTrigger className="h-8 w-[130px] text-sm" data-jarvis-id="script-channel-select">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[10000]">
                   <SelectItem value="email">Email</SelectItem>
                   <SelectItem value="sms">SMS</SelectItem>
                   <SelectItem value="call">Call Script</SelectItem>
@@ -368,7 +390,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
                 <SelectTrigger className="h-8 w-[260px] text-xs">
                   <SelectValue placeholder="Link an active job…" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[10000]">
                   <SelectItem value="__none" className="text-xs">
                     No job linked
                   </SelectItem>
@@ -771,7 +793,7 @@ function CallBlockCard({
                 <SelectTrigger className="h-7 w-[150px] text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[10000]">
                   {(Object.keys(BLOCK_TYPE_LABELS) as CallBlockType[]).map((t) => (
                     <SelectItem key={t} value={t} className="text-xs">
                       {BLOCK_TYPE_LABELS[t]}

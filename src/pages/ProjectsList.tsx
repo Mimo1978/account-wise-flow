@@ -113,7 +113,7 @@ const ProjectsList = () => {
                             onMouseLeave={e => { e.currentTarget.style.background = index % 2 === 1 ? 'rgba(255, 255, 255, 0.04)' : 'transparent'; }}
                             onClick={() => navigate(`/projects/${eng.id}`)}
                           >
-                            <td className="px-4 py-3 font-medium" style={{ color: '#F8FAFC' }}>
+                            <td className="px-4 py-3 font-medium">
                               <div className="flex items-center gap-1.5">
                                 {hasNoCompany && (
                                   <Tooltip>
@@ -123,7 +123,12 @@ const ProjectsList = () => {
                                     <TooltipContent>No company assigned</TooltipContent>
                                   </Tooltip>
                                 )}
-                                {eng.name}
+                                <span
+                                  className="text-primary hover:underline cursor-pointer text-sm font-medium"
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/projects/${eng.id}`); }}
+                                >
+                                  {eng.name || 'Untitled project'}
+                                </span>
                               </div>
                             </td>
                             <td className="px-4 py-3">
@@ -137,7 +142,7 @@ const ProjectsList = () => {
                             </td>
                             <td className="px-4 py-3">
                               {contactName ? (
-                                <span className="text-primary hover:underline cursor-pointer text-sm" onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${eng.contact_id}`); }}>
+                                <span className="text-primary hover:underline cursor-pointer text-sm" onClick={(e) => { e.stopPropagation(); navigate(`/crm/contacts/${eng.contact_id}`); }}>
                                   {contactName}
                                 </span>
                               ) : (

@@ -816,6 +816,7 @@ function CompanyDocumentsSection({ docs, companyName, companyId, workspaceId }: 
 export default function CompanyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currentWorkspace } = useWorkspace();
   const { user } = useAuth();
   const queryClient = useQueryClient();

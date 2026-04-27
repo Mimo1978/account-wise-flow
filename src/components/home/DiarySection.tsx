@@ -14,7 +14,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { cn } from '@/lib/utils';
 import {
   Phone, Video, CheckSquare, CalendarClock, Plus, Bell,
-  MoreHorizontal, X, Check, ChevronLeft, ChevronRight,
+  MoreHorizontal, X, Check, ChevronLeft, ChevronRight, Pencil,
 } from 'lucide-react';
 
 const DARK = {

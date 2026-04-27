@@ -133,7 +133,7 @@ const ProjectsList = () => {
                             </td>
                             <td className="px-4 py-3">
                               {eng.companies?.name ? (
-                                <span className="text-primary hover:underline cursor-pointer text-sm" onClick={(e) => { e.stopPropagation(); navigate(`/companies/${eng.company_id}`); }}>
+                                <span className="text-primary hover:underline cursor-pointer text-sm" onClick={(e) => { e.stopPropagation(); navigate(`/companies/${eng.company_id}`, { state: { from: '/projects', fromLabel: 'Back to Projects' } }); }}>
                                   {eng.companies.name}
                                 </span>
                               ) : (
@@ -142,7 +142,7 @@ const ProjectsList = () => {
                             </td>
                             <td className="px-4 py-3">
                               {contactName ? (
-                                <span className="text-primary hover:underline cursor-pointer text-sm" onClick={(e) => { e.stopPropagation(); navigate(`/crm/contacts/${eng.contact_id}`); }}>
+                                <span className="text-primary hover:underline cursor-pointer text-sm" onClick={(e) => { e.stopPropagation(); navigate(`/contacts/${eng.contact_id}`, { state: { from: '/projects', fromLabel: 'Back to Projects' } }); }}>
                                   {contactName}
                                 </span>
                               ) : (

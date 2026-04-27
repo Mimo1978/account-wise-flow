@@ -26,10 +26,10 @@ const DARK = {
 };
 
 const EVENT_COLORS: Record<string, { border: string; bg: string }> = {
-  call: { border: '#6366f1', bg: 'rgba(99,102,241,0.08)' },
-  meeting: { border: '#34d399', bg: 'rgba(52,211,153,0.08)' },
-  reminder: { border: '#fbbf24', bg: 'rgba(251,191,36,0.08)' },
-  task: { border: '#60a5fa', bg: 'rgba(96,165,250,0.08)' },
+  call: { border: '#818cf8', bg: 'rgba(99,102,241,0.22)' },
+  meeting: { border: '#10b981', bg: 'rgba(16,185,129,0.28)' },
+  reminder: { border: '#f59e0b', bg: 'rgba(245,158,11,0.25)' },
+  task: { border: '#3b82f6', bg: 'rgba(59,130,246,0.25)' },
 };
 
 const EVENT_ICONS: Record<string, React.ElementType> = {

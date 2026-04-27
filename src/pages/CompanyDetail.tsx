@@ -1111,8 +1111,8 @@ export default function CompanyDetail() {
       <div className="border-b border-border bg-card">
         <div className="container mx-auto px-4 py-4 space-y-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/companies")} className="gap-1 text-muted-foreground hover:text-foreground -ml-2">
-              <ChevronLeft className="h-4 w-4" /> Companies
+            <Button variant="ghost" size="sm" onClick={() => navigate((location.state as any)?.from || "/companies")} className="gap-1 text-muted-foreground hover:text-foreground -ml-2">
+              <ChevronLeft className="h-4 w-4" /> {(location.state as any)?.fromLabel || "Companies"}
             </Button>
             <Separator orientation="vertical" className="h-6" />
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">

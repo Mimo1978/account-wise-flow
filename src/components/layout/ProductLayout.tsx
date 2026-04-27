@@ -219,21 +219,96 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
               )}
             </Link>
 
-            {/* Main Navigation - wraps onto two rows so nothing is hidden */}
-            <nav className="hidden md:flex flex-wrap items-center gap-y-1 gap-x-0 min-w-0 flex-1">
-              {/* All primary nav items */}
+            {/* Main Navigation */}
+            <nav className="hidden md:flex items-center gap-0 min-w-0">
+              {/* Primary nav items - always visible */}
               {navItems.map((item) => (
                 <NavItem key={item.path} item={item} />
               ))}
 
-              {/* Overflow items - now also always visible (wrap to row 2 if needed) */}
+              {/* Overflow items - visible above 1280px */}
               {overflowNavItems.map((item) => (
-                <NavItem key={item.path} item={item} />
+                <span key={item.path} className="hidden 2lg:inline-flex">
+                  <NavItem item={item} />
+                </span>
               ))}
 
-              {/* Admin Console - always visible when permitted */}
+              {/* More dropdown - visible below 1280px */}
+              <div ref={moreRef} className="relative shrink-0 2lg:hidden">
+                <button
+                  onClick={() => setMoreOpen(!moreOpen)}
+                  className={`flex items-center gap-[5px] px-2 py-1.5 text-[12px] rounded-md transition-colors duration-150 whitespace-nowrap
+                    ${moreOpen || overflowNavItems.some(i => isActive(i.path))
+                      ? ''
+                      : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
+                    }
+                  `}
+                  style={(() => {
+                    const activeOverflow = overflowNavItems.find(i => isActive(i.path));
+                    const ac = activeOverflow ? (NAV_COLOURS[activeOverflow.path] ?? '#94A3B8') : undefined;
+                    return {
+                      borderBottom: ac ? `2px solid ${ac}` : '2px solid transparent',
+                      color: ac ? ac : undefined,
+                    };
+                  })()}
+                >
+                  More
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                {moreOpen && (
+                  <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-border bg-[#0F1117] shadow-lg p-1">
+                    {overflowNavItems.map((item) => {
+                      const dc = NAV_COLOURS[item.path] ?? '#94A3B8';
+                      const act = isActive(item.path);
+                      return (
+                        <Link
+                          key={item.path}
+                          to={item.path}
+                          onClick={() => setMoreOpen(false)}
+                          className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded-md transition-colors ${
+                            act
+                              ? ''
+                              : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
+                          }`}
+                          style={act ? { color: dc, background: `${dc}1F` } : undefined}
+                        >
+                          <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, backgroundColor: dc, opacity: act ? 1 : 0.7 }} />
+                          <item.icon className="w-4 h-4" />
+                          {item.label}
+                          {'badge' in item && item.badge && item.path === '/jobs' && newAppCount > 0 && (
+                            <span className="ml-auto min-w-[16px] h-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-0.5">
+                              {newAppCount > 99 ? '99+' : newAppCount}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                    {showAdminNav && (
+                      <>
+                        <div className="h-px bg-border my-1" />
+                        <Link
+                          to="/admin"
+                          onClick={() => setMoreOpen(false)}
+                          className={`flex items-center gap-2 px-3 py-2 text-[12px] rounded-md transition-colors ${
+                            isActive('/admin')
+                              ? ''
+                              : 'text-muted-foreground hover:text-foreground hover:bg-[rgba(255,255,255,0.06)]'
+                          }`}
+                          style={isActive('/admin') ? { color: '#e879f9', background: 'rgba(232,121,249,0.12)' } : undefined}
+                        >
+                          <span className="shrink-0 rounded-full" style={{ width: 6, height: 6, backgroundColor: '#e879f9', opacity: isActive('/admin') ? 1 : 0.7 }} />
+                          <ShieldCheck className="w-4 h-4" />
+                          Admin
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Admin Console - visible above 1280px */}
               {showAdminNav && (
-                <span className="shrink-0 inline-flex items-center">
+                <span className="shrink-0 hidden 2lg:inline-flex items-center">
                   <div className="w-px h-4 bg-border mx-1" />
                   <Link
                     to="/admin"

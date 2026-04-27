@@ -5385,44 +5385,53 @@ export type Database = {
       outreach_scripts: {
         Row: {
           body: string
+          call_blocks: Json | null
           campaign_id: string | null
           channel: Database["public"]["Enums"]["outreach_channel"]
           created_at: string
           created_by: string | null
           engagement_id: string | null
+          guardrails: Json | null
           id: string
           is_default: boolean
           name: string
           subject: string | null
           updated_at: string
+          version: number
           workspace_id: string
         }
         Insert: {
           body: string
+          call_blocks?: Json | null
           campaign_id?: string | null
           channel?: Database["public"]["Enums"]["outreach_channel"]
           created_at?: string
           created_by?: string | null
           engagement_id?: string | null
+          guardrails?: Json | null
           id?: string
           is_default?: boolean
           name: string
           subject?: string | null
           updated_at?: string
+          version?: number
           workspace_id: string
         }
         Update: {
           body?: string
+          call_blocks?: Json | null
           campaign_id?: string | null
           channel?: Database["public"]["Enums"]["outreach_channel"]
           created_at?: string
           created_by?: string | null
           engagement_id?: string | null
+          guardrails?: Json | null
           id?: string
           is_default?: boolean
           name?: string
           subject?: string | null
           updated_at?: string
+          version?: number
           workspace_id?: string
         }
         Relationships: [

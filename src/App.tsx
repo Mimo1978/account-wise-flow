@@ -77,6 +77,7 @@ import Dashboard from "./pages/Dashboard";
 import PlacementDetail from "./pages/PlacementDetail";
 import PlacementsList from "./pages/PlacementsList";
 import LeadsInbox from "./pages/LeadsInbox";
+import HelpCenter from "./pages/HelpCenter";
 import { Loader2 } from "lucide-react";
 import { JarvisFloatingButton } from "@/components/jarvis/JarvisChat";
 
@@ -192,6 +193,7 @@ const App = () => {
             <Route path="/imports/:batchId/review" element={<ProtectedRoute><ProductLayout><ImportReview /></ProductLayout></ProtectedRoute>} />
             <Route path="/workspace-settings" element={<ProtectedRoute><ProductLayout><WorkspaceSettings /></ProductLayout></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><ProductLayout><UserProfile /></ProductLayout></ProtectedRoute>} />
+            <Route path="/help" element={<ProtectedRoute><ProductLayout><HelpCenter /></ProductLayout></ProtectedRoute>} />
 
             {/* CRM MODULE ROUTES */}
             <Route path="/crm/opportunities/:id" element={<ProtectedRoute><ProductLayout><CrmOpportunityDetail /></ProductLayout></ProtectedRoute>} />

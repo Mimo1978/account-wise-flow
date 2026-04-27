@@ -36,6 +36,7 @@ import {
   ClipboardList,
   UserCog,
   Zap,
+  LifeBuoy,
 } from 'lucide-react';
 import { NAV_COLOURS, getNavColour } from '@/lib/nav-colours';
 import { useTheme } from 'next-themes';
@@ -375,6 +376,12 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
                       <Link to="/workspace-settings" className="flex items-center">
                         <Building2 className="w-4 h-4 mr-2" />
                         Workspace Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link to="/help" className="flex items-center">
+                        <LifeBuoy className="w-4 h-4 mr-2" />
+                        Help & Feature Guide
                       </Link>
                     </DropdownMenuItem>
                     {showAdminNav && (

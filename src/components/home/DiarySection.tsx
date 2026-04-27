@@ -5,16 +5,20 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   format, addDays, addWeeks, startOfDay, startOfWeek, endOfWeek,
   isSameDay, isMonday, isToday, isBefore, getDaysInMonth, startOfMonth,
-  addMonths, subMonths, getDay,
+  addMonths, subMonths, getDay, parseISO,
 } from 'date-fns';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import {
   Phone, Video, CheckSquare, CalendarClock, Plus, Bell,
   MoreHorizontal, X, Check, ChevronLeft, ChevronRight, Pencil,
+  Maximize2, ExternalLink, Trash2,
 } from 'lucide-react';
 
 const DARK = {

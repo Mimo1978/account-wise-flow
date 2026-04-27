@@ -47,6 +47,8 @@ import { Building2 } from "lucide-react";
 import { ScriptSimulator } from "./ScriptSimulator";
 import { cn } from "@/lib/utils";
 import { EnhancedTextField } from "./EnhancedTextField";
+import { ScriptTemplateLibrary, type ReadyTemplate } from "./ScriptTemplateLibrary";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 // Quick-insert ready-made snippets per channel for fast script authoring.
 const QUICK_TEMPLATES_EMAIL = [
@@ -116,6 +118,11 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
   const [expandedBlock, setExpandedBlock] = useState<string | null>("intro");
   const [guardrails] = useState(script?.guardrails ?? DEFAULT_GUARDRAILS);
   const [varPickerOpen, setVarPickerOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  // Voice persona — auto-introduces the AI agent on calls. The integration
+  // (ElevenLabs / Twilio) maps these to real voice IDs server-side.
+  const [agentVoice, setAgentVoice] = useState<"auto" | "female_warm" | "female_pro" | "male_warm" | "male_pro">("auto");
+  const [agentName, setAgentName] = useState<string>("");
 
   // Remember per-channel drafts so swapping the channel dropdown is
   // non-destructive and immediately reflects the right template.
@@ -139,10 +146,14 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
 
   // ── Agency name (workspace setting) ───────────────────────────────────────
   const { settings, updateSettings } = useWorkspaceSettings();
+  const { currentWorkspace } = useWorkspace();
   const [agencyName, setAgencyName] = useState<string>("");
   useEffect(() => {
-    if (settings?.agency_name != null) setAgencyName(settings.agency_name ?? "");
-  }, [settings?.agency_name]);
+    // Default to the workspace name (the enterprise paying for the service)
+    // when no explicit agency_name has been saved yet.
+    if (settings?.agency_name) setAgencyName(settings.agency_name);
+    else if (currentWorkspace?.name) setAgencyName(currentWorkspace.name);
+  }, [settings?.agency_name, currentWorkspace?.name]);
   const persistAgencyName = () => {
     const trimmed = agencyName.trim();
     if (trimmed === (settings?.agency_name ?? "")) return;
@@ -166,6 +177,30 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
     setTab("editor");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, script?.id]);
+
+  // Apply a ready-made template into the editor.
+  const handleApplyTemplate = (tpl: ReadyTemplate, mode: "use" | "edit") => {
+    // Switch channel if the template targets a different one
+    if (tpl.channel !== channel) {
+      setChannel(tpl.channel);
+    }
+    if (!name.trim()) setName(tpl.name);
+
+    if (tpl.channel === "email") {
+      setSubject(tpl.subject ?? "");
+      setBody(tpl.body ?? "");
+      setEmailDraft(tpl.body ?? "");
+    } else if (tpl.channel === "sms") {
+      setBody(tpl.body ?? "");
+      setSmsDraft(tpl.body ?? "");
+    } else if (tpl.channel === "call") {
+      setCallBlocks(tpl.call_blocks ?? getDefaultCallBlocks());
+      setExpandedBlock(tpl.call_blocks?.[0]?.id ?? "intro");
+      setBody("");
+    }
+    setTemplatesOpen(false);
+    toast.success(mode === "use" ? "Template applied — ready to save" : "Template applied — edit away");
+  };
 
   // Live guardrail check
   const effectiveBody = channel === "call"
@@ -367,6 +402,17 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
                 </SelectContent>
               </Select>
             </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5"
+              onClick={() => setTemplatesOpen(true)}
+              title="Browse pre-built, click-to-use templates for client meetings, candidate pitches and more"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span className="text-xs">Templates</span>
+            </Button>
           </div>
 
           {/* AI assist toolbar */}
@@ -453,6 +499,35 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
               </Button>
             </div>
           </div>
+
+          {/* Voice / Persona row — only relevant for AI Call scripts */}
+          {channel === "call" && (
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              <span className="text-[11px] text-muted-foreground">AI agent voice:</span>
+              <Select value={agentVoice} onValueChange={(v) => setAgentVoice(v as typeof agentVoice)}>
+                <SelectTrigger className="h-8 w-[200px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="z-[10000]">
+                  <SelectItem value="auto" className="text-xs">Auto (use integration default)</SelectItem>
+                  <SelectItem value="female_warm" className="text-xs">Female · warm</SelectItem>
+                  <SelectItem value="female_pro" className="text-xs">Female · professional</SelectItem>
+                  <SelectItem value="male_warm" className="text-xs">Male · warm</SelectItem>
+                  <SelectItem value="male_pro" className="text-xs">Male · professional</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                value={agentName}
+                onChange={(e) => setAgentName(e.target.value)}
+                placeholder="Agent name (e.g. Olivia) — auto-suggested if blank"
+                className="h-8 w-[260px] text-xs"
+                title="Used by the AI agent to introduce itself: 'My name is {{agent.name}}…'"
+              />
+              <span className="text-[10px] text-muted-foreground">
+                Resolves <code className="text-[10px]">{`{{agent.name}}`}</code> in your script.
+              </span>
+            </div>
+          )}
         </DialogHeader>
 
         {/* Tabs */}
@@ -693,6 +768,12 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
           </div>
         </div>
       </DialogContent>
+      <ScriptTemplateLibrary
+        open={templatesOpen}
+        onOpenChange={setTemplatesOpen}
+        channel={channel}
+        onApply={handleApplyTemplate}
+      />
     </Dialog>
   );
 }

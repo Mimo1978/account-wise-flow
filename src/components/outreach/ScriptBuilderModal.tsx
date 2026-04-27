@@ -332,7 +332,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
                 <SelectTrigger className="h-8 w-[130px] text-sm" data-jarvis-id="script-channel-select">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[10000]">
                   <SelectItem value="email">Email</SelectItem>
                   <SelectItem value="sms">SMS</SelectItem>
                   <SelectItem value="call">Call Script</SelectItem>
@@ -390,7 +390,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
                 <SelectTrigger className="h-8 w-[260px] text-xs">
                   <SelectValue placeholder="Link an active job…" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[10000]">
                   <SelectItem value="__none" className="text-xs">
                     No job linked
                   </SelectItem>

@@ -46,6 +46,34 @@ import { Building2 } from "lucide-react";
 
 import { ScriptSimulator } from "./ScriptSimulator";
 import { cn } from "@/lib/utils";
+import { EnhancedTextField } from "./EnhancedTextField";
+
+// Quick-insert ready-made snippets per channel for fast script authoring.
+const QUICK_TEMPLATES_EMAIL = [
+  { label: "Greeting", text: "Hi {{candidate.first_name}},\n\n" },
+  { label: "Hook", text: "I came across your background and thought of an opportunity that aligns with your experience. " },
+  { label: "Value", text: "It's a strong fit for someone with your skills in {{candidate.skills_top}}. " },
+  { label: "Call-to-action", text: "\n\nWould you be open to a quick 10-minute call this week?" },
+  { label: "Sign-off", text: "\n\nBest regards,\n{{recruiter.name}}\n{{agency.name}}" },
+  { label: "Opt-out", text: "\n\nIf you'd prefer not to receive these messages, just reply STOP." },
+];
+const QUICK_TEMPLATES_SMS = [
+  { label: "Greeting", text: "Hi {{candidate.first_name}}, " },
+  { label: "Quick pitch", text: "{{recruiter.name}} from {{agency.name}} here — " },
+  { label: "Ask", text: "Open to a quick chat about a new role? " },
+  { label: "Opt-out", text: "Reply STOP to opt out." },
+];
+const QUICK_TEMPLATES_SUBJECT = [
+  { label: "Role + co", text: "{{job.title}} opportunity at {{job.company}}" },
+  { label: "Quick chat", text: "Quick chat about {{job.title}}?" },
+  { label: "Personal", text: "{{candidate.first_name}} — thought of you for this" },
+];
+const QUICK_TEMPLATES_CALL = [
+  { label: "Intro", text: "Hi {{candidate.first_name}}, this is {{recruiter.name}} from {{agency.name}}. " },
+  { label: "Permission", text: "Do you have a couple of minutes to chat? " },
+  { label: "Question", text: "What's most important to you in your next role? " },
+  { label: "Close", text: "Thanks for your time — I'll follow up with details by email." },
+];
 
 // re-export type for callers
 export type { OutreachScript };
@@ -463,11 +491,14 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
                 {channel === "email" && (
                   <div className="space-y-1.5">
                     <Label className="text-xs">Subject Line</Label>
-                    <Input
+                    <EnhancedTextField
                       value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
+                      onChange={setSubject}
                       placeholder="e.g. {{job.title}} opportunity at {{job.company}}"
-                      className="text-sm"
+                      multiline={false}
+                      channel="email"
+                      quickTemplates={QUICK_TEMPLATES_SUBJECT}
+                      expandTitle="Edit subject line"
                     />
                   </div>
                 )}
@@ -502,14 +533,15 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
                       <VariablePicker onInsert={insertVariable} />
                     )}
 
-                    <Textarea
+                    <EnhancedTextField
                       id="script-body"
                       value={body}
-                      onChange={(e) => setBody(e.target.value)}
+                      onChange={setBody}
                       rows={channel === "sms" ? 4 : 14}
-                      className="font-mono text-sm resize-none"
                       placeholder="Write your script here..."
-                      data-jarvis-id="script-body-input"
+                      channel={channel}
+                      quickTemplates={channel === "sms" ? QUICK_TEMPLATES_SMS : QUICK_TEMPLATES_EMAIL}
+                      expandTitle={channel === "sms" ? "Edit SMS body" : "Edit email body"}
                     />
                   </div>
                 ) : (
@@ -806,12 +838,15 @@ function CallBlockCard({
 
           <div className="space-y-1">
             <Label className="text-[11px]">Script Content</Label>
-            <Textarea
+            <EnhancedTextField
               value={block.content}
-              onChange={(e) => onChange({ content: e.target.value })}
+              onChange={(v) => onChange({ content: v })}
               rows={4}
-              className="text-xs font-mono resize-none"
               placeholder="What the recruiter says in this block…"
+              channel="call"
+              quickTemplates={QUICK_TEMPLATES_CALL}
+              expandTitle={`Edit "${block.title}" content`}
+              className="text-xs"
             />
           </div>
 

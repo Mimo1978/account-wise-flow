@@ -40,10 +40,13 @@ import {
   Bot,
   Inbox,
   Briefcase,
+  Rocket,
+  Loader2,
 } from "lucide-react";
 import {
   useOutreachTargets,
   useUpdateCampaign,
+  useUpdateTargetState,
   type OutreachCampaign,
   type OutreachTarget,
   type OutreachTargetState,
@@ -126,6 +129,8 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const { data: scripts = [], isLoading: scriptsLoading } = useOutreachScripts(campaign.id);
   const { data: allScripts = [] } = useOutreachScripts();
   const { mutate: updateCampaign, isPending: isUpdating } = useUpdateCampaign();
+  const { mutateAsync: updateTargetState } = useUpdateTargetState();
+  const [isLaunching, setIsLaunching] = useState(false);
 
   // Settings local state (persisted on save)
   const [emailScriptId, setEmailScriptId] = useState(campaign.email_script_id ?? "");
@@ -178,6 +183,98 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const contacted = targets.filter((t) => t.state !== "queued").length;
   const booked = targets.filter((t) => t.state === "booked").length;
   const optedOut = targets.filter((t) => t.state === "opted_out").length;
+
+  // ── Launch All: contact every queued target using campaign's configured scripts ──
+  const resolveVars = (text: string, t: OutreachTarget): string => {
+    if (!text) return "";
+    const first = (t.entity_name ?? "").split(" ")[0] ?? "";
+    return text
+      .replace(/\{\{candidate\.first_name\}\}/g, first)
+      .replace(/\{\{contact\.first_name\}\}/g, first)
+      .replace(/\{\{candidate\.full_name\}\}/g, t.entity_name ?? "")
+      .replace(/\{\{contact\.full_name\}\}/g, t.entity_name ?? "")
+      .replace(/\{\{candidate\.current_title\}\}/g, t.entity_title ?? "")
+      .replace(/\{\{candidate\.current_company\}\}/g, t.entity_company ?? "")
+      .replace(/\{\{contact\.company\}\}/g, t.entity_company ?? "");
+  };
+
+  const handleLaunchAll = async () => {
+    const queuedTargets = targets.filter((t) => t.state === "queued");
+    if (queuedTargets.length === 0) {
+      toast.info("No queued targets to launch");
+      return;
+    }
+
+    const channel = campaign.channel as "email" | "sms" | "call";
+    const scriptId =
+      channel === "email"
+        ? campaign.email_script_id
+        : channel === "sms"
+        ? campaign.sms_script_id
+        : campaign.call_script_id;
+    const script = allScripts.find((s) => s.id === scriptId);
+    if (!script) {
+      toast.error(
+        `No ${channel} script assigned. Open Settings or Scripts tab to assign one before launching.`
+      );
+      return;
+    }
+
+    const ok = window.confirm(
+      `Launch outreach to ${queuedTargets.length} queued target${queuedTargets.length !== 1 ? "s" : ""} via ${channel.toUpperCase()}?\n\nThis will mark each as contacted and log an event.`
+    );
+    if (!ok) return;
+
+    setIsLaunching(true);
+    let sent = 0;
+    let failed = 0;
+
+    // Activate the campaign if it's still in draft
+    if (campaign.status === "draft") {
+      try {
+        updateCampaign({ id: campaign.id, status: "active" } as any);
+      } catch {
+        /* non-blocking */
+      }
+    }
+
+    const eventType =
+      channel === "email" ? "email_sent" : channel === "sms" ? "sms_sent" : "call_attempted";
+
+    for (const t of queuedTargets) {
+      // Skip targets missing required contact info for the channel
+      if (channel === "email" && !t.entity_email) {
+        failed++;
+        continue;
+      }
+      if ((channel === "sms" || channel === "call") && !t.entity_phone) {
+        failed++;
+        continue;
+      }
+      try {
+        await updateTargetState({
+          targetId: t.id,
+          state: "contacted",
+          eventType: eventType as any,
+          metadata: {
+            channel,
+            script_id: script.id,
+            script_name: script.name,
+            subject: resolveVars(script.subject ?? "", t),
+            body: resolveVars(script.body ?? "", t),
+            launched_via: "launch_all",
+          },
+        });
+        sent++;
+      } catch (e) {
+        failed++;
+      }
+    }
+
+    setIsLaunching(false);
+    if (sent > 0) toast.success(`Launched ${sent} ${channel.toUpperCase()} outreach${sent !== 1 ? "es" : ""}`);
+    if (failed > 0) toast.error(`${failed} target${failed !== 1 ? "s" : ""} skipped (missing ${channel === "email" ? "email" : "phone"} or error)`);
+  };
 
   // Scripts grouped by channel for the Scripts tab
   const emailScripts = allScripts.filter((s) => s.channel === "email");
@@ -282,6 +379,26 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant="default"
+                className="gap-2 bg-primary hover:bg-primary/90"
+                onClick={handleLaunchAll}
+                disabled={isLaunching || queued === 0}
+                title={
+                  queued === 0
+                    ? "No queued targets to launch"
+                    : `Launch outreach to all ${queued} queued target${queued !== 1 ? "s" : ""}`
+                }
+                data-jarvis-id="launch-all-button"
+              >
+                {isLaunching ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Rocket className="w-3.5 h-3.5" />
+                )}
+                {isLaunching ? "Launching…" : `Launch All${queued > 0 ? ` (${queued})` : ""}`}
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

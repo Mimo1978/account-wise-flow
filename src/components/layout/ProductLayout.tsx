@@ -221,7 +221,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
             </Link>
 
             {/* Main Navigation */}
-            <nav className="hidden md:flex items-center gap-0 min-w-0">
+            <nav className="hidden md:flex flex-wrap items-center gap-x-0 gap-y-1 min-w-0 flex-1 justify-center">
               {/* Primary nav items - always visible */}
               {navItems.map((item) => (
                 <NavItem key={item.path} item={item} />

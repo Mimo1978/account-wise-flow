@@ -147,10 +147,16 @@ function EventRow({ evt, onClick }: { evt: DiaryEvent; onClick?: () => void }) {
       </span>
       <div
         className="flex items-center gap-2.5 flex-1 min-w-0 rounded-md px-3 py-2"
-        style={{ background: colors.bg, borderLeft: `3px solid ${colors.border}` }}
+        style={{
+          background: '#1F2937',
+          borderLeft: `4px solid ${colors.border}`,
+          boxShadow: `inset 0 0 0 1px ${colors.border}55`,
+        }}
       >
-        <Icon className="w-3.5 h-3.5 shrink-0" style={{ color: colors.border }} />
-        <span className="text-sm font-medium truncate" style={{ color: DARK.text }}>{evt.title}</span>
+        <Icon className="w-4 h-4 shrink-0" style={{ color: colors.border }} />
+        <span className="text-sm font-semibold truncate" style={{ color: '#F8FAFC' }}>
+          {evt.title}
+        </span>
       </div>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         {evt.event_type === 'reminder' && (
@@ -172,6 +178,11 @@ function EventRow({ evt, onClick }: { evt: DiaryEvent; onClick?: () => void }) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-36">
+            {onClick && (
+              <DropdownMenuItem onClick={() => onClick()}>
+                <Pencil className="w-3.5 h-3.5 mr-2" /> Edit
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => updateStatus.mutate('completed')}>
               <Check className="w-3.5 h-3.5 mr-2" /> Mark complete
             </DropdownMenuItem>

@@ -50,6 +50,7 @@ import {
   DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
+import { ZoomControl } from '@/components/layout/ZoomControl';
 
 interface ProductLayoutProps {
   children: React.ReactNode;
@@ -220,7 +221,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
             </Link>
 
             {/* Main Navigation */}
-            <nav className="hidden md:flex items-center gap-0 min-w-0">
+            <nav className="hidden md:flex flex-wrap items-center gap-x-0 gap-y-1 min-w-0 flex-1 justify-center">
               {/* Primary nav items - always visible */}
               {navItems.map((item) => (
                 <NavItem key={item.path} item={item} />
@@ -344,6 +345,7 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
             {/* Right Side Actions */}
             <div className="flex items-center gap-2 shrink-0">
               <PendingRequestsBadge />
+              <ZoomControl />
               <NotificationBell />
 
               {/* User Menu */}
@@ -438,10 +440,19 @@ export const ProductLayout: React.FC<ProductLayoutProps> = ({ children }) => {
       })()}
 
       {/* Page Content */}
-      <div className="flex-1 page-accent-wrapper overflow-y-auto" style={(() => {
-        const accent = getNavColour(location.pathname);
-        return accent ? { '--page-accent': accent } as React.CSSProperties : {};
-      })()}>
+      <div
+        className="flex-1 page-accent-wrapper overflow-y-auto app-zoom-root"
+        style={(() => {
+          const accent = getNavColour(location.pathname);
+          const base: React.CSSProperties = {
+            // Use CSS `zoom` for true layout-aware scaling (not just visual transform)
+            zoom: 'var(--app-content-zoom, 0.8)' as any,
+          };
+          return accent
+            ? ({ ...base, '--page-accent': accent } as React.CSSProperties)
+            : base;
+        })()}
+      >
         {children}
       </div>
     </div>

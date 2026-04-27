@@ -384,10 +384,12 @@ export function DiarySection({ workspaceId, userId }: { workspaceId: string | un
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today, { weekStartsOn: 1 }));
   const [selectedDay, setSelectedDay] = useState(today);
   const [showAdd, setShowAdd] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<DiaryEvent | null>(null);
+  const [expandedOpen, setExpandedOpen] = useState(false);
 
-  // Fetch 4 weeks of events for dot indicators
+  // Fetch ~3 months of events for dot indicators + expanded views
   const fetchStart = useMemo(() => startOfWeek(today, { weekStartsOn: 1 }), []);
-  const fetchEnd = useMemo(() => addWeeks(fetchStart, 4), [fetchStart]);
+  const fetchEnd = useMemo(() => addMonths(fetchStart, 3), [fetchStart]);
 
   const { data: allEvents = [] } = useQuery({
     queryKey: ['diary_events', workspaceId, 'diary-widget'],
@@ -423,10 +425,8 @@ export function DiarySection({ workspaceId, userId }: { workspaceId: string | un
   }, [allEvents, selectedDay]);
 
   const handleEventClick = useCallback((evt: DiaryEvent) => {
-    if (evt.contact_id) navigate(`/contacts/${evt.contact_id}`);
-    else if (evt.candidate_id) navigate(`/talent/${evt.candidate_id}`);
-    else if (evt.company_id) navigate(`/companies/${evt.company_id}`);
-  }, [navigate]);
+    setEditingEvent(evt);
+  }, []);
 
   // Live updates: refresh diary the moment AI calls (or anyone) book a new event
   useEffect(() => {
@@ -504,6 +504,19 @@ export function DiarySection({ workspaceId, userId }: { workspaceId: string | un
 
   return (
     <div>
+      {/* Header with Expand button */}
+      <div className="flex items-center justify-end mb-2">
+        <button
+          onClick={() => setExpandedOpen(true)}
+          className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded hover:bg-slate-700/40 transition-colors"
+          style={{ color: DARK.textSecondary }}
+          title="Expand calendar"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+          Expand
+        </button>
+      </div>
+
       {/* Week strip */}
       <WeekStrip
         weekStart={weekStart}
@@ -552,6 +565,409 @@ export function DiarySection({ workspaceId, userId }: { workspaceId: string | un
           <span className="text-xs">Add event or reminder...</span>
         </button>
       )}
+
+      {/* Edit dialog */}
+      {editingEvent && (
+        <EditEventDialog
+          event={editingEvent}
+          open={!!editingEvent}
+          onOpenChange={(o) => { if (!o) setEditingEvent(null); }}
+          onNavigateToRecord={() => {
+            const evt = editingEvent;
+            setEditingEvent(null);
+            if (evt.contact_id) navigate(`/contacts/${evt.contact_id}`);
+            else if (evt.candidate_id) navigate(`/talent/${evt.candidate_id}`);
+            else if (evt.company_id) navigate(`/companies/${evt.company_id}`);
+          }}
+        />
+      )}
+
+      {/* Expanded calendar */}
+      {expandedOpen && (
+        <ExpandedDiaryDialog
+          open={expandedOpen}
+          onOpenChange={setExpandedOpen}
+          events={allEvents}
+          onEditEvent={(e) => setEditingEvent(e)}
+          workspaceId={workspaceId}
+          userId={userId}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+//  Edit Event Dialog — change title, talking points, date, time, type
+// ============================================================================
+function EditEventDialog({
+  event,
+  open,
+  onOpenChange,
+  onNavigateToRecord,
+}: {
+  event: DiaryEvent;
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  onNavigateToRecord: () => void;
+}) {
+  const qc = useQueryClient();
+  const start = parseISO(event.start_time);
+  const [title, setTitle] = useState(event.title);
+  const [description, setDescription] = useState(event.description ?? '');
+  const [date, setDate] = useState(format(start, 'yyyy-MM-dd'));
+  const [time, setTime] = useState(format(start, 'HH:mm'));
+  const [eventType, setEventType] = useState<string>(event.event_type);
+
+  const hasLinkedRecord = !!(event.contact_id || event.candidate_id || event.company_id);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const [hh, mm] = time.split(':').map(Number);
+      const dt = new Date(date);
+      dt.setHours(hh ?? 9, mm ?? 0, 0, 0);
+      const startIso = dt.toISOString();
+      const end = new Date(dt);
+      if (eventType === 'call') end.setMinutes(dt.getMinutes() + 30);
+      else if (eventType === 'meeting') end.setHours(dt.getHours() + 1);
+      const { error } = await supabase
+        .from('diary_events')
+        .update({
+          title: title.trim(),
+          description: description.trim() || null,
+          start_time: startIso,
+          end_time: end.toISOString(),
+          event_type: eventType,
+        })
+        .eq('id', event.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['diary_events'], exact: false });
+      toast.success('Event updated');
+      onOpenChange(false);
+    },
+    onError: () => toast.error('Failed to update event'),
+  });
+
+  const remove = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('diary_events').delete().eq('id', event.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['diary_events'], exact: false });
+      toast.success('Event deleted');
+      onOpenChange(false);
+    },
+    onError: () => toast.error('Failed to delete'),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Edit diary event</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div>
+            <Label className="text-xs">Title</Label>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs">Talking points / notes</Label>
+            <Textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Agenda, talking points, links, prep notes..."
+              rows={5}
+              className="mt-1 resize-y"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="text-xs">Date</Label>
+              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs">Time</Label>
+              <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="mt-1" />
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Type</Label>
+            <div className="flex gap-1.5 mt-1 flex-wrap">
+              {EVENT_TYPES.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setEventType(t)}
+                  className={cn(
+                    'flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors',
+                    eventType === t ? 'text-white' : 'hover:text-white',
+                  )}
+                  style={{
+                    background: eventType === t ? EVENT_COLORS[t].border : 'hsl(var(--muted))',
+                    color: eventType !== t ? 'hsl(var(--muted-foreground))' : undefined,
+                  }}
+                >
+                  {TYPE_EMOJI[t]} {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          {hasLinkedRecord && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onNavigateToRecord}
+              className="w-full"
+            >
+              <ExternalLink className="w-3.5 h-3.5 mr-2" />
+              View linked record
+            </Button>
+          )}
+        </div>
+        <DialogFooter className="gap-2 sm:gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => remove.mutate()}
+            disabled={remove.isPending}
+            className="text-destructive hover:text-destructive mr-auto"
+          >
+            <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+            Delete
+          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            onClick={() => save.mutate()}
+            disabled={!title.trim() || save.isPending}
+          >
+            Save changes
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ============================================================================
+//  Expanded Diary Dialog — Week / Month / 3-Month views
+// ============================================================================
+function ExpandedDiaryDialog({
+  open,
+  onOpenChange,
+  events,
+  onEditEvent,
+  workspaceId,
+  userId,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  events: DiaryEvent[];
+  onEditEvent: (e: DiaryEvent) => void;
+  workspaceId: string | undefined;
+  userId: string | undefined;
+}) {
+  const [view, setView] = useState<'week' | 'month' | '3month'>('month');
+  const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
+
+  const monthsToShow = view === '3month' ? 3 : 1;
+  const months = useMemo(
+    () => Array.from({ length: monthsToShow }, (_, i) => startOfMonth(addMonths(anchor, i))),
+    [anchor, monthsToShow],
+  );
+
+  // Group events by yyyy-MM-dd
+  const eventsByDay = useMemo(() => {
+    const m = new Map<string, DiaryEvent[]>();
+    for (const e of events) {
+      const key = format(new Date(e.start_time), 'yyyy-MM-dd');
+      const arr = m.get(key) || [];
+      arr.push(e);
+      m.set(key, arr);
+    }
+    return m;
+  }, [events]);
+
+  const goPrev = () => setAnchor(view === 'week' ? addDays(anchor, -7) : addMonths(anchor, -1));
+  const goNext = () => setAnchor(view === 'week' ? addDays(anchor, 7) : addMonths(anchor, 1));
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-6xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogHeader>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <DialogTitle>Diary calendar</DialogTitle>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 bg-muted rounded-md p-0.5">
+                {(['week', 'month', '3month'] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setView(v)}
+                    className={cn(
+                      'px-2.5 py-1 rounded text-xs font-medium transition-colors',
+                      view === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {v === 'week' ? 'Week' : v === 'month' ? 'Month' : '3 Months'}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="h-7 w-7" onClick={goPrev}>
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="outline" size="sm" className="h-7" onClick={() => setAnchor(startOfDay(new Date()))}>
+                  Today
+                </Button>
+                <Button variant="outline" size="icon" className="h-7 w-7" onClick={goNext}>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-y-auto pr-1">
+          {view === 'week' ? (
+            <WeekGrid anchor={anchor} eventsByDay={eventsByDay} onEditEvent={onEditEvent} />
+          ) : (
+            <div className={cn('grid gap-6', view === '3month' ? 'lg:grid-cols-3 md:grid-cols-2 grid-cols-1' : 'grid-cols-1')}>
+              {months.map((m) => (
+                <MonthGrid key={m.toISOString()} month={m} eventsByDay={eventsByDay} onEditEvent={onEditEvent} />
+              ))}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MonthGrid({
+  month,
+  eventsByDay,
+  onEditEvent,
+}: {
+  month: Date;
+  eventsByDay: Map<string, DiaryEvent[]>;
+  onEditEvent: (e: DiaryEvent) => void;
+}) {
+  const firstDay = startOfMonth(month);
+  const daysInMonth = getDaysInMonth(month);
+  // Monday = 0
+  const leadingBlanks = (getDay(firstDay) + 6) % 7;
+  const cells: (Date | null)[] = [
+    ...Array(leadingBlanks).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => addDays(firstDay, i)),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div className="border rounded-lg p-3 bg-card">
+      <div className="text-sm font-semibold mb-2">{format(month, 'MMMM yyyy')}</div>
+      <div className="grid grid-cols-7 gap-1 text-[10px] font-medium text-muted-foreground mb-1">
+        {DAY_NAMES.map((d) => <div key={d} className="text-center py-1">{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((d, i) => {
+          if (!d) return <div key={i} className="min-h-[64px]" />;
+          const key = format(d, 'yyyy-MM-dd');
+          const dayEvts = eventsByDay.get(key) || [];
+          const today = isToday(d);
+          return (
+            <div
+              key={i}
+              className={cn(
+                'min-h-[64px] border rounded p-1 text-[11px] flex flex-col gap-0.5',
+                today ? 'border-primary/60 bg-primary/5' : 'border-border/40',
+              )}
+            >
+              <div className={cn('text-[10px] font-semibold', today ? 'text-primary' : 'text-muted-foreground')}>
+                {format(d, 'd')}
+              </div>
+              <div className="flex flex-col gap-0.5 overflow-hidden">
+                {dayEvts.slice(0, 3).map((e) => {
+                  const colors = EVENT_COLORS[e.event_type] || EVENT_COLORS.task;
+                  return (
+                    <button
+                      key={e.id}
+                      onClick={() => onEditEvent(e)}
+                      className="text-left truncate rounded px-1 py-0.5 text-[10px] font-medium text-white hover:brightness-110"
+                      style={{ background: colors.border }}
+                      title={e.title}
+                    >
+                      {format(new Date(e.start_time), 'HH:mm')} {e.title}
+                    </button>
+                  );
+                })}
+                {dayEvts.length > 3 && (
+                  <div className="text-[10px] text-muted-foreground px-1">+{dayEvts.length - 3} more</div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function WeekGrid({
+  anchor,
+  eventsByDay,
+  onEditEvent,
+}: {
+  anchor: Date;
+  eventsByDay: Map<string, DiaryEvent[]>;
+  onEditEvent: (e: DiaryEvent) => void;
+}) {
+  const weekStart = startOfWeek(anchor, { weekStartsOn: 1 });
+  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
+      {days.map((d) => {
+        const key = format(d, 'yyyy-MM-dd');
+        const dayEvts = (eventsByDay.get(key) || []).sort(
+          (a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime(),
+        );
+        const today = isToday(d);
+        return (
+          <div
+            key={key}
+            className={cn(
+              'border rounded-lg p-2 min-h-[180px] bg-card',
+              today ? 'border-primary/60' : 'border-border/40',
+            )}
+          >
+            <div className={cn('text-xs font-semibold mb-2', today ? 'text-primary' : 'text-foreground')}>
+              {format(d, 'EEE d')}
+            </div>
+            <div className="space-y-1">
+              {dayEvts.length === 0 && (
+                <div className="text-[10px] text-muted-foreground italic">No events</div>
+              )}
+              {dayEvts.map((e) => {
+                const colors = EVENT_COLORS[e.event_type] || EVENT_COLORS.task;
+                return (
+                  <button
+                    key={e.id}
+                    onClick={() => onEditEvent(e)}
+                    className="w-full text-left rounded px-1.5 py-1 text-[11px] text-white hover:brightness-110"
+                    style={{ background: colors.border }}
+                  >
+                    <div className="font-mono text-[10px] opacity-90">{format(new Date(e.start_time), 'HH:mm')}</div>
+                    <div className="font-medium truncate">{e.title}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

@@ -793,7 +793,7 @@ function CallBlockCard({
                 <SelectTrigger className="h-7 w-[150px] text-xs">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[10000]">
                   {(Object.keys(BLOCK_TYPE_LABELS) as CallBlockType[]).map((t) => (
                     <SelectItem key={t} value={t} className="text-xs">
                       {BLOCK_TYPE_LABELS[t]}

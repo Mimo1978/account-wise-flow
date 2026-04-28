@@ -3472,7 +3472,7 @@ Return ONLY valid JSON, no markdown fences.`,
       const res = await fetch(`${supabaseUrl}/functions/v1/get-catchup-briefing`, {
         method: "POST",
         headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ workspace_id: teamId, since: sinceIso }),
+        body: JSON.stringify({ workspace_id: teamId, since: sinceIso, user_id: userId }),
       });
       const data = await res.json();
       if (!res.ok) return { result: { error: data.error || "Failed to load briefing" }, entityType: "briefing" };

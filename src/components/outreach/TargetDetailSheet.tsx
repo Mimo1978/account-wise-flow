@@ -5,9 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { 
   Mail, Phone, MessageSquare, Calendar, XCircle, 
   Bot, CheckCircle2, RotateCcw, ChevronDown, ChevronRight,
+  AlertTriangle, ExternalLink, Save, Pencil, FileText,
 } from "lucide-react";
 import {
   OutreachTarget,
@@ -25,14 +32,91 @@ interface Props {
   target: OutreachTarget | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Channel the campaign will use first — drives the "missing contact" warning */
+  primaryChannel?: "email" | "sms" | "call";
+  /** All active channels — drives which fields are flagged */
+  activeChannels?: Array<"email" | "sms" | "call">;
+  /** Optional: id of the current campaign (used to round-trip back from the full profile) */
+  campaignId?: string;
 }
 
-export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
+export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, activeChannels = [], campaignId }: Props) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { mutateAsync: updateState, isPending } = useUpdateTargetState();
   const { data: events = [] } = useOutreachEvents(target?.id);
   const [aiCallOpen, setAiCallOpen] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
+  const [emailDraft, setEmailDraft] = useState("");
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [savingContact, setSavingContact] = useState(false);
 
   if (!target) return null;
+
+  const needsEmail = activeChannels.includes("email") && !target.entity_email;
+  const needsPhone = (activeChannels.includes("sms") || activeChannels.includes("call")) && !target.entity_phone;
+  const primaryNeeds =
+    primaryChannel === "email"
+      ? !target.entity_email
+      : primaryChannel === "sms" || primaryChannel === "call"
+      ? !target.entity_phone
+      : false;
+
+  const beginEditContact = () => {
+    setEmailDraft(target.entity_email ?? "");
+    setPhoneDraft(target.entity_phone ?? "");
+    setEditingContact(true);
+  };
+
+  const handleViewFullProfile = () => {
+    const qs = campaignId ? `?returnTo=outreach&campaignId=${campaignId}` : "?returnTo=outreach";
+    if (target.entity_type === "contact" && target.contact_id) {
+      navigate(`/contacts/${target.contact_id}${qs}`);
+    } else if (target.candidate_id) {
+      navigate(`/talent/${target.candidate_id}${qs}`);
+    } else {
+      toast.info("No linked profile for this target.");
+      return;
+    }
+    onOpenChange(false);
+  };
+
+  const saveContactInline = async () => {
+    setSavingContact(true);
+    try {
+      const updates: Record<string, string | null> = {
+        email: emailDraft.trim() || null,
+        phone: phoneDraft.trim() || null,
+      };
+      let table: "candidates" | "crm_contacts" | null = null;
+      let id: string | undefined;
+      if (target.entity_type === "contact" && target.contact_id) {
+        table = "crm_contacts";
+        id = target.contact_id;
+      } else if (target.candidate_id) {
+        table = "candidates";
+        id = target.candidate_id;
+      }
+      if (!table || !id) {
+        toast.error("This target has no linked profile to update.");
+        setSavingContact(false);
+        return;
+      }
+      const { error } = await supabase.from(table).update(updates).eq("id", id);
+      if (error) throw error;
+      toast.success("Contact details saved");
+      setEditingContact(false);
+      // Refresh outreach + profile queries
+      queryClient.invalidateQueries({ queryKey: ["outreach"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["outreach_targets"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["candidates"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["crm_contacts"], exact: false });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save contact");
+    } finally {
+      setSavingContact(false);
+    }
+  };
 
   const handleAction = async (
     state: OutreachTargetState,
@@ -57,25 +141,115 @@ export function TargetDetailSheet({ target, open, onOpenChange }: Props) {
               {TARGET_STATE_LABEL[target.state]}
             </Badge>
           </div>
+          {/* Quick actions: view full profile / edit */}
+          <div className="flex items-center gap-2 mt-3">
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-7 text-xs"
+              onClick={handleViewFullProfile}
+              disabled={!target.candidate_id && !target.contact_id}
+            >
+              <ExternalLink className="w-3 h-3" />
+              {target.entity_type === "contact" ? "Open Contact" : "Open Talent Profile"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1.5 h-7 text-xs"
+              onClick={beginEditContact}
+              disabled={!target.candidate_id && !target.contact_id}
+              title="Edit email & phone inline"
+            >
+              <Pencil className="w-3 h-3" /> Edit Contact
+            </Button>
+          </div>
         </SheetHeader>
 
         <ScrollArea className="flex-1">
           <div className="px-6 py-4 space-y-5">
+            {/* Missing-contact warning for the active campaign channel */}
+            {primaryChannel && primaryNeeds && (
+              <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="min-w-0 text-xs">
+                  <p className="font-medium text-amber-200">
+                    Missing {primaryChannel === "email" ? "email" : "phone number"} for {primaryChannel.toUpperCase()} outreach
+                  </p>
+                  <p className="text-amber-200/80 mt-0.5">
+                    Add it below, open the full profile to check the CV, or remove this target from the queue before launch.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Contact info */}
-            <div className="space-y-2">
-              {target.entity_email && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="truncate text-muted-foreground">{target.entity_email}</span>
+            {editingContact ? (
+              <div className="space-y-3 rounded-md border border-border/60 bg-muted/30 p-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] uppercase text-muted-foreground tracking-wide">Email</Label>
+                  <Input
+                    type="email"
+                    value={emailDraft}
+                    onChange={(e) => setEmailDraft(e.target.value)}
+                    placeholder="name@company.com"
+                    className="h-8 text-sm"
+                  />
                 </div>
-              )}
-              {target.entity_phone && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-muted-foreground">{target.entity_phone}</span>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] uppercase text-muted-foreground tracking-wide">Phone</Label>
+                  <Input
+                    type="tel"
+                    value={phoneDraft}
+                    onChange={(e) => setPhoneDraft(e.target.value)}
+                    placeholder="+44 7…"
+                    className="h-8 text-sm"
+                  />
                 </div>
-              )}
-            </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" className="gap-1.5 h-7 text-xs" onClick={saveContactInline} disabled={savingContact}>
+                    <Save className="w-3 h-3" /> {savingContact ? "Saving…" : "Save"}
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setEditingContact(false)} disabled={savingContact}>
+                    Cancel
+                  </Button>
+                  {(target.candidate_id || target.contact_id) && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs ml-auto gap-1.5 text-muted-foreground hover:text-foreground"
+                      onClick={handleViewFullProfile}
+                      title="Open full profile to view CV"
+                    >
+                      <FileText className="w-3 h-3" /> View CV
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <Mail className={`w-3.5 h-3.5 shrink-0 ${needsEmail ? "text-amber-400" : "text-muted-foreground"}`} />
+                  {target.entity_email ? (
+                    <span className="truncate text-muted-foreground">{target.entity_email}</span>
+                  ) : (
+                    <span className={`italic ${needsEmail ? "text-amber-300" : "text-muted-foreground/60"}`}>
+                      no email{needsEmail ? " — required for this campaign" : ""}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <Phone className={`w-3.5 h-3.5 shrink-0 ${needsPhone ? "text-amber-400" : "text-muted-foreground"}`} />
+                  {target.entity_phone ? (
+                    <span className="text-muted-foreground">{target.entity_phone}</span>
+                  ) : (
+                    <span className={`italic ${needsPhone ? "text-amber-300" : "text-muted-foreground/60"}`}>
+                      no phone{needsPhone ? " — required for this campaign" : ""}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             <Separator />
 

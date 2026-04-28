@@ -93,6 +93,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const [addTargetsOpen, setAddTargetsOpen] = useState(false);
   const [scriptBuilderOpen, setScriptBuilderOpen] = useState(false);
   const [editingScript, setEditingScript] = useState<OutreachScript | undefined>();
+  const [prefilledChannel, setPrefilledChannel] = useState<ChannelKey | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<OutreachTarget | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [filterState, setFilterState] = useState<OutreachTargetState | "">("");

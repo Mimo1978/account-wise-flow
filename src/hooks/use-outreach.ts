@@ -378,7 +378,11 @@ export function useAddTargets() {
           event_type: "added_to_campaign" as OutreachEventType,
           metadata: {},
         }));
-        await db.from("outreach_events").insert(events).catch(() => {});
+        try {
+          await db.from("outreach_events").insert(events);
+        } catch {
+          // non-blocking
+        }
       }
 
       qc.invalidateQueries({ queryKey: ["outreach_targets"], exact: false });
@@ -481,25 +485,40 @@ export function useUpdateTargetState() {
           } catch {
             // ignore
           }
-          // Direct increment for contacted_count
-          await db
-            .from("outreach_campaigns")
-            .update({ contacted_count: db.raw?.("contacted_count + 1") })
-            .eq("id", campaignId)
-            .catch(() => {
-              // Fallback: fetch and set
-              db.from("outreach_campaigns").select("contacted_count").eq("id", campaignId).single()
-                .then(({ data: c }: { data: { contacted_count: number } | null }) => {
-                  if (c) db.from("outreach_campaigns").update({ contacted_count: (c.contacted_count ?? 0) + 1 }).eq("id", campaignId);
-                });
-            });
+          // Increment contacted_count via fetch+set (PostgREST has no raw expressions)
+          try {
+            const { data: c } = await db
+              .from("outreach_campaigns")
+              .select("contacted_count")
+              .eq("id", campaignId)
+              .maybeSingle();
+            if (c) {
+              await db
+                .from("outreach_campaigns")
+                .update({ contacted_count: (c.contacted_count ?? 0) + 1 })
+                .eq("id", campaignId);
+            }
+          } catch {
+            // non-blocking
+          }
         }
         // First response → increment response_count
         if (isResponseEvent(eventType) && target.state !== "responded" && target.state !== "booked" && target.state !== "converted") {
-          db.from("outreach_campaigns").select("response_count").eq("id", campaignId).single()
-            .then(({ data: c }: { data: { response_count: number } | null }) => {
-              if (c) db.from("outreach_campaigns").update({ response_count: (c.response_count ?? 0) + 1 }).eq("id", campaignId);
-            }).catch(() => {});
+          try {
+            const { data: c } = await db
+              .from("outreach_campaigns")
+              .select("response_count")
+              .eq("id", campaignId)
+              .maybeSingle();
+            if (c) {
+              await db
+                .from("outreach_campaigns")
+                .update({ response_count: (c.response_count ?? 0) + 1 })
+                .eq("id", campaignId);
+            }
+          } catch {
+            // non-blocking
+          }
         }
       }
     },
@@ -679,14 +698,29 @@ export function useLogCallOutcome() {
           targetPatch.snooze_until = input.follow_up_due;
         }
 
-        await db.from("outreach_targets").update(targetPatch).eq("id", input.target_id).catch(() => {});
+        try {
+          await db.from("outreach_targets").update(targetPatch).eq("id", input.target_id);
+        } catch {
+          // non-blocking
+        }
 
         // Counter: first contact → increment contacted_count
         if (!target.last_contacted_at && target.campaign_id) {
-          db.from("outreach_campaigns").select("contacted_count").eq("id", target.campaign_id).single()
-            .then(({ data: c }: { data: { contacted_count: number } | null }) => {
-              if (c) db.from("outreach_campaigns").update({ contacted_count: (c.contacted_count ?? 0) + 1 }).eq("id", target.campaign_id);
-            }).catch(() => {});
+          try {
+            const { data: c } = await db
+              .from("outreach_campaigns")
+              .select("contacted_count")
+              .eq("id", target.campaign_id)
+              .maybeSingle();
+            if (c) {
+              await db
+                .from("outreach_campaigns")
+                .update({ contacted_count: (c.contacted_count ?? 0) + 1 })
+                .eq("id", target.campaign_id);
+            }
+          } catch {
+            // non-blocking
+          }
         }
       }
     },

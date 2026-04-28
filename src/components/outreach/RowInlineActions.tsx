@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Mail, MessageSquare, Bot } from "lucide-react";
+import { Mail, MessageSquare, Phone } from "lucide-react";
 import { EmailComposeModal } from "@/components/outreach/EmailComposeModal";
 import { SMSComposeModal } from "@/components/outreach/SMSComposeModal";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
@@ -88,12 +88,13 @@ export function RowInlineActions({
         )}
         <Button
           variant="ghost"
-          size="icon"
-          className="h-6 w-6"
+          size="sm"
+          className="h-6 px-1.5 gap-0.5"
           title={`AI Call ${entityName}`}
           onClick={(e) => { e.stopPropagation(); setAiCallOpen(true); }}
         >
-          <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">AI</span>
         </Button>
         <ScheduleCallbackPopover
           workspaceId={workspaceId}

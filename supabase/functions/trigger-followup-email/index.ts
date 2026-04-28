@@ -169,7 +169,7 @@ serve(async (req) => {
         target_id,
         candidate_id: candidate_id || null,
         contact_id: contact_id || null,
-        event_type: sent ? "email_sent" : "email_drafted",
+        event_type: "email_sent",
         channel: "email",
         subject: composed.subject,
         body: composed.plain,

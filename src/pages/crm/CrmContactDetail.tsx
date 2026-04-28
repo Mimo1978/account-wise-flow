@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Pencil, Mail, Phone, MessageSquare, CalendarPlus, Target, Globe, Shield, ShieldCheck, FileText, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { LogActivityModal } from "@/components/communications/LogActivityModal";
 import { ContactActivityTab } from "@/components/communications/ContactActivityTab";
 import { GdprDataRightsTab } from "@/components/crm/GdprDataRightsTab";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function CrmContactDetail() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +31,25 @@ export default function CrmContactDetail() {
   const backFrom = (location.state as any)?.from as string | undefined;
   const backLabel = (location.state as any)?.fromLabel as string | undefined;
   const handleBack = () => navigate(backFrom || "/contacts");
+
+  useEffect(() => {
+    if (isLoading || contact || !id) return;
+    let cancelled = false;
+    supabase
+      .from("contacts")
+      .select("id")
+      .eq("id", id)
+      .is("deleted_at", null)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data?.id) {
+          navigate(`/contacts/${id}`, { replace: true, state: location.state });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contact, id, isLoading, location.state, navigate]);
 
   if (isLoading) return <div className="p-6 text-muted-foreground">Loading…</div>;
   if (!contact) return (

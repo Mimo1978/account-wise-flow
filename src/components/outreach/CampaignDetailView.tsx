@@ -663,7 +663,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
           {/* ── Scripts Tab ── */}
           <TabsContent value="scripts" className="mt-0 space-y-6" data-jarvis-id="outreach-panel-scripts">
             {/* Script assignment section */}
-            <div className="rounded-lg border border-border/50 bg-card p-5 space-y-5" data-jarvis-id="outreach-script-assignment">
+            <div ref={scriptsTabRef} className="rounded-lg border border-border/50 bg-card p-5 space-y-5" data-jarvis-id="outreach-script-assignment">
               <div>
                 <h3 className="text-sm font-semibold mb-1">Assigned Scripts</h3>
                 <p className="text-xs text-muted-foreground">
@@ -674,7 +674,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
 
               <div className="grid gap-4 sm:grid-cols-3">
                 {/* Email */}
-                <div className="space-y-1.5">
+                <div className={`space-y-1.5 rounded-md p-2 -m-2 transition-colors ${highlightChannel === "email" ? "bg-primary/10 ring-1 ring-primary/40" : ""}`}>
                   <Label className="text-xs flex items-center gap-1.5">
                     <Mail className="w-3.5 h-3.5 text-primary" />
                     Email Script
@@ -698,7 +698,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                 </div>
 
                 {/* SMS */}
-                <div className="space-y-1.5">
+                <div className={`space-y-1.5 rounded-md p-2 -m-2 transition-colors ${highlightChannel === "sms" ? "bg-primary/10 ring-1 ring-primary/40" : ""}`}>
                   <Label className="text-xs flex items-center gap-1.5">
                     <MessageSquare className="w-3.5 h-3.5 text-primary" />
                     SMS Script
@@ -722,7 +722,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                 </div>
 
                 {/* Call */}
-                <div className="space-y-1.5">
+                <div className={`space-y-1.5 rounded-md p-2 -m-2 transition-colors ${highlightChannel === "call" ? "bg-primary/10 ring-1 ring-primary/40" : ""}`}>
                   <Label className="text-xs flex items-center gap-1.5">
                     <Phone className="w-3.5 h-3.5 text-primary" />
                     Call Script

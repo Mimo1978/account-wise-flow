@@ -935,6 +935,21 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
           }}
         />
       )}
+      {savedScript && (
+        <AssignToCampaignPrompt
+          open={assignPromptOpen}
+          onOpenChange={(v) => {
+            setAssignPromptOpen(v);
+            if (!v) {
+              setSavedScript(null);
+              onOpenChange(false);
+            }
+          }}
+          scriptId={savedScript.id}
+          scriptName={savedScript.name}
+          channel={savedScript.channel}
+        />
+      )}
     </Dialog>
   );
 }

@@ -381,7 +381,7 @@ serve(async (req) => {
         const now = new Date().toISOString();
         const { data: targetBefore } = await supabase
           .from("outreach_targets")
-          .select("last_contacted_at, state")
+          .select("last_contacted_at, state, entity_email, entity_name, entity_type, candidate_id, contact_id")
           .eq("id", targetId)
           .eq("workspace_id", workspaceId)
           .maybeSingle();
@@ -398,6 +398,34 @@ serve(async (req) => {
               next_action: providerFailure ? `AI call failed: ${payload.status || "not connected"}` : voicemail ? "AI call reached voicemail" : "AI call ended without a live conversation",
               next_action_due: null,
             };
+
+        // Mandatory: every call writes its full structured outcome onto the target row
+        targetPatch.last_call_at = now;
+        targetPatch.last_call_outcome = analysis.outcome;
+        targetPatch.last_call_transcript = transcript || null;
+        targetPatch.last_call_metadata = {
+          summary: analysis.summary,
+          outcome: analysis.outcome,
+          sentiment: analysis.sentiment,
+          meeting_agreed: analysis.meeting_agreed,
+          meeting_when: analysis.meeting_when || null,
+          meeting_iso: analysis.meeting_iso || null,
+          notice_period: analysis.notice_period || null,
+          availability: analysis.availability || null,
+          next_step: analysis.next_step || null,
+          email_followup_requested: !!analysis.email_followup_requested,
+          followup_email_topic: analysis.followup_email_topic || null,
+          key_points: analysis.key_points || [],
+          recording_url: payload.recording_url || null,
+          duration_minutes: durationMin,
+          provider: "bland",
+          call_id: callId,
+          call_reached_person: callReachedPerson,
+        };
+        if (analysis.email_followup_requested) {
+          targetPatch.followup_email_pending = true;
+          targetPatch.followup_email_topic = analysis.followup_email_topic || "Information requested on call";
+        }
 
         await supabase.from("outreach_targets").update(targetPatch).eq("id", targetId).eq("workspace_id", workspaceId);
         await supabase.from("outreach_events").insert({
@@ -418,8 +446,50 @@ serve(async (req) => {
             provider_status: payload.status || null,
             answered_by: payload.answered_by || null,
             outcome: analysis.outcome,
+            notice_period: analysis.notice_period || null,
+            availability: analysis.availability || null,
+            email_followup_requested: !!analysis.email_followup_requested,
+            followup_email_topic: analysis.followup_email_topic || null,
+            sentiment: analysis.sentiment,
+            transcript_excerpt: transcript ? transcript.slice(0, 2000) : null,
+            recording_url: payload.recording_url || null,
           },
         });
+
+        // ───────────── Auto follow-up email ─────────────
+        // The agent committed to email the contact during the call —
+        // trigger our follow-up email function so a draft is composed,
+        // sent (if integration is configured), logged, and the
+        // followup_email_pending flag is cleared on success.
+        if (analysis.email_followup_requested && targetBefore?.entity_email) {
+          try {
+            const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/trigger-followup-email`;
+            await fetch(fnUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({
+                target_id: targetId,
+                workspace_id: workspaceId,
+                campaign_id: campaignId,
+                user_id: userId,
+                entity_email: targetBefore.entity_email,
+                entity_name: targetBefore.entity_name || entityName,
+                topic: analysis.followup_email_topic || "Information requested on our call",
+                call_summary: analysis.summary,
+                key_points: analysis.key_points || [],
+                notice_period: analysis.notice_period || null,
+                availability: analysis.availability || null,
+                candidate_id: candidateId || targetBefore.candidate_id || null,
+                contact_id: contactId || targetBefore.contact_id || null,
+              }),
+            });
+          } catch (e) {
+            console.error("trigger-followup-email failed:", e);
+          }
+        }
 
         if (callReachedPerson && campaignId && !targetBefore?.last_contacted_at) {
           const { data: campaignRow } = await supabase

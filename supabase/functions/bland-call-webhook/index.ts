@@ -29,6 +29,8 @@ interface BlandWebhook {
   metadata?: {
     contact_id?: string;
     candidate_id?: string;
+    target_id?: string;
+    campaign_id?: string;
     company_id?: string;
     workspace_id?: string;
     user_id?: string;
@@ -153,6 +155,15 @@ serve(async (req) => {
     }
 
     const durationMin = typeof payload.call_length === "number" ? payload.call_length : null;
+    const normalizedStatus = (payload.status || "").toLowerCase();
+    const normalizedAnswer = (payload.answered_by || "").toLowerCase();
+    const noLiveConversation = transcript.trim().length < 30;
+    const providerFailure = payload.completed === false
+      || /fail|error|cancel|busy|no[-_ ]?answer|not[-_ ]?connected/.test(normalizedStatus);
+    const voicemail = /voicemail|machine/.test(normalizedStatus)
+      || /voicemail|machine/.test(normalizedAnswer)
+      || /voicemail/i.test(analysis.outcome);
+    const callReachedPerson = !providerFailure && !voicemail && !noLiveConversation;
     const recording = payload.recording_url ? `\n\nRecording: ${payload.recording_url}` : "";
     const meetingLine = analysis.meeting_agreed
       ? `\n\n📅 Meeting agreed${analysis.meeting_when ? ` — ${analysis.meeting_when}` : ""}`
@@ -205,6 +216,8 @@ serve(async (req) => {
     let diaryEventId: string | null = null;
     const workspaceId = payload.metadata?.workspace_id;
     const candidateId = payload.metadata?.candidate_id;
+    const targetId = payload.metadata?.target_id;
+    const campaignId = payload.metadata?.campaign_id;
     const companyId = payload.metadata?.company_id;
     const entityName = payload.metadata?.entity_name || "contact";
 

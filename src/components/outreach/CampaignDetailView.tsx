@@ -77,6 +77,23 @@ interface Props {
   projectId?: string;
 }
 
+type LaunchRowStatus = {
+  status: "dialing" | "in_progress" | "sent" | "failed" | "skipped";
+  message: string;
+  channel?: ChannelKey;
+};
+
+type LaunchProgressState = {
+  total: number;
+  completed: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+  currentLabel: string;
+  message: string;
+  rows: Record<string, LaunchRowStatus>;
+};
+
 const CAMPAIGN_STATUS_BADGE: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   active: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
@@ -95,6 +112,7 @@ const CHANNEL_BADGE: Record<string, string> = {
 
 export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [tab, setTab] = useState<"targets" | "scripts" | "settings" | "automation" | "responses">("targets");
   const [addTargetsOpen, setAddTargetsOpen] = useState(false);
   const [scriptBuilderOpen, setScriptBuilderOpen] = useState(false);
@@ -140,6 +158,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const { mutate: updateCampaign, isPending: isUpdating } = useUpdateCampaign();
   const { mutateAsync: updateTargetState } = useUpdateTargetState();
   const [isLaunching, setIsLaunching] = useState(false);
+  const [launchProgress, setLaunchProgress] = useState<LaunchProgressState | null>(null);
 
   // Settings local state (persisted on save)
   const [emailScriptId, setEmailScriptId] = useState(campaign.email_script_id ?? "");

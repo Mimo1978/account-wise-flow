@@ -392,7 +392,10 @@ export default function ContactsDatabase() {
 
   // Open Contact Record — navigate to full page
   const openContactRecord = (contact: Contact) => {
-    navigate(`/contacts/${contact.id}`);
+    const source = (contact as any)._source;
+    navigate(source === "crm_contacts" ? `/crm/contacts/${contact.id}` : `/contacts/${contact.id}`, {
+      state: { from: "/contacts", fromLabel: "Back to Contacts" },
+    });
   };
 
   // Open Company panel from Contact Record

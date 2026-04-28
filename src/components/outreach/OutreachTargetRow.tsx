@@ -108,8 +108,10 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
       : base;
   };
 
+  // Human-readable channel label for the State/Script chip.
+  // e.g. "Email", "SMS", "AI Call" — paired with the script name + primary tag below.
   const verbFor = (c: "email" | "sms" | "call") =>
-    c === "email" ? "Email queued" : c === "sms" ? "SMS queued" : "Call initiated";
+    c === "email" ? "Email" : c === "sms" ? "SMS" : "AI Call";
 
   // Canonical resolution via person_identity (Talent → Contact → CRM priority).
   // Uses the DB-tagged source as a fallback while the identity route loads.

@@ -59,6 +59,7 @@ import { ScriptBuilderModal } from "./ScriptBuilderModal";
 import { TargetDetailSheet } from "./TargetDetailSheet";
 import { AutomationSettingsPanel } from "./AutomationSettingsPanel";
 import { InboundResponsesPanel } from "./InboundResponsesPanel";
+import { CampaignSetupGuide } from "./CampaignSetupGuide";
 import { format, parseISO } from "date-fns";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -215,8 +216,10 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
     const script = allScripts.find((s) => s.id === scriptId);
     if (!script) {
       toast.error(
-        `No ${channel} script assigned. Open Settings or Scripts tab to assign one before launching.`
+        `No ${channel.toUpperCase()} script assigned. Opening Scripts tab — pick one under "Assigned Scripts" and Save.`,
+        { duration: 6000 }
       );
+      setTab("scripts");
       return;
     }
 
@@ -449,6 +452,35 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
 
       {/* Body */}
       <div className="container mx-auto px-6 py-6">
+        {/* Visual step-by-step guide */}
+        <CampaignSetupGuide
+          channel={campaign.channel as "email" | "sms" | "call"}
+          targetCount={targets.length}
+          queuedCount={queued}
+          scriptCount={
+            campaign.channel === "email"
+              ? allScripts.filter((s) => s.channel === "email").length
+              : campaign.channel === "sms"
+              ? allScripts.filter((s) => s.channel === "sms").length
+              : allScripts.filter((s) => s.channel === "call").length
+          }
+          scriptAssigned={Boolean(
+            campaign.channel === "email"
+              ? campaign.email_script_id
+              : campaign.channel === "sms"
+              ? campaign.sms_script_id
+              : campaign.call_script_id
+          )}
+          isLaunching={isLaunching}
+          onAddTargets={() => setAddTargetsOpen(true)}
+          onCreateScript={() => {
+            setTab("scripts");
+            openScriptBuilder();
+          }}
+          onAssignScript={() => setTab("scripts")}
+          onLaunch={handleLaunchAll}
+        />
+
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList className="mb-4">
             <TabsTrigger value="targets" className="gap-2" data-jarvis-id="outreach-tab-queue">

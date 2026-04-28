@@ -106,3 +106,6 @@ verify_jwt = true
 
 [functions.trigger-followup-email]
 verify_jwt = false
+
+[functions.get-catchup-briefing]
+verify_jwt = false

@@ -41,6 +41,7 @@ interface ScheduleCallbackPopoverProps {
   contactId?: string;
   candidateId?: string;
   companyId?: string;
+  bright?: boolean;
 }
 
 export function ScheduleCallbackPopover({
@@ -49,6 +50,7 @@ export function ScheduleCallbackPopover({
   contactId,
   candidateId,
   companyId,
+  bright = false,
 }: ScheduleCallbackPopoverProps) {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -87,15 +89,27 @@ export function ScheduleCallbackPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          title={`Schedule callback — ${entityName}`}
-          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
-        >
-          <CalendarPlus className="h-3.5 w-3.5 text-muted-foreground" />
-        </Button>
+        {bright ? (
+          <Button
+            size="sm"
+            className="gap-1.5 bg-amber-500/15 text-amber-300 border border-amber-500/50 hover:bg-amber-500/25 hover:text-amber-200 hover:border-amber-400/70 shadow-[0_0_12px_-2px_hsl(38_92%_55%/0.45)]"
+            title={`Schedule callback — ${entityName}`}
+            onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+          >
+            <CalendarPlus className="h-4 w-4" />
+            Callback
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            title={`Schedule callback — ${entityName}`}
+            onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+          >
+            <CalendarPlus className="h-3.5 w-3.5 text-muted-foreground" />
+          </Button>
+        )}
       </PopoverTrigger>
       <PopoverContent
         className="w-56 p-3"

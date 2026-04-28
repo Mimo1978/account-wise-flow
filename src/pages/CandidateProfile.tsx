@@ -401,6 +401,7 @@ export default function CandidateProfile() {
               workspaceId={currentWorkspace?.id || ""}
               entityName={candidate.name}
               candidateId={candidate.id}
+              bright
             />
             <AddToCampaignButton
               entityType="candidate"
@@ -409,6 +410,7 @@ export default function CandidateProfile() {
               entityEmail={candidate.email}
               entityPhone={candidate.phone}
               entityTitle={candidate.roleType}
+              bright
             />
             <Button variant="outline" size="sm" onClick={() => setShowExportModal(true)}>
               <Download className="h-4 w-4 mr-1.5" />

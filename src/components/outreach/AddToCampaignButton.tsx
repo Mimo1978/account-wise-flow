@@ -26,6 +26,7 @@ interface Props {
   entityCompany?: string | null;
   size?: "sm" | "default";
   variant?: "outline" | "default" | "secondary";
+  bright?: boolean;
 }
 
 const channelIcon: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -46,6 +47,7 @@ export function AddToCampaignButton({
   entityCompany,
   size = "sm",
   variant = "outline",
+  bright = false,
 }: Props) {
   const { currentWorkspace } = useWorkspace();
   const queryClient = useQueryClient();
@@ -139,10 +141,20 @@ export function AddToCampaignButton({
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant={variant} size={size} className="gap-1.5">
-          <Megaphone className="h-4 w-4" />
-          Add to Campaign
-        </Button>
+        {bright ? (
+          <Button
+            size={size}
+            className="gap-1.5 bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/50 hover:bg-fuchsia-500/25 hover:text-fuchsia-200 hover:border-fuchsia-400/70 shadow-[0_0_12px_-2px_hsl(292_84%_61%/0.45)]"
+          >
+            <Megaphone className="h-4 w-4" />
+            Add to Campaign
+          </Button>
+        ) : (
+          <Button variant={variant} size={size} className="gap-1.5">
+            <Megaphone className="h-4 w-4" />
+            Add to Campaign
+          </Button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 max-h-[420px] overflow-y-auto bg-popover">
         <DropdownMenuLabel className="text-xs text-muted-foreground">

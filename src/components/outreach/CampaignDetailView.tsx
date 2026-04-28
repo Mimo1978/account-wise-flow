@@ -628,20 +628,41 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="text-xs font-medium">Name</TableHead>
+                      <TableHead className="text-xs font-medium hidden md:table-cell">Contact</TableHead>
                       <TableHead className="text-xs font-medium hidden md:table-cell">Campaign</TableHead>
-                      <TableHead className="text-xs font-medium">State</TableHead>
+                      <TableHead className="text-xs font-medium">State / Script</TableHead>
                       <TableHead className="text-xs font-medium hidden lg:table-cell">Last Contact</TableHead>
                       <TableHead className="text-xs font-medium w-[200px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {targets.map((target) => (
-                      <OutreachTargetRow
-                        key={target.id}
-                        target={target}
-                        onOpen={openTarget}
-                      />
-                    ))}
+                    {targets.map((target) => {
+                      const assigned: Array<{ channel: "email" | "sms" | "call"; scriptName: string; scriptVersion?: number; isPrimary?: boolean }> = [];
+                      const findScript = (id?: string) => allScripts.find((s) => s.id === id);
+                      const pushIf = (channel: "email" | "sms" | "call", id?: string) => {
+                        if (!id) return;
+                        if (!activeChannels.includes(channel)) return;
+                        const s = findScript(id);
+                        if (!s) return;
+                        assigned.push({
+                          channel,
+                          scriptName: s.name,
+                          scriptVersion: (s as { version?: number }).version,
+                          isPrimary: channel === primaryChannel,
+                        });
+                      };
+                      pushIf("email", campaign.email_script_id);
+                      pushIf("sms", campaign.sms_script_id);
+                      pushIf("call", campaign.call_script_id);
+                      return (
+                        <OutreachTargetRow
+                          key={target.id}
+                          target={target}
+                          onOpen={openTarget}
+                          assignedChannels={assigned}
+                        />
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}

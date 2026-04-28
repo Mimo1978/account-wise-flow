@@ -22,6 +22,7 @@ import {
   ChevronRight,
   RotateCcw,
   Bot,
+  FileText,
 } from "lucide-react";
 import {
   OutreachTarget,
@@ -38,16 +39,17 @@ import { MeetingSchedulerModal } from "@/components/outreach/MeetingSchedulerMod
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Check, X } from "lucide-react";
 
 interface Props {
   target: OutreachTarget;
   onOpen: (t: OutreachTarget) => void;
   selected?: boolean;
   onSelectChange?: (id: string, checked: boolean) => void;
+  /** Channels with assigned scripts on the parent campaign */
+  assignedChannels?: Array<{ channel: "email" | "sms" | "call"; scriptName: string; scriptVersion?: number; isPrimary?: boolean }>;
 }
 
-export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: Props) {
+export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, assignedChannels = [] }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const currentCampaignId = searchParams.get("campaignId") || "";
@@ -76,6 +78,10 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
 
   const badgeLabel = TARGET_STATE_LABEL[target.state] ?? target.state;
   const badgeClass = TARGET_STATE_BADGE_CLASS[target.state] ?? TARGET_STATE_BADGE_CLASS.queued;
+
+  const channelIcon = (c: "email" | "sms" | "call") =>
+    c === "email" ? <Mail className="w-3 h-3" /> : c === "sms" ? <MessageSquare className="w-3 h-3" /> : <Phone className="w-3 h-3" />;
+  const channelLabel = (c: "email" | "sms" | "call") => (c === "call" ? "AI Call" : c.toUpperCase());
 
   return (
     <tr className="border-b last:border-0 hover:bg-muted/30 transition-colors">
@@ -112,38 +118,6 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
             <span className="text-xs text-muted-foreground line-clamp-1">
               {[target.entity_title, target.entity_company].filter(Boolean).join(" · ")}
             </span>
-            <span className="flex items-center gap-0.5 shrink-0">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-0.5 text-[10px]">
-                    <Mail className="w-3 h-3 text-muted-foreground/50" />
-                    {target.entity_email ? (
-                      <Check className="w-2.5 h-2.5 text-emerald-500" />
-                    ) : (
-                      <X className="w-2.5 h-2.5 text-muted-foreground/30" />
-                    )}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs">
-                  {target.entity_email ? `Email: ${target.entity_email}` : "No email on file"}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="inline-flex items-center gap-0.5 text-[10px]">
-                    <Phone className="w-3 h-3 text-muted-foreground/50" />
-                    {target.entity_phone ? (
-                      <Check className="w-2.5 h-2.5 text-emerald-500" />
-                    ) : (
-                      <X className="w-2.5 h-2.5 text-muted-foreground/30" />
-                    )}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs">
-                  {target.entity_phone ? `Phone: ${target.entity_phone}` : "No phone on file"}
-                </TooltipContent>
-              </Tooltip>
-            </span>
             <span
               className={`text-[9px] px-1 py-0 rounded border font-medium capitalize leading-4 ${
                 target.entity_type === "contact"
@@ -157,6 +131,28 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
         </div>
       </td>
 
+      {/* Contact details — email + phone */}
+      <td className="px-4 py-3 hidden md:table-cell">
+        <div className="flex flex-col gap-0.5 min-w-0">
+          <span className="inline-flex items-center gap-1.5 text-xs">
+            <Mail className="w-3 h-3 text-muted-foreground shrink-0" />
+            {target.entity_email ? (
+              <span className="truncate max-w-[180px] text-foreground/90">{target.entity_email}</span>
+            ) : (
+              <span className="text-muted-foreground/60 italic">no email</span>
+            )}
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-xs">
+            <Phone className="w-3 h-3 text-muted-foreground shrink-0" />
+            {target.entity_phone ? (
+              <span className="text-foreground/90">{target.entity_phone}</span>
+            ) : (
+              <span className="text-muted-foreground/60 italic">no phone</span>
+            )}
+          </span>
+        </div>
+      </td>
+
       {/* Campaign */}
       <td className="px-4 py-3 hidden md:table-cell">
         <span className="text-xs text-muted-foreground truncate max-w-[140px] block">
@@ -164,11 +160,42 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange }: 
         </span>
       </td>
 
-      {/* State */}
+      {/* State + assigned script/channel */}
       <td className="px-4 py-3">
-        <Badge className={`text-xs font-medium capitalize ${badgeClass}`}>
-          {badgeLabel}
-        </Badge>
+        <div className="flex flex-col gap-1 items-start">
+          <Badge className={`text-xs font-medium capitalize ${badgeClass}`}>
+            {badgeLabel}
+          </Badge>
+          {assignedChannels.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {assignedChannels.map((a) => (
+                <Tooltip key={a.channel}>
+                  <TooltipTrigger asChild>
+                    <span
+                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium leading-4 ${
+                        a.isPrimary
+                          ? "border-primary/40 bg-primary/10 text-primary"
+                          : "border-border bg-muted/40 text-muted-foreground"
+                      }`}
+                    >
+                      {channelIcon(a.channel)}
+                      <span>{channelLabel(a.channel)}</span>
+                      <span className="opacity-70">· {a.scriptName}{a.scriptVersion ? ` v${a.scriptVersion}` : ""}</span>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="text-xs">
+                    {a.isPrimary ? "Primary channel · " : ""}Script "{a.scriptName}" assigned for {channelLabel(a.channel)}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          )}
+          {assignedChannels.length === 0 && (
+            <span className="inline-flex items-center gap-1 text-[10px] text-amber-500/90">
+              <FileText className="w-3 h-3" /> no script assigned
+            </span>
+          )}
+        </div>
       </td>
 
       {/* Last contacted */}

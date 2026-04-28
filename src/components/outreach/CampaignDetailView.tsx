@@ -275,21 +275,18 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
     ].filter((c, i, arr) => arr.indexOf(c) === i);
 
     for (const t of queuedTargets) {
-      let firstSentForTarget = false;
       for (const c of orderedChannels) {
         const script = channelScript[c]!;
-        const hasContact =
-          c === "email" ? !!t.entity_email : !!t.entity_phone;
+        const hasContact = c === "email" ? !!t.entity_email : !!t.entity_phone;
         if (!hasContact) {
           skipped++;
           continue;
         }
         try {
-          // Only the FIRST channel transitions state to contacted; subsequent
-          // channels just log additional events without re-mutating state.
+          // State precedence in the hook prevents downgrade; safe to set "contacted" each time.
           await updateTargetState({
             targetId: t.id,
-            state: firstSentForTarget ? undefined : "contacted",
+            state: "contacted",
             eventType: eventTypeFor(c) as any,
             metadata: {
               channel: c,
@@ -300,9 +297,8 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
               launched_via: "launch_all",
               is_primary: c === primaryChannel,
             },
-          } as any);
+          });
           sent++;
-          firstSentForTarget = true;
         } catch (e) {
           failed++;
         }

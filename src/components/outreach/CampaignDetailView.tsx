@@ -821,7 +821,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                       key={script.id}
                       className="rounded-lg border border-border/50 bg-card px-4 py-3 hover:border-border transition-colors flex items-center justify-between gap-3"
                     >
-                      <div className="min-w-0 flex items-center gap-3">
+                      <div className="min-w-0 flex-1">
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-sm truncate">{script.name}</span>
@@ -831,19 +831,49 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                               {script.channel}
                             </Badge>
                             <span className="text-[10px] text-muted-foreground">v{script.version}</span>
+                            {script.is_default && (
+                              <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                                Default
+                              </Badge>
+                            )}
                           </div>
-                          {script.subject && (
-                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                              Subject: {script.subject}
-                            </p>
-                          )}
+                          {(() => {
+                            const parts: string[] = [];
+                            if (script.channel === "email" && script.subject) {
+                              parts.push(`Subject: ${script.subject}`);
+                            }
+                            if (script.channel === "call") {
+                              const blocks = script.call_blocks ?? [];
+                              if (blocks.length > 0) {
+                                const titles = blocks
+                                  .slice(0, 4)
+                                  .map((b) => b.title || b.type)
+                                  .join(" → ");
+                                parts.push(
+                                  `${blocks.length} block${blocks.length === 1 ? "" : "s"}: ${titles}${blocks.length > 4 ? "…" : ""}`
+                                );
+                              }
+                            }
+                            if ((script.channel === "sms" || script.channel === "email") && script.body) {
+                              const preview = script.body.replace(/\s+/g, " ").trim().slice(0, 90);
+                              if (preview) parts.push(preview + (script.body.length > 90 ? "…" : ""));
+                            }
+                            const guardCount = script.guardrails?.length ?? 0;
+                            if (guardCount > 0) parts.push(`${guardCount} guardrail${guardCount === 1 ? "" : "s"}`);
+                            return parts.length > 0 ? (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                                {parts.join(" · ")}
+                              </p>
+                            ) : null;
+                          })()}
                         </div>
                       </div>
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="h-7 w-7 p-0 shrink-0"
+                        className="h-8 w-8 p-0 shrink-0 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary shadow-[0_0_12px_hsl(var(--primary)/0.25)]"
                         onClick={() => openScriptBuilder(script)}
+                        title="Edit script"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </Button>

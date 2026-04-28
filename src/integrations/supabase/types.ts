@@ -5502,6 +5502,7 @@ export type Database = {
           candidate_id: string | null
           consent_status: string | null
           contact_id: string | null
+          contact_source: string | null
           created_at: string
           do_not_call: boolean
           do_not_contact: boolean
@@ -5520,6 +5521,7 @@ export type Database = {
           next_action_due: string | null
           notes: string | null
           opt_out_reason: string | null
+          person_identity_id: string | null
           priority: number
           snooze_until: string | null
           state: Database["public"]["Enums"]["outreach_target_state"]
@@ -5539,6 +5541,7 @@ export type Database = {
           candidate_id?: string | null
           consent_status?: string | null
           contact_id?: string | null
+          contact_source?: string | null
           created_at?: string
           do_not_call?: boolean
           do_not_contact?: boolean
@@ -5557,6 +5560,7 @@ export type Database = {
           next_action_due?: string | null
           notes?: string | null
           opt_out_reason?: string | null
+          person_identity_id?: string | null
           priority?: number
           snooze_until?: string | null
           state?: Database["public"]["Enums"]["outreach_target_state"]
@@ -5576,6 +5580,7 @@ export type Database = {
           candidate_id?: string | null
           consent_status?: string | null
           contact_id?: string | null
+          contact_source?: string | null
           created_at?: string
           do_not_call?: boolean
           do_not_contact?: boolean
@@ -5594,6 +5599,7 @@ export type Database = {
           next_action_due?: string | null
           notes?: string | null
           opt_out_reason?: string | null
+          person_identity_id?: string | null
           priority?: number
           snooze_until?: string | null
           state?: Database["public"]["Enums"]["outreach_target_state"]
@@ -5627,6 +5633,13 @@ export type Database = {
             columns: ["engagement_id"]
             isOneToOne: false
             referencedRelation: "engagements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outreach_targets_person_identity_id_fkey"
+            columns: ["person_identity_id"]
+            isOneToOne: false
+            referencedRelation: "person_identities"
             referencedColumns: ["id"]
           },
           {
@@ -6999,6 +7012,7 @@ export type Database = {
       }
       join_demo_team: { Args: { _user_id: string }; Returns: string }
       leave_demo_team: { Args: { _user_id: string }; Returns: boolean }
+      link_orphan_outreach_targets: { Args: never; Returns: number }
       log_email_sent_and_touch_target: {
         Args: {
           p_body?: string

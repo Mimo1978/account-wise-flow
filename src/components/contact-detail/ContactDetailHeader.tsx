@@ -144,6 +144,7 @@ export function ContactDetailHeader({ contact }: Props) {
         contactFirstName={contact.first_name || contact.name?.split(" ")[0] || ""}
         companyId={contact.company_id}
         entityType="contact"
+        gdprConsent={contact.gdpr_consent ?? contact.marketing_consent ?? false}
       />
     </>
   );

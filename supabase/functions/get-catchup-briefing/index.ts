@@ -38,14 +38,16 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
     const token = authHeader.replace("Bearer ", "");
-    const { data: { user } } = await supabase.auth.getUser(token);
-    if (!user) {
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const isServiceCall = token === serviceKey;
+    const { data: { user } } = isServiceCall ? { data: { user: null } } : await supabase.auth.getUser(token);
+    const { workspace_id, since, user_id: bodyUserId } = await req.json().catch(() => ({}));
+    const effectiveUserId = isServiceCall ? bodyUserId : user?.id;
+    if (!effectiveUserId && !isServiceCall) {
       return new Response(JSON.stringify({ error: "unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const { workspace_id, since } = await req.json().catch(() => ({}));
     if (!workspace_id) {
       return new Response(JSON.stringify({ error: "workspace_id required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },

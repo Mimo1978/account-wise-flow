@@ -116,8 +116,13 @@ export function EnhancedTextField({
       if (error) throw error;
       if (!data?.success) throw new Error(data?.message || data?.error || "AI failed");
       if (typeof data.body === "string" && data.body.trim()) {
-        onChange(data.body);
-        toast.success("Polished");
+        const cleaned = data.body;
+        if (cleaned.trim() === value.trim()) {
+          toast.message("Looks clean — no changes needed");
+        } else {
+          onChange(cleaned);
+          toast.success("Polished — typos and grammar fixed");
+        }
       } else {
         toast.message("No changes suggested");
       }

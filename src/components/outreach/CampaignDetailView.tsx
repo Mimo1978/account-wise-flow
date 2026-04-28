@@ -57,6 +57,7 @@ import { OutreachTargetRow } from "./OutreachTargetRow";
 import { AddTargetsModal } from "./AddTargetsModal";
 import { ScriptBuilderModal } from "./ScriptBuilderModal";
 import { TargetDetailSheet } from "./TargetDetailSheet";
+import { ScrollableTableContainer } from "@/components/canvas/ScrollableTableContainer";
 import { AutomationSettingsPanel } from "./AutomationSettingsPanel";
 import { InboundResponsesPanel } from "./InboundResponsesPanel";
 import { CampaignSetupGuide } from "./CampaignSetupGuide";

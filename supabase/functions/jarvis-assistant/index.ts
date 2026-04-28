@@ -3462,6 +3462,22 @@ Return ONLY valid JSON, no markdown fences.`,
         entityId: jobId,
       };
     }
+    case "get_catchup_briefing": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "briefing" };
+      const hours = Number(input.since_hours) > 0 ? Number(input.since_hours) : 24;
+      const sinceIso = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/get-catchup-briefing`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: teamId, since: sinceIso }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to load briefing" }, entityType: "briefing" };
+      return { result: data, entityType: "briefing" };
+    }
     // ─── Diary tools ───
     case "find_diary_slots": {
       const teamId = await getUserTeamId(supabaseAdmin, userId);

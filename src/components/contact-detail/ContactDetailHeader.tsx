@@ -38,7 +38,11 @@ export function ContactDetailHeader({ contact }: Props) {
 
         <div className="flex items-center gap-2">
           {contact.phone && (
-            <Button variant="outline" size="sm" onClick={() => setCallOpen(true)} className="gap-1.5">
+            <Button
+              size="sm"
+              onClick={() => setCallOpen(true)}
+              className="gap-1.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-500/25 hover:text-emerald-200 hover:border-emerald-400/70 shadow-[0_0_12px_-2px_hsl(152_76%_45%/0.45)]"
+            >
               <Phone className="h-4 w-4" />
               AI Call
             </Button>

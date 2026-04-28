@@ -581,6 +581,25 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
           onLaunch={handleLaunchAll}
         />
 
+        {launchProgress && (
+          <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4" data-jarvis-id="campaign-launch-progress">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                {isLaunching ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : launchProgress.failed > 0 ? <AlertTriangle className="w-4 h-4 text-destructive" /> : <CheckCircle2 className="w-4 h-4 text-primary" />}
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">AI launch progress</p>
+                  <p className="text-xs text-muted-foreground truncate">{launchProgress.currentLabel}</p>
+                </div>
+              </div>
+              <div className="text-right text-xs shrink-0">
+                <p className="font-semibold">{launchProgress.completed}/{launchProgress.total}</p>
+                <p className="text-muted-foreground">started {launchProgress.sent} · failed {launchProgress.failed} · skipped {launchProgress.skipped}</p>
+              </div>
+            </div>
+            <Progress value={launchProgress.total ? Math.round((launchProgress.completed / launchProgress.total) * 100) : 0} className="h-2" />
+          </div>
+        )}
+
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList className="mb-4">
             <TabsTrigger value="targets" className="gap-2" data-jarvis-id="outreach-tab-queue">
@@ -709,6 +728,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                           assignedChannels={assigned}
                           activeChannels={activeChannels}
                           primaryChannel={primaryChannel}
+                          launchStatus={launchProgress?.rows[target.id]}
                         />
                       );
                     })}

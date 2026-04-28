@@ -272,16 +272,21 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
       return;
     }
 
-    const channelsLabel = activeChannels.map((c) => c.toUpperCase()).join(" + ");
-    const ok = window.confirm(
-      `Launch outreach to ${queuedTargets.length} queued target${queuedTargets.length !== 1 ? "s" : ""} via ${channelsLabel}?\n\nEach target will be contacted on every active channel they have details for. Primary channel: ${primaryChannel.toUpperCase()}.`
-    );
-    if (!ok) return;
-
     setIsLaunching(true);
-    let sent = 0;
-    let failed = 0;
-    let skipped = 0;
+    const totalAttempts = queuedTargets.length * activeChannels.length;
+    setLaunchProgress({ total: totalAttempts, completed: 0, sent: 0, failed: 0, skipped: 0, currentLabel: "Starting launch", message: "Preparing AI call sequence…", rows: {} });
+    const bumpProgress = (targetId: string, patch: LaunchRowStatus, counters: Partial<Pick<LaunchProgressState, "sent" | "failed" | "skipped">> = {}) => {
+      setLaunchProgress((prev) => prev ? {
+        ...prev,
+        completed: Math.min(prev.total, prev.completed + (patch.status === "dialing" || patch.status === "in_progress" ? 0 : 1)),
+        sent: prev.sent + (counters.sent ?? 0),
+        failed: prev.failed + (counters.failed ?? 0),
+        skipped: prev.skipped + (counters.skipped ?? 0),
+        currentLabel: patch.message,
+        message: patch.status === "failed" ? "A call failed — check the row alert." : patch.message,
+        rows: { ...prev.rows, [targetId]: patch },
+      } : prev);
+    };
 
     // Activate the campaign if it's still in draft
     if (campaign.status === "draft") {
@@ -306,36 +311,52 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
         const script = channelScript[c]!;
         const hasContact = c === "email" ? !!t.entity_email : !!t.entity_phone;
         if (!hasContact) {
-          skipped++;
+          bumpProgress(t.id, { status: "skipped", message: `Skipped ${t.entity_name}: missing ${c === "email" ? "email" : "phone"}`, channel: c }, { skipped: 1 });
           continue;
         }
         try {
-          // State precedence in the hook prevents downgrade; safe to set "contacted" each time.
-          await updateTargetState({
-            targetId: t.id,
-            state: "contacted",
-            eventType: eventTypeFor(c) as any,
-            metadata: {
-              channel: c,
-              script_id: script.id,
-              script_name: script.name,
-              subject: resolveVars(script.subject ?? "", t),
-              body: resolveVars(script.body ?? "", t),
-              launched_via: "launch_all",
-              is_primary: c === primaryChannel,
-            },
-          });
-          sent++;
+          if (c === "call") {
+            bumpProgress(t.id, { status: "dialing", message: `Dialing ${t.entity_name}…`, channel: c });
+            const { data: dialData, error: dialErr } = await supabase.functions.invoke("initiate-ai-call", {
+              body: {
+                target_id: t.id,
+                campaign_id: campaign.id,
+                workspace_id: t.workspace_id,
+                entity_id: t.candidate_id || t.contact_id || t.id,
+                entity_type: t.candidate_id ? "candidate" : t.contact_source === "crm_contacts" ? "crm_contact" : "contact",
+                to_number: t.entity_phone,
+                purpose: `${campaign.name} AI outreach call`,
+                custom_instructions: resolveVars(script.body ?? "", t),
+                current_call_attempts: (t as unknown as { call_attempts?: number }).call_attempts ?? 0,
+              },
+            });
+            if (dialErr || dialData?.error || !dialData?.success) {
+              throw new Error(dialData?.message || dialErr?.message || "AI call provider did not start the call");
+            }
+            bumpProgress(t.id, { status: "in_progress", message: `Call started for ${t.entity_name} — waiting for provider result`, channel: c }, { sent: 1 });
+          } else {
+            await updateTargetState({
+              targetId: t.id,
+              state: "contacted",
+              eventType: eventTypeFor(c) as any,
+              metadata: { channel: c, script_id: script.id, script_name: script.name, subject: resolveVars(script.subject ?? "", t), body: resolveVars(script.body ?? "", t), launched_via: "launch_all", is_primary: c === primaryChannel },
+            });
+            bumpProgress(t.id, { status: "sent", message: `${c.toUpperCase()} logged for ${t.entity_name}`, channel: c }, { sent: 1 });
+          }
         } catch (e) {
-          failed++;
+          const message = e instanceof Error ? e.message : "Unknown launch failure";
+          bumpProgress(t.id, { status: "failed", message: `${t.entity_name}: ${message}`, channel: c }, { failed: 1 });
         }
       }
     }
 
     setIsLaunching(false);
-    if (sent > 0) toast.success(`Launched ${sent} outreach event${sent !== 1 ? "s" : ""} across ${orderedChannels.length} channel${orderedChannels.length !== 1 ? "s" : ""}.`);
-    if (skipped > 0) toast.warning(`${skipped} send${skipped !== 1 ? "s" : ""} skipped — target missing email or phone.`);
-    if (failed > 0) toast.error(`${failed} send${failed !== 1 ? "s" : ""} failed.`);
+    qc.invalidateQueries({ queryKey: ["outreach_targets"], exact: false });
+    qc.invalidateQueries({ queryKey: ["outreach_events"], exact: false });
+    qc.invalidateQueries({ queryKey: ["outreach_campaigns"], exact: false });
+    qc.invalidateQueries({ queryKey: ["outreach-metrics"], exact: false });
+    qc.invalidateQueries({ queryKey: ["notifications"], exact: false });
+    toast.info("Launch sequence finished — rows now show started, skipped, or failed calls.");
   };
 
   // Scripts grouped by channel for the Scripts tab

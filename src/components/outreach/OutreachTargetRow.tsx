@@ -117,6 +117,20 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
   const verbFor = (c: "email" | "sms" | "call") =>
     c === "email" ? "Email queued" : c === "sms" ? "SMS queued" : "Call initiated";
 
+  // Resolve which profile this target can actually open. entity_type can be
+  // stale (e.g. flagged Talent but only a CRM contact record exists), so
+  // trust whichever id is populated.
+  const resolvedType: "contact" | "candidate" | null =
+    target.entity_type === "contact" && target.contact_id
+      ? "contact"
+      : target.entity_type === "candidate" && target.candidate_id
+      ? "candidate"
+      : target.contact_id
+      ? "contact"
+      : target.candidate_id
+      ? "candidate"
+      : null;
+
   // Missing-contact detection for the campaign's active channels
   const missingForChannels: Array<"email" | "sms" | "call"> = activeChannels.filter((c) => {
     if (c === "email") return !target.entity_email;
@@ -158,17 +172,25 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
             </span>
             <span
               className={`text-[9px] px-1 py-0 rounded border font-medium capitalize leading-4 ${
-                target.entity_type === "contact"
+                resolvedType === "contact"
                   ? "border-blue-200 text-blue-600 dark:border-blue-800 dark:text-blue-400"
-                  : "border-emerald-200 text-emerald-600 dark:border-emerald-800 dark:text-emerald-400"
+                  : resolvedType === "candidate"
+                  ? "border-emerald-200 text-emerald-600 dark:border-emerald-800 dark:text-emerald-400"
+                  : "border-amber-300 text-amber-500 dark:border-amber-700 dark:text-amber-400"
               }`}
               title={
-                target.entity_type === "contact"
+                resolvedType === "contact"
                   ? "CRM Contact — opens in /crm/contacts"
-                  : "Talent record — opens in /talent"
+                  : resolvedType === "candidate"
+                  ? "Talent record — opens in /talent"
+                  : "No linked profile"
               }
             >
-              {target.entity_type === "contact" ? "CRM Contact" : "Talent"}
+              {resolvedType === "contact"
+                ? "CRM Contact"
+                : resolvedType === "candidate"
+                ? "Talent"
+                : "Unlinked"}
             </span>
           </div>
         </div>

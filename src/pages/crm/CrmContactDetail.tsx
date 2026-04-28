@@ -142,8 +142,19 @@ export default function CrmContactDetail() {
         >
           <MessageSquare className="h-4 w-4" /> SMS
         </Button>
-        <Button variant="outline" size="sm" onClick={() => setLogOpen(true)}><CalendarPlus className="h-4 w-4 mr-1" /> Log Activity</Button>
-        <Button variant="outline" size="sm"><Target className="h-4 w-4 mr-1" /> Add to Opportunity</Button>
+        <Button
+          size="sm"
+          onClick={() => setLogOpen(true)}
+          className="gap-1.5 bg-amber-500/15 text-amber-300 border border-amber-500/50 hover:bg-amber-500/25 hover:text-amber-200 hover:border-amber-400/70 shadow-[0_0_12px_-2px_hsl(38_92%_55%/0.45)]"
+        >
+          <CalendarPlus className="h-4 w-4" /> Log Activity
+        </Button>
+        <Button
+          size="sm"
+          className="gap-1.5 bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/50 hover:bg-fuchsia-500/25 hover:text-fuchsia-200 hover:border-fuchsia-400/70 shadow-[0_0_12px_-2px_hsl(292_84%_61%/0.45)]"
+        >
+          <Target className="h-4 w-4" /> Add to Opportunity
+        </Button>
       </div>
 
       {/* Tabs */}

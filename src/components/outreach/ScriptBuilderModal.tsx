@@ -50,6 +50,7 @@ import { EnhancedTextField } from "./EnhancedTextField";
 import { ScriptTemplateLibrary, type ReadyTemplate } from "./ScriptTemplateLibrary";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { ProofreadReviewModal, type ProofreadField } from "./ProofreadReviewModal";
+import { AssignToCampaignPrompt } from "./AssignToCampaignPrompt";
 
 // Quick-insert ready-made snippets per channel for fast script authoring.
 const QUICK_TEMPLATES_EMAIL = [
@@ -149,6 +150,9 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
   const [proofResults, setProofResults] = useState<ProofreadField[] | null>(null);
   const [proofOpen, setProofOpen] = useState(false);
   const [pendingSave, setPendingSave] = useState(false);
+  // Post-save: prompt to assign to a campaign (only when not already campaign-scoped).
+  const [assignPromptOpen, setAssignPromptOpen] = useState(false);
+  const [savedScript, setSavedScript] = useState<{ id: string; name: string; channel: ScriptChannel } | null>(null);
   const { data: jobs = [] } = useJobs();
   const activeJobs = jobs.filter((j) => j.status === "active" || j.status === "draft");
 
@@ -354,12 +358,23 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
       is_default: false,
       campaign_id: campaignId,
     };
+    let resultId: string | undefined;
     if (isEdit && script) {
-      await updateScript({ id: script.id, ...payload });
+      const r = await updateScript({ id: script.id, ...payload });
+      resultId = r?.id ?? script.id;
     } else {
-      await createScript(payload as Omit<OutreachScript, "id" | "created_at" | "updated_at" | "workspace_id" | "version">);
+      const r = await createScript(payload as Omit<OutreachScript, "id" | "created_at" | "updated_at" | "workspace_id" | "version">);
+      resultId = r?.id;
     }
-    onOpenChange(false);
+    // If the script wasn't created in the context of a specific campaign,
+    // ask the user whether they want to assign it to one now. Otherwise
+    // close immediately (the campaign view will pick up the new script).
+    if (!campaignId && !isEdit && resultId) {
+      setSavedScript({ id: resultId, name, channel });
+      setAssignPromptOpen(true);
+    } else {
+      onOpenChange(false);
+    }
   };
 
   /**

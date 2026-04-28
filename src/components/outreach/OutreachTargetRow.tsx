@@ -39,7 +39,6 @@ import { MeetingSchedulerModal } from "@/components/outreach/MeetingSchedulerMod
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Check, X } from "lucide-react";
 
 interface Props {
   target: OutreachTarget;

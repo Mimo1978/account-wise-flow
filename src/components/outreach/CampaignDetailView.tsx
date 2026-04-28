@@ -625,7 +625,8 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                   </Button>
                 </div>
               ) : (
-                <Table>
+                <ScrollableTableContainer maxHeight="calc(100vh - 320px)">
+                <Table className="min-w-[1100px]">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="text-xs font-medium">Name</TableHead>
@@ -668,6 +669,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                     })}
                   </TableBody>
                 </Table>
+                </ScrollableTableContainer>
               )}
             </div>
             {targets.length > 0 && (

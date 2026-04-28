@@ -29,6 +29,7 @@ import type { Talent, Contact } from "@/lib/types";
 interface NormalisedEntity {
   id: string;
   kind: "candidate" | "contact";
+  contactSource?: "contacts" | "crm_contacts";
   name: string;
   email?: string;
   phone?: string;
@@ -48,10 +49,11 @@ function fromTalent(t: Talent): NormalisedEntity {
   };
 }
 
-function fromContact(c: Contact & { _companyName?: string }): NormalisedEntity {
+function fromContact(c: Contact & { _companyName?: string; _source?: "contacts" | "crm_contacts" }): NormalisedEntity {
   return {
     id: c.id,
     kind: "contact",
+    contactSource: c._source || "contacts",
     name: c.name,
     email: c.email || undefined,
     phone: c.phone || undefined,
@@ -74,7 +76,7 @@ const CHANNEL_OPTIONS: { value: OutreachChannel; label: string }[] = [
 
 type Props =
   | { open: boolean; onOpenChange: (v: boolean) => void; candidates: Talent[]; contacts?: never; defaultCampaignId?: string }
-  | { open: boolean; onOpenChange: (v: boolean) => void; contacts: (Contact & { _companyName?: string })[]; candidates?: never; defaultCampaignId?: string };
+  | { open: boolean; onOpenChange: (v: boolean) => void; contacts: (Contact & { _companyName?: string; _source?: "contacts" | "crm_contacts" })[]; candidates?: never; defaultCampaignId?: string };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -157,6 +159,7 @@ export function AddToOutreachModal({ open, onOpenChange, candidates, contacts, d
         entity_phone: e.phone,
         entity_title: e.title,
         entity_company: e.company,
+        metadata: e.kind === "contact" ? { contact_source: e.contactSource || "contacts" } : undefined,
       }))
     );
 

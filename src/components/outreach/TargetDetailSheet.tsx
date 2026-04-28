@@ -24,6 +24,7 @@ import {
   useUpdateTargetState,
   useOutreachEvents,
 } from "@/hooks/use-outreach";
+import { usePersonRoute, buildPersonProfileUrl } from "@/hooks/use-person-identity";
 import { AICallAgentModal } from "@/components/outreach/AICallAgentModal";
 import { format, parseISO } from "date-fns";
 import { EVENT_TYPE_LABEL, TARGET_STATE_LABEL, TARGET_STATE_BADGE_CLASS } from "@/lib/outreach-enums";
@@ -45,6 +46,7 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
   const queryClient = useQueryClient();
   const { mutateAsync: updateState, isPending } = useUpdateTargetState();
   const { data: events = [] } = useOutreachEvents(target?.id);
+  const { data: personRoute } = usePersonRoute(target?.person_identity_id ?? null);
   const [aiCallOpen, setAiCallOpen] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
   const [emailDraft, setEmailDraft] = useState("");
@@ -53,21 +55,30 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
 
   if (!target) return null;
 
-  // Resolve where this target can actually be opened. The stored entity_type
-  // can be stale (e.g. classed as Talent but only a CRM contact exists). Trust
-  // whichever id is actually populated, preferring the declared entity_type.
-  const resolvedOpenAs: "contact" | "candidate" | null =
-    target.entity_type === "contact" && target.contact_id
-      ? "contact"
-      : target.entity_type === "candidate" && target.candidate_id
+  // Canonical resolution via person_identity (Talent → Contact → CRM priority).
+  // Falls back to per-target source tagging if identity hasn't loaded, then to
+  // the legacy heuristic so we never break for very old rows.
+  const personProfile = buildPersonProfileUrl(personRoute ?? null);
+  const fallbackSource: "candidates" | "contacts" | "crm_contacts" | undefined =
+    target.contact_source ??
+    (target.candidate_id ? "candidates" : target.contact_id ? "contacts" : undefined);
+
+  const resolvedOpenAs: "contact" | "candidate" | null = personProfile.url
+    ? personProfile.source === "talent"
       ? "candidate"
-      : target.contact_id
-      ? "contact"
-      : target.candidate_id
-      ? "candidate"
-      : null;
-  const contactSource = target.contact_source ?? "contacts";
-  const contactProfileLabel = contactSource === "crm_contacts" ? "Open CRM Contact" : "Open Contact Profile";
+      : "contact"
+    : fallbackSource === "candidates" && target.candidate_id
+    ? "candidate"
+    : (fallbackSource === "contacts" || fallbackSource === "crm_contacts") && target.contact_id
+    ? "contact"
+    : null;
+
+  const contactSource: "contacts" | "crm_contacts" =
+    personProfile.source === "crm_contact" || fallbackSource === "crm_contacts"
+      ? "crm_contacts"
+      : "contacts";
+  const contactProfileLabel =
+    contactSource === "crm_contacts" ? "Open CRM Contact" : "Open Contact Profile";
 
   const needsEmail = activeChannels.includes("email") && !target.entity_email;
   const needsPhone = (activeChannels.includes("sms") || activeChannels.includes("call")) && !target.entity_phone;
@@ -86,15 +97,26 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
 
   const handleViewFullProfile = () => {
     const qs = campaignId ? `?returnTo=outreach&campaignId=${campaignId}` : "?returnTo=outreach";
+    const backState = {
+      from: `/outreach${campaignId ? `?campaignId=${campaignId}` : ""}`,
+      fromLabel: "Back to Campaign",
+    };
+
+    // Prefer the canonical person_identity route — guarantees the profile exists.
+    if (personProfile.url) {
+      navigate(`${personProfile.url}${qs}`, { state: backState });
+      onOpenChange(false);
+      return;
+    }
+    // Fallback for legacy rows without identity link
     if (resolvedOpenAs === "contact" && target.contact_id) {
-      const profilePath = contactSource === "crm_contacts" ? `/crm/contacts/${target.contact_id}` : `/contacts/${target.contact_id}`;
-      navigate(`${profilePath}${qs}`, {
-        state: { from: `/outreach${campaignId ? `?campaignId=${campaignId}` : ""}`, fromLabel: "Back to Campaign" },
-      });
+      const profilePath =
+        contactSource === "crm_contacts"
+          ? `/crm/contacts/${target.contact_id}`
+          : `/contacts/${target.contact_id}`;
+      navigate(`${profilePath}${qs}`, { state: backState });
     } else if (resolvedOpenAs === "candidate" && target.candidate_id) {
-      navigate(`/talent/${target.candidate_id}${qs}`, {
-        state: { from: `/outreach${campaignId ? `?campaignId=${campaignId}` : ""}`, fromLabel: "Back to Campaign" },
-      });
+      navigate(`/talent/${target.candidate_id}${qs}`, { state: backState });
     } else {
       toast.info("No linked profile for this target.");
       return;

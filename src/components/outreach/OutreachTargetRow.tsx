@@ -31,6 +31,7 @@ import {
   OutreachEventType,
   useUpdateTargetState,
 } from "@/hooks/use-outreach";
+import { usePersonRoute } from "@/hooks/use-person-identity";
 import { isOutreachBlocked, isCallBlocked, TARGET_STATE_LABEL, TARGET_STATE_BADGE_CLASS } from "@/lib/outreach-enums";
 import { EmailComposeModal } from "@/components/outreach/EmailComposeModal";
 import { SMSComposeModal } from "@/components/outreach/SMSComposeModal";
@@ -59,6 +60,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
   const [searchParams] = useSearchParams();
   const currentCampaignId = searchParams.get("campaignId") || "";
   const { mutateAsync, isPending } = useUpdateTargetState();
+  const { data: personRoute } = usePersonRoute(target.person_identity_id ?? null);
   const [emailOpen, setEmailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [callLogOpen, setCallLogOpen] = useState(false);
@@ -117,22 +119,30 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
   const verbFor = (c: "email" | "sms" | "call") =>
     c === "email" ? "Email queued" : c === "sms" ? "SMS queued" : "Call initiated";
 
-  // Resolve which profile this target can actually open. entity_type can be
-  // stale (e.g. flagged Talent but only a CRM contact record exists), so
-  // trust whichever id is populated.
-  const resolvedType: "contact" | "candidate" | null =
-    target.entity_type === "contact" && target.contact_id
-      ? "contact"
-      : target.entity_type === "candidate" && target.candidate_id
+  // Canonical resolution via person_identity (Talent → Contact → CRM priority).
+  // Uses the DB-tagged source as a fallback while the identity route loads.
+  const fallbackSource: "candidates" | "contacts" | "crm_contacts" | undefined =
+    target.contact_source ??
+    (target.candidate_id ? "candidates" : target.contact_id ? "contacts" : undefined);
+
+  const resolvedType: "contact" | "candidate" | null = personRoute
+    ? personRoute.preferred_route === "talent"
       ? "candidate"
-      : target.contact_id
-      ? "contact"
-      : target.candidate_id
-      ? "candidate"
-      : null;
-  const contactSource = target.contact_source ?? "contacts";
-  const contactLabel = contactSource === "crm_contacts" ? "CRM Contact" : "Contact";
-  const contactTitle = contactSource === "crm_contacts" ? "CRM Contact — opens in /crm/contacts" : "Contact — opens in /contacts";
+      : personRoute.preferred_route === "none"
+      ? null
+      : "contact"
+    : fallbackSource === "candidates" && target.candidate_id
+    ? "candidate"
+    : (fallbackSource === "contacts" || fallbackSource === "crm_contacts") && target.contact_id
+    ? "contact"
+    : null;
+
+  const isCrmContact =
+    personRoute?.preferred_route === "crm_contact" || fallbackSource === "crm_contacts";
+  const contactLabel = isCrmContact ? "CRM Contact" : "Contact";
+  const contactTitle = isCrmContact
+    ? "CRM Contact — opens in /crm/contacts"
+    : "Contact — opens in /contacts";
 
   // Missing-contact detection for the campaign's active channels
   const missingForChannels: Array<"email" | "sms" | "call"> = activeChannels.filter((c) => {

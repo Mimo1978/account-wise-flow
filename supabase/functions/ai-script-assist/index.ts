@@ -16,7 +16,7 @@ const corsHeaders = {
  *    investment bank") until the candidate confirms interest + availability.
  */
 
-type Mode = "polish" | "link_job";
+type Mode = "polish" | "link_job" | "proofread";
 
 interface Body {
   mode: Mode;
@@ -26,6 +26,8 @@ interface Body {
   call_blocks?: Array<{ id: string; type: string; title: string; content: string }>;
   job_id?: string;
   agency_name?: string;
+  /** For proofread mode: arbitrary list of named text fields to check. */
+  fields?: Array<{ id: string; label: string; text: string }>;
 }
 
 function tierDescriptor(industry: string | null, name: string): string {

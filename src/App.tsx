@@ -71,6 +71,7 @@ import CrmDeals from "./pages/crm/CrmDeals";
 import CrmDealDetail from "./pages/crm/CrmDealDetail";
 import CrmInvoices from "./pages/crm/CrmInvoices";
 import CrmInvoiceDetail from "./pages/crm/CrmInvoiceDetail";
+import CrmContactDetail from "./pages/crm/CrmContactDetail";
 import IntegrationsSettings from "./pages/settings/IntegrationsSettings";
 import EmailTemplatesSettings from "./pages/settings/EmailTemplatesSettings";
 import Dashboard from "./pages/Dashboard";

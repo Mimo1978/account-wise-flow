@@ -35,6 +35,9 @@ serve(async (req) => {
       to_number,
       purpose,
       custom_instructions,
+      target_id,
+      campaign_id,
+      workspace_id,
     } = body;
     // Accept both legacy `contact_id` and new `entity_id`/`entity_type`
     const entityType: "contact" | "crm_contact" | "candidate" =
@@ -102,7 +105,7 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle();
-    const workspaceId = roleRow?.team_id || null;
+    const workspaceId = workspace_id || roleRow?.team_id || null;
 
     // Get call script from outreach_scripts if one exists for 'call' channel
     const { data: scripts } = await supabase
@@ -200,6 +203,15 @@ End the call professionally and confirm any agreed next step.`;
       }
       const blandData = await blandRes.json();
       callId = blandData.call_id;
+      if (!callId) {
+        return new Response(JSON.stringify({
+          error: "provider_error",
+          message: blandData.message || "Bland.ai accepted the request but did not return a call ID, so no call was started.",
+          provider: "bland",
+          fallback: true,
+          details: JSON.stringify(blandData).slice(0, 500),
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
     } else if (twilioKeys.TWILIO_ACCOUNT_SID && twilioKeys.TWILIO_AUTH_TOKEN && twilioKeys.TWILIO_PHONE_NUMBER) {
       // === TWILIO FALLBACK — scripted one-way message ===
@@ -234,6 +246,15 @@ End the call professionally and confirm any agreed next step.`;
       }
       const twilioData = await twilioRes.json();
       callId = twilioData.sid;
+      if (!callId) {
+        return new Response(JSON.stringify({
+          error: "provider_error",
+          message: "Twilio accepted the request but did not return a call ID, so no call was started.",
+          provider: "twilio",
+          fallback: true,
+          details: JSON.stringify(twilioData).slice(0, 500),
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
     } else {
       return new Response(JSON.stringify({

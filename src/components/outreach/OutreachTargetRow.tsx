@@ -162,8 +162,13 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
                   ? "border-blue-200 text-blue-600 dark:border-blue-800 dark:text-blue-400"
                   : "border-emerald-200 text-emerald-600 dark:border-emerald-800 dark:text-emerald-400"
               }`}
+              title={
+                target.entity_type === "contact"
+                  ? "CRM Contact — opens in /crm/contacts"
+                  : "Talent record — opens in /talent"
+              }
             >
-              {target.entity_type ?? "candidate"}
+              {target.entity_type === "contact" ? "CRM Contact" : "Talent"}
             </span>
           </div>
         </div>

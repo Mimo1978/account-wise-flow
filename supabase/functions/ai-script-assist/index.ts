@@ -16,7 +16,7 @@ const corsHeaders = {
  *    investment bank") until the candidate confirms interest + availability.
  */
 
-type Mode = "polish" | "link_job";
+type Mode = "polish" | "link_job" | "proofread";
 
 interface Body {
   mode: Mode;
@@ -26,6 +26,8 @@ interface Body {
   call_blocks?: Array<{ id: string; type: string; title: string; content: string }>;
   job_id?: string;
   agency_name?: string;
+  /** For proofread mode: arbitrary list of named text fields to check. */
+  fields?: Array<{ id: string; label: string; text: string }>;
 }
 
 function tierDescriptor(industry: string | null, name: string): string {
@@ -85,6 +87,144 @@ serve(async (req) => {
       });
     }
 
+    // ============================================================
+    // PROOFREAD MODE — check spelling/grammar across N fields and
+    // return a list of corrections the user can accept/reject before
+    // the script is saved. This is the "security gate" so an AI agent
+    // never reads out a typo on a live call / email / SMS.
+    // ============================================================
+    if (payload.mode === "proofread") {
+      const fields = (payload.fields || []).filter((f) => f.text && f.text.trim().length > 0);
+      if (fields.length === 0) {
+        return new Response(
+          JSON.stringify({ success: true, issues: [], corrected: [] }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const proofSystem = `You are a meticulous British-English proofreader for outreach scripts that an AI voice agent will READ ALOUD or send as email/SMS.
+Find EVERY spelling mistake, grammar error, capitalisation error, missing punctuation, and awkward phrasing.
+Rules:
+- Preserve every {{variable}} placeholder exactly.
+- Preserve [SQUARE_BRACKET] manual fill fields exactly.
+- Preserve (pause) markers exactly.
+- Do not change meaning or tone — only fix mistakes and tighten grammar.
+- If a field is already perfect, return its corrected text identical to the original.
+- Always return a corrected version for every field, even if unchanged.
+Return ONLY valid JSON via the tool call.`;
+
+      const proofUser = `Proofread the following ${payload.channel} script fields. For each field, return the corrected text and a list of specific issues you fixed (spelling, grammar, punctuation, etc).
+
+FIELDS:
+${JSON.stringify(fields, null, 2)}`;
+
+      const proofTool = {
+        type: "object",
+        properties: {
+          corrected: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                label: { type: "string" },
+                original: { type: "string" },
+                corrected: { type: "string" },
+                issues: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      kind: {
+                        type: "string",
+                        enum: ["spelling", "grammar", "punctuation", "capitalisation", "phrasing"],
+                      },
+                      original: { type: "string" },
+                      suggestion: { type: "string" },
+                      explanation: { type: "string" },
+                    },
+                    required: ["kind", "original", "suggestion"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ["id", "label", "original", "corrected", "issues"],
+              additionalProperties: false,
+            },
+          },
+          summary: { type: "string" },
+        },
+        required: ["corrected", "summary"],
+        additionalProperties: false,
+      };
+
+      const proofRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: proofSystem },
+            { role: "user", content: proofUser },
+          ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "return_proofread",
+                description: "Return proofread results for every field.",
+                parameters: proofTool,
+              },
+            },
+          ],
+          tool_choice: { type: "function", function: { name: "return_proofread" } },
+        }),
+      });
+
+      if (!proofRes.ok) {
+        const text = await proofRes.text();
+        if (proofRes.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "rate_limited", message: "AI is busy. Please retry in a moment." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        if (proofRes.status === 402) {
+          return new Response(
+            JSON.stringify({ error: "credits_required", message: "AI credits exhausted." }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        console.error("AI proofread error", proofRes.status, text);
+        return new Response(JSON.stringify({ error: "ai_error", detail: text.slice(0, 500) }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const proofData = await proofRes.json();
+      const tc = proofData?.choices?.[0]?.message?.tool_calls?.[0];
+      const args = tc?.function?.arguments;
+      if (!args) {
+        return new Response(JSON.stringify({ error: "ai_no_output" }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const parsed = JSON.parse(args);
+      const totalIssues = (parsed.corrected || []).reduce(
+        (acc: number, f: { issues?: unknown[] }) => acc + (f.issues?.length || 0),
+        0
+      );
+      return new Response(
+        JSON.stringify({ success: true, ...parsed, issue_count: totalIssues }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Build job context if linking
     let jobContext = "";
     let anonCompany = "a leading client";
@@ -137,10 +277,13 @@ The real company is only revealed AFTER the candidate has expressed interest AND
 
     const systemPrompt = `You are an elite recruitment copywriter and editor for Client Mapper.
 Your job is to rewrite recruitment outreach scripts so they are:
+- AGGRESSIVELY fix EVERY spelling mistake, typo, grammar error, capitalisation error and punctuation error. Never return text unchanged if it contains any of these.
 - grammatically correct, professionally polished British English
 - warm, human, and concise (no jargon, no clichés like "exciting opportunity")
 - compliant: no false claims of being "registered with us" or "consented", no salary guarantees
 - preserve EVERY {{variable}} placeholder exactly (do not invent new variables, do not remove existing ones unless instructed)
+- preserve [SQUARE_BRACKET] manual fill fields and (pause) markers exactly
+- if the original is already perfect, you may return it unchanged — but you MUST first scan thoroughly for typos
 
 CHANNEL: ${channelDescription}
 

@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { EnhancedTextField } from "./EnhancedTextField";
 import { ScriptTemplateLibrary, type ReadyTemplate } from "./ScriptTemplateLibrary";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { ProofreadReviewModal, type ProofreadField } from "./ProofreadReviewModal";
 
 // Quick-insert ready-made snippets per channel for fast script authoring.
 const QUICK_TEMPLATES_EMAIL = [
@@ -141,6 +142,11 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
   // ── AI assist state ────────────────────────────────────────────────────────
   const [aiBusy, setAiBusy] = useState<null | "polish" | "link_job">(null);
   const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
+  // Pre-save spell/grammar gate state.
+  const [proofreading, setProofreading] = useState(false);
+  const [proofResults, setProofResults] = useState<ProofreadField[] | null>(null);
+  const [proofOpen, setProofOpen] = useState(false);
+  const [pendingSave, setPendingSave] = useState(false);
   const { data: jobs = [] } = useJobs();
   const activeJobs = jobs.filter((j) => j.status === "active" || j.status === "draft");
 
@@ -323,14 +329,25 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
     });
   };
 
-  const handleSave = async () => {
-    if (errors.length > 0) return; // blocked by guardrails
+  /**
+   * Persist whatever is currently in state. Used as the final step after
+   * the proofread gate (or when the user opts to save without fixes).
+   */
+  const persistScript = async (overrides?: {
+    subject?: string;
+    body?: string;
+    callBlocks?: CallBlock[];
+  }) => {
+    const finalSubject = overrides?.subject ?? subject;
+    const finalBody = overrides?.body ?? body;
+    const finalBlocks = overrides?.callBlocks ?? callBlocks;
+
     const payload = {
       name,
       channel,
-      subject: channel === "email" ? subject : undefined,
-      body: channel === "call" ? "" : body,
-      call_blocks: channel === "call" ? callBlocks : undefined,
+      subject: channel === "email" ? finalSubject : undefined,
+      body: channel === "call" ? "" : finalBody,
+      call_blocks: channel === "call" ? finalBlocks : undefined,
       guardrails,
       is_default: false,
       campaign_id: campaignId,
@@ -341,6 +358,106 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
       await createScript(payload as Omit<OutreachScript, "id" | "created_at" | "updated_at" | "workspace_id" | "version">);
     }
     onOpenChange(false);
+  };
+
+  /**
+   * Pre-flight spell + grammar check. Runs the `proofread` mode of
+   * ai-script-assist across every text field. If issues are found we open
+   * the ProofreadReviewModal — otherwise we save immediately.
+   * This is the "security gate" preventing typos being read aloud by an AI agent.
+   */
+  const handleSave = async () => {
+    if (errors.length > 0) return; // blocked by guardrails
+
+    // Build the field list to proofread depending on channel.
+    const fields: Array<{ id: string; label: string; text: string }> = [];
+    if (channel === "email") {
+      if (subject?.trim()) fields.push({ id: "__subject", label: "Subject", text: subject });
+      if (body?.trim()) fields.push({ id: "__body", label: "Email body", text: body });
+    } else if (channel === "sms") {
+      if (body?.trim()) fields.push({ id: "__body", label: "SMS body", text: body });
+    } else {
+      // call — every block content
+      for (const b of callBlocks) {
+        if (b.content?.trim()) {
+          fields.push({ id: b.id, label: b.title || BLOCK_TYPE_LABELS[b.type], text: b.content });
+        }
+      }
+    }
+
+    if (fields.length === 0) {
+      await persistScript();
+      return;
+    }
+
+    setProofreading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-script-assist", {
+        body: { mode: "proofread", channel, fields },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.message || data?.error || "Proofread failed");
+
+      const corrected: ProofreadField[] = (data.corrected || [])
+        .map((c: ProofreadField) => ({
+          ...c,
+          issues: Array.isArray(c.issues) ? c.issues : [],
+        }))
+        // only show fields that actually have issues OR a meaningful change
+        .filter(
+          (c: ProofreadField) =>
+            (c.issues && c.issues.length > 0) ||
+            (c.corrected && c.corrected.trim() !== c.original.trim()),
+        );
+
+      if (corrected.length === 0) {
+        toast.success("Spell-check passed — saving");
+        await persistScript();
+        return;
+      }
+
+      setProofResults(corrected);
+      setProofOpen(true);
+    } catch (e) {
+      // Non-blocking: warn the user and let them save anyway via a confirm.
+      const msg = e instanceof Error ? e.message : "Spell-check unavailable";
+      const ok = window.confirm(
+        `${msg}\n\nProceed to save without spell-check? The AI agent will read this script word-for-word.`,
+      );
+      if (ok) await persistScript();
+    } finally {
+      setProofreading(false);
+    }
+  };
+
+  const applyCorrectionsAndSave = async (correctedById: Record<string, string>) => {
+    setPendingSave(true);
+    try {
+      let nextSubject = subject;
+      let nextBody = body;
+      let nextBlocks = callBlocks;
+
+      if (channel === "email") {
+        if (correctedById["__subject"] !== undefined) nextSubject = correctedById["__subject"];
+        if (correctedById["__body"] !== undefined) nextBody = correctedById["__body"];
+        setSubject(nextSubject);
+        setBody(nextBody);
+      } else if (channel === "sms") {
+        if (correctedById["__body"] !== undefined) nextBody = correctedById["__body"];
+        setBody(nextBody);
+      } else {
+        nextBlocks = callBlocks.map((b) =>
+          correctedById[b.id] !== undefined ? { ...b, content: correctedById[b.id] } : b,
+        );
+        setCallBlocks(nextBlocks);
+      }
+
+      setProofOpen(false);
+      setProofResults(null);
+      await persistScript({ subject: nextSubject, body: nextBody, callBlocks: nextBlocks });
+    } finally {
+      setPendingSave(false);
+    }
   };
 
   return (
@@ -760,10 +877,20 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
               size="sm"
               className="gap-2"
               onClick={handleSave}
-              disabled={isPending || !name.trim() || errors.length > 0}
+              disabled={isPending || proofreading || !name.trim() || errors.length > 0}
             >
-              <Save className="w-3.5 h-3.5" />
-              {isPending ? "Saving…" : isEdit ? "Update Script" : "Save Script"}
+              {proofreading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              {proofreading
+                ? "Spell-checking…"
+                : isPending
+                ? "Saving…"
+                : isEdit
+                ? "Update Script"
+                : "Save Script"}
             </Button>
           </div>
         </div>
@@ -774,6 +901,23 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
         channel={channel}
         onApply={handleApplyTemplate}
       />
+      {proofResults && (
+        <ProofreadReviewModal
+          open={proofOpen}
+          onOpenChange={(v) => {
+            setProofOpen(v);
+            if (!v) setProofResults(null);
+          }}
+          fields={proofResults}
+          saving={pendingSave || isPending}
+          onAcceptAndSave={applyCorrectionsAndSave}
+          onSaveAnyway={async () => {
+            setProofOpen(false);
+            setProofResults(null);
+            await persistScript();
+          }}
+        />
+      )}
     </Dialog>
   );
 }

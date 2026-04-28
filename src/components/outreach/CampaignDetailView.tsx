@@ -268,7 +268,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
     }
 
     const eventTypeFor = (c: ChannelKey) =>
-      c === "email" ? "email_sent" : c === "sms" ? "sms_sent" : "call_attempted";
+      c === "email" ? "email_sent" : c === "sms" ? "sms_sent" : "call_made";
 
     // Order channels: primary first, then the rest
     const orderedChannels: ChannelKey[] = [

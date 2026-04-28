@@ -603,3 +603,42 @@ thead > tr {
   width: 100% !important;
   min-height: auto !important;
 }
+
+/* ── PhoneInput (react-phone-number-input) themed for shadcn dark UI ── */
+.phone-input-wrapper .PhoneInput {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.phone-input-wrapper .PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.5rem;
+  height: 2.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--input));
+  background: hsl(var(--background));
+}
+.phone-input-wrapper .PhoneInputCountrySelect {
+  background: transparent;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+}
+.phone-input-wrapper .PhoneInputCountrySelect option {
+  background: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+}
+.phone-input-wrapper .PhoneInputCountryIcon {
+  width: 1.25rem;
+  height: 0.9rem;
+  box-shadow: none;
+}
+.phone-input-wrapper .PhoneInputCountryIcon--border {
+  background: transparent;
+  box-shadow: none;
+}
+.phone-input-wrapper .PhoneInputCountrySelectArrow {
+  color: hsl(var(--muted-foreground));
+  opacity: 0.7;
+}

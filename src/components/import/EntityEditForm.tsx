@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { ImportEntity, ImportEntityStatus, StoreDestination, DuplicateMatch, ApprovalOptions } from "@/hooks/use-import-review";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -672,12 +673,11 @@ function CandidateForm({
             <Label htmlFor="phone" className="flex items-center gap-2">
               <Phone className="h-3.5 w-3.5" /> Phone
             </Label>
-            <Input
+            <PhoneInput
               id="phone"
               value={personal.phone || ""}
-              onChange={(e) => onChange("personal.phone", e.target.value)}
+              onChange={(v) => onChange("personal.phone", v)}
               disabled={disabled}
-              placeholder="+1 (555) 000-0000"
             />
           </div>
 
@@ -866,10 +866,10 @@ function ContactForm({
 
           <div>
             <Label htmlFor="phone">Phone</Label>
-            <Input
+            <PhoneInput
               id="phone"
               value={data.phone || ""}
-              onChange={(e) => onChange("phone", e.target.value)}
+              onChange={(v) => onChange("phone", v)}
               disabled={disabled}
             />
           </div>

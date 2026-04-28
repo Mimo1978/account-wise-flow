@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -97,7 +98,7 @@ export function CandidateEditForm({ candidate, onSave, onCancel }: CandidateEdit
         </div>
         <div className="space-y-2">
           <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+          <PhoneInput id="phone" value={form.phone} onChange={(v) => update("phone", v)} />
         </div>
       </div>
 

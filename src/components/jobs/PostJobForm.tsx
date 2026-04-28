@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -498,7 +499,7 @@ export function PostJobForm({ jobId, jobTitle, jobSpec, existingData, onClose }:
                 <div className="grid gap-3">
                   <FormField label="Contact Name"><Input value={boards.contactName} onChange={e => setBoards(b => ({ ...b, contactName: e.target.value }))} placeholder="Recruiter or hiring manager name" /></FormField>
                   <FormField label="Application Email"><Input type="email" value={boards.contactEmail} onChange={e => setBoards(b => ({ ...b, contactEmail: e.target.value }))} placeholder="applications@yourcompany.com" /></FormField>
-                  <FormField label="Phone (optional)"><Input value={boards.contactPhone} onChange={e => setBoards(b => ({ ...b, contactPhone: e.target.value }))} placeholder="+44 7XXX XXXXXX" /></FormField>
+                  <FormField label="Phone (optional)"><PhoneInput value={boards.contactPhone} onChange={(v) => setBoards(b => ({ ...b, contactPhone: v }))} /></FormField>
                 </div>
               ) : (
                 <FormField label="Application URL"><Input value={boards.applicationUrl} onChange={e => setBoards(b => ({ ...b, applicationUrl: e.target.value }))} placeholder="https://careers.yourcompany.com/jobs/..." /></FormField>

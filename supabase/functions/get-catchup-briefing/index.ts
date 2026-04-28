@@ -109,7 +109,7 @@ serve(async (req) => {
         .from("diary_events")
         .select("id, title, start_time, event_type, contact_id, candidate_id")
         .eq("workspace_id", workspace_id)
-        .eq("user_id", user.id)
+        .eq("user_id", effectiveUserId)
         .eq("status", "scheduled")
         .gte("start_time", nowIso)
         .lte("start_time", in24h)
@@ -120,7 +120,7 @@ serve(async (req) => {
         .from("diary_events")
         .select("id", { count: "exact", head: true })
         .eq("workspace_id", workspace_id)
-        .eq("user_id", user.id)
+        .eq("user_id", effectiveUserId)
         .eq("status", "scheduled")
         .gte("start_time", nowIso)
         .lte("start_time", in7d),
@@ -128,7 +128,7 @@ serve(async (req) => {
       supabase
         .from("notifications")
         .select("id, type, title, body, link, created_at")
-        .eq("user_id", user.id)
+        .eq("user_id", effectiveUserId)
         .eq("read", false)
         .order("created_at", { ascending: false })
         .limit(50),

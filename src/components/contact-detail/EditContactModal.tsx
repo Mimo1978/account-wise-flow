@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -109,7 +110,7 @@ export function EditContactModal({ open, onOpenChange, contact }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="edit-phone">Phone</Label>
-              <Input id="edit-phone" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+              <PhoneInput id="edit-phone" value={form.phone} onChange={(v) => update("phone", v)} />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="edit-location">Location</Label>

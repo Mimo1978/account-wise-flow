@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -192,11 +193,11 @@ export function AddEditContactPanel({ open, onOpenChange, contact, prefillCompan
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Phone</Label>
-              <Input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} data-jarvis-id="contact-phone-input" />
+              <PhoneInput value={form.phone} onChange={(v) => setForm(f => ({ ...f, phone: v }))} data-jarvis-id="contact-phone-input" />
             </div>
             <div>
               <Label>Mobile</Label>
-              <Input value={form.mobile} onChange={e => setForm(f => ({ ...f, mobile: e.target.value }))} />
+              <PhoneInput value={form.mobile} onChange={(v) => setForm(f => ({ ...f, mobile: v }))} placeholder="Mobile number" />
             </div>
           </div>
 

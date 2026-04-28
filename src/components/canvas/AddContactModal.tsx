@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -230,14 +231,9 @@ export const AddContactModal = ({
             <div className="grid gap-2">
               <Label htmlFor="phone">Phone</Label>
               <div className="flex gap-2">
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+1 234 567 8900"
-                  className="flex-1"
-                />
+                <div className="flex-1">
+                  <PhoneInput id="phone" value={phone} onChange={setPhone} />
+                </div>
                 <Select value={phoneLabel} onValueChange={(v) => setPhoneLabel(v as PhoneLabel)}>
                   <SelectTrigger className="w-24">
                     <SelectValue />

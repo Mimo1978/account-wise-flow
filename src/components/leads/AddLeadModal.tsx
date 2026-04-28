@@ -4,6 +4,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -242,7 +243,7 @@ export default function AddLeadModal({ open, onOpenChange, onCreated }: AddLeadM
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="lead-phone">Phone</Label>
-              <Input id="lead-phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <PhoneInput id="lead-phone" value={phone} onChange={setPhone} />
             </div>
           </div>
           <div className="space-y-1.5">

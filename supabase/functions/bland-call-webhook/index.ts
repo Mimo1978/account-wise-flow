@@ -154,12 +154,18 @@ serve(async (req) => {
       duration_minutes?: number;
       next_step?: string;
       sentiment: "positive" | "neutral" | "negative";
+      notice_period?: string;
+      availability?: string;
+      email_followup_requested?: boolean;
+      followup_email_topic?: string;
+      key_points?: string[];
     };
     let analysis: Analysis = {
       summary: payload.summary || "Call completed — no transcript captured.",
       outcome: payload.completed ? "Call completed" : (payload.status || "Unknown"),
       meeting_agreed: false,
       sentiment: "neutral",
+      key_points: [],
     };
     if (transcript.trim().length > 30 && Deno.env.get("LOVABLE_API_KEY")) {
       try {
@@ -184,8 +190,16 @@ serve(async (req) => {
       ? `\n\n📅 Meeting agreed${analysis.meeting_when ? ` — ${analysis.meeting_when}` : ""}`
       : "";
     const nextStepLine = analysis.next_step ? `\n\nNext step: ${analysis.next_step}` : "";
+    const noticeLine = analysis.notice_period ? `\n\n⏳ Notice period: ${analysis.notice_period}` : "";
+    const availabilityLine = analysis.availability ? `\n\n🗓️ Availability: ${analysis.availability}` : "";
+    const followupLine = analysis.email_followup_requested
+      ? `\n\n✉️ Follow-up email agreed${analysis.followup_email_topic ? ` — ${analysis.followup_email_topic}` : ""}`
+      : "";
+    const keyPointsLine = (analysis.key_points && analysis.key_points.length)
+      ? `\n\nKey points discussed:\n• ${analysis.key_points.join("\n• ")}`
+      : "";
 
-    const body = `${analysis.summary}\n\nOutcome: ${analysis.outcome} · Sentiment: ${analysis.sentiment}${durationMin !== null ? ` · Duration: ${durationMin.toFixed(1)} min` : ""}${meetingLine}${nextStepLine}${recording}\n\n---\nFull transcript:\n${transcript || "(none)"}\n\nProvider: bland · Call ID: ${callId}`;
+    const body = `${analysis.summary}\n\nOutcome: ${analysis.outcome} · Sentiment: ${analysis.sentiment}${durationMin !== null ? ` · Duration: ${durationMin.toFixed(1)} min` : ""}${noticeLine}${availabilityLine}${followupLine}${meetingLine}${nextStepLine}${keyPointsLine}${recording}\n\n---\nFull transcript:\n${transcript || "(none — call did not connect)"}\n\nProvider: bland · Call ID: ${callId}`;
 
     const subject = analysis.meeting_agreed
       ? `📅 AI Call → Meeting agreed${analysis.meeting_when ? ` (${analysis.meeting_when})` : ""}`

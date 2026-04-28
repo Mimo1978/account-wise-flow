@@ -98,7 +98,14 @@ export interface OutreachTarget {
   campaign_id: string;
   candidate_id?: string;
   contact_id?: string;
-  contact_source?: "contacts" | "crm_contacts";
+  /**
+   * Authoritative source of the person record. Backfilled and auto-tagged by the
+   * `tag_outreach_target_identity` DB trigger. Use this instead of guessing from
+   * entity_type — it never goes stale.
+   */
+  contact_source?: "contacts" | "crm_contacts" | "candidates";
+  /** Canonical person identity (links Talent + Contact + CRM Contact for the same person) */
+  person_identity_id?: string | null;
   entity_type: OutreachEntityType;
   entity_name: string;
   entity_email?: string;
@@ -265,27 +272,27 @@ export function useOutreachTargets(filters: TargetFilters = {}) {
       const { data, error } = await q;
       if (error) throw error;
       const targets = (data ?? []) as OutreachTarget[];
-      const contactIds = [...new Set(targets.map((t) => t.contact_id).filter(Boolean) as string[])];
-      if (contactIds.length === 0) return targets;
+      // contact_source + person_identity_id are now stamped by the DB trigger
+      // `tag_outreach_target_identity` (see person_identity migration). Fall
+      // back to the legacy lookup only if a row predates the trigger.
+      const orphans = targets.filter((t) => !t.contact_source && t.contact_id);
+      if (orphans.length === 0) return targets;
 
+      const orphanIds = [...new Set(orphans.map((t) => t.contact_id!) )];
       const [{ data: coreContacts }, { data: crmContacts }] = await Promise.all([
-        db.from("contacts").select("id").in("id", contactIds),
-        db.from("crm_contacts").select("id").in("id", contactIds),
+        db.from("contacts").select("id").in("id", orphanIds),
+        db.from("crm_contacts").select("id").in("id", orphanIds),
       ]);
       const coreIds = new Set(((coreContacts ?? []) as Array<{ id: string }>).map((c) => c.id));
       const crmIds = new Set(((crmContacts ?? []) as Array<{ id: string }>).map((c) => c.id));
 
-      const resolveContactSource = (contactId?: string): OutreachTarget["contact_source"] => {
-        if (!contactId) return undefined;
-        if (coreIds.has(contactId)) return "contacts";
-        if (crmIds.has(contactId)) return "crm_contacts";
-        return undefined;
-      };
-
-      return targets.map((t): OutreachTarget => ({
-        ...t,
-        contact_source: resolveContactSource(t.contact_id),
-      }));
+      return targets.map((t): OutreachTarget => {
+        if (t.contact_source) return t;
+        if (!t.contact_id) return t;
+        if (coreIds.has(t.contact_id)) return { ...t, contact_source: "contacts" };
+        if (crmIds.has(t.contact_id)) return { ...t, contact_source: "crm_contacts" };
+        return t;
+      });
     },
   });
 }

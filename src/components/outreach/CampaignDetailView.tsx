@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +45,8 @@ import {
   Briefcase,
   Rocket,
   Loader2,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 import {
   useOutreachTargets,
@@ -72,6 +77,23 @@ interface Props {
   projectId?: string;
 }
 
+type LaunchRowStatus = {
+  status: "dialing" | "in_progress" | "sent" | "failed" | "skipped";
+  message: string;
+  channel?: ChannelKey;
+};
+
+type LaunchProgressState = {
+  total: number;
+  completed: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+  currentLabel: string;
+  message: string;
+  rows: Record<string, LaunchRowStatus>;
+};
+
 const CAMPAIGN_STATUS_BADGE: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
   active: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300",
@@ -90,6 +112,7 @@ const CHANNEL_BADGE: Record<string, string> = {
 
 export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [tab, setTab] = useState<"targets" | "scripts" | "settings" | "automation" | "responses">("targets");
   const [addTargetsOpen, setAddTargetsOpen] = useState(false);
   const [scriptBuilderOpen, setScriptBuilderOpen] = useState(false);
@@ -135,6 +158,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const { mutate: updateCampaign, isPending: isUpdating } = useUpdateCampaign();
   const { mutateAsync: updateTargetState } = useUpdateTargetState();
   const [isLaunching, setIsLaunching] = useState(false);
+  const [launchProgress, setLaunchProgress] = useState<LaunchProgressState | null>(null);
 
   // Settings local state (persisted on save)
   const [emailScriptId, setEmailScriptId] = useState(campaign.email_script_id ?? "");
@@ -248,16 +272,21 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
       return;
     }
 
-    const channelsLabel = activeChannels.map((c) => c.toUpperCase()).join(" + ");
-    const ok = window.confirm(
-      `Launch outreach to ${queuedTargets.length} queued target${queuedTargets.length !== 1 ? "s" : ""} via ${channelsLabel}?\n\nEach target will be contacted on every active channel they have details for. Primary channel: ${primaryChannel.toUpperCase()}.`
-    );
-    if (!ok) return;
-
     setIsLaunching(true);
-    let sent = 0;
-    let failed = 0;
-    let skipped = 0;
+    const totalAttempts = queuedTargets.length * activeChannels.length;
+    setLaunchProgress({ total: totalAttempts, completed: 0, sent: 0, failed: 0, skipped: 0, currentLabel: "Starting launch", message: "Preparing AI call sequence…", rows: {} });
+    const bumpProgress = (targetId: string, patch: LaunchRowStatus, counters: Partial<Pick<LaunchProgressState, "sent" | "failed" | "skipped">> = {}) => {
+      setLaunchProgress((prev) => prev ? {
+        ...prev,
+        completed: Math.min(prev.total, prev.completed + (patch.status === "dialing" || patch.status === "in_progress" ? 0 : 1)),
+        sent: prev.sent + (counters.sent ?? 0),
+        failed: prev.failed + (counters.failed ?? 0),
+        skipped: prev.skipped + (counters.skipped ?? 0),
+        currentLabel: patch.message,
+        message: patch.status === "failed" ? "A call failed — check the row alert." : patch.message,
+        rows: { ...prev.rows, [targetId]: patch },
+      } : prev);
+    };
 
     // Activate the campaign if it's still in draft
     if (campaign.status === "draft") {
@@ -282,36 +311,52 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
         const script = channelScript[c]!;
         const hasContact = c === "email" ? !!t.entity_email : !!t.entity_phone;
         if (!hasContact) {
-          skipped++;
+          bumpProgress(t.id, { status: "skipped", message: `Skipped ${t.entity_name}: missing ${c === "email" ? "email" : "phone"}`, channel: c }, { skipped: 1 });
           continue;
         }
         try {
-          // State precedence in the hook prevents downgrade; safe to set "contacted" each time.
-          await updateTargetState({
-            targetId: t.id,
-            state: "contacted",
-            eventType: eventTypeFor(c) as any,
-            metadata: {
-              channel: c,
-              script_id: script.id,
-              script_name: script.name,
-              subject: resolveVars(script.subject ?? "", t),
-              body: resolveVars(script.body ?? "", t),
-              launched_via: "launch_all",
-              is_primary: c === primaryChannel,
-            },
-          });
-          sent++;
+          if (c === "call") {
+            bumpProgress(t.id, { status: "dialing", message: `Dialing ${t.entity_name}…`, channel: c });
+            const { data: dialData, error: dialErr } = await supabase.functions.invoke("initiate-ai-call", {
+              body: {
+                target_id: t.id,
+                campaign_id: campaign.id,
+                workspace_id: t.workspace_id,
+                entity_id: t.candidate_id || t.contact_id || t.id,
+                entity_type: t.candidate_id ? "candidate" : t.contact_source === "crm_contacts" ? "crm_contact" : "contact",
+                to_number: t.entity_phone,
+                purpose: `${campaign.name} AI outreach call`,
+                custom_instructions: resolveVars(script.body ?? "", t),
+                current_call_attempts: (t as unknown as { call_attempts?: number }).call_attempts ?? 0,
+              },
+            });
+            if (dialErr || dialData?.error || !dialData?.success) {
+              throw new Error(dialData?.message || dialErr?.message || "AI call provider did not start the call");
+            }
+            bumpProgress(t.id, { status: "in_progress", message: `Call started for ${t.entity_name} — waiting for provider result`, channel: c }, { sent: 1 });
+          } else {
+            await updateTargetState({
+              targetId: t.id,
+              state: "contacted",
+              eventType: eventTypeFor(c) as any,
+              metadata: { channel: c, script_id: script.id, script_name: script.name, subject: resolveVars(script.subject ?? "", t), body: resolveVars(script.body ?? "", t), launched_via: "launch_all", is_primary: c === primaryChannel },
+            });
+            bumpProgress(t.id, { status: "sent", message: `${c.toUpperCase()} logged for ${t.entity_name}`, channel: c }, { sent: 1 });
+          }
         } catch (e) {
-          failed++;
+          const message = e instanceof Error ? e.message : "Unknown launch failure";
+          bumpProgress(t.id, { status: "failed", message: `${t.entity_name}: ${message}`, channel: c }, { failed: 1 });
         }
       }
     }
 
     setIsLaunching(false);
-    if (sent > 0) toast.success(`Launched ${sent} outreach event${sent !== 1 ? "s" : ""} across ${orderedChannels.length} channel${orderedChannels.length !== 1 ? "s" : ""}.`);
-    if (skipped > 0) toast.warning(`${skipped} send${skipped !== 1 ? "s" : ""} skipped — target missing email or phone.`);
-    if (failed > 0) toast.error(`${failed} send${failed !== 1 ? "s" : ""} failed.`);
+    qc.invalidateQueries({ queryKey: ["outreach_targets"], exact: false });
+    qc.invalidateQueries({ queryKey: ["outreach_events"], exact: false });
+    qc.invalidateQueries({ queryKey: ["outreach_campaigns"], exact: false });
+    qc.invalidateQueries({ queryKey: ["outreach-metrics"], exact: false });
+    qc.invalidateQueries({ queryKey: ["notifications"], exact: false });
+    toast.info("Launch sequence finished — rows now show started, skipped, or failed calls.");
   };
 
   // Scripts grouped by channel for the Scripts tab
@@ -536,6 +581,25 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
           onLaunch={handleLaunchAll}
         />
 
+        {launchProgress && (
+          <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4" data-jarvis-id="campaign-launch-progress">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                {isLaunching ? <Loader2 className="w-4 h-4 animate-spin text-primary" /> : launchProgress.failed > 0 ? <AlertTriangle className="w-4 h-4 text-destructive" /> : <CheckCircle2 className="w-4 h-4 text-primary" />}
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">AI launch progress</p>
+                  <p className="text-xs text-muted-foreground truncate">{launchProgress.currentLabel}</p>
+                </div>
+              </div>
+              <div className="text-right text-xs shrink-0">
+                <p className="font-semibold">{launchProgress.completed}/{launchProgress.total}</p>
+                <p className="text-muted-foreground">started {launchProgress.sent} · failed {launchProgress.failed} · skipped {launchProgress.skipped}</p>
+              </div>
+            </div>
+            <Progress value={launchProgress.total ? Math.round((launchProgress.completed / launchProgress.total) * 100) : 0} className="h-2" />
+          </div>
+        )}
+
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList className="mb-4">
             <TabsTrigger value="targets" className="gap-2" data-jarvis-id="outreach-tab-queue">
@@ -664,6 +728,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                           assignedChannels={assigned}
                           activeChannels={activeChannels}
                           primaryChannel={primaryChannel}
+                          launchStatus={launchProgress?.rows[target.id]}
                         />
                       );
                     })}

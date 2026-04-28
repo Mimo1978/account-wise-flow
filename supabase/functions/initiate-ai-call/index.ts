@@ -35,6 +35,9 @@ serve(async (req) => {
       to_number,
       purpose,
       custom_instructions,
+      target_id,
+      campaign_id,
+      workspace_id,
     } = body;
     // Accept both legacy `contact_id` and new `entity_id`/`entity_type`
     const entityType: "contact" | "crm_contact" | "candidate" =
@@ -102,7 +105,7 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .limit(1)
       .maybeSingle();
-    const workspaceId = roleRow?.team_id || null;
+    const workspaceId = workspace_id || roleRow?.team_id || null;
 
     // Get call script from outreach_scripts if one exists for 'call' channel
     const { data: scripts } = await supabase
@@ -176,6 +179,8 @@ End the call professionally and confirm any agreed next step.`;
             user_id: user.id,
             purpose: purpose || "",
             entity_name: entityName || firstName,
+            target_id: target_id || null,
+            campaign_id: campaign_id || null,
           },
         }),
       });
@@ -200,6 +205,15 @@ End the call professionally and confirm any agreed next step.`;
       }
       const blandData = await blandRes.json();
       callId = blandData.call_id;
+      if (!callId) {
+        return new Response(JSON.stringify({
+          error: "provider_error",
+          message: blandData.message || "Bland.ai accepted the request but did not return a call ID, so no call was started.",
+          provider: "bland",
+          fallback: true,
+          details: JSON.stringify(blandData).slice(0, 500),
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
     } else if (twilioKeys.TWILIO_ACCOUNT_SID && twilioKeys.TWILIO_AUTH_TOKEN && twilioKeys.TWILIO_PHONE_NUMBER) {
       // === TWILIO FALLBACK — scripted one-way message ===
@@ -234,6 +248,15 @@ End the call professionally and confirm any agreed next step.`;
       }
       const twilioData = await twilioRes.json();
       callId = twilioData.sid;
+      if (!callId) {
+        return new Response(JSON.stringify({
+          error: "provider_error",
+          message: "Twilio accepted the request but did not return a call ID, so no call was started.",
+          provider: "twilio",
+          fallback: true,
+          details: JSON.stringify(twilioData).slice(0, 500),
+        }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
 
     } else {
       return new Response(JSON.stringify({
@@ -264,6 +287,34 @@ End the call professionally and confirm any agreed next step.`;
       status: provider === "bland" ? "in_progress" : "completed",
       created_by: user.id,
     });
+
+    if (target_id && workspaceId) {
+      const targetPatch: Record<string, unknown> = {
+        next_action: provider === "bland" ? "AI call in progress" : "Scripted call placed",
+        next_action_due: null,
+      };
+      if (typeof body.current_call_attempts === "number") {
+        targetPatch.call_attempts = body.current_call_attempts + 1;
+      }
+      await supabase.from("outreach_targets").update(targetPatch).eq("id", target_id).eq("workspace_id", workspaceId);
+
+      await supabase.from("outreach_events").insert({
+        workspace_id: workspaceId,
+        campaign_id: campaign_id || null,
+        target_id,
+        candidate_id: resolvedCandidateId,
+        contact_id: resolvedContactId,
+        event_type: "call_scheduled",
+        channel: "call",
+        subject: provider === "bland" ? "AI call started" : "Scripted call placed",
+        metadata: {
+          call_type: "ai",
+          provider,
+          call_id: callId,
+          launch_status: provider === "bland" ? "in_progress" : "placed",
+        },
+      });
+    }
 
     // Log a "Call started" note immediately on the person's record so it's
     // traceable even before the webhook fires.

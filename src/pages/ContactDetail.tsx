@@ -25,9 +25,30 @@ export default function ContactDetail() {
         .select("*, companies!contacts_company_id_fkey(id, name, industry)")
         .eq("id", id)
         .is("deleted_at", null)
-        .single();
+        .maybeSingle();
       if (error) throw error;
-      return data;
+      if (data) return data;
+
+      const { data: crmData, error: crmError } = await supabase
+        .from("crm_contacts" as any)
+        .select("*, crm_companies(id, name)")
+        .eq("id", id)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (crmError) throw crmError;
+      if (!crmData) return null;
+      const crm = crmData as any;
+      return {
+        ...crm,
+        name: `${crm.first_name || ""} ${crm.last_name || ""}`.trim() || "Unknown Contact",
+        title: crm.job_title || "",
+        phone: crm.phone || crm.mobile || "",
+        status: "unknown",
+        seniority: "mid",
+        department: "",
+        companies: crm.crm_companies ? { id: crm.crm_companies.id, name: crm.crm_companies.name, industry: null } : null,
+        _source: "crm_contacts",
+      };
     },
     enabled: !!id,
   });

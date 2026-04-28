@@ -50,6 +50,11 @@ async function aiSummarise(transcript: string, purpose: string, apiKey: string):
   duration_minutes?: number;
   next_step?: string;
   sentiment: "positive" | "neutral" | "negative";
+  notice_period?: string;
+  availability?: string;
+  email_followup_requested?: boolean;
+  followup_email_topic?: string;
+  key_points?: string[];
 }> {
   const nowIso = new Date().toISOString();
   const sys = `You analyse outbound recruitment/sales call transcripts.
@@ -62,7 +67,12 @@ Return ONLY a JSON object with these fields:
 - meeting_iso: ISO 8601 datetime in UTC for the agreed slot (e.g. "2026-04-25T13:00:00Z"). If only a vague day is given, pick a sensible default (mornings = 09:00, afternoons = 14:00, "next week" = next Monday 09:00). Omit only if truly no time was discussed.
 - duration_minutes: expected meeting length in minutes (default 30 if not stated)
 - next_step: the concrete next action the rep should take
-- sentiment: "positive" | "neutral" | "negative"`;
+- sentiment: "positive" | "neutral" | "negative"
+- notice_period: anything the contact said about notice period / how soon they could leave their current role (e.g. "3 months", "immediate", "1 month"). Omit if not discussed.
+- availability: anything the contact said about when they could start a new role / availability for interviews (e.g. "available from June", "evenings only", "after Easter"). Omit if not discussed.
+- email_followup_requested: TRUE if the contact asked for ANY follow-up email — job spec, more info, brochure, links, summary etc. — or the agent committed to send them an email
+- followup_email_topic: short description of what the agent agreed to email (e.g. "job spec for Senior Engineer role", "salary banding and benefits", "intro deck"). Omit only if email_followup_requested is false.
+- key_points: array of short verbatim-ish bullet points capturing every concrete fact the contact mentioned (current employer, salary expectations, location, blockers, etc.) — never omit, return [] if truly none`;
   const user = `Call purpose: ${purpose || "n/a"}\n\nTranscript:\n"""\n${transcript.slice(0, 12000)}\n"""`;
 
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -87,6 +97,11 @@ Return ONLY a JSON object with these fields:
               duration_minutes: { type: "number" },
               next_step: { type: "string" },
               sentiment: { type: "string", enum: ["positive", "neutral", "negative"] },
+              notice_period: { type: "string" },
+              availability: { type: "string" },
+              email_followup_requested: { type: "boolean" },
+              followup_email_topic: { type: "string" },
+              key_points: { type: "array", items: { type: "string" } },
             },
             required: ["summary", "outcome", "meeting_agreed", "sentiment"],
             additionalProperties: false,

@@ -94,9 +94,9 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
     sms:
       "bg-violet-500/15 text-violet-300 border border-violet-500/40 hover:bg-violet-500/25 hover:text-violet-200 hover:border-violet-400/60 shadow-[0_0_0_1px_hsl(var(--background))_inset]",
     call:
-      "bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/25 hover:text-emerald-200 hover:border-emerald-400/60 shadow-[0_0_0_1px_hsl(var(--background))_inset]",
+      "bg-amber-500/10 text-amber-300 border border-amber-500/40 hover:bg-amber-500/20 hover:text-amber-200 hover:border-amber-400/60 shadow-[0_0_0_1px_hsl(var(--background))_inset]",
     aiCall:
-      "bg-primary/15 text-primary border border-primary/40 hover:bg-primary/25 hover:border-primary/60 shadow-[0_0_0_1px_hsl(var(--background))_inset]",
+      "bg-emerald-500/15 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-500/25 hover:text-emerald-200 hover:border-emerald-400/70 shadow-[0_0_10px_-2px_hsl(152_76%_45%/0.4)]",
     meeting:
       "bg-amber-500/15 text-amber-300 border border-amber-500/40 hover:bg-amber-500/25 hover:text-amber-200 hover:border-amber-400/60 shadow-[0_0_0_1px_hsl(var(--background))_inset]",
   } as const;

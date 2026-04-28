@@ -297,21 +297,34 @@ serve(async (req) => {
     // ─────────────────────────────────────────────────────────────
     // Auto-create a Note on the contact / candidate record so the
     // call summary lives where the rep expects to find it.
+    // MANDATORY — runs for every call regardless of transcript length,
+    // workspace, or live-conversation outcome. The note is the system of
+    // record for "what happened on this call".
     // ─────────────────────────────────────────────────────────────
     let noteId: string | null = null;
     try {
-      if (workspaceId) {
+      {
         const noteContent = [
           `📞 AI Call · ${analysis.outcome}`,
           analysis.summary,
+          analysis.notice_period ? `⏳ Notice period: ${analysis.notice_period}` : "",
+          analysis.availability ? `🗓️ Availability: ${analysis.availability}` : "",
+          analysis.email_followup_requested
+            ? `✉️ Follow-up email agreed${analysis.followup_email_topic ? ` — ${analysis.followup_email_topic}` : ""}`
+            : "",
           analysis.meeting_agreed && analysis.meeting_when
             ? `📅 Meeting agreed — ${analysis.meeting_when}`
             : "",
           analysis.next_step ? `Next step: ${analysis.next_step}` : "",
+          (analysis.key_points && analysis.key_points.length)
+            ? `Key points:\n• ${analysis.key_points.join("\n• ")}`
+            : "",
           durationMin !== null ? `Duration: ${durationMin.toFixed(1)} min · Sentiment: ${analysis.sentiment}` : `Sentiment: ${analysis.sentiment}`,
           payload.recording_url ? `Recording: ${payload.recording_url}` : "",
           purpose ? `\n--- Original purpose ---\n${purpose}` : "",
-          transcript ? `\n--- Full transcript ---\n${transcript.slice(0, 4000)}` : "",
+          transcript
+            ? `\n--- Full transcript ---\n${transcript.slice(0, 6000)}`
+            : `\n--- Full transcript ---\n(no transcript captured by provider — status: ${payload.status || "unknown"})`,
           `\nProvider: bland · Call ID: ${callId}`,
         ].filter(Boolean).join("\n\n");
 
@@ -327,9 +340,14 @@ serve(async (req) => {
               body: noteContent.slice(0, 8000),
               visibility: "team",
               owner_id: userId || null,
-              team_id: workspaceId,
+              team_id: workspaceId || null,
               pinned: analysis.meeting_agreed,
-              tags: ["ai-call", "completed", analysis.meeting_agreed ? "meeting-booked" : "outcome"],
+              tags: [
+                "ai-call",
+                callReachedPerson ? "completed" : "no-connect",
+                analysis.meeting_agreed ? "meeting-booked" : "outcome",
+                analysis.email_followup_requested ? "email-follow-up" : null,
+              ].filter(Boolean) as string[],
             })
             .select("id")
             .single();
@@ -345,7 +363,7 @@ serve(async (req) => {
               visibility: "team",
               source: "ai_call",
               owner_id: userId || null,
-              team_id: workspaceId,
+              team_id: workspaceId || null,
               pinned: analysis.meeting_agreed,
             })
             .select("id")

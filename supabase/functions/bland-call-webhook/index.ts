@@ -456,6 +456,88 @@ serve(async (req) => {
           },
         });
 
+        // ───────────── Drop into per-campaign Responses inbox ─────────────
+        // Every AI call produces a row in outreach_inbound_responses so each
+        // campaign's "Responses" tab becomes the single feed of what came back
+        // from contacts (calls + future email/SMS replies).
+        try {
+          const intentMap: Record<string, string> = {
+            "meeting booked": "meeting_request",
+            "meeting agreed": "meeting_request",
+            "callback requested": "callback_request",
+            "callback agreed": "callback_request",
+            "follow-up agreed": "info_request",
+            "info requested": "info_request",
+            "not interested": "not_interested",
+            "opt out": "opt_out",
+            "voicemail": "out_of_office",
+            "no answer": "out_of_office",
+          };
+          const outcomeKey = (analysis.outcome || "").toLowerCase();
+          let aiIntent: string = "unclassified";
+          if (analysis.meeting_agreed) aiIntent = "meeting_request";
+          else if (analysis.email_followup_requested) aiIntent = "info_request";
+          else {
+            for (const [k, v] of Object.entries(intentMap)) {
+              if (outcomeKey.includes(k)) { aiIntent = v; break; }
+            }
+          }
+          if (!callReachedPerson && aiIntent === "unclassified") {
+            aiIntent = voicemail ? "out_of_office" : "unclassified";
+          }
+
+          const followUpType = analysis.meeting_agreed
+            ? "meeting"
+            : analysis.email_followup_requested
+              ? "email"
+              : (outcomeKey.includes("callback") ? "call" : "none");
+          const followUpStatus = analysis.meeting_agreed
+            ? "scheduled"
+            : analysis.email_followup_requested
+              ? "pending"
+              : "skipped";
+
+          await supabase.from("outreach_inbound_responses").insert({
+            workspace_id: workspaceId,
+            campaign_id: campaignId || null,
+            target_id: targetId,
+            candidate_id: candidateId || null,
+            contact_id: contactId || null,
+            channel: "voicemail", // calls map to voicemail channel (constraint allows email/sms/voicemail/other)
+            raw_content: (transcript || analysis.summary || "AI call — no transcript captured").slice(0, 8000),
+            sender_identifier: payload.from || targetBefore?.entity_email || null,
+            received_at: now,
+            ai_intent: aiIntent,
+            ai_sentiment: analysis.sentiment,
+            ai_summary: analysis.summary?.slice(0, 2000) || analysis.outcome,
+            ai_confidence: callReachedPerson ? 0.85 : 0.4,
+            ai_processed_at: now,
+            ai_raw_analysis: {
+              outcome: analysis.outcome,
+              meeting_agreed: analysis.meeting_agreed,
+              meeting_when: analysis.meeting_when || null,
+              meeting_iso: analysis.meeting_iso || null,
+              notice_period: analysis.notice_period || null,
+              availability: analysis.availability || null,
+              next_step: analysis.next_step || null,
+              email_followup_requested: !!analysis.email_followup_requested,
+              followup_email_topic: analysis.followup_email_topic || null,
+              key_points: analysis.key_points || [],
+              recording_url: payload.recording_url || null,
+              duration_minutes: durationMin,
+              call_id: callId,
+              call_reached_person: callReachedPerson,
+              source: "ai_call",
+            },
+            follow_up_type: followUpType,
+            follow_up_status: followUpStatus,
+            follow_up_scheduled_at: analysis.meeting_iso || null,
+            status: "classified",
+          });
+        } catch (e) {
+          console.error("outreach_inbound_responses insert failed:", e);
+        }
+
         // ───────────── Auto follow-up email ─────────────
         // The agent committed to email the contact during the call —
         // trigger our follow-up email function so a draft is composed,

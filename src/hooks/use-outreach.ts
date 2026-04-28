@@ -275,15 +275,16 @@ export function useOutreachTargets(filters: TargetFilters = {}) {
       const coreIds = new Set(((coreContacts ?? []) as Array<{ id: string }>).map((c) => c.id));
       const crmIds = new Set(((crmContacts ?? []) as Array<{ id: string }>).map((c) => c.id));
 
-      return targets.map((t) => ({
+      const resolveContactSource = (contactId?: string): OutreachTarget["contact_source"] => {
+        if (!contactId) return undefined;
+        if (coreIds.has(contactId)) return "contacts";
+        if (crmIds.has(contactId)) return "crm_contacts";
+        return undefined;
+      };
+
+      return targets.map((t): OutreachTarget => ({
         ...t,
-        contact_source: t.contact_id
-          ? coreIds.has(t.contact_id)
-            ? "contacts"
-            : crmIds.has(t.contact_id)
-            ? "crm_contacts"
-            : undefined
-          : undefined,
+        contact_source: resolveContactSource(t.contact_id),
       }));
     },
   });

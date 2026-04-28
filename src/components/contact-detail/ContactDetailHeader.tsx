@@ -55,6 +55,7 @@ export function ContactDetailHeader({ contact }: Props) {
             entityPhone={contact.phone || contact.mobile}
             entityTitle={contact.title || contact.job_title}
             entityCompany={contact.companies?.name}
+            bright
           />
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
             <Pencil className="h-4 w-4 mr-1" /> Edit

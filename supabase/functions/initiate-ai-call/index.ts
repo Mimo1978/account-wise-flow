@@ -179,6 +179,8 @@ End the call professionally and confirm any agreed next step.`;
             user_id: user.id,
             purpose: purpose || "",
             entity_name: entityName || firstName,
+            target_id: target_id || null,
+            campaign_id: campaign_id || null,
           },
         }),
       });
@@ -285,6 +287,31 @@ End the call professionally and confirm any agreed next step.`;
       status: provider === "bland" ? "in_progress" : "completed",
       created_by: user.id,
     });
+
+    if (target_id && workspaceId) {
+      await supabase.from("outreach_targets").update({
+        call_attempts: body.current_call_attempts ? Number(body.current_call_attempts) + 1 : undefined,
+        next_action: provider === "bland" ? "AI call in progress" : "Scripted call placed",
+        next_action_due: null,
+      }).eq("id", target_id).eq("workspace_id", workspaceId);
+
+      await supabase.from("outreach_events").insert({
+        workspace_id: workspaceId,
+        campaign_id: campaign_id || null,
+        target_id,
+        candidate_id: resolvedCandidateId,
+        contact_id: resolvedContactId,
+        event_type: "call_scheduled",
+        channel: "call",
+        subject: provider === "bland" ? "AI call started" : "Scripted call placed",
+        metadata: {
+          call_type: "ai",
+          provider,
+          call_id: callId,
+          launch_status: provider === "bland" ? "in_progress" : "placed",
+        },
+      });
+    }
 
     // Log a "Call started" note immediately on the person's record so it's
     // traceable even before the webhook fires.

@@ -1,13 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -18,7 +11,6 @@ import {
   Phone,
   Calendar,
   XCircle,
-  MoreHorizontal,
   ChevronRight,
   RotateCcw,
   Bot,
@@ -301,7 +293,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
 
       {/* Actions — always visible */}
       <td className="px-4 py-3">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-nowrap">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -383,28 +375,37 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
             <TooltipContent side="top" className="text-xs">Schedule Meeting</TooltipContent>
           </Tooltip>
 
-          {/* Overflow: Reset + Opt Out */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7 rounded-md border border-border/60 hover:bg-muted/60">
-                <MoreHorizontal className="w-3.5 h-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem
+          {/* Inline: Reset to Queued — previously hidden in overflow menu */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 rounded-md border border-border/60 hover:bg-muted/60 text-muted-foreground hover:text-foreground disabled:opacity-40"
+                disabled={isPending}
                 onClick={() => act("queued", "status_changed", { reset: true, previous_state: target.state })}
               >
-                <RotateCcw className="w-3.5 h-3.5 mr-2" /> Reset to Queued
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
+                <RotateCcw className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">Reset to Queued</TooltipContent>
+          </Tooltip>
+
+          {/* Inline: Opt Out — previously hidden in overflow menu */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 rounded-md border border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20 hover:border-destructive/60 disabled:opacity-40"
+                disabled={isPending}
                 onClick={() => act("opted_out", "opted_out")}
               >
-                <XCircle className="w-3.5 h-3.5 mr-2" /> Opt Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <XCircle className="w-3.5 h-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">Opt Out</TooltipContent>
+          </Tooltip>
 
           <Button
             size="icon"

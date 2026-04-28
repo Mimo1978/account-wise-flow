@@ -13,7 +13,7 @@ import {
   XCircle,
   ChevronRight,
   RotateCcw,
-  Bot,
+  NotebookPen,
   FileText,
   AlertTriangle,
 } from "lucide-react";
@@ -406,13 +406,14 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                size="icon"
+                size="sm"
                 variant="ghost"
-                className={`h-7 w-7 rounded-md transition-all ${channelTheme.call} disabled:opacity-40`}
+                className={`h-7 px-2 gap-1 rounded-md transition-all ${channelTheme.call} disabled:opacity-40`}
                 disabled={isPending || callBlocked}
                 onClick={() => setCallLogOpen(true)}
               >
-                <Phone className="w-3.5 h-3.5" />
+                <NotebookPen className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-semibold uppercase tracking-wide">Log</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">Log Call</TooltipContent>
@@ -421,13 +422,14 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                size="icon"
+                size="sm"
                 variant="ghost"
-                className={`h-7 w-7 rounded-md transition-all ${channelTheme.aiCall} disabled:opacity-40`}
+                className={`h-7 px-2 gap-1 rounded-md transition-all ${channelTheme.aiCall} disabled:opacity-40`}
                 disabled={isPending || callBlocked || !target.entity_phone}
                 onClick={() => setAiCallOpen(true)}
               >
-                <Bot className="w-3.5 h-3.5" />
+                <Phone className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-semibold uppercase tracking-wide">AI</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top" className="text-xs">

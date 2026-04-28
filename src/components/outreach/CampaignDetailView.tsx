@@ -216,8 +216,10 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
     const script = allScripts.find((s) => s.id === scriptId);
     if (!script) {
       toast.error(
-        `No ${channel} script assigned. Open Settings or Scripts tab to assign one before launching.`
+        `No ${channel.toUpperCase()} script assigned. Opening Scripts tab — pick one under "Assigned Scripts" and Save.`,
+        { duration: 6000 }
       );
+      setTab("scripts");
       return;
     }
 

@@ -23,6 +23,7 @@ import {
   RotateCcw,
   Bot,
   FileText,
+  AlertTriangle,
 } from "lucide-react";
 import {
   OutreachTarget,
@@ -47,9 +48,13 @@ interface Props {
   onSelectChange?: (id: string, checked: boolean) => void;
   /** Channels with assigned scripts on the parent campaign */
   assignedChannels?: Array<{ channel: "email" | "sms" | "call"; scriptName: string; scriptVersion?: number; isPrimary?: boolean }>;
+  /** Active channels selected for the campaign — drives the missing-contact warning */
+  activeChannels?: Array<"email" | "sms" | "call">;
+  /** The campaign's primary channel */
+  primaryChannel?: "email" | "sms" | "call";
 }
 
-export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, assignedChannels = [] }: Props) {
+export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, assignedChannels = [], activeChannels = [], primaryChannel }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const currentCampaignId = searchParams.get("campaignId") || "";
@@ -112,6 +117,18 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
   const verbFor = (c: "email" | "sms" | "call") =>
     c === "email" ? "Email queued" : c === "sms" ? "SMS queued" : "Call initiated";
 
+  // Missing-contact detection for the campaign's active channels
+  const missingForChannels: Array<"email" | "sms" | "call"> = activeChannels.filter((c) => {
+    if (c === "email") return !target.entity_email;
+    return !target.entity_phone; // sms + call both need a phone
+  });
+  const hasMissing = missingForChannels.length > 0 && target.state === "queued";
+  const missingPrimary =
+    primaryChannel &&
+    target.state === "queued" &&
+    ((primaryChannel === "email" && !target.entity_email) ||
+      ((primaryChannel === "sms" || primaryChannel === "call") && !target.entity_phone));
+
   return (
     <tr className="border-b last:border-0 hover:bg-muted/30 transition-colors">
       {/* Checkbox */}
@@ -130,16 +147,8 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
         <div className="flex flex-col gap-0.5">
           <button
             className="text-sm font-medium text-left hover:text-primary hover:underline transition-colors line-clamp-1"
-            onClick={() => {
-              if (target.entity_type === "contact" && target.contact_id) {
-                navigate(`/contacts/${target.contact_id}`);
-              } else if (target.candidate_id) {
-                const campaignParam = currentCampaignId ? `?returnTo=outreach&campaignId=${currentCampaignId}` : "";
-                navigate(`/talent/${target.candidate_id}${campaignParam}`);
-              } else {
-                onOpen(target);
-              }
-            }}
+            onClick={() => onOpen(target)}
+            title="Open quick actions panel — use the panel to view full profile or edit contact"
           >
             {target.entity_name}
           </button>
@@ -164,21 +173,34 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
       <td className="px-4 py-3 hidden md:table-cell">
         <div className="flex flex-col gap-0.5 min-w-0">
           <span className="inline-flex items-center gap-1.5 text-xs">
-            <Mail className="w-3 h-3 text-muted-foreground shrink-0" />
+            <Mail className={`w-3 h-3 shrink-0 ${activeChannels.includes("email") && !target.entity_email ? "text-amber-400" : "text-muted-foreground"}`} />
             {target.entity_email ? (
               <span className="truncate max-w-[180px] text-foreground/90">{target.entity_email}</span>
             ) : (
-              <span className="text-muted-foreground/60 italic">no email</span>
+              <span className={`italic ${activeChannels.includes("email") ? "text-amber-300/90" : "text-muted-foreground/60"}`}>no email</span>
             )}
           </span>
           <span className="inline-flex items-center gap-1.5 text-xs">
-            <Phone className="w-3 h-3 text-muted-foreground shrink-0" />
+            <Phone className={`w-3 h-3 shrink-0 ${(activeChannels.includes("sms") || activeChannels.includes("call")) && !target.entity_phone ? "text-amber-400" : "text-muted-foreground"}`} />
             {target.entity_phone ? (
               <span className="text-foreground/90">{target.entity_phone}</span>
             ) : (
-              <span className="text-muted-foreground/60 italic">no phone</span>
+              <span className={`italic ${(activeChannels.includes("sms") || activeChannels.includes("call")) ? "text-amber-300/90" : "text-muted-foreground/60"}`}>no phone</span>
             )}
           </span>
+          {hasMissing && (
+            <button
+              type="button"
+              onClick={() => onOpen(target)}
+              className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded border border-amber-500/50 bg-amber-500/10 text-[10px] text-amber-300 hover:bg-amber-500/20 transition-colors w-fit"
+              title={`Missing ${missingForChannels.join(" + ").toUpperCase()} for this campaign — fix before launch or remove from queue`}
+            >
+              <AlertTriangle className="w-3 h-3" />
+              Missing {missingForChannels.map((c) => (c === "email" ? "email" : "phone")).join(" + ")}
+              {missingPrimary && <span className="ml-0.5 px-1 rounded-sm bg-amber-500/30 uppercase tracking-wide text-[8px]">primary</span>}
+              <span className="opacity-70">· fix or remove</span>
+            </button>
+          )}
         </div>
       </td>
 

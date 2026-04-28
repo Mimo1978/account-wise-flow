@@ -59,6 +59,7 @@ import { ScriptBuilderModal } from "./ScriptBuilderModal";
 import { TargetDetailSheet } from "./TargetDetailSheet";
 import { AutomationSettingsPanel } from "./AutomationSettingsPanel";
 import { InboundResponsesPanel } from "./InboundResponsesPanel";
+import { CampaignSetupGuide } from "./CampaignSetupGuide";
 import { format, parseISO } from "date-fns";
 
 // ─── Types ───────────────────────────────────────────────────────────────────

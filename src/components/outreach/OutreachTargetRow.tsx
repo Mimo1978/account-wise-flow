@@ -313,6 +313,47 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
               <span className="truncate opacity-80">· {launchStatus.message}</span>
             </span>
           )}
+          {/* AI call capture chips — what the agent learned on the last call */}
+          {target.last_call_metadata && (
+            <div className="flex items-center flex-wrap gap-1 mt-0.5 w-full">
+              {target.last_call_metadata.notice_period && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-200 text-[10px] font-medium" title={`Notice period: ${target.last_call_metadata.notice_period}`}>
+                  ⏳ Notice: {target.last_call_metadata.notice_period}
+                </span>
+              )}
+              {target.last_call_metadata.availability && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-[10px] font-medium max-w-[260px] truncate" title={`Availability: ${target.last_call_metadata.availability}`}>
+                  🗓️ {target.last_call_metadata.availability}
+                </span>
+              )}
+              {target.last_call_metadata.sentiment && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-medium ${
+                  target.last_call_metadata.sentiment === "positive" ? "bg-green-500/15 border-green-500/40 text-green-200"
+                  : target.last_call_metadata.sentiment === "negative" ? "bg-red-500/15 border-red-500/40 text-red-200"
+                  : "bg-muted border-border text-muted-foreground"
+                }`} title={`Sentiment from last AI call: ${target.last_call_metadata.sentiment}`}>
+                  {target.last_call_metadata.sentiment === "positive" ? "🙂" : target.last_call_metadata.sentiment === "negative" ? "🙁" : "😐"} {target.last_call_metadata.sentiment}
+                </span>
+              )}
+              {target.followup_email_pending && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/20 border border-primary/50 text-primary text-[10px] font-medium animate-pulse" title={`Auto follow-up email queued: ${target.followup_email_topic || "info from call"}`}>
+                  ✉️ Sending follow-up…
+                </span>
+              )}
+              {target.last_call_metadata.recording_url && (
+                <a
+                  href={target.last_call_metadata.recording_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-card border border-border text-[10px] font-medium text-foreground hover:bg-accent"
+                  title="Listen to call recording"
+                >
+                  🎧 Recording
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </td>
 

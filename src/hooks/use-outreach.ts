@@ -125,6 +125,27 @@ export interface OutreachTarget {
   created_at: string;
   updated_at: string;
   campaign?: OutreachCampaign;
+  // AI call capture (populated by bland-call-webhook on every call)
+  last_call_at?: string | null;
+  last_call_outcome?: string | null;
+  last_call_transcript?: string | null;
+  last_call_metadata?: {
+    summary?: string;
+    outcome?: string;
+    sentiment?: "positive" | "neutral" | "negative";
+    notice_period?: string | null;
+    availability?: string | null;
+    meeting_when?: string | null;
+    next_step?: string | null;
+    email_followup_requested?: boolean;
+    followup_email_topic?: string | null;
+    key_points?: string[];
+    recording_url?: string | null;
+    duration_minutes?: number | null;
+    call_reached_person?: boolean;
+  } | null;
+  followup_email_pending?: boolean;
+  followup_email_topic?: string | null;
 }
 
 export interface OutreachEvent {

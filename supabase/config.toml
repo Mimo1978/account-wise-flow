@@ -103,3 +103,6 @@ verify_jwt = true
 
 [functions.transcribe-call-brief]
 verify_jwt = true
+
+[functions.trigger-followup-email]
+verify_jwt = false

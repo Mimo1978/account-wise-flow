@@ -5513,7 +5513,13 @@ export type Database = {
           entity_phone: string | null
           entity_title: string | null
           entity_type: Database["public"]["Enums"]["outreach_entity_type"]
+          followup_email_pending: boolean
+          followup_email_topic: string | null
           id: string
+          last_call_at: string | null
+          last_call_metadata: Json | null
+          last_call_outcome: string | null
+          last_call_transcript: string | null
           last_contacted_at: string | null
           max_call_attempts: number
           next_action: string | null
@@ -5552,7 +5558,13 @@ export type Database = {
           entity_phone?: string | null
           entity_title?: string | null
           entity_type?: Database["public"]["Enums"]["outreach_entity_type"]
+          followup_email_pending?: boolean
+          followup_email_topic?: string | null
           id?: string
+          last_call_at?: string | null
+          last_call_metadata?: Json | null
+          last_call_outcome?: string | null
+          last_call_transcript?: string | null
           last_contacted_at?: string | null
           max_call_attempts?: number
           next_action?: string | null
@@ -5591,7 +5603,13 @@ export type Database = {
           entity_phone?: string | null
           entity_title?: string | null
           entity_type?: Database["public"]["Enums"]["outreach_entity_type"]
+          followup_email_pending?: boolean
+          followup_email_topic?: string | null
           id?: string
+          last_call_at?: string | null
+          last_call_metadata?: Json | null
+          last_call_outcome?: string | null
+          last_call_transcript?: string | null
           last_contacted_at?: string | null
           max_call_attempts?: number
           next_action?: string | null

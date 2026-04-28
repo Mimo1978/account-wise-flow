@@ -50,6 +50,11 @@ async function aiSummarise(transcript: string, purpose: string, apiKey: string):
   duration_minutes?: number;
   next_step?: string;
   sentiment: "positive" | "neutral" | "negative";
+  notice_period?: string;
+  availability?: string;
+  email_followup_requested?: boolean;
+  followup_email_topic?: string;
+  key_points?: string[];
 }> {
   const nowIso = new Date().toISOString();
   const sys = `You analyse outbound recruitment/sales call transcripts.
@@ -62,7 +67,12 @@ Return ONLY a JSON object with these fields:
 - meeting_iso: ISO 8601 datetime in UTC for the agreed slot (e.g. "2026-04-25T13:00:00Z"). If only a vague day is given, pick a sensible default (mornings = 09:00, afternoons = 14:00, "next week" = next Monday 09:00). Omit only if truly no time was discussed.
 - duration_minutes: expected meeting length in minutes (default 30 if not stated)
 - next_step: the concrete next action the rep should take
-- sentiment: "positive" | "neutral" | "negative"`;
+- sentiment: "positive" | "neutral" | "negative"
+- notice_period: anything the contact said about notice period / how soon they could leave their current role (e.g. "3 months", "immediate", "1 month"). Omit if not discussed.
+- availability: anything the contact said about when they could start a new role / availability for interviews (e.g. "available from June", "evenings only", "after Easter"). Omit if not discussed.
+- email_followup_requested: TRUE if the contact asked for ANY follow-up email — job spec, more info, brochure, links, summary etc. — or the agent committed to send them an email
+- followup_email_topic: short description of what the agent agreed to email (e.g. "job spec for Senior Engineer role", "salary banding and benefits", "intro deck"). Omit only if email_followup_requested is false.
+- key_points: array of short verbatim-ish bullet points capturing every concrete fact the contact mentioned (current employer, salary expectations, location, blockers, etc.) — never omit, return [] if truly none`;
   const user = `Call purpose: ${purpose || "n/a"}\n\nTranscript:\n"""\n${transcript.slice(0, 12000)}\n"""`;
 
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -87,6 +97,11 @@ Return ONLY a JSON object with these fields:
               duration_minutes: { type: "number" },
               next_step: { type: "string" },
               sentiment: { type: "string", enum: ["positive", "neutral", "negative"] },
+              notice_period: { type: "string" },
+              availability: { type: "string" },
+              email_followup_requested: { type: "boolean" },
+              followup_email_topic: { type: "string" },
+              key_points: { type: "array", items: { type: "string" } },
             },
             required: ["summary", "outcome", "meeting_agreed", "sentiment"],
             additionalProperties: false,
@@ -139,12 +154,18 @@ serve(async (req) => {
       duration_minutes?: number;
       next_step?: string;
       sentiment: "positive" | "neutral" | "negative";
+      notice_period?: string;
+      availability?: string;
+      email_followup_requested?: boolean;
+      followup_email_topic?: string;
+      key_points?: string[];
     };
     let analysis: Analysis = {
       summary: payload.summary || "Call completed — no transcript captured.",
       outcome: payload.completed ? "Call completed" : (payload.status || "Unknown"),
       meeting_agreed: false,
       sentiment: "neutral",
+      key_points: [],
     };
     if (transcript.trim().length > 30 && Deno.env.get("LOVABLE_API_KEY")) {
       try {
@@ -169,8 +190,16 @@ serve(async (req) => {
       ? `\n\n📅 Meeting agreed${analysis.meeting_when ? ` — ${analysis.meeting_when}` : ""}`
       : "";
     const nextStepLine = analysis.next_step ? `\n\nNext step: ${analysis.next_step}` : "";
+    const noticeLine = analysis.notice_period ? `\n\n⏳ Notice period: ${analysis.notice_period}` : "";
+    const availabilityLine = analysis.availability ? `\n\n🗓️ Availability: ${analysis.availability}` : "";
+    const followupLine = analysis.email_followup_requested
+      ? `\n\n✉️ Follow-up email agreed${analysis.followup_email_topic ? ` — ${analysis.followup_email_topic}` : ""}`
+      : "";
+    const keyPointsLine = (analysis.key_points && analysis.key_points.length)
+      ? `\n\nKey points discussed:\n• ${analysis.key_points.join("\n• ")}`
+      : "";
 
-    const body = `${analysis.summary}\n\nOutcome: ${analysis.outcome} · Sentiment: ${analysis.sentiment}${durationMin !== null ? ` · Duration: ${durationMin.toFixed(1)} min` : ""}${meetingLine}${nextStepLine}${recording}\n\n---\nFull transcript:\n${transcript || "(none)"}\n\nProvider: bland · Call ID: ${callId}`;
+    const body = `${analysis.summary}\n\nOutcome: ${analysis.outcome} · Sentiment: ${analysis.sentiment}${durationMin !== null ? ` · Duration: ${durationMin.toFixed(1)} min` : ""}${noticeLine}${availabilityLine}${followupLine}${meetingLine}${nextStepLine}${keyPointsLine}${recording}\n\n---\nFull transcript:\n${transcript || "(none — call did not connect)"}\n\nProvider: bland · Call ID: ${callId}`;
 
     const subject = analysis.meeting_agreed
       ? `📅 AI Call → Meeting agreed${analysis.meeting_when ? ` (${analysis.meeting_when})` : ""}`
@@ -268,21 +297,34 @@ serve(async (req) => {
     // ─────────────────────────────────────────────────────────────
     // Auto-create a Note on the contact / candidate record so the
     // call summary lives where the rep expects to find it.
+    // MANDATORY — runs for every call regardless of transcript length,
+    // workspace, or live-conversation outcome. The note is the system of
+    // record for "what happened on this call".
     // ─────────────────────────────────────────────────────────────
     let noteId: string | null = null;
     try {
-      if (workspaceId) {
+      {
         const noteContent = [
           `📞 AI Call · ${analysis.outcome}`,
           analysis.summary,
+          analysis.notice_period ? `⏳ Notice period: ${analysis.notice_period}` : "",
+          analysis.availability ? `🗓️ Availability: ${analysis.availability}` : "",
+          analysis.email_followup_requested
+            ? `✉️ Follow-up email agreed${analysis.followup_email_topic ? ` — ${analysis.followup_email_topic}` : ""}`
+            : "",
           analysis.meeting_agreed && analysis.meeting_when
             ? `📅 Meeting agreed — ${analysis.meeting_when}`
             : "",
           analysis.next_step ? `Next step: ${analysis.next_step}` : "",
+          (analysis.key_points && analysis.key_points.length)
+            ? `Key points:\n• ${analysis.key_points.join("\n• ")}`
+            : "",
           durationMin !== null ? `Duration: ${durationMin.toFixed(1)} min · Sentiment: ${analysis.sentiment}` : `Sentiment: ${analysis.sentiment}`,
           payload.recording_url ? `Recording: ${payload.recording_url}` : "",
           purpose ? `\n--- Original purpose ---\n${purpose}` : "",
-          transcript ? `\n--- Full transcript ---\n${transcript.slice(0, 4000)}` : "",
+          transcript
+            ? `\n--- Full transcript ---\n${transcript.slice(0, 6000)}`
+            : `\n--- Full transcript ---\n(no transcript captured by provider — status: ${payload.status || "unknown"})`,
           `\nProvider: bland · Call ID: ${callId}`,
         ].filter(Boolean).join("\n\n");
 
@@ -298,9 +340,14 @@ serve(async (req) => {
               body: noteContent.slice(0, 8000),
               visibility: "team",
               owner_id: userId || null,
-              team_id: workspaceId,
+              team_id: workspaceId || null,
               pinned: analysis.meeting_agreed,
-              tags: ["ai-call", "completed", analysis.meeting_agreed ? "meeting-booked" : "outcome"],
+              tags: [
+                "ai-call",
+                callReachedPerson ? "completed" : "no-connect",
+                analysis.meeting_agreed ? "meeting-booked" : "outcome",
+                analysis.email_followup_requested ? "email-follow-up" : null,
+              ].filter(Boolean) as string[],
             })
             .select("id")
             .single();
@@ -316,7 +363,7 @@ serve(async (req) => {
               visibility: "team",
               source: "ai_call",
               owner_id: userId || null,
-              team_id: workspaceId,
+              team_id: workspaceId || null,
               pinned: analysis.meeting_agreed,
             })
             .select("id")
@@ -334,7 +381,7 @@ serve(async (req) => {
         const now = new Date().toISOString();
         const { data: targetBefore } = await supabase
           .from("outreach_targets")
-          .select("last_contacted_at, state")
+          .select("last_contacted_at, state, entity_email, entity_name, entity_type, candidate_id, contact_id")
           .eq("id", targetId)
           .eq("workspace_id", workspaceId)
           .maybeSingle();
@@ -351,6 +398,34 @@ serve(async (req) => {
               next_action: providerFailure ? `AI call failed: ${payload.status || "not connected"}` : voicemail ? "AI call reached voicemail" : "AI call ended without a live conversation",
               next_action_due: null,
             };
+
+        // Mandatory: every call writes its full structured outcome onto the target row
+        targetPatch.last_call_at = now;
+        targetPatch.last_call_outcome = analysis.outcome;
+        targetPatch.last_call_transcript = transcript || null;
+        targetPatch.last_call_metadata = {
+          summary: analysis.summary,
+          outcome: analysis.outcome,
+          sentiment: analysis.sentiment,
+          meeting_agreed: analysis.meeting_agreed,
+          meeting_when: analysis.meeting_when || null,
+          meeting_iso: analysis.meeting_iso || null,
+          notice_period: analysis.notice_period || null,
+          availability: analysis.availability || null,
+          next_step: analysis.next_step || null,
+          email_followup_requested: !!analysis.email_followup_requested,
+          followup_email_topic: analysis.followup_email_topic || null,
+          key_points: analysis.key_points || [],
+          recording_url: payload.recording_url || null,
+          duration_minutes: durationMin,
+          provider: "bland",
+          call_id: callId,
+          call_reached_person: callReachedPerson,
+        };
+        if (analysis.email_followup_requested) {
+          targetPatch.followup_email_pending = true;
+          targetPatch.followup_email_topic = analysis.followup_email_topic || "Information requested on call";
+        }
 
         await supabase.from("outreach_targets").update(targetPatch).eq("id", targetId).eq("workspace_id", workspaceId);
         await supabase.from("outreach_events").insert({
@@ -371,8 +446,50 @@ serve(async (req) => {
             provider_status: payload.status || null,
             answered_by: payload.answered_by || null,
             outcome: analysis.outcome,
+            notice_period: analysis.notice_period || null,
+            availability: analysis.availability || null,
+            email_followup_requested: !!analysis.email_followup_requested,
+            followup_email_topic: analysis.followup_email_topic || null,
+            sentiment: analysis.sentiment,
+            transcript_excerpt: transcript ? transcript.slice(0, 2000) : null,
+            recording_url: payload.recording_url || null,
           },
         });
+
+        // ───────────── Auto follow-up email ─────────────
+        // The agent committed to email the contact during the call —
+        // trigger our follow-up email function so a draft is composed,
+        // sent (if integration is configured), logged, and the
+        // followup_email_pending flag is cleared on success.
+        if (analysis.email_followup_requested && targetBefore?.entity_email) {
+          try {
+            const fnUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/trigger-followup-email`;
+            await fetch(fnUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({
+                target_id: targetId,
+                workspace_id: workspaceId,
+                campaign_id: campaignId,
+                user_id: userId,
+                entity_email: targetBefore.entity_email,
+                entity_name: targetBefore.entity_name || entityName,
+                topic: analysis.followup_email_topic || "Information requested on our call",
+                call_summary: analysis.summary,
+                key_points: analysis.key_points || [],
+                notice_period: analysis.notice_period || null,
+                availability: analysis.availability || null,
+                candidate_id: candidateId || targetBefore.candidate_id || null,
+                contact_id: contactId || targetBefore.contact_id || null,
+              }),
+            });
+          } catch (e) {
+            console.error("trigger-followup-email failed:", e);
+          }
+        }
 
         if (callReachedPerson && campaignId && !targetBefore?.last_contacted_at) {
           const { data: campaignRow } = await supabase

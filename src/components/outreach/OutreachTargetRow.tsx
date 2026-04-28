@@ -45,9 +45,14 @@ interface Props {
   activeChannels?: Array<"email" | "sms" | "call">;
   /** The campaign's primary channel */
   primaryChannel?: "email" | "sms" | "call";
+  launchStatus?: {
+    status: "dialing" | "in_progress" | "sent" | "failed" | "skipped";
+    message: string;
+    channel?: "email" | "sms" | "call";
+  };
 }
 
-export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, assignedChannels = [], activeChannels = [], primaryChannel }: Props) {
+export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, assignedChannels = [], activeChannels = [], primaryChannel, launchStatus }: Props) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const currentCampaignId = searchParams.get("campaignId") || "";
@@ -286,6 +291,26 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
           {assignedChannels.length === 0 && (
             <span className="inline-flex items-center gap-1 text-[10px] text-amber-500/90">
               <FileText className="w-3 h-3" /> no script assigned
+            </span>
+          )}
+          {launchStatus && (
+            <span
+              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-medium max-w-[360px] ${
+                launchStatus.status === "failed"
+                  ? "border-destructive/50 bg-destructive/10 text-destructive"
+                  : launchStatus.status === "skipped"
+                  ? "border-muted-foreground/30 bg-muted text-muted-foreground"
+                  : "border-primary/50 bg-primary/10 text-primary"
+              }`}
+              title={launchStatus.message}
+            >
+              {(launchStatus.status === "dialing" || launchStatus.status === "in_progress") && (
+                <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse shrink-0" />
+              )}
+              <span className="shrink-0">
+                {launchStatus.status === "dialing" ? "Dialing now" : launchStatus.status === "in_progress" ? "Call in progress" : launchStatus.status === "failed" ? "Call failed" : launchStatus.status === "skipped" ? "Skipped" : "Sent"}
+              </span>
+              <span className="truncate opacity-80">· {launchStatus.message}</span>
             </span>
           )}
         </div>

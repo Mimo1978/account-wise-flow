@@ -121,9 +121,27 @@ export default function CrmContactDetail() {
 
       {/* Quick actions */}
       <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={() => setEmailOpen(true)}><Mail className="h-4 w-4 mr-1" /> Email</Button>
-        <Button variant="outline" size="sm" onClick={() => setCallOpen(true)}><Phone className="h-4 w-4 mr-1" /> AI Call</Button>
-        <Button variant="outline" size="sm" onClick={() => setSmsOpen(true)}><MessageSquare className="h-4 w-4 mr-1" /> SMS</Button>
+        <Button
+          size="sm"
+          onClick={() => setEmailOpen(true)}
+          className="gap-1.5 bg-sky-500/15 text-sky-300 border border-sky-500/50 hover:bg-sky-500/25 hover:text-sky-200 hover:border-sky-400/70 shadow-[0_0_12px_-2px_hsl(199_89%_55%/0.45)]"
+        >
+          <Mail className="h-4 w-4" /> Email
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => setCallOpen(true)}
+          className="gap-1.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-500/25 hover:text-emerald-200 hover:border-emerald-400/70 shadow-[0_0_12px_-2px_hsl(152_76%_45%/0.45)]"
+        >
+          <Phone className="h-4 w-4" /> AI Call
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => setSmsOpen(true)}
+          className="gap-1.5 bg-violet-500/15 text-violet-300 border border-violet-500/50 hover:bg-violet-500/25 hover:text-violet-200 hover:border-violet-400/70 shadow-[0_0_12px_-2px_hsl(262_83%_65%/0.45)]"
+        >
+          <MessageSquare className="h-4 w-4" /> SMS
+        </Button>
         <Button variant="outline" size="sm" onClick={() => setLogOpen(true)}><CalendarPlus className="h-4 w-4 mr-1" /> Log Activity</Button>
         <Button variant="outline" size="sm"><Target className="h-4 w-4 mr-1" /> Add to Opportunity</Button>
       </div>

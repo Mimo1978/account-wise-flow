@@ -7073,6 +7073,16 @@ export type Database = {
         Args: { workspace_uuid: string }
         Returns: undefined
       }
+      sync_person_contact: {
+        Args: {
+          _email?: string
+          _person_identity_id: string
+          _phone?: string
+          _update_email?: boolean
+          _update_phone?: boolean
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       access_request_status: "pending" | "approved" | "rejected"

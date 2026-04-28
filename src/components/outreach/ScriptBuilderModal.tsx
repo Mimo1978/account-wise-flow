@@ -877,10 +877,20 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
               size="sm"
               className="gap-2"
               onClick={handleSave}
-              disabled={isPending || !name.trim() || errors.length > 0}
+              disabled={isPending || proofreading || !name.trim() || errors.length > 0}
             >
-              <Save className="w-3.5 h-3.5" />
-              {isPending ? "Saving…" : isEdit ? "Update Script" : "Save Script"}
+              {proofreading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              {proofreading
+                ? "Spell-checking…"
+                : isPending
+                ? "Saving…"
+                : isEdit
+                ? "Update Script"
+                : "Save Script"}
             </Button>
           </div>
         </div>
@@ -891,6 +901,23 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
         channel={channel}
         onApply={handleApplyTemplate}
       />
+      {proofResults && (
+        <ProofreadReviewModal
+          open={proofOpen}
+          onOpenChange={(v) => {
+            setProofOpen(v);
+            if (!v) setProofResults(null);
+          }}
+          fields={proofResults}
+          saving={pendingSave || isPending}
+          onAcceptAndSave={applyCorrectionsAndSave}
+          onSaveAnyway={async () => {
+            setProofOpen(false);
+            setProofResults(null);
+            await persistScript();
+          }}
+        />
+      )}
     </Dialog>
   );
 }

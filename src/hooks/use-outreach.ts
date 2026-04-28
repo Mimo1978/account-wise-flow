@@ -694,14 +694,29 @@ export function useLogCallOutcome() {
           targetPatch.snooze_until = input.follow_up_due;
         }
 
-        await db.from("outreach_targets").update(targetPatch).eq("id", input.target_id).catch(() => {});
+        try {
+          await db.from("outreach_targets").update(targetPatch).eq("id", input.target_id);
+        } catch {
+          // non-blocking
+        }
 
         // Counter: first contact → increment contacted_count
         if (!target.last_contacted_at && target.campaign_id) {
-          db.from("outreach_campaigns").select("contacted_count").eq("id", target.campaign_id).single()
-            .then(({ data: c }: { data: { contacted_count: number } | null }) => {
-              if (c) db.from("outreach_campaigns").update({ contacted_count: (c.contacted_count ?? 0) + 1 }).eq("id", target.campaign_id);
-            }).catch(() => {});
+          try {
+            const { data: c } = await db
+              .from("outreach_campaigns")
+              .select("contacted_count")
+              .eq("id", target.campaign_id)
+              .maybeSingle();
+            if (c) {
+              await db
+                .from("outreach_campaigns")
+                .update({ contacted_count: (c.contacted_count ?? 0) + 1 })
+                .eq("id", target.campaign_id);
+            }
+          } catch {
+            // non-blocking
+          }
         }
       }
     },

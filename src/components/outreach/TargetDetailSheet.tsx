@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PhoneInput, formatPhoneE164 } from "@/components/ui/phone-input";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -127,33 +128,55 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
   const saveContactInline = async () => {
     setSavingContact(true);
     try {
-      const updates: Record<string, string | null> = {
-        email: emailDraft.trim() || null,
-        phone: phoneDraft.trim() || null,
-      };
-      let table: "candidates" | "crm_contacts" | "contacts" | null = null;
-      let id: string | undefined;
-      if (resolvedOpenAs === "contact" && target.contact_id) {
-        table = contactSource === "crm_contacts" ? "crm_contacts" : "contacts";
-        id = target.contact_id;
-      } else if (resolvedOpenAs === "candidate" && target.candidate_id) {
-        table = "candidates";
-        id = target.candidate_id;
+      const cleanEmail = emailDraft.trim() || null;
+      const cleanPhone = phoneDraft ? formatPhoneE164(phoneDraft) || null : null;
+
+      // Preferred path: identity-aware RPC fans out to every linked record
+      // (Talent + Contact + CRM) AND every outreach_target row sharing the
+      // same person_identity_id — past and present campaigns.
+      if (target.person_identity_id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase as any).rpc("sync_person_contact", {
+          _person_identity_id: target.person_identity_id,
+          _email: cleanEmail,
+          _phone: cleanPhone,
+          _update_email: true,
+          _update_phone: true,
+        });
+        if (error) throw error;
+      } else {
+        // Legacy fallback: target has no identity link yet — update the
+        // single source row, the AFTER-UPDATE trigger will fan-out if/when
+        // an identity link is later established.
+        let table: "candidates" | "crm_contacts" | "contacts" | null = null;
+        let id: string | undefined;
+        if (resolvedOpenAs === "contact" && target.contact_id) {
+          table = contactSource === "crm_contacts" ? "crm_contacts" : "contacts";
+          id = target.contact_id;
+        } else if (resolvedOpenAs === "candidate" && target.candidate_id) {
+          table = "candidates";
+          id = target.candidate_id;
+        }
+        if (!table || !id) {
+          toast.error("This target has no linked profile to update.");
+          setSavingContact(false);
+          return;
+        }
+        const { error } = await supabase
+          .from(table)
+          .update({ email: cleanEmail, phone: cleanPhone })
+          .eq("id", id);
+        if (error) throw error;
       }
-      if (!table || !id) {
-        toast.error("This target has no linked profile to update.");
-        setSavingContact(false);
-        return;
-      }
-      const { error } = await supabase.from(table).update(updates).eq("id", id);
-      if (error) throw error;
-      toast.success("Contact details saved");
+      toast.success("Contact details synced across every linked record");
       setEditingContact(false);
       // Refresh outreach + profile queries
       queryClient.invalidateQueries({ queryKey: ["outreach"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["outreach_targets"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["candidates"], exact: false });
       queryClient.invalidateQueries({ queryKey: ["crm_contacts"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["contacts"], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["person_route"], exact: false });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save contact");
     } finally {
@@ -245,12 +268,10 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[11px] uppercase text-muted-foreground tracking-wide">Phone</Label>
-                  <Input
-                    type="tel"
+                  <PhoneInput
                     value={phoneDraft}
-                    onChange={(e) => setPhoneDraft(e.target.value)}
-                    placeholder="+44 7…"
-                    className="h-8 text-sm"
+                    onChange={setPhoneDraft}
+                    placeholder="07911 123456"
                   />
                 </div>
                 <div className="flex items-center gap-2">

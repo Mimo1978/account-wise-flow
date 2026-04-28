@@ -87,6 +87,8 @@ interface Props {
   campaignId?: string;
   /** Pass existing script to edit */
   script?: OutreachScript;
+  /** Pre-select the channel when creating a new script */
+  defaultChannel?: ScriptChannel;
 }
 
 const BLOCK_TYPE_LABELS: Record<CallBlockType, string> = {
@@ -107,12 +109,12 @@ const BLOCK_TYPE_COLORS: Record<CallBlockType, string> = {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: Props) {
+export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, defaultChannel }: Props) {
   const isEdit = !!script;
 
   const [tab, setTab] = useState<"editor" | "guardrails" | "simulate">("editor");
   const [name, setName] = useState(script?.name ?? "");
-  const [channel, setChannel] = useState<ScriptChannel>(script?.channel ?? "email");
+  const [channel, setChannel] = useState<ScriptChannel>(script?.channel ?? defaultChannel ?? "email");
   const [subject, setSubject] = useState(script?.subject ?? "");
   const [body, setBody] = useState(script?.body ?? getDefaultScriptBody("email"));
   const [callBlocks, setCallBlocks] = useState<CallBlock[]>(script?.call_blocks ?? getDefaultCallBlocks());
@@ -127,7 +129,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
 
   // Remember per-channel drafts so swapping the channel dropdown is
   // non-destructive and immediately reflects the right template.
-  const initialChannel: ScriptChannel = script?.channel ?? "email";
+  const initialChannel: ScriptChannel = script?.channel ?? defaultChannel ?? "email";
   const [emailDraft, setEmailDraft] = useState<string>(
     initialChannel === "email" ? (script?.body ?? getDefaultScriptBody("email")) : getDefaultScriptBody("email"),
   );
@@ -171,7 +173,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
   useEffect(() => {
     if (!open) return;
     setName(script?.name ?? "");
-    const ch: ScriptChannel = script?.channel ?? "email";
+    const ch: ScriptChannel = script?.channel ?? defaultChannel ?? "email";
     setChannel(ch);
     setSubject(script?.subject ?? "");
     setBody(ch === "call" ? "" : (script?.body ?? getDefaultScriptBody(ch)));

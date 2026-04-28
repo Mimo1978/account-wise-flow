@@ -60,6 +60,7 @@ import { TargetDetailSheet } from "./TargetDetailSheet";
 import { AutomationSettingsPanel } from "./AutomationSettingsPanel";
 import { InboundResponsesPanel } from "./InboundResponsesPanel";
 import { CampaignSetupGuide } from "./CampaignSetupGuide";
+import { ChannelModeSelector, type ChannelKey } from "./ChannelModeSelector";
 import { format, parseISO } from "date-fns";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -92,6 +93,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const [addTargetsOpen, setAddTargetsOpen] = useState(false);
   const [scriptBuilderOpen, setScriptBuilderOpen] = useState(false);
   const [editingScript, setEditingScript] = useState<OutreachScript | undefined>();
+  const [defaultScriptChannel, setDefaultScriptChannel] = useState<ChannelKey | undefined>();
   const [selectedTarget, setSelectedTarget] = useState<OutreachTarget | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [filterState, setFilterState] = useState<OutreachTargetState | "">("");
@@ -154,6 +156,26 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
     campaign.calling_timezone ?? "UTC"
   );
 
+  // Channel mode (single vs mixed). Initialised from existing campaign config:
+  // any channel that already has a script assigned counts as active, plus the
+  // campaign's primary `channel` field. Persisted in component state for now —
+  // the underlying `campaign.channel` stays as the primary.
+  const initialActive = (() => {
+    const set = new Set<ChannelKey>();
+    if (campaign.email_script_id) set.add("email");
+    if (campaign.sms_script_id) set.add("sms");
+    if (campaign.call_script_id) set.add("call");
+    const primary = (["email", "sms", "call"].includes(campaign.channel as string)
+      ? (campaign.channel as ChannelKey)
+      : "email");
+    set.add(primary);
+    return { active: Array.from(set), primary };
+  })();
+  const [activeChannels, setActiveChannels] = useState<ChannelKey[]>(initialActive.active);
+  const [primaryChannel, setPrimaryChannel] = useState<ChannelKey>(initialActive.primary);
+  const scriptsTabRef = useRef<HTMLDivElement>(null);
+  const [highlightChannel, setHighlightChannel] = useState<ChannelKey | null>(null);
+
   const saveSettings = () => {
     updateCampaign({
       id: campaign.id,
@@ -166,6 +188,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
       max_call_attempts: parseInt(maxCallAttempts, 10) || 3,
       opt_out_required: optOutRequired,
       calling_timezone: callingTimezone,
+      channel: primaryChannel,
     } as Parameters<typeof updateCampaign>[0]);
   };
 
@@ -174,8 +197,9 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
     setDetailOpen(true);
   };
 
-  const openScriptBuilder = (script?: OutreachScript) => {
+  const openScriptBuilder = (script?: OutreachScript, defaultChannel?: ChannelKey) => {
     setEditingScript(script);
+    setDefaultScriptChannel(defaultChannel);
     setScriptBuilderOpen(true);
   };
 
@@ -206,31 +230,33 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
       return;
     }
 
-    const channel = campaign.channel as "email" | "sms" | "call";
-    const scriptId =
-      channel === "email"
-        ? campaign.email_script_id
-        : channel === "sms"
-        ? campaign.sms_script_id
-        : campaign.call_script_id;
-    const script = allScripts.find((s) => s.id === scriptId);
-    if (!script) {
+    // Build per-channel script map for every active channel
+    const channelScript: Record<ChannelKey, OutreachScript | undefined> = {
+      email: allScripts.find((s) => s.id === campaign.email_script_id),
+      sms:   allScripts.find((s) => s.id === campaign.sms_script_id),
+      call:  allScripts.find((s) => s.id === campaign.call_script_id),
+    };
+    const missing = activeChannels.filter((c) => !channelScript[c]);
+    if (missing.length > 0) {
       toast.error(
-        `No ${channel.toUpperCase()} script assigned. Opening Scripts tab — pick one under "Assigned Scripts" and Save.`,
+        `Missing script for: ${missing.map((c) => c.toUpperCase()).join(", ")}. Opening Scripts tab.`,
         { duration: 6000 }
       );
       setTab("scripts");
+      setHighlightChannel(missing[0]);
       return;
     }
 
+    const channelsLabel = activeChannels.map((c) => c.toUpperCase()).join(" + ");
     const ok = window.confirm(
-      `Launch outreach to ${queuedTargets.length} queued target${queuedTargets.length !== 1 ? "s" : ""} via ${channel.toUpperCase()}?\n\nThis will mark each as contacted and log an event.`
+      `Launch outreach to ${queuedTargets.length} queued target${queuedTargets.length !== 1 ? "s" : ""} via ${channelsLabel}?\n\nEach target will be contacted on every active channel they have details for. Primary channel: ${primaryChannel.toUpperCase()}.`
     );
     if (!ok) return;
 
     setIsLaunching(true);
     let sent = 0;
     let failed = 0;
+    let skipped = 0;
 
     // Activate the campaign if it's still in draft
     if (campaign.status === "draft") {
@@ -241,42 +267,50 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
       }
     }
 
-    const eventType =
-      channel === "email" ? "email_sent" : channel === "sms" ? "sms_sent" : "call_attempted";
+    const eventTypeFor = (c: ChannelKey) =>
+      c === "email" ? "email_sent" : c === "sms" ? "sms_sent" : "call_attempted";
+
+    // Order channels: primary first, then the rest
+    const orderedChannels: ChannelKey[] = [
+      primaryChannel,
+      ...activeChannels.filter((c) => c !== primaryChannel),
+    ].filter((c, i, arr) => arr.indexOf(c) === i);
 
     for (const t of queuedTargets) {
-      // Skip targets missing required contact info for the channel
-      if (channel === "email" && !t.entity_email) {
-        failed++;
-        continue;
-      }
-      if ((channel === "sms" || channel === "call") && !t.entity_phone) {
-        failed++;
-        continue;
-      }
-      try {
-        await updateTargetState({
-          targetId: t.id,
-          state: "contacted",
-          eventType: eventType as any,
-          metadata: {
-            channel,
-            script_id: script.id,
-            script_name: script.name,
-            subject: resolveVars(script.subject ?? "", t),
-            body: resolveVars(script.body ?? "", t),
-            launched_via: "launch_all",
-          },
-        });
-        sent++;
-      } catch (e) {
-        failed++;
+      for (const c of orderedChannels) {
+        const script = channelScript[c]!;
+        const hasContact = c === "email" ? !!t.entity_email : !!t.entity_phone;
+        if (!hasContact) {
+          skipped++;
+          continue;
+        }
+        try {
+          // State precedence in the hook prevents downgrade; safe to set "contacted" each time.
+          await updateTargetState({
+            targetId: t.id,
+            state: "contacted",
+            eventType: eventTypeFor(c) as any,
+            metadata: {
+              channel: c,
+              script_id: script.id,
+              script_name: script.name,
+              subject: resolveVars(script.subject ?? "", t),
+              body: resolveVars(script.body ?? "", t),
+              launched_via: "launch_all",
+              is_primary: c === primaryChannel,
+            },
+          });
+          sent++;
+        } catch (e) {
+          failed++;
+        }
       }
     }
 
     setIsLaunching(false);
-    if (sent > 0) toast.success(`Launched ${sent} ${channel.toUpperCase()} outreach${sent !== 1 ? "es" : ""}`);
-    if (failed > 0) toast.error(`${failed} target${failed !== 1 ? "s" : ""} skipped (missing ${channel === "email" ? "email" : "phone"} or error)`);
+    if (sent > 0) toast.success(`Launched ${sent} outreach event${sent !== 1 ? "s" : ""} across ${orderedChannels.length} channel${orderedChannels.length !== 1 ? "s" : ""}.`);
+    if (skipped > 0) toast.warning(`${skipped} send${skipped !== 1 ? "s" : ""} skipped — target missing email or phone.`);
+    if (failed > 0) toast.error(`${failed} send${failed !== 1 ? "s" : ""} failed.`);
   };
 
   // Scripts grouped by channel for the Scripts tab
@@ -452,32 +486,52 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
 
       {/* Body */}
       <div className="container mx-auto px-6 py-6">
+        {/* Channel mode (single vs mixed) */}
+        <ChannelModeSelector
+          active={activeChannels}
+          primary={primaryChannel}
+          onChange={({ active, primary }) => {
+            setActiveChannels(active);
+            setPrimaryChannel(primary);
+          }}
+        />
+
         {/* Visual step-by-step guide */}
         <CampaignSetupGuide
-          channel={campaign.channel as "email" | "sms" | "call"}
+          activeChannels={activeChannels}
+          primaryChannel={primaryChannel}
+          channelStatus={[
+            {
+              channel: "email",
+              scriptCount: allScripts.filter((s) => s.channel === "email").length,
+              scriptAssigned: Boolean(campaign.email_script_id),
+            },
+            {
+              channel: "sms",
+              scriptCount: allScripts.filter((s) => s.channel === "sms").length,
+              scriptAssigned: Boolean(campaign.sms_script_id),
+            },
+            {
+              channel: "call",
+              scriptCount: allScripts.filter((s) => s.channel === "call").length,
+              scriptAssigned: Boolean(campaign.call_script_id),
+            },
+          ]}
           targetCount={targets.length}
           queuedCount={queued}
-          scriptCount={
-            campaign.channel === "email"
-              ? allScripts.filter((s) => s.channel === "email").length
-              : campaign.channel === "sms"
-              ? allScripts.filter((s) => s.channel === "sms").length
-              : allScripts.filter((s) => s.channel === "call").length
-          }
-          scriptAssigned={Boolean(
-            campaign.channel === "email"
-              ? campaign.email_script_id
-              : campaign.channel === "sms"
-              ? campaign.sms_script_id
-              : campaign.call_script_id
-          )}
           isLaunching={isLaunching}
           onAddTargets={() => setAddTargetsOpen(true)}
-          onCreateScript={() => {
+          onCreateScript={(c) => {
             setTab("scripts");
-            openScriptBuilder();
+            openScriptBuilder(undefined, c);
           }}
-          onAssignScript={() => setTab("scripts")}
+          onAssignScript={(c) => {
+            setTab("scripts");
+            setHighlightChannel(c);
+            // Scroll to the assignment block once tab swap renders
+            setTimeout(() => scriptsTabRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+            setTimeout(() => setHighlightChannel(null), 2400);
+          }}
           onLaunch={handleLaunchAll}
         />
 
@@ -607,7 +661,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
           {/* ── Scripts Tab ── */}
           <TabsContent value="scripts" className="mt-0 space-y-6" data-jarvis-id="outreach-panel-scripts">
             {/* Script assignment section */}
-            <div className="rounded-lg border border-border/50 bg-card p-5 space-y-5" data-jarvis-id="outreach-script-assignment">
+            <div ref={scriptsTabRef} className="rounded-lg border border-border/50 bg-card p-5 space-y-5" data-jarvis-id="outreach-script-assignment">
               <div>
                 <h3 className="text-sm font-semibold mb-1">Assigned Scripts</h3>
                 <p className="text-xs text-muted-foreground">
@@ -618,7 +672,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
 
               <div className="grid gap-4 sm:grid-cols-3">
                 {/* Email */}
-                <div className="space-y-1.5">
+                <div className={`space-y-1.5 rounded-md p-2 -m-2 transition-colors ${highlightChannel === "email" ? "bg-primary/10 ring-1 ring-primary/40" : ""}`}>
                   <Label className="text-xs flex items-center gap-1.5">
                     <Mail className="w-3.5 h-3.5 text-primary" />
                     Email Script
@@ -642,7 +696,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                 </div>
 
                 {/* SMS */}
-                <div className="space-y-1.5">
+                <div className={`space-y-1.5 rounded-md p-2 -m-2 transition-colors ${highlightChannel === "sms" ? "bg-primary/10 ring-1 ring-primary/40" : ""}`}>
                   <Label className="text-xs flex items-center gap-1.5">
                     <MessageSquare className="w-3.5 h-3.5 text-primary" />
                     SMS Script
@@ -666,7 +720,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                 </div>
 
                 {/* Call */}
-                <div className="space-y-1.5">
+                <div className={`space-y-1.5 rounded-md p-2 -m-2 transition-colors ${highlightChannel === "call" ? "bg-primary/10 ring-1 ring-primary/40" : ""}`}>
                   <Label className="text-xs flex items-center gap-1.5">
                     <Phone className="w-3.5 h-3.5 text-primary" />
                     Call Script
@@ -924,6 +978,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
         onOpenChange={setScriptBuilderOpen}
         campaignId={campaign.id}
         script={editingScript}
+        defaultChannel={defaultScriptChannel}
       />
 
       <TargetDetailSheet

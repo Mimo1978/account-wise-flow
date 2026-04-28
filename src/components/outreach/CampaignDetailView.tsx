@@ -1008,6 +1008,9 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
         target={selectedTarget}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        primaryChannel={primaryChannel}
+        activeChannels={activeChannels}
+        campaignId={campaign.id}
       />
     </div>
   );

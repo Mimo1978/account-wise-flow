@@ -98,6 +98,7 @@ export interface OutreachTarget {
   campaign_id: string;
   candidate_id?: string;
   contact_id?: string;
+  contact_source?: "contacts" | "crm_contacts";
   entity_type: OutreachEntityType;
   entity_name: string;
   entity_email?: string;
@@ -263,7 +264,28 @@ export function useOutreachTargets(filters: TargetFilters = {}) {
 
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as OutreachTarget[];
+      const targets = (data ?? []) as OutreachTarget[];
+      const contactIds = [...new Set(targets.map((t) => t.contact_id).filter(Boolean) as string[])];
+      if (contactIds.length === 0) return targets;
+
+      const [{ data: coreContacts }, { data: crmContacts }] = await Promise.all([
+        db.from("contacts").select("id").in("id", contactIds),
+        db.from("crm_contacts").select("id").in("id", contactIds),
+      ]);
+      const coreIds = new Set(((coreContacts ?? []) as Array<{ id: string }>).map((c) => c.id));
+      const crmIds = new Set(((crmContacts ?? []) as Array<{ id: string }>).map((c) => c.id));
+
+      const resolveContactSource = (contactId?: string): OutreachTarget["contact_source"] => {
+        if (!contactId) return undefined;
+        if (coreIds.has(contactId)) return "contacts";
+        if (crmIds.has(contactId)) return "crm_contacts";
+        return undefined;
+      };
+
+      return targets.map((t): OutreachTarget => ({
+        ...t,
+        contact_source: resolveContactSource(t.contact_id),
+      }));
     },
   });
 }
@@ -352,8 +374,8 @@ export function useAddTargets() {
         await db.from("outreach_events").insert(events).catch(() => {});
       }
 
-      qc.invalidateQueries({ queryKey: ["outreach_targets"] });
-      qc.invalidateQueries({ queryKey: ["outreach_campaigns"] });
+      qc.invalidateQueries({ queryKey: ["outreach_targets"], exact: false });
+      qc.invalidateQueries({ queryKey: ["outreach_campaigns"], exact: false });
 
       if (inserted.length > 0) {
         const msg = skipped > 0

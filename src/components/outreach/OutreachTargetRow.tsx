@@ -130,6 +130,9 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
       : target.candidate_id
       ? "candidate"
       : null;
+  const contactSource = target.contact_source ?? "contacts";
+  const contactLabel = contactSource === "crm_contacts" ? "CRM Contact" : "Contact";
+  const contactTitle = contactSource === "crm_contacts" ? "CRM Contact — opens in /crm/contacts" : "Contact — opens in /contacts";
 
   // Missing-contact detection for the campaign's active channels
   const missingForChannels: Array<"email" | "sms" | "call"> = activeChannels.filter((c) => {
@@ -180,14 +183,14 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
               }`}
               title={
                 resolvedType === "contact"
-                  ? "CRM Contact — opens in /crm/contacts"
+                  ? contactTitle
                   : resolvedType === "candidate"
                   ? "Talent record — opens in /talent"
                   : "No linked profile"
               }
             >
               {resolvedType === "contact"
-                ? "CRM Contact"
+                ? contactLabel
                 : resolvedType === "candidate"
                 ? "Talent"
                 : "Unlinked"}

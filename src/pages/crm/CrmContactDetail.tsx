@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, Pencil, Mail, Phone, MessageSquare, CalendarPlus, Target, Globe, Shield, ShieldCheck, FileText, ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +15,12 @@ import { LogActivityModal } from "@/components/communications/LogActivityModal";
 import { ContactActivityTab } from "@/components/communications/ContactActivityTab";
 import { GdprDataRightsTab } from "@/components/crm/GdprDataRightsTab";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function CrmContactDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: contact, isLoading } = useCrmContact(id);
   const [editOpen, setEditOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
@@ -26,17 +28,57 @@ export default function CrmContactDetail() {
   const [callOpen, setCallOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
 
+  const backFrom = (location.state as any)?.from as string | undefined;
+  const backLabel = (location.state as any)?.fromLabel as string | undefined;
+  const handleBack = () => navigate(backFrom || "/contacts");
+
+  useEffect(() => {
+    if (isLoading || contact || !id) return;
+    let cancelled = false;
+    supabase
+      .from("contacts")
+      .select("id")
+      .eq("id", id)
+      .is("deleted_at", null)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data?.id) {
+          navigate(`/contacts/${id}`, { replace: true, state: location.state });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contact, id, isLoading, location.state, navigate]);
+
   if (isLoading) return <div className="p-6 text-muted-foreground">Loading…</div>;
-  if (!contact) return <div className="p-6 text-muted-foreground">Contact not found</div>;
+  if (!contact) return (
+    <div className="h-full overflow-y-auto overflow-x-auto bg-background">
+      <div className="container mx-auto px-6 py-8 max-w-7xl">
+        <button
+          onClick={handleBack}
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground px-2 py-1 -ml-2 mb-6 rounded-md transition-all duration-150 hover:bg-accent border-l-2 border-transparent hover:border-primary group"
+        >
+          <ChevronLeft className="h-4 w-4 transition-transform duration-150 group-hover:-translate-x-0.5" />
+          {backLabel || "Back to Contacts"}
+        </button>
+        <div className="text-center text-muted-foreground py-16">
+          <p className="text-lg font-medium text-foreground">CRM contact not found</p>
+          <p className="text-sm mt-2">This record may be a standard contact. Return and open the Contact profile instead.</p>
+        </div>
+      </div>
+    </div>
+  );
 
   const fullName = `${contact.first_name} ${contact.last_name}`;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="h-full overflow-y-auto overflow-x-auto bg-background">
+      <div className="container mx-auto px-6 py-8 max-w-7xl space-y-6">
       {/* Back + Header */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="
             inline-flex items-center gap-1.5
             text-sm font-medium
@@ -50,7 +92,7 @@ export default function CrmContactDetail() {
           "
         >
           <ChevronLeft className="h-4 w-4 transition-transform duration-150 group-hover:-translate-x-0.5" />
-          Back
+          {backLabel || "Back to Contacts"}
         </button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-foreground">{fullName}</h1>
@@ -196,6 +238,7 @@ export default function CrmContactDetail() {
         contactId={contact.id}
         companyId={contact.company_id}
       />
+      </div>
     </div>
   );
 }

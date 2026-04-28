@@ -378,7 +378,11 @@ export function useAddTargets() {
           event_type: "added_to_campaign" as OutreachEventType,
           metadata: {},
         }));
-        await db.from("outreach_events").insert(events).catch(() => {});
+        try {
+          await db.from("outreach_events").insert(events);
+        } catch {
+          // non-blocking
+        }
       }
 
       qc.invalidateQueries({ queryKey: ["outreach_targets"], exact: false });

@@ -329,6 +329,69 @@ serve(async (req) => {
       console.error("note creation error:", e);
     }
 
+    if (targetId && workspaceId) {
+      try {
+        const now = new Date().toISOString();
+        const { data: targetBefore } = await supabase
+          .from("outreach_targets")
+          .select("last_contacted_at, state")
+          .eq("id", targetId)
+          .eq("workspace_id", workspaceId)
+          .maybeSingle();
+
+        const targetPatch: Record<string, unknown> = callReachedPerson
+          ? {
+              state: analysis.meeting_agreed ? "booked" : "contacted",
+              last_contacted_at: now,
+              next_action: analysis.next_step || null,
+              next_action_due: analysis.meeting_iso || null,
+            }
+          : {
+              state: targetBefore?.state || "queued",
+              next_action: providerFailure ? `AI call failed: ${payload.status || "not connected"}` : voicemail ? "AI call reached voicemail" : "AI call ended without a live conversation",
+              next_action_due: null,
+            };
+
+        await supabase.from("outreach_targets").update(targetPatch).eq("id", targetId).eq("workspace_id", workspaceId);
+        await supabase.from("outreach_events").insert({
+          workspace_id: workspaceId,
+          campaign_id: campaignId || null,
+          target_id: targetId,
+          candidate_id: candidateId || null,
+          contact_id: contactId || null,
+          event_type: callReachedPerson ? (analysis.meeting_agreed ? "booked" : "call_completed") : "status_changed",
+          channel: "call",
+          subject: callReachedPerson ? subject : "AI call did not connect",
+          body: body.slice(0, 8000),
+          metadata: {
+            call_type: "ai",
+            provider: "bland",
+            call_id: callId,
+            launch_status: callReachedPerson ? "completed" : "failed",
+            provider_status: payload.status || null,
+            answered_by: payload.answered_by || null,
+            outcome: analysis.outcome,
+          },
+        });
+
+        if (callReachedPerson && campaignId && !targetBefore?.last_contacted_at) {
+          const { data: campaignRow } = await supabase
+            .from("outreach_campaigns")
+            .select("contacted_count")
+            .eq("id", campaignId)
+            .maybeSingle();
+          if (campaignRow) {
+            await supabase
+              .from("outreach_campaigns")
+              .update({ contacted_count: (campaignRow.contacted_count ?? 0) + 1 })
+              .eq("id", campaignId);
+          }
+        }
+      } catch (e) {
+        console.error("outreach target completion update failed:", e);
+      }
+    }
+
     // ─────────────────────────────────────────────────────────────
     // In-app notification so the rep sees the bell counter increment
     // ─────────────────────────────────────────────────────────────
@@ -337,13 +400,15 @@ serve(async (req) => {
         const link = candidateId
           ? `/talent/${candidateId}`
           : (contactId ? `/contacts/${contactId}` : "/home");
-        const titlePrefix = analysis.meeting_agreed ? "📅 Meeting booked" : "📞 Call ended";
+        const titlePrefix = callReachedPerson
+          ? (analysis.meeting_agreed ? "📅 Meeting booked" : "📞 Call completed")
+          : "⚠️ AI call did not connect";
         await supabase.from("notifications").insert({
           user_id: userId,
           workspace_id: workspaceId || null,
-          type: analysis.meeting_agreed ? "call_meeting_booked" : "call_completed",
+          type: callReachedPerson ? (analysis.meeting_agreed ? "call_meeting_booked" : "call_completed") : "call_failed",
           title: `${titlePrefix} — ${entityName}`,
-          body: `${analysis.outcome}. ${analysis.summary}`.slice(0, 500),
+          body: (callReachedPerson ? `${analysis.outcome}. ${analysis.summary}` : `No live conversation was confirmed. Status: ${payload.status || "unknown"}.`).slice(0, 500),
           link,
           read: false,
         });

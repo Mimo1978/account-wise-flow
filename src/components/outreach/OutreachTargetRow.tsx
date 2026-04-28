@@ -108,8 +108,10 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
       : base;
   };
 
+  // Human-readable channel label for the State/Script chip.
+  // e.g. "Email", "SMS", "AI Call" — paired with the script name + primary tag below.
   const verbFor = (c: "email" | "sms" | "call") =>
-    c === "email" ? "Email queued" : c === "sms" ? "SMS queued" : "Call initiated";
+    c === "email" ? "Email" : c === "sms" ? "SMS" : "AI Call";
 
   // Canonical resolution via person_identity (Talent → Contact → CRM priority).
   // Uses the DB-tagged source as a fallback while the identity route loads.
@@ -259,16 +261,23 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
                     >
                       {channelIcon(a.channel)}
                       <span className="font-semibold">{verbFor(a.channel)}</span>
-                      <span className="opacity-80">· {a.scriptName}{a.scriptVersion ? ` v${a.scriptVersion}` : ""}</span>
+                      <span className="opacity-70">·</span>
+                      <span className="opacity-90">
+                        Script: <span className="font-medium">{a.scriptName}</span>
+                        {a.scriptVersion ? <span className="opacity-70"> (v{a.scriptVersion})</span> : null}
+                      </span>
                       {a.isPrimary && (
-                        <span className="ml-0.5 px-1 rounded-sm bg-primary/30 text-primary-foreground/90 text-[9px] uppercase tracking-wide">
-                          Primary
+                        <span className="ml-0.5 px-1.5 py-[1px] rounded-sm bg-primary/30 text-primary-foreground/90 text-[9px] uppercase tracking-wide">
+                          Primary channel
                         </span>
                       )}
                     </span>
                   </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs">
-                    {a.isPrimary ? "Primary channel · " : ""}Script "{a.scriptName}" assigned for {channelLabel(a.channel)}
+                  <TooltipContent side="top" className="text-xs max-w-[260px]">
+                    {channelLabel(a.channel)} channel will use the script
+                    <span className="font-semibold"> "{a.scriptName}"</span>
+                    {a.scriptVersion ? <span> (version {a.scriptVersion})</span> : null}.
+                    {a.isPrimary && <span> This is the campaign's primary channel — it runs first.</span>}
                   </TooltipContent>
                 </Tooltip>
               ))}

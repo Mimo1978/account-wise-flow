@@ -626,15 +626,15 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                 </div>
               ) : (
                 <ScrollableTableContainer maxHeight="calc(100vh - 320px)">
-                <Table className="min-w-[1100px]">
+                <Table className="min-w-[1400px]">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead className="text-xs font-medium">Name</TableHead>
-                      <TableHead className="text-xs font-medium hidden md:table-cell">Contact</TableHead>
+                      <TableHead className="text-xs font-medium">Person</TableHead>
+                      <TableHead className="text-xs font-medium hidden md:table-cell">Email & Phone</TableHead>
                       <TableHead className="text-xs font-medium hidden md:table-cell">Campaign</TableHead>
-                      <TableHead className="text-xs font-medium">State / Script</TableHead>
-                      <TableHead className="text-xs font-medium hidden lg:table-cell">Last Contact</TableHead>
-                      <TableHead className="text-xs font-medium w-[200px]">Actions</TableHead>
+                      <TableHead className="text-xs font-medium">Status &amp; Channel Script</TableHead>
+                      <TableHead className="text-xs font-medium hidden lg:table-cell">Last Contacted</TableHead>
+                      <TableHead className="text-xs font-medium w-[280px]">Quick Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

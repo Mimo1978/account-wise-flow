@@ -1,4 +1,4 @@
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useNotifications, useMarkNotificationRead } from "@/hooks/use-deletion";
@@ -8,14 +8,40 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 export function NotificationBell() {
   const { user } = useAuth();
+  const { currentWorkspace } = useWorkspace();
   const { data: items = [] } = useNotifications();
   const markRead = useMarkNotificationRead();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [briefing, setBriefing] = useState<null | {
+    headline: string;
+    counts: Record<string, number | Record<string, number>>;
+    details: any;
+  }>(null);
+  const [briefingLoading, setBriefingLoading] = useState(false);
+
+  const fetchBriefing = async () => {
+    if (!currentWorkspace?.id) return;
+    setBriefingLoading(true);
+    setBriefing(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("get-catchup-briefing", {
+        body: { workspace_id: currentWorkspace.id },
+      });
+      if (error) throw error;
+      setBriefing(data);
+    } catch (e: any) {
+      console.error("catchup briefing failed:", e);
+      setBriefing({ headline: `Couldn't load briefing: ${e?.message || "unknown error"}`, counts: {}, details: {} });
+    } finally {
+      setBriefingLoading(false);
+    }
+  };
 
   // Realtime subscription so the badge updates the moment a webhook fires.
   useEffect(() => {

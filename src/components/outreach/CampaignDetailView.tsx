@@ -488,32 +488,52 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
 
       {/* Body */}
       <div className="container mx-auto px-6 py-6">
+        {/* Channel mode (single vs mixed) */}
+        <ChannelModeSelector
+          active={activeChannels}
+          primary={primaryChannel}
+          onChange={({ active, primary }) => {
+            setActiveChannels(active);
+            setPrimaryChannel(primary);
+          }}
+        />
+
         {/* Visual step-by-step guide */}
         <CampaignSetupGuide
-          channel={campaign.channel as "email" | "sms" | "call"}
+          activeChannels={activeChannels}
+          primaryChannel={primaryChannel}
+          channelStatus={[
+            {
+              channel: "email",
+              scriptCount: allScripts.filter((s) => s.channel === "email").length,
+              scriptAssigned: Boolean(campaign.email_script_id),
+            },
+            {
+              channel: "sms",
+              scriptCount: allScripts.filter((s) => s.channel === "sms").length,
+              scriptAssigned: Boolean(campaign.sms_script_id),
+            },
+            {
+              channel: "call",
+              scriptCount: allScripts.filter((s) => s.channel === "call").length,
+              scriptAssigned: Boolean(campaign.call_script_id),
+            },
+          ]}
           targetCount={targets.length}
           queuedCount={queued}
-          scriptCount={
-            campaign.channel === "email"
-              ? allScripts.filter((s) => s.channel === "email").length
-              : campaign.channel === "sms"
-              ? allScripts.filter((s) => s.channel === "sms").length
-              : allScripts.filter((s) => s.channel === "call").length
-          }
-          scriptAssigned={Boolean(
-            campaign.channel === "email"
-              ? campaign.email_script_id
-              : campaign.channel === "sms"
-              ? campaign.sms_script_id
-              : campaign.call_script_id
-          )}
           isLaunching={isLaunching}
           onAddTargets={() => setAddTargetsOpen(true)}
-          onCreateScript={() => {
+          onCreateScript={(c) => {
             setTab("scripts");
-            openScriptBuilder();
+            openScriptBuilder({ channel: c } as OutreachScript);
           }}
-          onAssignScript={() => setTab("scripts")}
+          onAssignScript={(c) => {
+            setTab("scripts");
+            setHighlightChannel(c);
+            // Scroll to the assignment block once tab swap renders
+            setTimeout(() => scriptsTabRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+            setTimeout(() => setHighlightChannel(null), 2400);
+          }}
           onLaunch={handleLaunchAll}
         />
 

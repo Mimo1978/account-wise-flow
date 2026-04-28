@@ -368,20 +368,32 @@ export default function CandidateProfile() {
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {candidate.phone && (
-              <Button variant="outline" size="sm" onClick={() => setCallOpen(true)}>
-                <Bot className="h-4 w-4 mr-1.5" />
+              <Button
+                size="sm"
+                onClick={() => setCallOpen(true)}
+                className="gap-1.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-500/25 hover:text-emerald-200 hover:border-emerald-400/70 shadow-[0_0_12px_-2px_hsl(152_76%_45%/0.45)]"
+              >
+                <Phone className="h-4 w-4" />
                 AI Call
               </Button>
             )}
             {candidate.email && (
-              <Button variant="outline" size="sm" onClick={() => setEmailOpen(true)}>
-                <Mail className="h-4 w-4 mr-1.5" />
+              <Button
+                size="sm"
+                onClick={() => setEmailOpen(true)}
+                className="gap-1.5 bg-sky-500/15 text-sky-300 border border-sky-500/50 hover:bg-sky-500/25 hover:text-sky-200 hover:border-sky-400/70 shadow-[0_0_12px_-2px_hsl(199_89%_55%/0.45)]"
+              >
+                <Mail className="h-4 w-4" />
                 Email
               </Button>
             )}
             {candidate.phone && (
-              <Button variant="outline" size="sm" onClick={() => setSmsOpen(true)}>
-                <MessageSquare className="h-4 w-4 mr-1.5" />
+              <Button
+                size="sm"
+                onClick={() => setSmsOpen(true)}
+                className="gap-1.5 bg-violet-500/15 text-violet-300 border border-violet-500/50 hover:bg-violet-500/25 hover:text-violet-200 hover:border-violet-400/70 shadow-[0_0_12px_-2px_hsl(262_83%_65%/0.45)]"
+              >
+                <MessageSquare className="h-4 w-4" />
                 SMS
               </Button>
             )}

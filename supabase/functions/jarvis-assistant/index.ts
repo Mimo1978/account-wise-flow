@@ -512,6 +512,20 @@ const TOOL_DEFINITIONS = [
   {
     type: "function",
     function: {
+      name: "get_catchup_briefing",
+      description: "Return a 'what did I miss' briefing — counts and headlines for AI calls completed, follow-up emails pending/sent, meetings booked from calls, outreach responses awaiting reply, diary events in the next 24h/7d, and unread notifications. Use whenever the user asks 'what did I miss', 'catch me up', 'what's new', 'what happened while I was away', or 'give me a summary'. Always call this with no job_id needed.",
+      parameters: {
+        type: "object",
+        properties: {
+          since_hours: { type: "number", description: "How many hours back to look. Defaults to 24 if not specified." },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "update_advert",
       description: "Update the content of an existing job advert. Use when the user asks to shorten, rephrase, or modify a specific advert.",
       parameters: {
@@ -3447,6 +3461,22 @@ Return ONLY valid JSON, no markdown fences.`,
         entityType: "outreach_messages",
         entityId: jobId,
       };
+    }
+    case "get_catchup_briefing": {
+      const teamId = await getUserTeamId(supabaseAdmin, userId);
+      if (!teamId) return { result: { error: "No workspace found" }, entityType: "briefing" };
+      const hours = Number(input.since_hours) > 0 ? Number(input.since_hours) : 24;
+      const sinceIso = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const res = await fetch(`${supabaseUrl}/functions/v1/get-catchup-briefing`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: teamId, since: sinceIso, user_id: userId }),
+      });
+      const data = await res.json();
+      if (!res.ok) return { result: { error: data.error || "Failed to load briefing" }, entityType: "briefing" };
+      return { result: data, entityType: "briefing" };
     }
     // ─── Diary tools ───
     case "find_diary_slots": {

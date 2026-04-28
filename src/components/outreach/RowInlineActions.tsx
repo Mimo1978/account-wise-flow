@@ -68,33 +68,33 @@ export function RowInlineActions({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-6 w-6 bg-sky-500/15 text-sky-300 border border-sky-500/40 hover:bg-sky-500/25 hover:text-sky-200 hover:border-sky-400/60"
             title={`Email ${entityName}`}
             onClick={(e) => { e.stopPropagation(); setEmailOpen(true); }}
           >
-            <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+            <Mail className="h-3.5 w-3.5" />
           </Button>
         )}
         {entityPhone && (
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="h-6 w-6 bg-violet-500/15 text-violet-300 border border-violet-500/40 hover:bg-violet-500/25 hover:text-violet-200 hover:border-violet-400/60"
             title={`SMS ${entityName}`}
             onClick={(e) => { e.stopPropagation(); setSmsOpen(true); }}
           >
-            <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+            <MessageSquare className="h-3.5 w-3.5" />
           </Button>
         )}
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 px-1.5 gap-0.5"
+          className="h-6 px-1.5 gap-0.5 bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/25 hover:text-emerald-200 hover:border-emerald-400/60"
           title={`AI Call ${entityName}`}
           onClick={(e) => { e.stopPropagation(); setAiCallOpen(true); }}
         >
-          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">AI</span>
+          <Phone className="h-3.5 w-3.5" />
+          <span className="text-[9px] font-semibold uppercase tracking-wide">AI</span>
         </Button>
         <ScheduleCallbackPopover
           workspaceId={workspaceId}

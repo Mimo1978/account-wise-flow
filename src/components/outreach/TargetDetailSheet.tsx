@@ -14,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { 
   Mail, Phone, MessageSquare, Calendar, XCircle, 
-  Bot, CheckCircle2, RotateCcw, ChevronDown, ChevronRight,
+  Phone as PhoneAi, CheckCircle2, RotateCcw, ChevronDown, ChevronRight,
   AlertTriangle, ExternalLink, Save, Pencil, FileText,
 } from "lucide-react";
 import {
@@ -359,7 +359,7 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
                   disabled={isPending}
                   onClick={() => setAiCallOpen(true)}
                 >
-                  <Bot className="w-3.5 h-3.5" /> AI Call Agent
+                  <PhoneAi className="w-3.5 h-3.5" /> AI Call Agent
                 </Button>
                 <Button
                   size="sm"

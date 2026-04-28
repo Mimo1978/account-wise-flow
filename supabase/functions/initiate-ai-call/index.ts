@@ -289,11 +289,14 @@ End the call professionally and confirm any agreed next step.`;
     });
 
     if (target_id && workspaceId) {
-      await supabase.from("outreach_targets").update({
-        call_attempts: body.current_call_attempts ? Number(body.current_call_attempts) + 1 : undefined,
+      const targetPatch: Record<string, unknown> = {
         next_action: provider === "bland" ? "AI call in progress" : "Scripted call placed",
         next_action_due: null,
-      }).eq("id", target_id).eq("workspace_id", workspaceId);
+      };
+      if (typeof body.current_call_attempts === "number") {
+        targetPatch.call_attempts = body.current_call_attempts + 1;
+      }
+      await supabase.from("outreach_targets").update(targetPatch).eq("id", target_id).eq("workspace_id", workspaceId);
 
       await supabase.from("outreach_events").insert({
         workspace_id: workspaceId,

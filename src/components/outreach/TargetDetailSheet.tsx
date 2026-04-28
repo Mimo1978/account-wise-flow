@@ -53,6 +53,20 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
 
   if (!target) return null;
 
+  // Resolve where this target can actually be opened. The stored entity_type
+  // can be stale (e.g. classed as Talent but only a CRM contact exists). Trust
+  // whichever id is actually populated, preferring the declared entity_type.
+  const resolvedOpenAs: "contact" | "candidate" | null =
+    target.entity_type === "contact" && target.contact_id
+      ? "contact"
+      : target.entity_type === "candidate" && target.candidate_id
+      ? "candidate"
+      : target.contact_id
+      ? "contact"
+      : target.candidate_id
+      ? "candidate"
+      : null;
+
   const needsEmail = activeChannels.includes("email") && !target.entity_email;
   const needsPhone = (activeChannels.includes("sms") || activeChannels.includes("call")) && !target.entity_phone;
   const primaryNeeds =
@@ -70,12 +84,12 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
 
   const handleViewFullProfile = () => {
     const qs = campaignId ? `?returnTo=outreach&campaignId=${campaignId}` : "?returnTo=outreach";
-    if (target.entity_type === "contact" && target.contact_id) {
+    if (resolvedOpenAs === "contact" && target.contact_id) {
       // CRM contacts live in `crm_contacts` and must use the CRM-scoped route
       navigate(`/crm/contacts/${target.contact_id}${qs}`, {
         state: { from: `/outreach${campaignId ? `?campaignId=${campaignId}` : ""}`, fromLabel: "Back to Campaign" },
       });
-    } else if (target.candidate_id) {
+    } else if (resolvedOpenAs === "candidate" && target.candidate_id) {
       navigate(`/talent/${target.candidate_id}${qs}`, {
         state: { from: `/outreach${campaignId ? `?campaignId=${campaignId}` : ""}`, fromLabel: "Back to Campaign" },
       });
@@ -95,10 +109,10 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
       };
       let table: "candidates" | "crm_contacts" | null = null;
       let id: string | undefined;
-      if (target.entity_type === "contact" && target.contact_id) {
+      if (resolvedOpenAs === "contact" && target.contact_id) {
         table = "crm_contacts";
         id = target.contact_id;
-      } else if (target.candidate_id) {
+      } else if (resolvedOpenAs === "candidate" && target.candidate_id) {
         table = "candidates";
         id = target.candidate_id;
       }
@@ -153,17 +167,21 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
               variant="outline"
               className="gap-1.5 h-7 text-xs"
               onClick={handleViewFullProfile}
-              disabled={!target.candidate_id && !target.contact_id}
+              disabled={!resolvedOpenAs}
             >
               <ExternalLink className="w-3 h-3" />
-              {target.entity_type === "contact" ? "Open Contact" : "Open Talent Profile"}
+              {resolvedOpenAs === "contact"
+                ? "Open CRM Contact"
+                : resolvedOpenAs === "candidate"
+                ? "Open Talent Profile"
+                : "No linked profile"}
             </Button>
             <Button
               size="sm"
               variant="ghost"
               className="gap-1.5 h-7 text-xs"
               onClick={beginEditContact}
-              disabled={!target.candidate_id && !target.contact_id}
+              disabled={!resolvedOpenAs}
               title="Edit email & phone inline"
             >
               <Pencil className="w-3 h-3" /> Edit Contact

@@ -159,7 +159,6 @@ export function AddToOutreachModal({ open, onOpenChange, candidates, contacts, d
         entity_phone: e.phone,
         entity_title: e.title,
         entity_company: e.company,
-        metadata: e.kind === "contact" ? { contact_source: e.contactSource || "contacts" } : undefined,
       }))
     );
 

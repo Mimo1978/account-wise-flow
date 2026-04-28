@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { EnhancedTextField } from "./EnhancedTextField";
 import { ScriptTemplateLibrary, type ReadyTemplate } from "./ScriptTemplateLibrary";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { ProofreadReviewModal, type ProofreadField } from "./ProofreadReviewModal";
 
 // Quick-insert ready-made snippets per channel for fast script authoring.
 const QUICK_TEMPLATES_EMAIL = [
@@ -141,6 +142,11 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script }: P
   // ── AI assist state ────────────────────────────────────────────────────────
   const [aiBusy, setAiBusy] = useState<null | "polish" | "link_job">(null);
   const [linkedJobId, setLinkedJobId] = useState<string | null>(null);
+  // Pre-save spell/grammar gate state.
+  const [proofreading, setProofreading] = useState(false);
+  const [proofResults, setProofResults] = useState<ProofreadField[] | null>(null);
+  const [proofOpen, setProofOpen] = useState(false);
+  const [pendingSave, setPendingSave] = useState(false);
   const { data: jobs = [] } = useJobs();
   const activeJobs = jobs.filter((j) => j.status === "active" || j.status === "draft");
 

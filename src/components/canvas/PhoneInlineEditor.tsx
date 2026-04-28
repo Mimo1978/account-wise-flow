@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PhoneNumber, PhoneLabel } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -225,18 +226,9 @@ export const PhoneInlineEditor = ({
           <div className="space-y-2 pt-2 border-t border-border">
             <Label className="text-xs text-muted-foreground">Add number</Label>
             <div className="flex gap-2">
-              <Input
-                placeholder="+1 (555) 000-0000"
-                value={newPhone}
-                onChange={(e) => setNewPhone(e.target.value)}
-                className="h-8 text-sm flex-1"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddPhone();
-                  }
-                }}
-              />
+              <div className="flex-1">
+                <PhoneInput value={newPhone} onChange={setNewPhone} />
+              </div>
               <Select
                 value={newLabel}
                 onValueChange={(v) => setNewLabel(v as PhoneLabel)}

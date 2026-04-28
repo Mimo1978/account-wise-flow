@@ -274,7 +274,9 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
                 <Mail className="w-3.5 h-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Send Email</TooltipContent>
+            <TooltipContent side="top" className="text-xs">
+              {!target.entity_email ? "Email unavailable — no email on file. Open the panel to add one." : "Send Email"}
+            </TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -289,7 +291,9 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
                 <MessageSquare className="w-3.5 h-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Send SMS</TooltipContent>
+            <TooltipContent side="top" className="text-xs">
+              {!target.entity_phone ? "SMS unavailable — no phone on file. Open the panel to add one." : "Send SMS"}
+            </TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -319,7 +323,9 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
                 <Bot className="w-3.5 h-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Initiate AI Call</TooltipContent>
+            <TooltipContent side="top" className="text-xs">
+              {!target.entity_phone ? "AI Call unavailable — no phone on file. Open the panel to add one." : "Initiate AI Call"}
+            </TooltipContent>
           </Tooltip>
 
           <Tooltip>

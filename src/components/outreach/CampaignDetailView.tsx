@@ -93,6 +93,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const [addTargetsOpen, setAddTargetsOpen] = useState(false);
   const [scriptBuilderOpen, setScriptBuilderOpen] = useState(false);
   const [editingScript, setEditingScript] = useState<OutreachScript | undefined>();
+  const [defaultScriptChannel, setDefaultScriptChannel] = useState<ChannelKey | undefined>();
   const [selectedTarget, setSelectedTarget] = useState<OutreachTarget | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [filterState, setFilterState] = useState<OutreachTargetState | "">("");
@@ -196,8 +197,9 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
     setDetailOpen(true);
   };
 
-  const openScriptBuilder = (script?: OutreachScript) => {
+  const openScriptBuilder = (script?: OutreachScript, defaultChannel?: ChannelKey) => {
     setEditingScript(script);
+    setDefaultScriptChannel(defaultChannel);
     setScriptBuilderOpen(true);
   };
 
@@ -521,7 +523,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
           onAddTargets={() => setAddTargetsOpen(true)}
           onCreateScript={(c) => {
             setTab("scripts");
-            openScriptBuilder({ channel: c } as OutreachScript);
+            openScriptBuilder(undefined, c);
           }}
           onAssignScript={(c) => {
             setTab("scripts");
@@ -976,6 +978,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
         onOpenChange={setScriptBuilderOpen}
         campaignId={campaign.id}
         script={editingScript}
+        defaultChannel={defaultScriptChannel}
       />
 
       <TargetDetailSheet

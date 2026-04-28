@@ -66,6 +66,8 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
       : target.candidate_id
       ? "candidate"
       : null;
+  const contactSource = target.contact_source ?? "contacts";
+  const contactProfileLabel = contactSource === "crm_contacts" ? "Open CRM Contact" : "Open Contact Profile";
 
   const needsEmail = activeChannels.includes("email") && !target.entity_email;
   const needsPhone = (activeChannels.includes("sms") || activeChannels.includes("call")) && !target.entity_phone;
@@ -85,8 +87,8 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
   const handleViewFullProfile = () => {
     const qs = campaignId ? `?returnTo=outreach&campaignId=${campaignId}` : "?returnTo=outreach";
     if (resolvedOpenAs === "contact" && target.contact_id) {
-      // CRM contacts live in `crm_contacts` and must use the CRM-scoped route
-      navigate(`/crm/contacts/${target.contact_id}${qs}`, {
+      const profilePath = contactSource === "crm_contacts" ? `/crm/contacts/${target.contact_id}` : `/contacts/${target.contact_id}`;
+      navigate(`${profilePath}${qs}`, {
         state: { from: `/outreach${campaignId ? `?campaignId=${campaignId}` : ""}`, fromLabel: "Back to Campaign" },
       });
     } else if (resolvedOpenAs === "candidate" && target.candidate_id) {
@@ -107,10 +109,10 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
         email: emailDraft.trim() || null,
         phone: phoneDraft.trim() || null,
       };
-      let table: "candidates" | "crm_contacts" | null = null;
+      let table: "candidates" | "crm_contacts" | "contacts" | null = null;
       let id: string | undefined;
       if (resolvedOpenAs === "contact" && target.contact_id) {
-        table = "crm_contacts";
+        table = contactSource === "crm_contacts" ? "crm_contacts" : "contacts";
         id = target.contact_id;
       } else if (resolvedOpenAs === "candidate" && target.candidate_id) {
         table = "candidates";
@@ -171,7 +173,7 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
             >
               <ExternalLink className="w-3 h-3" />
               {resolvedOpenAs === "contact"
-                ? "Open CRM Contact"
+                ? contactProfileLabel
                 : resolvedOpenAs === "candidate"
                 ? "Open Talent Profile"
                 : "No linked profile"}
@@ -242,9 +244,9 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
                       variant="ghost"
                       className="h-7 text-xs ml-auto gap-1.5 text-muted-foreground hover:text-foreground"
                       onClick={handleViewFullProfile}
-                      title="Open full profile to view CV"
+                      title={resolvedOpenAs === "candidate" ? "Open full profile to view CV" : "Open full contact profile"}
                     >
-                      <FileText className="w-3 h-3" /> View CV
+                      <FileText className="w-3 h-3" /> {resolvedOpenAs === "candidate" ? "View CV" : "Open Profile"}
                     </Button>
                   )}
                 </div>

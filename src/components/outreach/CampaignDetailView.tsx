@@ -660,6 +660,8 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                           target={target}
                           onOpen={openTarget}
                           assignedChannels={assigned}
+                          activeChannels={activeChannels}
+                          primaryChannel={primaryChannel}
                         />
                       );
                     })}
@@ -1006,6 +1008,9 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
         target={selectedTarget}
         open={detailOpen}
         onOpenChange={setDetailOpen}
+        primaryChannel={primaryChannel}
+        activeChannels={activeChannels}
+        campaignId={campaign.id}
       />
     </div>
   );

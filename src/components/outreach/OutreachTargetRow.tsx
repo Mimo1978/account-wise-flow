@@ -83,6 +83,35 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
     c === "email" ? <Mail className="w-3 h-3" /> : c === "sms" ? <MessageSquare className="w-3 h-3" /> : <Phone className="w-3 h-3" />;
   const channelLabel = (c: "email" | "sms" | "call") => (c === "call" ? "AI Call" : c.toUpperCase());
 
+  // Channel theme tokens — tactile coloured buttons that match the dark theme
+  const channelTheme = {
+    email:
+      "bg-sky-500/15 text-sky-300 border border-sky-500/40 hover:bg-sky-500/25 hover:text-sky-200 hover:border-sky-400/60 shadow-[0_0_0_1px_hsl(var(--background))_inset]",
+    sms:
+      "bg-violet-500/15 text-violet-300 border border-violet-500/40 hover:bg-violet-500/25 hover:text-violet-200 hover:border-violet-400/60 shadow-[0_0_0_1px_hsl(var(--background))_inset]",
+    call:
+      "bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/25 hover:text-emerald-200 hover:border-emerald-400/60 shadow-[0_0_0_1px_hsl(var(--background))_inset]",
+    aiCall:
+      "bg-primary/15 text-primary border border-primary/40 hover:bg-primary/25 hover:border-primary/60 shadow-[0_0_0_1px_hsl(var(--background))_inset]",
+    meeting:
+      "bg-amber-500/15 text-amber-300 border border-amber-500/40 hover:bg-amber-500/25 hover:text-amber-200 hover:border-amber-400/60 shadow-[0_0_0_1px_hsl(var(--background))_inset]",
+  } as const;
+
+  const chipTheme = (c: "email" | "sms" | "call", primary?: boolean) => {
+    const base =
+      c === "email"
+        ? "border-sky-500/50 bg-sky-500/10 text-sky-300"
+        : c === "sms"
+        ? "border-violet-500/50 bg-violet-500/10 text-violet-300"
+        : "border-emerald-500/50 bg-emerald-500/10 text-emerald-300";
+    return primary
+      ? `${base} ring-1 ring-primary/50 shadow-[0_0_0_1px_hsl(var(--primary)/0.25)]`
+      : base;
+  };
+
+  const verbFor = (c: "email" | "sms" | "call") =>
+    c === "email" ? "Email queued" : c === "sms" ? "SMS queued" : "Call initiated";
+
   return (
     <tr className="border-b last:border-0 hover:bg-muted/30 transition-colors">
       {/* Checkbox */}
@@ -172,15 +201,16 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
                 <Tooltip key={a.channel}>
                   <TooltipTrigger asChild>
                     <span
-                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium leading-4 ${
-                        a.isPrimary
-                          ? "border-primary/40 bg-primary/10 text-primary"
-                          : "border-border bg-muted/40 text-muted-foreground"
-                      }`}
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-medium leading-4 ${chipTheme(a.channel, a.isPrimary)}`}
                     >
                       {channelIcon(a.channel)}
-                      <span>{channelLabel(a.channel)}</span>
-                      <span className="opacity-70">· {a.scriptName}{a.scriptVersion ? ` v${a.scriptVersion}` : ""}</span>
+                      <span className="font-semibold">{verbFor(a.channel)}</span>
+                      <span className="opacity-80">· {a.scriptName}{a.scriptVersion ? ` v${a.scriptVersion}` : ""}</span>
+                      {a.isPrimary && (
+                        <span className="ml-0.5 px-1 rounded-sm bg-primary/30 text-primary-foreground/90 text-[9px] uppercase tracking-wide">
+                          Primary
+                        </span>
+                      )}
                     </span>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="text-xs">
@@ -209,13 +239,13 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
 
       {/* Actions — always visible */}
       <td className="px-4 py-3">
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7"
+                className={`h-7 w-7 rounded-md transition-all ${channelTheme.email} disabled:opacity-40`}
                 disabled={isPending || outreachBlocked || !target.entity_email}
                 onClick={() => setEmailOpen(true)}
               >
@@ -230,7 +260,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7"
+                className={`h-7 w-7 rounded-md transition-all ${channelTheme.sms} disabled:opacity-40`}
                 disabled={isPending || outreachBlocked || !target.entity_phone}
                 onClick={() => setSmsOpen(true)}
               >
@@ -245,7 +275,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7"
+                className={`h-7 w-7 rounded-md transition-all ${channelTheme.call} disabled:opacity-40`}
                 disabled={isPending || callBlocked}
                 onClick={() => setCallLogOpen(true)}
               >
@@ -260,14 +290,14 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7"
+                className={`h-7 w-7 rounded-md transition-all ${channelTheme.aiCall} disabled:opacity-40`}
                 disabled={isPending || callBlocked || !target.entity_phone}
                 onClick={() => setAiCallOpen(true)}
               >
                 <Bot className="w-3.5 h-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">AI Call Agent</TooltipContent>
+            <TooltipContent side="top" className="text-xs">Initiate AI Call</TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -275,7 +305,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-7 w-7"
+                className={`h-7 w-7 rounded-md transition-all ${channelTheme.meeting} disabled:opacity-40`}
                 disabled={isPending || outreachBlocked}
                 onClick={() => setMeetingOpen(true)}
               >
@@ -288,7 +318,7 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
           {/* Overflow: Reset + Opt Out */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-7 w-7">
+              <Button size="icon" variant="ghost" className="h-7 w-7 rounded-md border border-border/60 hover:bg-muted/60">
                 <MoreHorizontal className="w-3.5 h-3.5" />
               </Button>
             </DropdownMenuTrigger>

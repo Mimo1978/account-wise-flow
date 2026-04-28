@@ -807,6 +807,7 @@ export type Database = {
           location: string | null
           name: string
           owner_id: string | null
+          person_identity_id: string | null
           phone: string | null
           raw_cv_text: string | null
           search_vector: unknown
@@ -832,6 +833,7 @@ export type Database = {
           location?: string | null
           name: string
           owner_id?: string | null
+          person_identity_id?: string | null
           phone?: string | null
           raw_cv_text?: string | null
           search_vector?: unknown
@@ -857,6 +859,7 @@ export type Database = {
           location?: string | null
           name?: string
           owner_id?: string | null
+          person_identity_id?: string | null
           phone?: string | null
           raw_cv_text?: string | null
           search_vector?: unknown
@@ -867,6 +870,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "candidates_person_identity_id_fkey"
+            columns: ["person_identity_id"]
+            isOneToOne: false
+            referencedRelation: "person_identities"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "candidates_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -1343,6 +1353,7 @@ export type Database = {
           name: string
           notes: string | null
           owner_id: string | null
+          person_identity_id: string | null
           phone: string | null
           seniority: string | null
           status: string | null
@@ -1367,6 +1378,7 @@ export type Database = {
           name: string
           notes?: string | null
           owner_id?: string | null
+          person_identity_id?: string | null
           phone?: string | null
           seniority?: string | null
           status?: string | null
@@ -1391,6 +1403,7 @@ export type Database = {
           name?: string
           notes?: string | null
           owner_id?: string | null
+          person_identity_id?: string | null
           phone?: string | null
           seniority?: string | null
           status?: string | null
@@ -1412,6 +1425,13 @@ export type Database = {
             columns: ["manager_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contacts_person_identity_id_fkey"
+            columns: ["person_identity_id"]
+            isOneToOne: false
+            referencedRelation: "person_identities"
             referencedColumns: ["id"]
           },
         ]
@@ -1632,6 +1652,7 @@ export type Database = {
           linkedin_url: string | null
           mobile: string | null
           notes: string | null
+          person_identity_id: string | null
           phone: string | null
           preferred_contact: string | null
           team_id: string | null
@@ -1656,6 +1677,7 @@ export type Database = {
           linkedin_url?: string | null
           mobile?: string | null
           notes?: string | null
+          person_identity_id?: string | null
           phone?: string | null
           preferred_contact?: string | null
           team_id?: string | null
@@ -1680,6 +1702,7 @@ export type Database = {
           linkedin_url?: string | null
           mobile?: string | null
           notes?: string | null
+          person_identity_id?: string | null
           phone?: string | null
           preferred_contact?: string | null
           team_id?: string | null
@@ -1691,6 +1714,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "crm_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_contacts_person_identity_id_fkey"
+            columns: ["person_identity_id"]
+            isOneToOne: false
+            referencedRelation: "person_identities"
             referencedColumns: ["id"]
           },
           {
@@ -5608,6 +5638,56 @@ export type Database = {
           },
         ]
       }
+      person_identities: {
+        Row: {
+          canonical_name: string
+          created_at: string
+          id: string
+          merge_confidence: string
+          notes: string | null
+          preferred_route: string
+          primary_email: string | null
+          primary_linkedin_url: string | null
+          primary_phone: string | null
+          team_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          canonical_name: string
+          created_at?: string
+          id?: string
+          merge_confidence?: string
+          notes?: string | null
+          preferred_route?: string
+          primary_email?: string | null
+          primary_linkedin_url?: string | null
+          primary_phone?: string | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          canonical_name?: string
+          created_at?: string
+          id?: string
+          merge_confidence?: string
+          notes?: string | null
+          preferred_route?: string
+          primary_email?: string | null
+          primary_linkedin_url?: string | null
+          primary_phone?: string | null
+          team_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_identities_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       placement_invoices: {
         Row: {
           created_at: string
@@ -6838,6 +6918,25 @@ export type Database = {
         Returns: boolean
       }
       execute_schema_inventory: { Args: never; Returns: Json }
+      find_or_create_person_identity: {
+        Args: {
+          _company: string
+          _email: string
+          _linkedin: string
+          _name: string
+          _phone: string
+          _team_id: string
+        }
+        Returns: string
+      }
+      find_person_identity_by_source: {
+        Args: {
+          _candidate_id?: string
+          _contact_id?: string
+          _crm_contact_id?: string
+        }
+        Returns: string
+      }
       get_current_workspace_id: { Args: { _user_id: string }; Returns: string }
       get_entity_team_id: {
         Args: { _entity_id: string; _entity_type: string }
@@ -6915,7 +7014,24 @@ export type Database = {
         Returns: Json
       }
       lookup_user_id_by_email: { Args: { _email: string }; Returns: string }
+      normalize_email: { Args: { _email: string }; Returns: string }
+      normalize_linkedin: { Args: { _url: string }; Returns: string }
+      normalize_name: { Args: { _name: string }; Returns: string }
+      normalize_phone: { Args: { _phone: string }; Returns: string }
       reset_demo_data: { Args: { _user_id: string }; Returns: boolean }
+      resolve_person_route: {
+        Args: { _person_identity_id: string }
+        Returns: {
+          candidate_id: string
+          contact_id: string
+          crm_contact_id: string
+          display_name: string
+          person_identity_id: string
+          preferred_route: string
+          primary_email: string
+          primary_phone: string
+        }[]
+      }
       search_candidates: {
         Args: {
           include_cv?: boolean

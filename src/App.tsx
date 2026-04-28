@@ -71,6 +71,7 @@ import CrmDeals from "./pages/crm/CrmDeals";
 import CrmDealDetail from "./pages/crm/CrmDealDetail";
 import CrmInvoices from "./pages/crm/CrmInvoices";
 import CrmInvoiceDetail from "./pages/crm/CrmInvoiceDetail";
+import CrmContactDetail from "./pages/crm/CrmContactDetail";
 import IntegrationsSettings from "./pages/settings/IntegrationsSettings";
 import EmailTemplatesSettings from "./pages/settings/EmailTemplatesSettings";
 import Dashboard from "./pages/Dashboard";
@@ -199,6 +200,7 @@ const App = () => {
             <Route path="/crm/opportunities/:id" element={<ProtectedRoute><ProductLayout><CrmOpportunityDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/deals" element={<ProtectedRoute><ProductLayout><CrmDeals /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/deals/:id" element={<ProtectedRoute><ProductLayout><CrmDealDetail /></ProductLayout></ProtectedRoute>} />
+            <Route path="/crm/contacts/:id" element={<ProtectedRoute><ProductLayout><CrmContactDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/placements" element={<ProtectedRoute><ProductLayout><PlacementsList /></ProductLayout></ProtectedRoute>} />
             <Route path="/placements/:id" element={<ProtectedRoute><ProductLayout><PlacementDetail /></ProductLayout></ProtectedRoute>} />
             <Route path="/crm/projects" element={<Navigate to="/projects" replace />} />

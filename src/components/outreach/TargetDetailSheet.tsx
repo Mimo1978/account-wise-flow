@@ -71,9 +71,14 @@ export function TargetDetailSheet({ target, open, onOpenChange, primaryChannel, 
   const handleViewFullProfile = () => {
     const qs = campaignId ? `?returnTo=outreach&campaignId=${campaignId}` : "?returnTo=outreach";
     if (target.entity_type === "contact" && target.contact_id) {
-      navigate(`/contacts/${target.contact_id}${qs}`);
+      // CRM contacts live in `crm_contacts` and must use the CRM-scoped route
+      navigate(`/crm/contacts/${target.contact_id}${qs}`, {
+        state: { from: `/outreach${campaignId ? `?campaignId=${campaignId}` : ""}`, fromLabel: "Back to Campaign" },
+      });
     } else if (target.candidate_id) {
-      navigate(`/talent/${target.candidate_id}${qs}`);
+      navigate(`/talent/${target.candidate_id}${qs}`, {
+        state: { from: `/outreach${campaignId ? `?campaignId=${campaignId}` : ""}`, fromLabel: "Back to Campaign" },
+      });
     } else {
       toast.info("No linked profile for this target.");
       return;

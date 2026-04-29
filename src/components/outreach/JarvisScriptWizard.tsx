@@ -688,8 +688,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         /* ignore */
       }
     }
+    clearSilenceTimer();
     setListening(false);
-  }, []);
+  }, [clearSilenceTimer]);
 
   /* ─── Chat helpers ─── */
 

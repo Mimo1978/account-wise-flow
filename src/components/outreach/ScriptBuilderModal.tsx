@@ -619,7 +619,22 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-4xl h-[90vh] flex flex-col p-0 gap-0"
+        className={cn(
+          "flex flex-col p-0 gap-0 transition-[width,height,max-width] duration-200",
+          isMaxed
+            ? "!max-w-[98vw] w-[98vw] h-[96vh]"
+            : "max-w-4xl h-[90vh]"
+        )}
+        style={
+          !isMaxed && (dragOffset.x !== 0 || dragOffset.y !== 0)
+            ? {
+                // Shadcn DialogContent uses left-1/2 top-1/2 + translate(-50%,-50%).
+                // We layer an additional translate via CSS variables so the modal
+                // visually moves while staying centred when reset.
+                transform: `translate(calc(-50% + ${dragOffset.x}px), calc(-50% + ${dragOffset.y}px))`,
+              }
+            : undefined
+        }
         data-jarvis-id="outreach-script-modal"
         onPointerDownOutside={(e) => {
           // Don't close the dialog when the user clicks inside the Jarvis
@@ -638,15 +653,49 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
       >
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/50 shrink-0">
           <div className="flex items-center justify-between gap-4">
-            <DialogTitle className="text-base font-semibold">
-              {isEdit ? "Edit Script" : "New Script"}
-              {script?.version && (
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  v{script.version}
-                </span>
-              )}
-            </DialogTitle>
+            <div className="flex items-center gap-2 min-w-0">
+              {/* Drag handle — grab anywhere on this strip to move the modal */}
+              <button
+                type="button"
+                onPointerDown={handleDragStart}
+                disabled={isMaxed}
+                className={cn(
+                  "flex items-center gap-1 h-7 px-1.5 rounded-md border border-border/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors select-none",
+                  isMaxed ? "opacity-40 cursor-not-allowed" : "cursor-grab active:cursor-grabbing"
+                )}
+                title={isMaxed ? "Exit fullscreen to drag" : "Drag to move — useful when Jarvis is open"}
+                aria-label="Drag to move modal"
+              >
+                <Move className="w-3.5 h-3.5" />
+              </button>
+              <DialogTitle className="text-base font-semibold truncate">
+                {isEdit ? "Edit Script" : "New Script"}
+                {script?.version && (
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    v{script.version}
+                  </span>
+                )}
+              </DialogTitle>
+            </div>
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setIsMaxed((v) => !v)}
+                className="h-8 gap-1.5"
+                title={isMaxed ? "Exit fullscreen" : "Expand to fullscreen"}
+                aria-label={isMaxed ? "Exit fullscreen" : "Expand to fullscreen"}
+              >
+                {isMaxed ? (
+                  <Minimize2 className="w-3.5 h-3.5" />
+                ) : (
+                  <Maximize2 className="w-3.5 h-3.5" />
+                )}
+                <span className="text-xs font-semibold">
+                  {isMaxed ? "Exit fullscreen" : "Fullscreen"}
+                </span>
+              </Button>
               <Button
                 type="button"
                 size="sm"

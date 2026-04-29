@@ -209,6 +209,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       "[data-jarvis-id='script-wizard-panel']"
     ) as HTMLElement | null;
     if (!panelEl) return;
+    if ((e.target as HTMLElement | null)?.closest("button, input, textarea, [role='button']")) return;
     e.preventDefault();
     const rect = panelEl.getBoundingClientRect();
     dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -713,10 +714,13 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
       <div
         className={cn(
-          "jarvis-wizard-panel fixed z-[2147483000] flex flex-col border border-border bg-background shadow-2xl overflow-hidden rounded-2xl w-[420px] h-[580px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)]",
+          "jarvis-wizard-panel fixed z-[2147483000] flex flex-col border border-border bg-background shadow-2xl overflow-hidden rounded-2xl w-[420px] h-[580px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)] pointer-events-auto",
           isDragging && "select-none"
         )}
         data-jarvis-id="script-wizard-panel"
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         style={
           pos
             ? { left: pos.x, top: pos.y }

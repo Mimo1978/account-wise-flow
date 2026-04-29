@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { playYourTurnChime, playListeningPing } from "@/lib/jarvis-sounds";
+import { playYourTurnChime } from "@/lib/jarvis-sounds";
 import { CMPulse } from "@/components/ui/CMLoader";
 
 /* ────────────────────────────── Types ────────────────────────────── */
@@ -252,6 +252,12 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const openRef = useRef(open);
+  const speakingRef = useRef(false);
+  const thinkingRef = useRef(false);
+  const listeningBaseRef = useRef("");
+  const submittingVoiceRef = useRef(false);
+  const heardSpeechRef = useRef(false);
   // Hard kill switch. Flipped to `true` whenever the wizard closes or
   // unmounts. Any in-flight `speak()` call checks this after the async
   // jarvis-speak fetch resolves and aborts before creating a new <audio>
@@ -512,7 +518,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   // Forward-declared so the recogniser callbacks can call back into the
   // current phase's submit logic without a circular reference.
-  const submitDispatchRef = useRef<() => void>(() => { /* noop */ });
+  const submitDispatchRef = useRef<(spokenText?: string) => void>(() => { /* noop */ });
 
   const clearSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -527,14 +533,19 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       // Auto-submit whatever the user has spoken so far.
       const txt = liveTranscriptRef.current.trim();
       if (!txt) return;
+      if (!openRef.current || killedRef.current || !expectingAnswerRef.current) return;
+      submittingVoiceRef.current = true;
       try { recognitionRef.current?.stop(); } catch { /* noop */ }
-      submitDispatchRef.current?.();
+      submitDispatchRef.current?.(txt);
+      setTimeout(() => { submittingVoiceRef.current = false; }, 250);
     }, SILENCE_MS);
   }, [clearSilenceTimer]);
 
   const startListening = useCallback(() => {
     const SR = getSpeechRecognition();
     if (!SR) return;
+    if (!openRef.current || killedRef.current) return;
+    if (speakingRef.current || thinkingRef.current) return;
     // Already running — don't double-start (browser throws InvalidStateError).
     if (recognitionRef.current) return;
     try {
@@ -542,14 +553,17 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       r.lang = "en-GB";
       r.interimResults = true;
       r.continuous = true;
-      liveTranscriptRef.current = "";
+      listeningBaseRef.current = answer.trim();
+      liveTranscriptRef.current = listeningBaseRef.current;
+      heardSpeechRef.current = false;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       r.onresult = (e: any) => {
         let combined = "";
         for (let i = 0; i < e.results.length; i++) {
           combined += e.results[i][0].transcript + " ";
         }
-        const txt = combined.trim();
+        const txt = [listeningBaseRef.current, combined.trim()].filter(Boolean).join(" ").trim();
+        heardSpeechRef.current = !!combined.trim();
         liveTranscriptRef.current = txt;
         setAnswer(txt);
         // Barge-in: any detected speech instantly silences Jarvis so the user
@@ -573,11 +587,18 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         recognitionRef.current = null;
         clearSilenceTimer();
         setListening(false);
+        const txt = liveTranscriptRef.current.trim();
+        if (txt && heardSpeechRef.current && openRef.current && !killedRef.current && expectingAnswerRef.current && !submittingVoiceRef.current) {
+          submittingVoiceRef.current = true;
+          submitDispatchRef.current?.(txt);
+          setTimeout(() => { submittingVoiceRef.current = false; }, 250);
+          return;
+        }
         // If we're still expecting an answer (and haven't auto-submitted),
         // restart the recogniser. Some browsers stop after a long silence.
-        if (expectingAnswerRef.current && autoListenRef.current && micPermissionRef.current) {
+        if (openRef.current && !killedRef.current && !speakingRef.current && !thinkingRef.current && expectingAnswerRef.current && autoListenRef.current && micPermissionRef.current) {
           setTimeout(() => {
-            if (expectingAnswerRef.current && !recognitionRef.current) {
+            if (openRef.current && !killedRef.current && !speakingRef.current && !thinkingRef.current && expectingAnswerRef.current && !recognitionRef.current) {
               startListening();
             }
           }, 200);
@@ -606,7 +627,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       recognitionRef.current = null;
       setListening(false);
     }
-  }, [armSilenceTimer, clearSilenceTimer]);
+  }, [answer, armSilenceTimer, clearSilenceTimer]);
 
   /**
    * Pre-warm mic permission. Called on mount + after the user makes their
@@ -696,6 +717,10 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // Mirror the autoListen toggle into a ref for callbacks.
   useEffect(() => { autoListenRef.current = autoListen; }, [autoListen]);
 
+  useEffect(() => { openRef.current = open; }, [open]);
+  useEffect(() => { speakingRef.current = isSpeaking; }, [isSpeaking]);
+  useEffect(() => { thinkingRef.current = thinking || suggesting; }, [thinking, suggesting]);
+
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       try {
@@ -705,6 +730,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       }
     }
     clearSilenceTimer();
+    recognitionRef.current = null;
     setListening(false);
   }, [clearSilenceTimer]);
 
@@ -920,10 +946,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     }, 250);
   };
 
-  const handleObjectiveSubmit = async () => {
-    if (!answer.trim()) return;
-    sayUser(answer);
-    const brief = answer.trim();
+  const handleObjectiveSubmit = async (spokenText?: string) => {
+    const response = (spokenText ?? answer).trim();
+    if (!response) return;
+    sayUser(response);
+    const brief = response;
     setObjective(brief);
     setAnswer("");
     liveTranscriptRef.current = "";
@@ -972,10 +999,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   /* ─── Pre-flight Q&A handler ─── */
 
-  const handlePreflightSubmit = async () => {
-    if (!answer.trim()) return;
-    sayUser(answer);
-    const a = answer.trim();
+  const handlePreflightSubmit = async (spokenText?: string) => {
+    const response = (spokenText ?? answer).trim();
+    if (!response) return;
+    sayUser(response);
+    const a = response;
     setAnswer("");
     liveTranscriptRef.current = "";
 
@@ -1037,12 +1065,13 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   /* ─── Field step submit ─── */
 
-  const handleFieldSubmit = () => {
+  const handleFieldSubmit = (spokenText?: string) => {
     const step = steps[stepIdx];
     if (!step) return;
-    if (!answer.trim()) return;
-    sayUser(answer);
-    const patch = step.apply(answer, current);
+    const response = (spokenText ?? answer).trim();
+    if (!response) return;
+    sayUser(response);
+    const patch = step.apply(response, current);
     onApply(patch);
     sayJarvis(`Got it — saved into ${step.label}. ✓`);
     setAnswer("");
@@ -1080,12 +1109,13 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     );
   };
 
-  const requestSuggestion = useCallback(async () => {
+  const requestSuggestion = useCallback(async (spokenText?: string) => {
     const step = steps[stepIdx];
     if (!step) return;
-    if (!answer.trim()) return;
-    sayUser(answer);
-    const intent = answer.trim();
+    const response = (spokenText ?? answer).trim();
+    if (!response) return;
+    sayUser(response);
+    const intent = response;
     setAnswer("");
     liveTranscriptRef.current = "";
     setSuggesting(true);
@@ -1173,12 +1203,12 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // the active phase / sub-phase. The recogniser's silence timer calls into
   // this ref so spoken replies submit themselves after a 5-second pause.
   useEffect(() => {
-    submitDispatchRef.current = () => {
-      if (phase === "preflight") return handlePreflightSubmit();
-      if (phase === "objective") return handleObjectiveSubmit();
+    submitDispatchRef.current = (spokenText?: string) => {
+      if (phase === "preflight") return handlePreflightSubmit(spokenText);
+      if (phase === "objective") return handleObjectiveSubmit(spokenText);
       if (phase === "field") {
-        if (fieldSubPhase === "intent") return requestSuggestion();
-        if (fieldSubPhase === "edit") return handleFieldSubmit();
+        if (fieldSubPhase === "intent") return requestSuggestion(spokenText);
+        if (fieldSubPhase === "edit") return handleFieldSubmit(spokenText);
       }
     };
   });
@@ -1465,7 +1495,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                   </Button>
                 )}
                 <div className="flex-1" />
-                <Button size="sm" className="h-8 text-xs gap-1" onClick={handlePreflightSubmit} disabled={!answer.trim() || thinking}>
+                <Button size="sm" className="h-8 text-xs gap-1" onClick={() => handlePreflightSubmit()} disabled={!answer.trim() || thinking}>
                   <Send className="h-3 w-3" /> Send
                 </Button>
               </div>
@@ -1509,7 +1539,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                 <Button
                   size="sm"
                   className="h-8 text-xs gap-1 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90"
-                  onClick={handleObjectiveSubmit}
+                  onClick={() => handleObjectiveSubmit()}
                   disabled={!answer.trim() || thinking}
                 >
                   {thinking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
@@ -1571,7 +1601,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                 <Button
                   size="sm"
                   className="h-8 text-xs gap-1"
-                  onClick={fieldSubPhase === "intent" ? requestSuggestion : handleFieldSubmit}
+                  onClick={() => fieldSubPhase === "intent" ? requestSuggestion() : handleFieldSubmit()}
                   disabled={!answer.trim() || thinking || suggesting}
                 >
                   {suggesting ? <Loader2 className="h-3 w-3 animate-spin" /> : fieldSubPhase === "intent" ? <Sparkles className="h-3 w-3" /> : <Send className="h-3 w-3" />}

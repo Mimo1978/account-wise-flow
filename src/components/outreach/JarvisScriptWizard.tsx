@@ -590,7 +590,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       setListening(true);
       setMicPermissionGranted(true);
       micPermissionRef.current = true;
-      try { playListeningPing(); } catch { /* noop */ }
+      // Note: no chime here. The "your turn" chime fires when Jarvis stops
+      // speaking (handover cue). Playing another sound on every recogniser
+      // start (incl. silent restarts after onend) caused a runaway loop.
     } catch {
       recognitionRef.current = null;
       setListening(false);

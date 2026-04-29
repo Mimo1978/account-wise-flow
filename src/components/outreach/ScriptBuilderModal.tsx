@@ -702,6 +702,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
                 placeholder="Agent name (e.g. Olivia) — auto-suggested if blank"
                 className="h-8 w-[260px] text-xs"
                 title="Used by the AI agent to introduce itself: 'My name is {{agent.name}}…'"
+                data-jarvis-id="script-agent-name"
               />
               <span className="text-[10px] text-muted-foreground">
                 Resolves <code className="text-[10px]">{`{{agent.name}}`}</code> in your script.

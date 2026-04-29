@@ -227,11 +227,23 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [hasMicSupport] = useState(() => !!getSpeechRecognition());
   // Once the user has granted mic permission within the wizard session, we
-  // can safely auto-start listening after Jarvis finishes speaking. Without
-  // this gate, browsers would silently swallow the mic activation because it
-  // happens outside a user-gesture stack.
+  // can safely auto-start listening after Jarvis finishes speaking. We
+  // proactively request permission as soon as the wizard opens (the user's
+  // "Open Jarvis" tap is a valid gesture), so by the time she finishes her
+  // first sentence the mic is already authorised and can auto-activate.
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
+  const micPermissionRef = useRef(false);
   const autoListenRef = useRef(true);
+  // Default-on: Jarvis listens for the user's reply automatically after she
+  // finishes speaking. Toggleable from the header (mic icon).
+  const [autoListen, setAutoListen] = useState(true);
+  // Silence window before we auto-submit a spoken answer. 5 seconds — long
+  // enough for the user to think, short enough to feel natural.
+  const SILENCE_MS = 5000;
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Latest transcript captured by the recogniser. Used by the silence-timer
+  // auto-submit so we don't depend on stale React state.
+  const liveTranscriptRef = useRef("");
 
   // Conversation transcript shown in the panel
   const [messages, setMessages] = useState<Array<{ role: "jarvis" | "user"; text: string }>>([]);
@@ -488,27 +500,87 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   /* ─── Voice input ─── */
 
+  // Forward-declared so the recogniser callbacks can call back into the
+  // current phase's submit logic without a circular reference.
+  const submitDispatchRef = useRef<() => void>(() => { /* noop */ });
+
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  }, []);
+
+  const armSilenceTimer = useCallback(() => {
+    clearSilenceTimer();
+    silenceTimerRef.current = setTimeout(() => {
+      // Auto-submit whatever the user has spoken so far.
+      const txt = liveTranscriptRef.current.trim();
+      if (!txt) return;
+      try { recognitionRef.current?.stop(); } catch { /* noop */ }
+      submitDispatchRef.current?.();
+    }, SILENCE_MS);
+  }, [clearSilenceTimer]);
+
   const startListening = useCallback(() => {
     const SR = getSpeechRecognition();
     if (!SR) return;
+    // Already running — don't double-start (browser throws InvalidStateError).
+    if (recognitionRef.current) return;
     try {
       const r = new SR();
       r.lang = "en-GB";
       r.interimResults = true;
-      r.continuous = false;
-      r.onresult = (e: SpeechRecognitionEvent) => {
-        const txt = Array.from(e.results)
-          .map((res) => res[0].transcript)
-          .join(" ");
+      r.continuous = true;
+      liveTranscriptRef.current = "";
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      r.onresult = (e: any) => {
+        let combined = "";
+        for (let i = 0; i < e.results.length; i++) {
+          combined += e.results[i][0].transcript + " ";
+        }
+        const txt = combined.trim();
+        liveTranscriptRef.current = txt;
         setAnswer(txt);
+        // Barge-in: any detected speech instantly silences Jarvis so the user
+        // can interrupt naturally.
+        if (audioRef.current && !audioRef.current.paused) {
+          try { audioRef.current.pause(); } catch { /* noop */ }
+          setIsSpeaking(false);
+        }
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          const synth = window.speechSynthesis;
+          if (synth.speaking || synth.pending) {
+            try { synth.cancel(); } catch { /* noop */ }
+            setIsSpeaking(false);
+          }
+        }
+        // Reset the silence countdown on every chunk of speech.
+        armSilenceTimer();
       };
-      r.onend = () => setListening(false);
+      r.onspeechstart = () => armSilenceTimer();
+      r.onend = () => {
+        recognitionRef.current = null;
+        clearSilenceTimer();
+        setListening(false);
+        // If we're still expecting an answer (and haven't auto-submitted),
+        // restart the recogniser. Some browsers stop after a long silence.
+        if (expectingAnswerRef.current && autoListenRef.current && micPermissionRef.current) {
+          setTimeout(() => {
+            if (expectingAnswerRef.current && !recognitionRef.current) {
+              startListening();
+            }
+          }, 200);
+        }
+      };
       r.onerror = (ev: Event & { error?: string }) => {
-        // 'not-allowed' / 'service-not-allowed' → mic permission revoked.
-        // Disable auto-listen so we don't fight the browser on every turn.
+        recognitionRef.current = null;
+        clearSilenceTimer();
         if (ev?.error === "not-allowed" || ev?.error === "service-not-allowed") {
           setMicPermissionGranted(false);
+          micPermissionRef.current = false;
           autoListenRef.current = false;
+          setAutoListen(false);
         }
         setListening(false);
       };
@@ -516,9 +588,34 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       r.start();
       setListening(true);
       setMicPermissionGranted(true);
+      micPermissionRef.current = true;
       try { playListeningPing(); } catch { /* noop */ }
     } catch {
+      recognitionRef.current = null;
       setListening(false);
+    }
+  }, [armSilenceTimer, clearSilenceTimer]);
+
+  /**
+   * Pre-warm mic permission. Called on mount + after the user makes their
+   * intro choice (which is a guaranteed user-gesture). Once granted, the
+   * wizard can auto-activate the mic after Jarvis speaks without the browser
+   * silently denying it.
+   */
+  const requestMicPermission = useCallback(async () => {
+    if (micPermissionRef.current) return true;
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return false;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Immediately release — we only needed the permission grant.
+      stream.getTracks().forEach((t) => t.stop());
+      micPermissionRef.current = true;
+      setMicPermissionGranted(true);
+      return true;
+    } catch {
+      micPermissionRef.current = false;
+      setMicPermissionGranted(false);
+      return false;
     }
   }, []);
 
@@ -535,17 +632,23 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const expectingAnswerRef = useRef(false);
   const maybeAutoListen = useCallback(() => {
     if (!autoListenRef.current) return;
-    if (!micPermissionGranted) return;
     if (!hasMicSupport) return;
     if (!expectingAnswerRef.current) return;
-    // Defer one tick so React state for "isSpeaking → false" is committed
-    // before we flip to "listening" UI.
-    setTimeout(() => {
+    if (recognitionRef.current) return; // already listening
+    const kick = () => {
       if (!autoListenRef.current) return;
       if (!expectingAnswerRef.current) return;
+      if (recognitionRef.current) return;
       startListening();
-    }, 120);
-  }, [micPermissionGranted, hasMicSupport, startListening]);
+    };
+    if (!micPermissionRef.current) {
+      // Try to grab permission opportunistically. If denied (no gesture
+      // context), the user can still tap the Speak button which will prompt.
+      requestMicPermission().then((ok) => { if (ok) setTimeout(kick, 80); });
+      return;
+    }
+    setTimeout(kick, 120);
+  }, [hasMicSupport, startListening, requestMicPermission]);
 
   /**
    * Interrupt Jarvis: stop the current speech and immediately open the mic
@@ -578,6 +681,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, fieldSubPhase]);
 
+  // Mirror the autoListen toggle into a ref for callbacks.
+  useEffect(() => { autoListenRef.current = autoListen; }, [autoListen]);
+
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       try {
@@ -586,8 +692,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         /* ignore */
       }
     }
+    clearSilenceTimer();
     setListening(false);
-  }, []);
+  }, [clearSilenceTimer]);
 
   /* ─── Chat helpers ─── */
 
@@ -666,6 +773,10 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         try { recognitionRef.current.stop(); } catch { /* noop */ }
         recognitionRef.current = null;
       }
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
       if (typeof document !== "undefined") {
         document.body.classList.remove("jarvis-wizard-active");
         document.querySelectorAll(".jarvis-wizard-glow, .jarvis-wizard-glow-modal, .jarvis-wizard-glow-field").forEach((el) => {
@@ -742,6 +853,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   const chooseIntro = (mode: "quick" | "full" | "just_do_it") => {
     setIntroMode(mode);
+    // First click after open is a guaranteed user gesture — perfect time to
+    // pre-grant mic permission so Jarvis can auto-listen for replies.
+    void requestMicPermission();
     sayUser(mode === "quick" ? "Quick walkthrough please" : mode === "full" ? "Full walkthrough" : "Just get it done");
 
     if (mode === "full") {
@@ -792,6 +906,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     const brief = answer.trim();
     setObjective(brief);
     setAnswer("");
+    liveTranscriptRef.current = "";
     setThinking(true);
     sayJarvis("Pre-drafting every field for you now…");
     try {
@@ -842,6 +957,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     sayUser(answer);
     const a = answer.trim();
     setAnswer("");
+    liveTranscriptRef.current = "";
 
     const next = { ...preflight };
     if (preflightStage === 0) next.purpose = a;
@@ -910,6 +1026,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     onApply(patch);
     sayJarvis(`Got it — saved into ${step.label}. ✓`);
     setAnswer("");
+    liveTranscriptRef.current = "";
     advance();
   };
 
@@ -950,6 +1067,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     sayUser(answer);
     const intent = answer.trim();
     setAnswer("");
+    liveTranscriptRef.current = "";
     setSuggesting(true);
     setThinking(true);
     try {
@@ -1030,6 +1148,31 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       setStepIdx(next);
     }
   };
+
+  // Keep the silence-auto-submit dispatcher pointed at the right handler for
+  // the active phase / sub-phase. The recogniser's silence timer calls into
+  // this ref so spoken replies submit themselves after a 5-second pause.
+  useEffect(() => {
+    submitDispatchRef.current = () => {
+      if (phase === "preflight") return handlePreflightSubmit();
+      if (phase === "objective") return handleObjectiveSubmit();
+      if (phase === "field") {
+        if (fieldSubPhase === "intent") return requestSuggestion();
+        if (fieldSubPhase === "edit") return handleFieldSubmit();
+      }
+    };
+  });
+
+  // When mic auto-listen is enabled and we're expecting a reply, ensure the
+  // recogniser is running. Also auto-start once Jarvis stops speaking.
+  useEffect(() => {
+    if (!autoListen) return;
+    if (!expectingAnswerRef.current) return;
+    if (isSpeaking) return; // wait for her to finish before activating mic
+    if (recognitionRef.current) return;
+    maybeAutoListen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoListen, isSpeaking, phase, fieldSubPhase, stepIdx]);
 
   /* ─── Render ─── */
 
@@ -1170,6 +1313,30 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
               </div>
             </div>
             <div className="flex items-center gap-0.5">
+              {hasMicSupport && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    const next = !autoListen;
+                    setAutoListen(next);
+                    autoListenRef.current = next;
+                    if (!next) {
+                      stopListening();
+                    } else {
+                      void requestMicPermission();
+                    }
+                  }}
+                  title={autoListen ? "Auto-listen on (click to disable)" : "Auto-listen off (click to enable)"}
+                >
+                  {autoListen ? (
+                    <Mic className="h-3.5 w-3.5 text-primary" />
+                  ) : (
+                    <MicOff className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </Button>
+              )}
               <Button
                 size="icon"
                 variant="ghost"

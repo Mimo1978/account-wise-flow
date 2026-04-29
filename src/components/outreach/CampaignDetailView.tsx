@@ -895,9 +895,20 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
               ) : (
                 <div className="space-y-2">
                   {scripts.map((script) => (
+                    (() => {
+                      const assignedChannels: string[] = [];
+                      if (campaign.email_script_id === script.id) assignedChannels.push("Email");
+                      if (campaign.sms_script_id === script.id) assignedChannels.push("SMS");
+                      if (campaign.call_script_id === script.id) assignedChannels.push("Call");
+                      const isAssigned = assignedChannels.length > 0;
+                      return (
                     <div
                       key={script.id}
-                      className="rounded-lg border border-border/50 bg-card px-4 py-3 hover:border-border transition-colors flex items-center justify-between gap-3"
+                      className={`rounded-lg border px-4 py-3 transition-colors flex items-center justify-between gap-3 ${
+                        isAssigned
+                          ? "border-primary/60 bg-primary/[0.06] shadow-[0_0_18px_hsl(var(--primary)/0.18)]"
+                          : "border-border/50 bg-card hover:border-border"
+                      }`}
                     >
                       <div className="min-w-0 flex-1">
                         <div>
@@ -912,6 +923,12 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                             {script.is_default && (
                               <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
                                 Default
+                              </Badge>
+                            )}
+                            {isAssigned && (
+                              <Badge className="text-[10px] gap-1 bg-primary/15 text-primary border border-primary/40 hover:bg-primary/15">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Assigned · {assignedChannels.join(" / ")}
                               </Badge>
                             )}
                           </div>
@@ -946,6 +963,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                           })()}
                         </div>
                       </div>
+                      <div className="flex items-center gap-2 shrink-0">
                       <Button
                         variant="outline"
                         size="sm"
@@ -955,7 +973,19 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
+                        onClick={() => setScriptToDelete(script)}
+                        title="Delete script"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                      </div>
                     </div>
+                      );
+                    })()
                   ))}
                 </div>
               )}

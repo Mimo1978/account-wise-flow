@@ -54,6 +54,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { ProofreadReviewModal, type ProofreadField } from "./ProofreadReviewModal";
 import { AssignToCampaignPrompt } from "./AssignToCampaignPrompt";
 import { JarvisScriptWizard, type WizardPatch } from "./JarvisScriptWizard";
+import { playYourTurnChime } from "@/lib/jarvis-sounds";
 import { Bot } from "lucide-react";
 import { RotateCcw } from "lucide-react";
 import {
@@ -699,7 +700,10 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setWizardOpen(true)}
+                onClick={() => {
+                  try { playYourTurnChime(); } catch { /* noop */ }
+                  setWizardOpen(true);
+                }}
                 className="h-8 gap-1.5 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90 shadow-[0_0_12px_-2px_hsl(var(--primary)/0.6)]"
                 data-jarvis-id="ask-jarvis-script-help"
                 title="Let Jarvis walk you through setting up this script — voice + text guided wizard"

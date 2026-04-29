@@ -36,6 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { playYourTurnChime, playListeningPing } from "@/lib/jarvis-sounds";
+import { CMPulse } from "@/components/ui/CMLoader";
 
 /* ────────────────────────────── Types ────────────────────────────── */
 
@@ -670,6 +671,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // Edit/Redo buttons), suggested (Accept/Tweak/Reject buttons) or done.
   useEffect(() => {
     const expecting =
+      phase === "intro" ||
       phase === "preflight" ||
       phase === "objective" ||
       (phase === "field" && (fieldSubPhase === "edit" || fieldSubPhase === "intent"));
@@ -730,6 +732,10 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       prefilledRef.current = {};
       setAutoRun(false);
       autoRunRef.current = false;
+      // The "Ask Jarvis" button click that opened the wizard is a valid
+      // user gesture — pre-warm mic permission so auto-listen can fire
+      // immediately after the greeting finishes.
+      void requestMicPermission();
       setTimeout(() => {
         sayJarvis(
           "Hi, I'm Jarvis. Setting up scripts can be fiddly, so I'll guide you through it step by step. How would you like to start? Choose a quick 30-second walkthrough, the full deep-dive explanation, or let me ask you four short questions and draft the whole script for you."
@@ -1266,20 +1272,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
             <div className="flex items-center gap-2.5">
               <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center relative">
                 {thinking ? (
-                  <div className="flex items-end gap-[2px] h-3.5">
-                    {[6,10,14,10,6].map((h, i) => (
-                      <div
-                        key={i}
-                        className="w-[2px] rounded-full bg-primary"
-                        style={{
-                          height: `${h}px`,
-                          animation: `cmPipelinePulse 0.8s ease-in-out ${i * 80}ms infinite alternate`,
-                        }}
-                      />
-                    ))}
-                  </div>
+                  <CMPulse size="sm" />
                 ) : isSpeaking ? (
-                  <Volume2 className="h-4 w-4 text-primary animate-pulse" />
+                  <CMPulse size="sm" />
                 ) : listening ? (
                   <Mic className="h-4 w-4 text-primary" />
                 ) : (
@@ -1407,25 +1402,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
             active. Mirrors the visual language of the standard JarvisChat. */}
         {isSpeaking && (
           <div className="border-t border-border/50 bg-primary/5 px-3 py-2 shrink-0">
-            <div className="flex items-center gap-2">
-              <Volume2 className="h-3.5 w-3.5 text-primary shrink-0 animate-pulse" />
-              <div className="flex-1 flex items-end justify-center gap-[2px] h-5">
-                {Array.from({ length: 28 }).map((_, i) => {
-                  const heights = [4, 8, 12, 16, 14, 18, 10, 6];
-                  const h = heights[i % heights.length];
-                  return (
-                    <div
-                      key={i}
-                      className="w-[2px] rounded-full bg-primary/80"
-                      style={{
-                        height: `${h}px`,
-                        animation: `cmPipelinePulse 0.7s ease-in-out ${(i % 8) * 70}ms infinite alternate`,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-              <span className="text-[10px] uppercase tracking-wide text-primary font-semibold shrink-0">Speaking</span>
+            <div className="flex items-center justify-center gap-2">
+              <CMPulse size="md" />
+              <span className="text-[10px] uppercase tracking-wide text-primary font-semibold shrink-0">Active</span>
             </div>
           </div>
         )}

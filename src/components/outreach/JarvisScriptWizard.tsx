@@ -533,7 +533,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       r.interimResults = true;
       r.continuous = true;
       liveTranscriptRef.current = "";
-      r.onresult = (e: SpeechRecognitionEvent) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      r.onresult = (e: any) => {
         let combined = "";
         for (let i = 0; i < e.results.length; i++) {
           combined += e.results[i][0].transcript + " ";

@@ -509,15 +509,44 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       clearGlow();
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.src = "";
         audioRef.current = null;
       }
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
       stopListening();
+      setIsSpeaking(false);
+      setThinking(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Hard-stop everything when the component unmounts (e.g. parent modal closes
+  // and removes the wizard from the React tree). This prevents Jarvis from
+  // continuing to speak after the user exits the Edit Script screen.
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        try { audioRef.current.pause(); } catch { /* noop */ }
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        try { window.speechSynthesis.cancel(); } catch { /* noop */ }
+      }
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch { /* noop */ }
+        recognitionRef.current = null;
+      }
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("jarvis-wizard-active");
+        document.querySelectorAll(".jarvis-wizard-glow, .jarvis-wizard-glow-modal, .jarvis-wizard-glow-field").forEach((el) => {
+          el.classList.remove("jarvis-wizard-glow", "jarvis-wizard-glow-modal", "jarvis-wizard-glow-field");
+        });
+      }
+    };
+  }, []);
 
   // When a field step becomes active → spotlight + ask
   useEffect(() => {

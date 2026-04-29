@@ -1432,6 +1432,39 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                   <SkipForward className="h-3 w-3" /> Try again
                 </Button>
               </div>
+              {Object.keys(prefilled).length > 0 && (
+                <Button
+                  size="sm"
+                  variant={autoRun ? "default" : "outline"}
+                  className={cn(
+                    "h-7 text-[11px] w-full gap-1",
+                    autoRun && "bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground"
+                  )}
+                  onClick={() => {
+                    const next = !autoRun;
+                    setAutoRun(next);
+                    autoRunRef.current = next;
+                    if (next) {
+                      sayJarvis("Running through every field for you. I'll save each draft and move on. Hit Pause any time.");
+                      // Kick off the auto-apply for the current step.
+                      const s = steps[stepIdx];
+                      if (s && suggestion) {
+                        setTimeout(() => {
+                          if (!autoRunRef.current) return;
+                          onApply(s.apply(suggestion, current));
+                          sayJarvis(`Saved into ${s.label}. ✓`);
+                          advance();
+                        }, 1200);
+                      }
+                    } else {
+                      sayJarvis("Paused. Take your time — Accept, Tweak, or Try again.");
+                    }
+                  }}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  {autoRun ? "Pause auto-run" : "Run all (Jarvis applies every draft)"}
+                </Button>
+              )}
             </div>
           )}
 

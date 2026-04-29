@@ -389,6 +389,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
               setTimeout(tick, 200);
             } else {
               setIsSpeaking(false);
+              // "Your turn" chime so user knows Jarvis has finished talking
+              try { playYourTurnChime(); } catch { /* noop */ }
             }
           };
           setTimeout(tick, 250);
@@ -411,9 +413,15 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         audio.volume = 0.9;
         audioRef.current = audio;
         setIsSpeaking(true);
-        audio.onended = () => setIsSpeaking(false);
-        audio.onerror = () => setIsSpeaking(false);
-        audio.onpause = () => setIsSpeaking(false);
+        const finish = (chime: boolean) => {
+          setIsSpeaking(false);
+          if (chime) {
+            try { playYourTurnChime(); } catch { /* noop */ }
+          }
+        };
+        audio.onended = () => finish(true);
+        audio.onerror = () => finish(false);
+        audio.onpause = () => finish(false);
         audio.play().catch(() => {});
       } catch {
         browserFallback();

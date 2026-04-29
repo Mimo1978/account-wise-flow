@@ -355,6 +355,10 @@ function useElevenLabsTTS(
   const [isSpeaking, setIsSpeaking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const onDoneRef = useRef<(() => void) | null>(null);
+  // Hard kill switch — flipped on stop() and on unmount so any in-flight
+  // jarvis-speak fetch aborts when it resolves instead of starting a new
+  // <audio> element that would keep talking after the chat is closed.
+  const killedRef = useRef(false);
 
   // Browser fallback voice
   const getPreferredVoice = useCallback(() => {

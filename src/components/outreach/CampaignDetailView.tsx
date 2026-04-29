@@ -47,6 +47,7 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle2,
+  Trash2,
 } from "lucide-react";
 import {
   useOutreachTargets,
@@ -56,7 +57,7 @@ import {
   type OutreachTarget,
   type OutreachTargetState,
 } from "@/hooks/use-outreach";
-import { useOutreachScripts } from "@/hooks/use-scripts";
+import { useOutreachScripts, useDeleteScript } from "@/hooks/use-scripts";
 import type { OutreachScript } from "@/lib/script-types";
 import { OutreachTargetRow } from "./OutreachTargetRow";
 import { AddTargetsModal } from "./AddTargetsModal";
@@ -67,6 +68,16 @@ import { AutomationSettingsPanel } from "./AutomationSettingsPanel";
 import { InboundResponsesPanel } from "./InboundResponsesPanel";
 import { CampaignSetupGuide } from "./CampaignSetupGuide";
 import { ChannelModeSelector, type ChannelKey } from "./ChannelModeSelector";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format, parseISO } from "date-fns";
 
 // ─── Types ───────────────────────────────────────────────────────────────────

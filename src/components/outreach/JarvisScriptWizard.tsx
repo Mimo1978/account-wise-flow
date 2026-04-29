@@ -110,6 +110,58 @@ function getSpeechRecognition(): any {
   return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
 }
 
+/**
+ * Browser TTS fallback. Picks the smoothest available voice (prefers
+ * Google/Microsoft natural voices over the default robotic voice that ships
+ * with most OSes) and uses warmer prosody so Jarvis doesn't sound like a
+ * 1950s toy robot when ElevenLabs isn't configured.
+ */
+function speakWithBrowser(text: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  const synth = window.speechSynthesis;
+  const pickVoice = (): SpeechSynthesisVoice | null => {
+    const voices = synth.getVoices();
+    if (!voices?.length) return null;
+    const preferOrder = [
+      /Google UK English Female/i,
+      /Google US English/i,
+      /Microsoft (Aria|Jenny|Libby|Sonia)/i,
+      /Samantha/i,
+      /Karen/i,
+      /Serena/i,
+      /^en-GB.*Female/i,
+      /^en-US.*Female/i,
+    ];
+    for (const re of preferOrder) {
+      const v = voices.find((vc) => re.test(vc.name) || re.test(vc.voiceURI));
+      if (v) return v;
+    }
+    return voices.find((v) => v.lang?.startsWith("en")) || voices[0];
+  };
+  const speakNow = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickVoice();
+    if (v) u.voice = v;
+    u.rate = 1.0;
+    u.pitch = 1.05;
+    u.volume = 0.95;
+    synth.cancel();
+    synth.speak(u);
+  };
+  if (synth.getVoices().length === 0) {
+    // Voices load asynchronously on first call in some browsers
+    const handler = () => {
+      synth.removeEventListener("voiceschanged", handler);
+      speakNow();
+    };
+    synth.addEventListener("voiceschanged", handler);
+    // safety: try after 250ms anyway
+    setTimeout(speakNow, 300);
+  } else {
+    speakNow();
+  }
+}
+
 /* ────────────────────────── Component ────────────────────────────── */
 
 export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
@@ -276,16 +328,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       if (!voiceOutEnabled) return;
       try {
         const { data, error } = await supabase.functions.invoke("jarvis-speak", {
-          body: { text, voice_id: "pNInz6obpgDQGcFmaJgB" },
+          // Sarah — smooth, warm, natural British-leaning voice
+          body: { text, voice_id: "EXAVITQu4vr4xnSDxMaL" },
         });
         if (error || !data?.audio) {
-          // Fallback to browser TTS
-          if (typeof window !== "undefined" && "speechSynthesis" in window) {
-            const u = new SpeechSynthesisUtterance(text);
-            u.rate = 1.05;
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(u);
-          }
+          speakWithBrowser(text);
           return;
         }
         if (audioRef.current) {
@@ -297,7 +344,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         audioRef.current = audio;
         audio.play().catch(() => {});
       } catch {
-        // silent fail — text is always shown in chat too
+        speakWithBrowser(text);
       }
     },
     [voiceOutEnabled]
@@ -368,7 +415,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       setAnswer("");
       setTimeout(() => {
         sayJarvis(
-          "Hi! I'm Jarvis. Setting up scripts can be fiddly so I'll walk you through it. Would you like a quick 30-second walkthrough, the full deep-dive, or shall I just ask a few questions and get it done for you?"
+          "Hi, I'm Jarvis. Setting up scripts can be fiddly, so I'll guide you through it step by step. How would you like to start? Choose a quick 30-second walkthrough, the full deep-dive explanation, or let me ask you four short questions and draft the whole script for you."
         );
       }, 250);
     } else {
@@ -408,7 +455,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
     if (mode === "full") {
       sayJarvis(
-        "Great — here's the full picture. A script has a name, a channel (email, SMS or call), and content. For calls we use blocks: an intro, a permission check ('do you have a minute?'), qualifying questions, optional branching responses, and a close. AI Polish rewrites your draft, and linking a job weaves the role details in while keeping the company name anonymous until the candidate confirms interest. I'll illuminate each field as we go — you can interrupt or skip any step. Ready?"
+        "Great. Here's how it works. Every script has three parts: a name, a channel, and content. The channel can be email, SMS, or call. Call scripts are built from blocks: an intro, a permission check, qualifying questions, optional branching responses, and a close. AI Polish rewrites your draft into clean copy. Linking a job weaves the role details in automatically, while keeping the company name anonymous until the candidate confirms interest. I'll highlight each field in gold as we go. You can interrupt, type, speak, or skip any step. Ready when you are."
       );
       setTimeout(() => {
         setPhase("field");
@@ -419,7 +466,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
     if (mode === "quick") {
       sayJarvis(
-        "Quick version: name your script, pick a channel, and fill in the content. For calls you have blocks. I'll glow each field — you tell me what you want and I'll fill it in. Let's go."
+        "Quick version. Name your script, pick a channel, and fill in the content. Call scripts use blocks for each part of the conversation. I'll highlight each field in gold, you tell me what you want, and I'll fill it in. Let's go."
       );
       setTimeout(() => {
         setPhase("field");
@@ -433,7 +480,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     setPreflightStage(0);
     setTimeout(() => {
       sayJarvis(
-        "Perfect. I'll ask 4 quick questions then draft the entire script. Question 1: what's the purpose of this outreach? (e.g. 'Senior React dev for a fintech in London')"
+        "Perfect. I'll ask four quick questions, then draft the entire script for you. Question one: what is the purpose of this outreach? For example, 'Senior React developer for a fintech in London'."
       );
     }, 400);
   };
@@ -549,31 +596,55 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         .jarvis-wizard-glow {
           position: relative;
           z-index: 1;
-          box-shadow: 0 0 0 3px hsl(var(--primary) / 0.6), 0 0 24px 4px hsl(var(--primary) / 0.4) !important;
+          outline: 3px solid #FACC15 !important;
+          outline-offset: 4px !important;
           border-radius: 8px;
-          animation: jarvis-pulse 2s ease-in-out infinite;
-          transition: box-shadow 0.3s ease;
+          box-shadow:
+            0 0 0 6px rgba(250, 204, 21, 0.30),
+            0 0 30px rgba(250, 204, 21, 0.55),
+            0 0 60px rgba(250, 204, 21, 0.30) !important;
+          animation: jarvis-wizard-pulse 1.4s ease-in-out infinite;
+          transition: outline 0.3s ease, box-shadow 0.3s ease;
         }
-        @keyframes jarvis-pulse {
-          0%, 100% { box-shadow: 0 0 0 3px hsl(var(--primary) / 0.5), 0 0 20px 4px hsl(var(--primary) / 0.35); }
-          50% { box-shadow: 0 0 0 4px hsl(var(--primary) / 0.85), 0 0 32px 8px hsl(var(--primary) / 0.55); }
+        @keyframes jarvis-wizard-pulse {
+          0%, 100% {
+            box-shadow:
+              0 0 0 6px rgba(250, 204, 21, 0.30),
+              0 0 30px rgba(250, 204, 21, 0.45),
+              0 0 60px rgba(250, 204, 21, 0.25);
+          }
+          50% {
+            box-shadow:
+              0 0 0 8px rgba(250, 204, 21, 0.55),
+              0 0 40px rgba(250, 204, 21, 0.85),
+              0 0 80px rgba(250, 204, 21, 0.40);
+          }
+        }
+        @keyframes jarvis-wizard-slide-in {
+          from { transform: translateX(24px); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
+        }
+        .jarvis-wizard-panel {
+          animation: jarvis-wizard-slide-in 0.35s ease-out;
+          border-color: #FACC15 !important;
+          box-shadow: 0 12px 48px rgba(250, 204, 21, 0.25), 0 0 0 1px rgba(250, 204, 21, 0.4) !important;
         }
       `}</style>
 
       <div
-        className="fixed right-4 top-20 bottom-4 w-[380px] z-[10001] flex flex-col rounded-xl border border-primary/40 bg-background/95 backdrop-blur shadow-2xl shadow-primary/30"
+        className="jarvis-wizard-panel fixed right-4 top-20 bottom-4 w-[380px] z-[10001] flex flex-col rounded-xl border-2 bg-background/98 backdrop-blur"
         data-jarvis-id="script-wizard-panel"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-primary/15 to-fuchsia-500/10 rounded-t-xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-yellow-500/30 bg-gradient-to-r from-yellow-400/20 via-amber-400/10 to-yellow-500/15 rounded-t-xl">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-fuchsia-500 flex items-center justify-center">
-              <Bot className="h-4 w-4 text-primary-foreground" />
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-md shadow-yellow-500/50">
+              <Bot className="h-4 w-4 text-yellow-950" />
             </div>
             <div>
               <div className="text-sm font-semibold flex items-center gap-1.5">
                 Jarvis
-                <Badge variant="outline" className="h-4 text-[9px] px-1 border-primary/40 text-primary">
+                <Badge variant="outline" className="h-4 text-[9px] px-1 border-yellow-500/60 text-yellow-600 dark:text-yellow-400">
                   Script Coach
                 </Badge>
               </div>

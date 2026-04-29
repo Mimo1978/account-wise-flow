@@ -526,6 +526,17 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
               )}
             </DialogTitle>
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setWizardOpen(true)}
+                className="h-8 gap-1.5 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90 shadow-[0_0_12px_-2px_hsl(var(--primary)/0.6)]"
+                data-jarvis-id="ask-jarvis-script-help"
+                title="Let Jarvis walk you through setting up this script — voice + text guided wizard"
+              >
+                <Bot className="w-3.5 h-3.5" />
+                <span className="text-xs font-semibold">Ask Jarvis</span>
+              </Button>
               {violations.length > 0 && (
                 <Badge
                   variant="outline"

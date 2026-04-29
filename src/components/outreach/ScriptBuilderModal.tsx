@@ -290,7 +290,17 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
   const effectiveBody = channel === "call"
     ? callBlocks.map((b) => b.content).join("\n")
     : body;
-  const violations: GuardrailViolation[] = checkGuardrails(effectiveBody, channel, guardrails);
+  // Honour the workspace-level "Strict script safety" admin toggle (defaults
+  // to ON). When OFF, profanity/discrimination/threat rules become warnings
+  // instead of hard blockers — structural completeness checks still apply.
+  const strictSafety =
+    (settings as any)?.outreach_rules?.script_safety_strict !== false;
+  const violations: GuardrailViolation[] = checkGuardrails(
+    effectiveBody,
+    channel,
+    guardrails,
+    { subject, callBlocks, strictSafety },
+  );
   const errors = violations.filter((v) => v.rule.severity === "error");
   const warnings = violations.filter((v) => v.rule.severity === "warning");
 

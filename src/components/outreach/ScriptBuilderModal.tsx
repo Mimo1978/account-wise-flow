@@ -178,6 +178,45 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
   // Confirm dialog for the destructive "Reset form" action in the header.
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
+  // ── Modal sizing & drag-to-move ───────────────────────────────────────────
+  // Lets the user maximise the Edit Script modal (helpful when Jarvis opens
+  // alongside) or drag it out of Jarvis's way without closing it.
+  const [isMaxed, setIsMaxed] = useState(false);
+  const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const dragStateRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+
+  const handleDragStart = useCallback((e: React.PointerEvent) => {
+    if (isMaxed) return;
+    e.preventDefault();
+    dragStateRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      baseX: dragOffset.x,
+      baseY: dragOffset.y,
+    };
+    const onMove = (ev: PointerEvent) => {
+      if (!dragStateRef.current) return;
+      const dx = ev.clientX - dragStateRef.current.startX;
+      const dy = ev.clientY - dragStateRef.current.startY;
+      setDragOffset({
+        x: dragStateRef.current.baseX + dx,
+        y: dragStateRef.current.baseY + dy,
+      });
+    };
+    const onUp = () => {
+      dragStateRef.current = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }, [dragOffset.x, dragOffset.y, isMaxed]);
+
+  // Reset position whenever the modal closes/reopens or maximises.
+  useEffect(() => {
+    if (!open || isMaxed) setDragOffset({ x: 0, y: 0 });
+  }, [open, isMaxed]);
+
   /**
    * Wipe every field in the editor back to a blank, default state so the user
    * can start the script over. Does not save — the user must still click

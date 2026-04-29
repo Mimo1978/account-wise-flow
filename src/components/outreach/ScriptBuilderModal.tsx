@@ -700,7 +700,10 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setWizardOpen(true)}
+                onClick={() => {
+                  try { playYourTurnChime(); } catch { /* noop */ }
+                  setWizardOpen(true);
+                }}
                 className="h-8 gap-1.5 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90 shadow-[0_0_12px_-2px_hsl(var(--primary)/0.6)]"
                 data-jarvis-id="ask-jarvis-script-help"
                 title="Let Jarvis walk you through setting up this script — voice + text guided wizard"

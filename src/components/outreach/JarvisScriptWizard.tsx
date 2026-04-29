@@ -1066,6 +1066,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     sayUser(answer);
     const intent = answer.trim();
     setAnswer("");
+    liveTranscriptRef.current = "";
     setSuggesting(true);
     setThinking(true);
     try {

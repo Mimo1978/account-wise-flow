@@ -257,7 +257,6 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const thinkingRef = useRef(false);
   const listeningBaseRef = useRef("");
   const submittingVoiceRef = useRef(false);
-  const speechPrimedRef = useRef(false);
   const heardSpeechRef = useRef(false);
   // Hard kill switch. Flipped to `true` whenever the wizard closes or
   // unmounts. Any in-flight `speak()` call checks this after the async
@@ -534,6 +533,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       // Auto-submit whatever the user has spoken so far.
       const txt = liveTranscriptRef.current.trim();
       if (!txt) return;
+      if (!openRef.current || killedRef.current || !expectingAnswerRef.current) return;
       submittingVoiceRef.current = true;
       try { recognitionRef.current?.stop(); } catch { /* noop */ }
       submitDispatchRef.current?.(txt);
@@ -588,7 +588,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         clearSilenceTimer();
         setListening(false);
         const txt = liveTranscriptRef.current.trim();
-        if (txt && heardSpeechRef.current && expectingAnswerRef.current && !submittingVoiceRef.current) {
+        if (txt && heardSpeechRef.current && openRef.current && !killedRef.current && expectingAnswerRef.current && !submittingVoiceRef.current) {
           submittingVoiceRef.current = true;
           submitDispatchRef.current?.(txt);
           setTimeout(() => { submittingVoiceRef.current = false; }, 250);

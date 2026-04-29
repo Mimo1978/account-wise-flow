@@ -1106,12 +1106,13 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     );
   };
 
-  const requestSuggestion = useCallback(async () => {
+  const requestSuggestion = useCallback(async (spokenText?: string) => {
     const step = steps[stepIdx];
     if (!step) return;
-    if (!answer.trim()) return;
-    sayUser(answer);
-    const intent = answer.trim();
+    const response = (spokenText ?? answer).trim();
+    if (!response) return;
+    sayUser(response);
+    const intent = response;
     setAnswer("");
     liveTranscriptRef.current = "";
     setSuggesting(true);
@@ -1199,12 +1200,12 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // the active phase / sub-phase. The recogniser's silence timer calls into
   // this ref so spoken replies submit themselves after a 5-second pause.
   useEffect(() => {
-    submitDispatchRef.current = () => {
-      if (phase === "preflight") return handlePreflightSubmit();
-      if (phase === "objective") return handleObjectiveSubmit();
+    submitDispatchRef.current = (spokenText?: string) => {
+      if (phase === "preflight") return handlePreflightSubmit(spokenText);
+      if (phase === "objective") return handleObjectiveSubmit(spokenText);
       if (phase === "field") {
-        if (fieldSubPhase === "intent") return requestSuggestion();
-        if (fieldSubPhase === "edit") return handleFieldSubmit();
+        if (fieldSubPhase === "intent") return requestSuggestion(spokenText);
+        if (fieldSubPhase === "edit") return handleFieldSubmit(spokenText);
       }
     };
   });

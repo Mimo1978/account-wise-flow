@@ -733,6 +733,102 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     advance();
   };
 
+  /* ─── Per-field review actions ─── */
+
+  const keepExisting = () => {
+    const step = steps[stepIdx];
+    if (!step) return;
+    sayUser("Keep it as is");
+    sayJarvis(`Perfect — leaving ${step.label} as it is. Moving on.`);
+    advance();
+  };
+
+  const editMyself = () => {
+    const step = steps[stepIdx];
+    if (!step) return;
+    sayUser("I'll edit it myself");
+    setAnswer(step.readCurrent(current) || "");
+    setFieldSubPhase("edit");
+    sayJarvis(`Go ahead — type or speak the new ${step.label}, then hit Send.`);
+  };
+
+  const askForSuggestion = () => {
+    const step = steps[stepIdx];
+    if (!step) return;
+    sayUser("Suggest a fresh version");
+    setFieldSubPhase("intent");
+    setAnswer("");
+    sayJarvis(
+      `What do you want out of this ${step.label.toLowerCase()}? Tell me the goal in your own words and I'll draft something that hits it while staying within the field's rules.`
+    );
+  };
+
+  const requestSuggestion = useCallback(async () => {
+    const step = steps[stepIdx];
+    if (!step) return;
+    if (!answer.trim()) return;
+    sayUser(answer);
+    const intent = answer.trim();
+    setAnswer("");
+    setSuggesting(true);
+    setThinking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-script-assist", {
+        body: {
+          mode: "suggest_field",
+          channel: current.channel,
+          field_kind: step.fieldKind,
+          field_label: step.label,
+          user_intent: intent,
+          existing_content: step.readCurrent(current) || "",
+        },
+      });
+      if (error || !data?.success || !data?.suggestion) {
+        throw new Error(data?.message || error?.message || "AI suggestion failed");
+      }
+      setSuggestion(data.suggestion);
+      setSuggestRationale(data.rationale || "");
+      setFieldSubPhase("suggested");
+      sayJarvis(`Here's my suggestion — accept it, tweak it, or reject and we'll try again.\n\n${data.suggestion}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Couldn't generate a suggestion";
+      sayJarvis(`${msg}. Want to type it yourself instead?`);
+      setFieldSubPhase("edit");
+    } finally {
+      setSuggesting(false);
+      setThinking(false);
+    }
+  }, [answer, stepIdx, steps, current]);
+
+  const acceptSuggestion = () => {
+    const step = steps[stepIdx];
+    if (!step || !suggestion) return;
+    sayUser("Accept");
+    onApply(step.apply(suggestion, current));
+    sayJarvis(`Saved into ${step.label}. ✓`);
+    setSuggestion("");
+    setSuggestRationale("");
+    advance();
+  };
+
+  const tweakSuggestion = () => {
+    const step = steps[stepIdx];
+    if (!step) return;
+    sayUser("Let me tweak it");
+    setAnswer(suggestion);
+    setFieldSubPhase("edit");
+    sayJarvis("Edit away — type or speak the changes, then Send.");
+  };
+
+  const rejectSuggestion = () => {
+    sayUser("Try again");
+    setSuggestion("");
+    setSuggestRationale("");
+    setFieldSubPhase("intent");
+    setAnswer("");
+    sayJarvis("No problem — what should I change about the goal? Tell me again in your own words.");
+  };
+
   const skipStep = () => {
     sayUser("(skip)");
     sayJarvis("No worries, skipping that one.");

@@ -342,6 +342,127 @@ ${existing ? `Existing content (rewrite/improve to match the user intent above):
       return new Response(JSON.stringify({ success: true, ...sParsed }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // ============================================================
+    // DRAFT_FROM_BRIEF MODE — given the user's objective in plain
+    // English, draft the ENTIRE script (name + subject + body, or
+    // name + agent name + every call block) in AI-agent-friendly
+    // natural conversational style. Returns block content keyed by
+    // block TYPE so the wizard can map to its current block ids.
+    // ============================================================
+    if (payload.mode === "draft_from_brief") {
+      const brief = (payload.brief || "").trim();
+      const channel = payload.channel;
+      const blockTypes = (payload.block_types && payload.block_types.length > 0)
+        ? payload.block_types
+        : ["intro", "permission", "questions", "branching", "close"];
+
+      const draftSystem = `You are an elite recruitment copywriter drafting an outreach script that an AI voice agent will USE LIVE.
+
+RULES:
+- Output ONLY via the tool call. No preamble.
+- Write in warm, professional British English. Natural spoken cadence — sounds like a real human on the phone, not a corporate brochure.
+- AI-AGENT FRIENDLY: short sentences, clear pauses (use "(pause)" markers where helpful), one idea per sentence, no run-ons.
+- Preserve and use these {{variables}} where natural: {{candidate.first_name}}, {{job.title}}, {{job.company}}, {{recruiter.name}}, {{agency.name}}, {{agent.name}}.
+- Compliance: no false claims of registration/consent, no salary guarantees, always include opt-out for SMS/email.
+- No clichés ("exciting opportunity", "perfect fit", "reach out").
+
+CHANNEL: ${channel}
+${payload.agency_name ? `AGENCY: "${payload.agency_name}" — but always use {{agency.name}} not the literal string.` : ""}
+
+The user's objective for this script (achieve this within each field's constraints):
+"""${brief || "(general professional outreach)"}"""`;
+
+      let draftTool: Record<string, unknown>;
+      const draftUser = `Draft the full ${channel} script that achieves the user's objective above. Make every section conversational and AI-agent ready.`;
+
+      if (channel === "call") {
+        const blockProps: Record<string, unknown> = {};
+        const required: string[] = [];
+        for (const t of blockTypes) {
+          blockProps[t] = {
+            type: "string",
+            description: `Conversational spoken text for the "${t}" block. Natural, AI-agent friendly.`,
+          };
+          required.push(t);
+        }
+        draftTool = {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "Memorable script name, 3-6 words." },
+            agentName: { type: "string", description: "A single first name for the AI agent (e.g. Olivia)." },
+            blocks: {
+              type: "object",
+              properties: blockProps,
+              required,
+              additionalProperties: false,
+            },
+            summary: { type: "string", description: "One-line summary of the script's strategy." },
+          },
+          required: ["name", "agentName", "blocks", "summary"],
+          additionalProperties: false,
+        };
+      } else if (channel === "email") {
+        draftTool = {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "Memorable script name, 3-6 words." },
+            subject: { type: "string", description: "Subject line MAX 60 chars, curiosity-driven, may use {{candidate.first_name}} or {{job.title}}." },
+            body: { type: "string", description: "Email body 120-180 words, short paragraphs, single clear CTA, opt-out line." },
+            summary: { type: "string", description: "One-line summary of the script's strategy." },
+          },
+          required: ["name", "subject", "body", "summary"],
+          additionalProperties: false,
+        };
+      } else {
+        draftTool = {
+          type: "object",
+          properties: {
+            name: { type: "string", description: "Memorable script name, 3-6 words." },
+            body: { type: "string", description: "SMS body MAX 160 chars total. One sentence. Sender name via {{recruiter.name}} and 'Reply STOP' opt-out." },
+            summary: { type: "string", description: "One-line summary of the script's strategy." },
+          },
+          required: ["name", "body", "summary"],
+          additionalProperties: false,
+        };
+      }
+
+      const draftRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: draftSystem },
+            { role: "user", content: draftUser },
+          ],
+          tools: [{ type: "function", function: { name: "return_draft", description: "Return the full drafted script.", parameters: draftTool } }],
+          tool_choice: { type: "function", function: { name: "return_draft" } },
+        }),
+      });
+
+      if (!draftRes.ok) {
+        const text = await draftRes.text();
+        if (draftRes.status === 429) {
+          return new Response(JSON.stringify({ error: "rate_limited", message: "AI is busy. Please retry." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        if (draftRes.status === 402) {
+          return new Response(JSON.stringify({ error: "credits_required", message: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        return new Response(JSON.stringify({ error: "ai_error", detail: text.slice(0, 500) }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const draftData = await draftRes.json();
+      const dtc = draftData?.choices?.[0]?.message?.tool_calls?.[0];
+      const dargs = dtc?.function?.arguments;
+      if (!dargs) {
+        return new Response(JSON.stringify({ error: "ai_no_output" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const dParsed = JSON.parse(dargs);
+      return new Response(JSON.stringify({ success: true, draft: dParsed }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Build job context if linking
     let jobContext = "";
     let anonCompany = "a leading client";

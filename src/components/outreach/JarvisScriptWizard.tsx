@@ -1137,6 +1137,31 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     }
   };
 
+  // Keep the silence-auto-submit dispatcher pointed at the right handler for
+  // the active phase / sub-phase. The recogniser's silence timer calls into
+  // this ref so spoken replies submit themselves after a 5-second pause.
+  useEffect(() => {
+    submitDispatchRef.current = () => {
+      if (phase === "preflight") return handlePreflightSubmit();
+      if (phase === "objective") return handleObjectiveSubmit();
+      if (phase === "field") {
+        if (fieldSubPhase === "intent") return requestSuggestion();
+        if (fieldSubPhase === "edit") return handleFieldSubmit();
+      }
+    };
+  });
+
+  // When mic auto-listen is enabled and we're expecting a reply, ensure the
+  // recogniser is running. Also auto-start once Jarvis stops speaking.
+  useEffect(() => {
+    if (!autoListen) return;
+    if (!expectingAnswerRef.current) return;
+    if (isSpeaking) return; // wait for her to finish before activating mic
+    if (recognitionRef.current) return;
+    maybeAutoListen();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoListen, isSpeaking, phase, fieldSubPhase, stepIdx]);
+
   /* ─── Render ─── */
 
   if (!open) return null;

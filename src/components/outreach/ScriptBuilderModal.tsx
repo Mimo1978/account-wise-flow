@@ -173,6 +173,31 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
   // through every field with voice + text + autofill.
   const [wizardOpen, setWizardOpen] = useState(false);
 
+  // Confirm dialog for the destructive "Reset form" action in the header.
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
+  /**
+   * Wipe every field in the editor back to a blank, default state so the user
+   * can start the script over. Does not save — the user must still click
+   * "Update Script" / "Create Script" to persist.
+   */
+  const handleResetForm = useCallback(() => {
+    const ch: ScriptChannel = defaultChannel ?? "email";
+    setName("");
+    setChannel(ch);
+    setSubject("");
+    setBody(ch === "call" ? "" : getDefaultScriptBody(ch));
+    setEmailDraft(getDefaultScriptBody("email"));
+    setSmsDraft(getDefaultScriptBody("sms"));
+    setCallBlocks(getDefaultCallBlocks());
+    setExpandedBlock("intro");
+    setLinkedJobId(null);
+    setAgentVoice("auto");
+    setAgentName("");
+    setResetConfirmOpen(false);
+    toast.success("Form reset — all fields cleared");
+  }, [defaultChannel]);
+
   /**
    * Apply a partial patch from the Jarvis wizard back into modal state.
    * Always additive — never blows away existing user edits unless the wizard

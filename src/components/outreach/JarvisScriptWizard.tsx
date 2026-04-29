@@ -639,8 +639,6 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       {/* Glow keyframes injected once */}
       <style>{`
         .jarvis-wizard-glow {
-          position: relative;
-          z-index: 1;
           outline: 3px solid #FACC15 !important;
           outline-offset: 4px !important;
           border-radius: 8px;

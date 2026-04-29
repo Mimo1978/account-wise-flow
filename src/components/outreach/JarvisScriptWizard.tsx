@@ -769,6 +769,10 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         try { recognitionRef.current.stop(); } catch { /* noop */ }
         recognitionRef.current = null;
       }
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
       if (typeof document !== "undefined") {
         document.body.classList.remove("jarvis-wizard-active");
         document.querySelectorAll(".jarvis-wizard-glow, .jarvis-wizard-glow-modal, .jarvis-wizard-glow-field").forEach((el) => {

@@ -596,31 +596,55 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         .jarvis-wizard-glow {
           position: relative;
           z-index: 1;
-          box-shadow: 0 0 0 3px hsl(var(--primary) / 0.6), 0 0 24px 4px hsl(var(--primary) / 0.4) !important;
+          outline: 3px solid #FACC15 !important;
+          outline-offset: 4px !important;
           border-radius: 8px;
-          animation: jarvis-pulse 2s ease-in-out infinite;
-          transition: box-shadow 0.3s ease;
+          box-shadow:
+            0 0 0 6px rgba(250, 204, 21, 0.30),
+            0 0 30px rgba(250, 204, 21, 0.55),
+            0 0 60px rgba(250, 204, 21, 0.30) !important;
+          animation: jarvis-wizard-pulse 1.4s ease-in-out infinite;
+          transition: outline 0.3s ease, box-shadow 0.3s ease;
         }
-        @keyframes jarvis-pulse {
-          0%, 100% { box-shadow: 0 0 0 3px hsl(var(--primary) / 0.5), 0 0 20px 4px hsl(var(--primary) / 0.35); }
-          50% { box-shadow: 0 0 0 4px hsl(var(--primary) / 0.85), 0 0 32px 8px hsl(var(--primary) / 0.55); }
+        @keyframes jarvis-wizard-pulse {
+          0%, 100% {
+            box-shadow:
+              0 0 0 6px rgba(250, 204, 21, 0.30),
+              0 0 30px rgba(250, 204, 21, 0.45),
+              0 0 60px rgba(250, 204, 21, 0.25);
+          }
+          50% {
+            box-shadow:
+              0 0 0 8px rgba(250, 204, 21, 0.55),
+              0 0 40px rgba(250, 204, 21, 0.85),
+              0 0 80px rgba(250, 204, 21, 0.40);
+          }
+        }
+        @keyframes jarvis-wizard-slide-in {
+          from { transform: translateX(24px); opacity: 0; }
+          to   { transform: translateX(0);    opacity: 1; }
+        }
+        .jarvis-wizard-panel {
+          animation: jarvis-wizard-slide-in 0.35s ease-out;
+          border-color: #FACC15 !important;
+          box-shadow: 0 12px 48px rgba(250, 204, 21, 0.25), 0 0 0 1px rgba(250, 204, 21, 0.4) !important;
         }
       `}</style>
 
       <div
-        className="fixed right-4 top-20 bottom-4 w-[380px] z-[10001] flex flex-col rounded-xl border border-primary/40 bg-background/95 backdrop-blur shadow-2xl shadow-primary/30"
+        className="jarvis-wizard-panel fixed right-4 top-20 bottom-4 w-[380px] z-[10001] flex flex-col rounded-xl border-2 bg-background/98 backdrop-blur"
         data-jarvis-id="script-wizard-panel"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-primary/15 to-fuchsia-500/10 rounded-t-xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-yellow-500/30 bg-gradient-to-r from-yellow-400/20 via-amber-400/10 to-yellow-500/15 rounded-t-xl">
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-fuchsia-500 flex items-center justify-center">
-              <Bot className="h-4 w-4 text-primary-foreground" />
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-md shadow-yellow-500/50">
+              <Bot className="h-4 w-4 text-yellow-950" />
             </div>
             <div>
               <div className="text-sm font-semibold flex items-center gap-1.5">
                 Jarvis
-                <Badge variant="outline" className="h-4 text-[9px] px-1 border-primary/40 text-primary">
+                <Badge variant="outline" className="h-4 text-[9px] px-1 border-yellow-500/60 text-yellow-600 dark:text-yellow-400">
                   Script Coach
                 </Badge>
               </div>

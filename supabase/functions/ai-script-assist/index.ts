@@ -16,7 +16,7 @@ const corsHeaders = {
  *    investment bank") until the candidate confirms interest + availability.
  */
 
-type Mode = "polish" | "link_job" | "proofread";
+type Mode = "polish" | "link_job" | "proofread" | "suggest_field";
 
 interface Body {
   mode: Mode;
@@ -28,6 +28,22 @@ interface Body {
   agency_name?: string;
   /** For proofread mode: arbitrary list of named text fields to check. */
   fields?: Array<{ id: string; label: string; text: string }>;
+  /** For suggest_field mode */
+  field_kind?:
+    | "name"
+    | "subject"
+    | "email_body"
+    | "sms_body"
+    | "agent_name"
+    | "call_intro"
+    | "call_permission"
+    | "call_questions"
+    | "call_branching"
+    | "call_close"
+    | "call_block";
+  field_label?: string;
+  user_intent?: string;
+  existing_content?: string;
 }
 
 function tierDescriptor(industry: string | null, name: string): string {

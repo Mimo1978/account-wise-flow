@@ -252,6 +252,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Hard kill switch. Flipped to `true` whenever the wizard closes or
+  // unmounts. Any in-flight `speak()` call checks this after the async
+  // jarvis-speak fetch resolves and aborts before creating a new <audio>
+  // — otherwise audio that was requested just before close still plays.
+  const killedRef = useRef(false);
 
   // Draggable panel position (null = use default right/top fixed anchor)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);

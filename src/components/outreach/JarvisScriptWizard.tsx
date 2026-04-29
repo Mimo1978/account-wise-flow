@@ -568,6 +568,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   useEffect(() => {
     const expecting =
       phase === "preflight" ||
+      phase === "objective" ||
       (phase === "field" && (fieldSubPhase === "edit" || fieldSubPhase === "intent"));
     expectingAnswerRef.current = expecting;
     if (!expecting && listening) {

@@ -446,7 +446,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const speak = useCallback(
     async (text: string) => {
       if (!voiceOutEnabled) return;
+      if (killedRef.current) return;
       const browserFallback = () => {
+        if (killedRef.current) return;
         setIsSpeaking(true);
         speakWithBrowser(text);
         // Best-effort: clear when synth finishes
@@ -470,6 +472,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           // Sarah — smooth, warm, natural British-leaning voice
           body: { text, voice_id: "EXAVITQu4vr4xnSDxMaL" },
         });
+        // Wizard was closed while we were waiting on the TTS fetch — abort.
+        if (killedRef.current) return;
         if (error || !data?.audio) {
           browserFallback();
           return;

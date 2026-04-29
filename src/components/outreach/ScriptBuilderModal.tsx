@@ -48,6 +48,7 @@ import { ScriptSimulator } from "./ScriptSimulator";
 import { cn } from "@/lib/utils";
 import { EnhancedTextField } from "./EnhancedTextField";
 import { ScriptTemplateLibrary, type ReadyTemplate } from "./ScriptTemplateLibrary";
+import { CallGoalTemplates, type CallGoalTemplate } from "./CallGoalTemplates";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { ProofreadReviewModal, type ProofreadField } from "./ProofreadReviewModal";
 import { AssignToCampaignPrompt } from "./AssignToCampaignPrompt";
@@ -415,6 +416,22 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
       [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
       return next;
     });
+  };
+
+  /**
+   * Apply a ready-made goal template. If the existing script is empty / untouched,
+   * we replace blocks outright; otherwise we append so the user doesn't lose work.
+   */
+  const handleApplyGoalTemplate = (blocks: CallBlock[], template: CallGoalTemplate) => {
+    const existingHasContent = callBlocks.some((b) => b.content.trim().length > 0);
+    if (existingHasContent) {
+      setCallBlocks((prev) => [...prev, ...blocks]);
+      toast.success(`Added "${template.label}" blocks below — edit to personalise.`);
+    } else {
+      setCallBlocks(blocks);
+      toast.success(`Loaded "${template.label}" template — edit to personalise.`);
+    }
+    setExpandedBlock(blocks[0]?.id ?? null);
   };
 
   /**

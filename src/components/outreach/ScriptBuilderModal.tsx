@@ -514,7 +514,24 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 gap-0" data-jarvis-id="outreach-script-modal">
+      <DialogContent
+        className="max-w-4xl h-[90vh] flex flex-col p-0 gap-0"
+        data-jarvis-id="outreach-script-modal"
+        onPointerDownOutside={(e) => {
+          // Don't close the dialog when the user clicks inside the Jarvis
+          // wizard panel (it lives outside the dialog DOM).
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("[data-jarvis-id='script-wizard-panel']")) {
+            e.preventDefault();
+          }
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("[data-jarvis-id='script-wizard-panel']")) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/50 shrink-0">
           <div className="flex items-center justify-between gap-4">
             <DialogTitle className="text-base font-semibold">

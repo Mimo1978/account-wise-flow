@@ -241,6 +241,102 @@ ${JSON.stringify(fields, null, 2)}`;
       );
     }
 
+    // ============================================================
+    // SUGGEST_FIELD MODE — generate a single-field suggestion that
+    // respects the field's constraints (length, tone, AI-agent
+    // friendliness). Used by the Jarvis Script Wizard to walk the
+    // user through every field one at a time.
+    // ============================================================
+    if (payload.mode === "suggest_field") {
+      const fieldKind = payload.field_kind || "email_body";
+      const fieldLabel = payload.field_label || fieldKind;
+      const userIntent = (payload.user_intent || "").trim();
+      const existing = (payload.existing_content || "").trim();
+
+      const constraints: Record<string, string> = {
+        name: "1 short line, 3–6 words, memorable. No quotes. Plain text only.",
+        subject: "MAX 60 characters. Personal, curiosity-driven. May use {{candidate.first_name}} or {{job.title}}. No emojis.",
+        email_body: "120–180 words. Short paragraphs. Friendly British English. Preserve {{variables}}. End with one clear CTA. Include opt-out line.",
+        sms_body: "MAX 160 characters total. One sentence. Include sender name via {{recruiter.name}} and 'Reply STOP' opt-out.",
+        agent_name: "A single first name (e.g. Olivia, Marcus). Just the name, nothing else.",
+        call_intro: "2–3 spoken sentences. Agent introduces self ({{agent.name}} from {{agency.name}}) and reason for call. Conversational, not read-aloud-corporate.",
+        call_permission: "1–2 spoken sentences asking if the candidate has a couple of minutes. Polite, not pushy.",
+        call_questions: "List 2–3 short qualifying questions (notice period, salary expectation, location preference, must-haves). Bullet-style, what the AI agent will ASK.",
+        call_branching: "2 short branches: 'If interested → …' and 'If not interested → …'. Tell the AI agent what to say in each case.",
+        call_close: "1–2 spoken sentences confirming next steps (follow-up email, scheduled call). Warm sign-off.",
+        call_block: "Conversational spoken text the AI voice agent will say. Keep concise, preserve {{variables}}.",
+      };
+
+      const constraint = constraints[fieldKind] || constraints.call_block;
+
+      const suggestSystem = `You are an elite recruitment copywriter helping a recruiter fill in a single field of an outreach script that an AI voice agent will USE LIVE.
+
+RULES:
+- Output ONLY the field content — no preamble, no markdown, no quotes around it.
+- Preserve every {{variable}} exactly. Common variables: {{candidate.first_name}}, {{job.title}}, {{job.company}}, {{recruiter.name}}, {{agency.name}}, {{agent.name}}.
+- Write in warm, professional British English. No clichés ("exciting opportunity", "perfect fit").
+- Make it AI-AGENT FRIENDLY: natural spoken cadence for call blocks; scannable for email; punchy for SMS.
+- Compliance: no false claims of registration/consent, no salary guarantees.
+
+FIELD: ${fieldLabel}
+CONSTRAINTS: ${constraint}
+CHANNEL: ${payload.channel}
+
+${payload.agency_name ? `AGENCY: "${payload.agency_name}" — but always use {{agency.name}} not the literal string.` : ""}
+
+Return ONLY valid JSON via the tool call.`;
+
+      const suggestUser = `User intent for this field: ${userIntent || "(none provided — make a sensible default that achieves the field's purpose)"}
+
+${existing ? `Existing content (rewrite/improve to match the user intent above):\n${existing}` : "No existing content — generate from scratch."}`;
+
+      const suggestTool = {
+        type: "object",
+        properties: {
+          suggestion: { type: "string", description: "The suggested field content." },
+          rationale: { type: "string", description: "1 sentence explaining why this works." },
+        },
+        required: ["suggestion", "rationale"],
+        additionalProperties: false,
+      };
+
+      const suggestRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: suggestSystem },
+            { role: "user", content: suggestUser },
+          ],
+          tools: [{ type: "function", function: { name: "return_suggestion", description: "Return the field suggestion.", parameters: suggestTool } }],
+          tool_choice: { type: "function", function: { name: "return_suggestion" } },
+        }),
+      });
+
+      if (!suggestRes.ok) {
+        const text = await suggestRes.text();
+        if (suggestRes.status === 429) {
+          return new Response(JSON.stringify({ error: "rate_limited", message: "AI is busy. Please retry." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        if (suggestRes.status === 402) {
+          return new Response(JSON.stringify({ error: "credits_required", message: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        return new Response(JSON.stringify({ error: "ai_error", detail: text.slice(0, 500) }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const suggestData = await suggestRes.json();
+      const stc = suggestData?.choices?.[0]?.message?.tool_calls?.[0];
+      const sargs = stc?.function?.arguments;
+      if (!sargs) {
+        return new Response(JSON.stringify({ error: "ai_no_output" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const sParsed = JSON.parse(sargs);
+      return new Response(JSON.stringify({ success: true, ...sParsed }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     // Build job context if linking
     let jobContext = "";
     let anonCompany = "a leading client";

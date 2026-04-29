@@ -712,8 +712,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         "Great. Here's how it works. Every script has three parts: a name, a channel, and content. The channel can be email, SMS, or call. Call scripts are built from blocks: an intro, a permission check, qualifying questions, optional branching responses, and a close. AI Polish rewrites your draft into clean copy. Linking a job weaves the role details in automatically, while keeping the company name anonymous until the candidate confirms interest. I'll highlight each field in gold as we go. You can interrupt, type, speak, or skip any step. Ready when you are."
       );
       setTimeout(() => {
-        setPhase("field");
-        setStepIdx(findNextStep(steps, 0, current));
+        askObjective();
       }, 500);
       return;
     }
@@ -723,8 +722,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         "Quick version. Name your script, pick a channel, and fill in the content. Call scripts use blocks for each part of the conversation. I'll highlight each field in gold, you tell me what you want, and I'll fill it in. Let's go."
       );
       setTimeout(() => {
-        setPhase("field");
-        setStepIdx(findNextStep(steps, 0, current));
+        askObjective();
       }, 500);
       return;
     }
@@ -737,6 +735,67 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         "Perfect. I'll ask four quick questions, then draft the entire script for you. Question one: what is the purpose of this outreach? For example, 'Senior React developer for a fintech in London'."
       );
     }, 400);
+  };
+
+  /* ─── Objective prefill (quick + full walkthroughs) ─── */
+
+  const askObjective = () => {
+    setPhase("objective");
+    setAnswer("");
+    setTimeout(() => {
+      sayJarvis(
+        "Before we walk through the fields, tell me in one or two sentences: what do you want this script to achieve? For example: 'book a 15-minute intro call with senior backend engineers in London for a fintech role, find out their notice period and salary expectations, and ask them to send an updated CV.' I'll pre-draft every field in natural AI-agent friendly language — you'll just review and tweak each one."
+      );
+    }, 250);
+  };
+
+  const handleObjectiveSubmit = async () => {
+    if (!answer.trim()) return;
+    sayUser(answer);
+    const brief = answer.trim();
+    setObjective(brief);
+    setAnswer("");
+    setThinking(true);
+    sayJarvis("Pre-drafting every field for you now…");
+    try {
+      const blockTypes = current.callBlocks.map((b) => b.type);
+      const { data, error } = await supabase.functions.invoke("ai-script-assist", {
+        body: {
+          mode: "draft_from_brief",
+          channel: current.channel,
+          brief,
+          block_types: blockTypes,
+        },
+      });
+      if (error || !data?.success || !data?.draft) {
+        throw new Error(data?.message || error?.message || "Could not pre-draft");
+      }
+      const d = data.draft;
+      const map: Record<string, string> = {};
+      if (d.name) map.name = d.name;
+      if (d.subject) map.subject = d.subject;
+      if (d.body) map.body = d.body;
+      if (d.agentName) map.agentName = d.agentName;
+      if (d.blocks && typeof d.blocks === "object") {
+        for (const [type, content] of Object.entries(d.blocks)) {
+          if (typeof content === "string") map[`block:${type}`] = content;
+        }
+      }
+      setPrefilled(map);
+      prefilledRef.current = map;
+      sayJarvis(
+        "Done — every field has a draft ready. I'll walk you through each one. You can Accept, Tweak, or ask me to redo it. Or hit 'Run all' and I'll apply every draft for you."
+      );
+      setPhase("field");
+      setStepIdx(findNextStep(steps, 0, current));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Pre-draft failed";
+      sayJarvis(`${msg}. No worries — let's do it field-by-field instead. I'll ask one question per field.`);
+      setPhase("field");
+      setStepIdx(findNextStep(steps, 0, current));
+    } finally {
+      setThinking(false);
+    }
   };
 
   /* ─── Pre-flight Q&A handler ─── */

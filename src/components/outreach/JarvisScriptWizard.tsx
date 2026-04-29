@@ -703,10 +703,12 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           from { transform: translateX(24px); opacity: 0; }
           to   { transform: translateX(0);    opacity: 1; }
         }
+        @keyframes cmPipelinePulse {
+          from { transform: scaleY(0.5); opacity: 0.6; }
+          to   { transform: scaleY(1);   opacity: 1; }
+        }
         .jarvis-wizard-panel {
           animation: jarvis-wizard-slide-in 0.35s ease-out;
-          border-color: #FACC15 !important;
-          box-shadow: 0 12px 48px rgba(250, 204, 21, 0.25), 0 0 0 1px rgba(250, 204, 21, 0.4) !important;
         }
       `}</style>
 

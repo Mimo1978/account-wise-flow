@@ -196,34 +196,42 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   // Draggable panel position (null = use default right/top fixed anchor)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const PANEL_W = 420;
+  const PANEL_H = 580;
 
-  const onDragStart = useCallback((e: React.PointerEvent) => {
-    const panel = (e.currentTarget as HTMLElement).closest("[data-jarvis-id='script-wizard-panel']") as HTMLElement | null;
-    if (!panel) return;
-    const rect = panel.getBoundingClientRect();
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      origX: rect.left,
-      origY: rect.top,
+  // Standard mouse-based drag (matches JarvisChat panel pattern). Mouse events
+  // — not pointer events with pointer capture — so clicks on action buttons in
+  // the panel body never get hijacked by an in-flight drag gesture.
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    const panelEl = document.querySelector(
+      "[data-jarvis-id='script-wizard-panel']"
+    ) as HTMLElement | null;
+    if (!panelEl) return;
+    e.preventDefault();
+    const rect = panelEl.getBoundingClientRect();
+    dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => {
+      let nx = e.clientX - dragOffsetRef.current.x;
+      let ny = e.clientY - dragOffsetRef.current.y;
+      nx = Math.max(8, Math.min(window.innerWidth - PANEL_W - 8, nx));
+      ny = Math.max(8, Math.min(window.innerHeight - PANEL_H - 8, ny));
+      setPos({ x: nx, y: ny });
     };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }, []);
-
-  const onDragMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-    const nx = Math.max(8, Math.min(window.innerWidth - 200, dragRef.current.origX + dx));
-    const ny = Math.max(8, Math.min(window.innerHeight - 80, dragRef.current.origY + dy));
-    setPos({ x: nx, y: ny });
-  }, []);
-
-  const onDragEnd = useCallback((e: React.PointerEvent) => {
-    dragRef.current = null;
-    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
-  }, []);
+    const onUp = () => setIsDragging(false);
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging]);
 
   /* ─── Build the step list dynamically based on current channel ─── */
 

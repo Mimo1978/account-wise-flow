@@ -369,126 +369,93 @@ export function OutreachTargetRow({ target, onOpen, selected, onSelectChange, as
       {/* Actions — always visible */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-1 flex-nowrap">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className={`h-7 w-7 rounded-md transition-all ${channelTheme.email} disabled:opacity-40`}
-                disabled={isPending || outreachBlocked || !target.entity_email}
-                onClick={() => setEmailOpen(true)}
-              >
-                <Mail className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
-              {!target.entity_email ? "Email unavailable — no email on file. Open the panel to add one." : "Send Email"}
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={`h-7 w-7 rounded-md transition-all ${channelTheme.email} disabled:opacity-40`}
+            disabled={isPending || outreachBlocked || !target.entity_email}
+            onClick={() => setEmailOpen(true)}
+            title={!target.entity_email ? "Email unavailable — no email on file. Open the panel to add one." : "Send Email"}
+          >
+            <Mail className="w-3.5 h-3.5" />
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className={`h-7 w-7 rounded-md transition-all ${channelTheme.sms} disabled:opacity-40`}
-                disabled={isPending || outreachBlocked || !target.entity_phone}
-                onClick={() => setSmsOpen(true)}
-              >
-                <MessageSquare className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
-              {!target.entity_phone ? "SMS unavailable — no phone on file. Open the panel to add one." : "Send SMS"}
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={`h-7 w-7 rounded-md transition-all ${channelTheme.sms} disabled:opacity-40`}
+            disabled={isPending || outreachBlocked || !target.entity_phone}
+            onClick={() => setSmsOpen(true)}
+            title={!target.entity_phone ? "SMS unavailable — no phone on file. Open the panel to add one." : "Send SMS"}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                className={`h-7 px-2 gap-1 rounded-md transition-all ${channelTheme.call} disabled:opacity-40`}
-                disabled={isPending || callBlocked}
-                onClick={() => setCallLogOpen(true)}
-              >
-                <NotebookPen className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-semibold uppercase tracking-wide">Log</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Log Call</TooltipContent>
-          </Tooltip>
+          <Button
+            size="sm"
+            variant="ghost"
+            className={`h-7 px-2 gap-1 rounded-md transition-all ${channelTheme.call} disabled:opacity-40`}
+            disabled={isPending || callBlocked}
+            onClick={() => setCallLogOpen(true)}
+            title="Log Call"
+          >
+            <NotebookPen className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-semibold uppercase tracking-wide">Log</span>
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                className={`h-7 px-2 gap-1 rounded-md transition-all ${channelTheme.aiCall} disabled:opacity-40`}
-                disabled={isPending || callBlocked || !target.entity_phone}
-                onClick={() => setAiCallOpen(true)}
-              >
-                <Phone className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-semibold uppercase tracking-wide">AI</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">
-              {!target.entity_phone ? "AI Call unavailable — no phone on file. Open the panel to add one." : "Initiate AI Call"}
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            size="sm"
+            variant="ghost"
+            className={`h-7 px-2 gap-1 rounded-md transition-all ${channelTheme.aiCall} disabled:opacity-40`}
+            disabled={isPending || callBlocked || !target.entity_phone}
+            onClick={() => setAiCallOpen(true)}
+            title={!target.entity_phone ? "AI Call unavailable — no phone on file. Open the panel to add one." : "Initiate AI Call"}
+          >
+            <Phone className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-semibold uppercase tracking-wide">AI</span>
+          </Button>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className={`h-7 w-7 rounded-md transition-all ${channelTheme.meeting} disabled:opacity-40`}
-                disabled={isPending || outreachBlocked}
-                onClick={() => setMeetingOpen(true)}
-              >
-                <Calendar className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Schedule Meeting</TooltipContent>
-          </Tooltip>
+          <Button
+            size="icon"
+            variant="ghost"
+            className={`h-7 w-7 rounded-md transition-all ${channelTheme.meeting} disabled:opacity-40`}
+            disabled={isPending || outreachBlocked}
+            onClick={() => setMeetingOpen(true)}
+            title="Schedule Meeting"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+          </Button>
 
           {/* Inline: Reset to Queued — previously hidden in overflow menu */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 rounded-md border border-border/60 hover:bg-muted/60 text-muted-foreground hover:text-foreground disabled:opacity-40"
-                disabled={isPending}
-                onClick={() => act("queued", "status_changed", { reset: true, previous_state: target.state })}
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Reset to Queued</TooltipContent>
-          </Tooltip>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 rounded-md border border-border/60 hover:bg-muted/60 text-muted-foreground hover:text-foreground disabled:opacity-40"
+            disabled={isPending}
+            onClick={() => act("queued", "status_changed", { reset: true, previous_state: target.state })}
+            title="Reset to Queued"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </Button>
 
           {/* Inline: Opt Out — previously hidden in overflow menu */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-7 w-7 rounded-md border border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20 hover:border-destructive/60 disabled:opacity-40"
-                disabled={isPending}
-                onClick={() => act("opted_out", "opted_out")}
-              >
-                <XCircle className="w-3.5 h-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="text-xs">Opt Out</TooltipContent>
-          </Tooltip>
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 rounded-md border border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20 hover:border-destructive/60 disabled:opacity-40"
+            disabled={isPending}
+            onClick={() => act("opted_out", "opted_out")}
+            title="Opt Out"
+          >
+            <XCircle className="w-3.5 h-3.5" />
+          </Button>
 
           <Button
             size="icon"
             variant="ghost"
             className="h-7 w-7"
             onClick={() => onOpen(target)}
+            title="Open quick actions panel"
           >
             <ChevronRight className="w-3.5 h-3.5" />
           </Button>

@@ -500,27 +500,86 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   /* ─── Voice input ─── */
 
+  // Forward-declared so the recogniser callbacks can call back into the
+  // current phase's submit logic without a circular reference.
+  const submitDispatchRef = useRef<() => void>(() => { /* noop */ });
+
+  const clearSilenceTimer = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+  }, []);
+
+  const armSilenceTimer = useCallback(() => {
+    clearSilenceTimer();
+    silenceTimerRef.current = setTimeout(() => {
+      // Auto-submit whatever the user has spoken so far.
+      const txt = liveTranscriptRef.current.trim();
+      if (!txt) return;
+      try { recognitionRef.current?.stop(); } catch { /* noop */ }
+      submitDispatchRef.current?.();
+    }, SILENCE_MS);
+  }, [clearSilenceTimer]);
+
   const startListening = useCallback(() => {
     const SR = getSpeechRecognition();
     if (!SR) return;
+    // Already running — don't double-start (browser throws InvalidStateError).
+    if (recognitionRef.current) return;
     try {
       const r = new SR();
       r.lang = "en-GB";
       r.interimResults = true;
-      r.continuous = false;
+      r.continuous = true;
+      liveTranscriptRef.current = "";
       r.onresult = (e: SpeechRecognitionEvent) => {
-        const txt = Array.from(e.results)
-          .map((res) => res[0].transcript)
-          .join(" ");
+        let combined = "";
+        for (let i = 0; i < e.results.length; i++) {
+          combined += e.results[i][0].transcript + " ";
+        }
+        const txt = combined.trim();
+        liveTranscriptRef.current = txt;
         setAnswer(txt);
+        // Barge-in: any detected speech instantly silences Jarvis so the user
+        // can interrupt naturally.
+        if (audioRef.current && !audioRef.current.paused) {
+          try { audioRef.current.pause(); } catch { /* noop */ }
+          setIsSpeaking(false);
+        }
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          const synth = window.speechSynthesis;
+          if (synth.speaking || synth.pending) {
+            try { synth.cancel(); } catch { /* noop */ }
+            setIsSpeaking(false);
+          }
+        }
+        // Reset the silence countdown on every chunk of speech.
+        armSilenceTimer();
       };
-      r.onend = () => setListening(false);
+      r.onspeechstart = () => armSilenceTimer();
+      r.onend = () => {
+        recognitionRef.current = null;
+        clearSilenceTimer();
+        setListening(false);
+        // If we're still expecting an answer (and haven't auto-submitted),
+        // restart the recogniser. Some browsers stop after a long silence.
+        if (expectingAnswerRef.current && autoListenRef.current && micPermissionRef.current) {
+          setTimeout(() => {
+            if (expectingAnswerRef.current && !recognitionRef.current) {
+              startListening();
+            }
+          }, 200);
+        }
+      };
       r.onerror = (ev: Event & { error?: string }) => {
-        // 'not-allowed' / 'service-not-allowed' → mic permission revoked.
-        // Disable auto-listen so we don't fight the browser on every turn.
+        recognitionRef.current = null;
+        clearSilenceTimer();
         if (ev?.error === "not-allowed" || ev?.error === "service-not-allowed") {
           setMicPermissionGranted(false);
+          micPermissionRef.current = false;
           autoListenRef.current = false;
+          setAutoListen(false);
         }
         setListening(false);
       };
@@ -528,9 +587,34 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       r.start();
       setListening(true);
       setMicPermissionGranted(true);
+      micPermissionRef.current = true;
       try { playListeningPing(); } catch { /* noop */ }
     } catch {
+      recognitionRef.current = null;
       setListening(false);
+    }
+  }, [armSilenceTimer, clearSilenceTimer]);
+
+  /**
+   * Pre-warm mic permission. Called on mount + after the user makes their
+   * intro choice (which is a guaranteed user-gesture). Once granted, the
+   * wizard can auto-activate the mic after Jarvis speaks without the browser
+   * silently denying it.
+   */
+  const requestMicPermission = useCallback(async () => {
+    if (micPermissionRef.current) return true;
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return false;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Immediately release — we only needed the permission grant.
+      stream.getTracks().forEach((t) => t.stop());
+      micPermissionRef.current = true;
+      setMicPermissionGranted(true);
+      return true;
+    } catch {
+      micPermissionRef.current = false;
+      setMicPermissionGranted(false);
+      return false;
     }
   }, []);
 

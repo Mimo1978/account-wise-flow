@@ -513,14 +513,20 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
    * Without the explicit grant we'd hit a silent NotAllowedError because the
    * gesture context is lost across the await for Jarvis's audio.
    */
+  // Track whether the active phase/sub-phase expects a typed/spoken answer.
+  // We use a ref so the speak() callback can read the live value without
+  // closing over stale state.
+  const expectingAnswerRef = useRef(false);
   const maybeAutoListen = useCallback(() => {
     if (!autoListenRef.current) return;
     if (!micPermissionGranted) return;
     if (!hasMicSupport) return;
+    if (!expectingAnswerRef.current) return;
     // Defer one tick so React state for "isSpeaking → false" is committed
     // before we flip to "listening" UI.
     setTimeout(() => {
       if (!autoListenRef.current) return;
+      if (!expectingAnswerRef.current) return;
       startListening();
     }, 120);
   }, [micPermissionGranted, hasMicSupport, startListening]);

@@ -209,6 +209,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       "[data-jarvis-id='script-wizard-panel']"
     ) as HTMLElement | null;
     if (!panelEl) return;
+    if ((e.target as HTMLElement | null)?.closest("button, input, textarea, [role='button']")) return;
     e.preventDefault();
     const rect = panelEl.getBoundingClientRect();
     dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -349,15 +350,24 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   /* ─── Spotlight: glow + scroll into view ─── */
 
+  const clearGlow = useCallback(() => {
+    document.querySelectorAll(".jarvis-wizard-glow, .jarvis-wizard-glow-modal, .jarvis-wizard-glow-field").forEach((el) => {
+      el.classList.remove("jarvis-wizard-glow", "jarvis-wizard-glow-modal", "jarvis-wizard-glow-field");
+    });
+  }, []);
+
   const spotlightSelector = useCallback((selector: string | null) => {
-    // Remove previous glow
-    document
-      .querySelectorAll(".jarvis-wizard-glow")
-      .forEach((el) => el.classList.remove("jarvis-wizard-glow"));
-    if (!selector) return;
+    document.querySelectorAll(".jarvis-wizard-glow-field").forEach((el) => {
+      el.classList.remove("jarvis-wizard-glow", "jarvis-wizard-glow-field");
+    });
+
+    const modal = document.querySelector("[data-jarvis-id='outreach-script-modal']");
+    modal?.classList.add("jarvis-wizard-glow", "jarvis-wizard-glow-modal");
+
+    if (!selector || selector === "[data-jarvis-id='outreach-script-modal']") return;
     const el = document.querySelector(selector);
     if (el) {
-      el.classList.add("jarvis-wizard-glow");
+      el.classList.add("jarvis-wizard-glow", "jarvis-wizard-glow-field");
       el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, []);
@@ -487,7 +497,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       if (typeof document !== "undefined") {
         document.body.classList.remove("jarvis-wizard-active");
       }
-      spotlightSelector(null);
+      clearGlow();
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -509,7 +519,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       return;
     }
     if (phase !== "field") {
-      spotlightSelector(null);
+      clearGlow();
       return;
     }
     const step = steps[stepIdx];
@@ -667,15 +677,19 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       {/* Glow keyframes injected once */}
       <style>{`
         .jarvis-wizard-glow {
-          outline: 3px solid #FACC15 !important;
+          outline: 3px solid hsl(var(--warning)) !important;
           outline-offset: 4px !important;
           border-radius: 8px;
           box-shadow:
-            0 0 0 6px rgba(250, 204, 21, 0.30),
-            0 0 30px rgba(250, 204, 21, 0.55),
-            0 0 60px rgba(250, 204, 21, 0.30) !important;
+            0 0 0 6px hsl(var(--warning) / 0.30),
+            0 0 30px hsl(var(--warning) / 0.55),
+            0 0 60px hsl(var(--warning) / 0.30) !important;
           animation: jarvis-wizard-pulse 1.4s ease-in-out infinite;
           transition: outline 0.3s ease, box-shadow 0.3s ease;
+        }
+        .jarvis-wizard-glow-modal {
+          outline-width: 4px !important;
+          outline-offset: -2px !important;
         }
         /* While Jarvis Script Wizard is active, hide the universal floating
            Jarvis FAB + command palette button so they don't compete with the
@@ -687,15 +701,15 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         @keyframes jarvis-wizard-pulse {
           0%, 100% {
             box-shadow:
-              0 0 0 6px rgba(250, 204, 21, 0.30),
-              0 0 30px rgba(250, 204, 21, 0.45),
-              0 0 60px rgba(250, 204, 21, 0.25);
+              0 0 0 6px hsl(var(--warning) / 0.30),
+              0 0 30px hsl(var(--warning) / 0.45),
+              0 0 60px hsl(var(--warning) / 0.25);
           }
           50% {
             box-shadow:
-              0 0 0 8px rgba(250, 204, 21, 0.55),
-              0 0 40px rgba(250, 204, 21, 0.85),
-              0 0 80px rgba(250, 204, 21, 0.40);
+              0 0 0 8px hsl(var(--warning) / 0.55),
+              0 0 40px hsl(var(--warning) / 0.85),
+              0 0 80px hsl(var(--warning) / 0.40);
           }
         }
         @keyframes jarvis-wizard-slide-in {
@@ -713,10 +727,13 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
       <div
         className={cn(
-          "jarvis-wizard-panel fixed z-[2147483000] flex flex-col border border-border bg-background shadow-2xl overflow-hidden rounded-2xl w-[420px] h-[580px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)]",
+          "jarvis-wizard-panel fixed z-[2147483000] flex flex-col border border-border bg-background shadow-2xl overflow-hidden rounded-2xl w-[420px] h-[580px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)] pointer-events-auto",
           isDragging && "select-none"
         )}
         data-jarvis-id="script-wizard-panel"
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         style={
           pos
             ? { left: pos.x, top: pos.y }

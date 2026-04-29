@@ -17,7 +17,6 @@ import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sparkles,
@@ -185,6 +184,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const [thinking, setThinking] = useState(false);
   const [voiceOutEnabled, setVoiceOutEnabled] = useState(true);
   const [listening, setListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [hasMicSupport] = useState(() => !!getSpeechRecognition());
 
   // Conversation transcript shown in the panel
@@ -196,34 +196,42 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   // Draggable panel position (null = use default right/top fixed anchor)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
+  const PANEL_W = 420;
+  const PANEL_H = 580;
 
-  const onDragStart = useCallback((e: React.PointerEvent) => {
-    const panel = (e.currentTarget as HTMLElement).closest("[data-jarvis-id='script-wizard-panel']") as HTMLElement | null;
-    if (!panel) return;
-    const rect = panel.getBoundingClientRect();
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      origX: rect.left,
-      origY: rect.top,
+  // Standard mouse-based drag (matches JarvisChat panel pattern). Mouse events
+  // — not pointer events with pointer capture — so clicks on action buttons in
+  // the panel body never get hijacked by an in-flight drag gesture.
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    const panelEl = document.querySelector(
+      "[data-jarvis-id='script-wizard-panel']"
+    ) as HTMLElement | null;
+    if (!panelEl) return;
+    e.preventDefault();
+    const rect = panelEl.getBoundingClientRect();
+    dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setIsDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => {
+      let nx = e.clientX - dragOffsetRef.current.x;
+      let ny = e.clientY - dragOffsetRef.current.y;
+      nx = Math.max(8, Math.min(window.innerWidth - PANEL_W - 8, nx));
+      ny = Math.max(8, Math.min(window.innerHeight - PANEL_H - 8, ny));
+      setPos({ x: nx, y: ny });
     };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }, []);
-
-  const onDragMove = useCallback((e: React.PointerEvent) => {
-    if (!dragRef.current) return;
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-    const nx = Math.max(8, Math.min(window.innerWidth - 200, dragRef.current.origX + dx));
-    const ny = Math.max(8, Math.min(window.innerHeight - 80, dragRef.current.origY + dy));
-    setPos({ x: nx, y: ny });
-  }, []);
-
-  const onDragEnd = useCallback((e: React.PointerEvent) => {
-    dragRef.current = null;
-    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
-  }, []);
+    const onUp = () => setIsDragging(false);
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging]);
 
   /* ─── Build the step list dynamically based on current channel ─── */
 
@@ -359,13 +367,29 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const speak = useCallback(
     async (text: string) => {
       if (!voiceOutEnabled) return;
+      const browserFallback = () => {
+        setIsSpeaking(true);
+        speakWithBrowser(text);
+        // Best-effort: clear when synth finishes
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          const synth = window.speechSynthesis;
+          const tick = () => {
+            if (synth.speaking || synth.pending) {
+              setTimeout(tick, 200);
+            } else {
+              setIsSpeaking(false);
+            }
+          };
+          setTimeout(tick, 250);
+        }
+      };
       try {
         const { data, error } = await supabase.functions.invoke("jarvis-speak", {
           // Sarah — smooth, warm, natural British-leaning voice
           body: { text, voice_id: "EXAVITQu4vr4xnSDxMaL" },
         });
         if (error || !data?.audio) {
-          speakWithBrowser(text);
+          browserFallback();
           return;
         }
         if (audioRef.current) {
@@ -375,9 +399,13 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         const audio = new Audio(`data:audio/mpeg;base64,${data.audio}`);
         audio.volume = 0.9;
         audioRef.current = audio;
+        setIsSpeaking(true);
+        audio.onended = () => setIsSpeaking(false);
+        audio.onerror = () => setIsSpeaking(false);
+        audio.onpause = () => setIsSpeaking(false);
         audio.play().catch(() => {});
       } catch {
-        speakWithBrowser(text);
+        browserFallback();
       }
     },
     [voiceOutEnabled]
@@ -674,66 +702,104 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           from { transform: translateX(24px); opacity: 0; }
           to   { transform: translateX(0);    opacity: 1; }
         }
+        @keyframes cmPipelinePulse {
+          from { transform: scaleY(0.5); opacity: 0.6; }
+          to   { transform: scaleY(1);   opacity: 1; }
+        }
         .jarvis-wizard-panel {
           animation: jarvis-wizard-slide-in 0.35s ease-out;
-          border-color: #FACC15 !important;
-          box-shadow: 0 12px 48px rgba(250, 204, 21, 0.25), 0 0 0 1px rgba(250, 204, 21, 0.4) !important;
         }
       `}</style>
 
       <div
-        className="jarvis-wizard-panel fixed w-[380px] z-[2147483000] flex flex-col rounded-xl border-2 bg-background/98 backdrop-blur"
+        className={cn(
+          "jarvis-wizard-panel fixed z-[2147483000] flex flex-col border border-border bg-background shadow-2xl overflow-hidden rounded-2xl w-[420px] h-[580px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)]",
+          isDragging && "select-none"
+        )}
         data-jarvis-id="script-wizard-panel"
         style={
           pos
-            ? { left: pos.x, top: pos.y, height: "min(560px, calc(100vh - 24px))" }
-            : { right: 16, top: 80, bottom: 16 }
+            ? { left: pos.x, top: pos.y }
+            : { right: 16, top: 80 }
         }
-        onPointerDown={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-4 py-3 border-b border-yellow-500/30 bg-gradient-to-r from-yellow-400/20 via-amber-400/10 to-yellow-500/15 rounded-t-xl cursor-move select-none"
-          onPointerDown={onDragStart}
-          onPointerMove={onDragMove}
-          onPointerUp={onDragEnd}
-          onPointerCancel={onDragEnd}
-          title="Drag to move"
-        >
-          <div className="flex items-center gap-2">
-            <GripVertical className="h-3.5 w-3.5 text-yellow-600/70 dark:text-yellow-400/70" />
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-md shadow-yellow-500/50">
-              <Bot className="h-4 w-4 text-yellow-950" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold flex items-center gap-1.5">
-                Jarvis
-                <Badge variant="outline" className="h-4 text-[9px] px-1 border-yellow-500/60 text-yellow-600 dark:text-yellow-400">
-                  Script Coach
-                </Badge>
-              </div>
-              <div className="text-[10px] text-muted-foreground">
-                {phase === "intro" && "Choose how to start"}
-                {phase === "preflight" && `Question ${preflightStage + 1} of 4`}
-                {phase === "field" && currentStep && `Step ${stepIdx + 1}: ${currentStep.label}`}
-                {phase === "done" && "All done"}
-              </div>
-            </div>
+        {/* Drag handle + Header — mirrors standardised JarvisChat panel */}
+        <div className="shrink-0 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10">
+          {/* Drag handle bar */}
+          <div
+            onMouseDown={handleDragStart}
+            className="h-8 flex items-center justify-center gap-2 relative"
+            style={{ cursor: isDragging ? "grabbing" : "grab" }}
+          >
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50" />
           </div>
-          <div className="flex items-center gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7"
-              onClick={() => setVoiceOutEnabled((v) => !v)}
-              title={voiceOutEnabled ? "Mute voice" : "Unmute voice"}
-            >
-              {voiceOutEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-            </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose} title="Close">
-              <X className="h-3.5 w-3.5" />
-            </Button>
+          {/* Header content */}
+          <div className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center relative">
+                {thinking ? (
+                  <div className="flex items-end gap-[2px] h-3.5">
+                    {[6,10,14,10,6].map((h, i) => (
+                      <div
+                        key={i}
+                        className="w-[2px] rounded-full bg-primary"
+                        style={{
+                          height: `${h}px`,
+                          animation: `cmPipelinePulse 0.8s ease-in-out ${i * 80}ms infinite alternate`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : isSpeaking ? (
+                  <Volume2 className="h-4 w-4 text-primary animate-pulse" />
+                ) : listening ? (
+                  <Mic className="h-4 w-4 text-primary" />
+                ) : (
+                  <Sparkles className="h-4 w-4 text-primary" />
+                )}
+                {listening && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" />
+                )}
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-foreground leading-none">Jarvis</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {thinking
+                    ? "Thinking…"
+                    : isSpeaking
+                    ? "Speaking…"
+                    : listening
+                    ? "Listening…"
+                    : phase === "intro"
+                    ? "Choose how to start"
+                    : phase === "preflight"
+                    ? `Question ${preflightStage + 1} of 4`
+                    : phase === "field" && currentStep
+                    ? `Step ${stepIdx + 1}: ${currentStep.label}`
+                    : phase === "done"
+                    ? "All done"
+                    : "Script Coach"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => setVoiceOutEnabled((v) => !v)}
+                title={voiceOutEnabled ? "Mute voice" : "Enable voice"}
+              >
+                {voiceOutEnabled ? (
+                  <Volume2 className="h-3.5 w-3.5 text-primary" />
+                ) : (
+                  <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose} title="Close">
+                <X className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </div>
           </div>
         </div>
 

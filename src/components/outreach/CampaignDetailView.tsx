@@ -168,6 +168,8 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const { data: allScripts = [] } = useOutreachScripts();
   const { mutate: updateCampaign, isPending: isUpdating } = useUpdateCampaign();
   const { mutateAsync: updateTargetState } = useUpdateTargetState();
+  const { mutate: deleteScript, isPending: isDeletingScript } = useDeleteScript();
+  const [scriptToDelete, setScriptToDelete] = useState<OutreachScript | null>(null);
   const [isLaunching, setIsLaunching] = useState(false);
   const [launchProgress, setLaunchProgress] = useState<LaunchProgressState | null>(null);
 

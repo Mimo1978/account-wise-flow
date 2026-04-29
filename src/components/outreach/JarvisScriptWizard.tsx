@@ -845,6 +845,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   const chooseIntro = (mode: "quick" | "full" | "just_do_it") => {
     setIntroMode(mode);
+    // First click after open is a guaranteed user gesture — perfect time to
+    // pre-grant mic permission so Jarvis can auto-listen for replies.
+    void requestMicPermission();
     sayUser(mode === "quick" ? "Quick walkthrough please" : mode === "full" ? "Full walkthrough" : "Just get it done");
 
     if (mode === "full") {

@@ -1,0 +1,845 @@
+/**
+ * JarvisScriptWizard
+ *
+ * Slide-in guided assistant for the Script Builder modal. It illuminates each
+ * field one-at-a-time, asks the user a question (voice + text), autofills the
+ * field, then moves on. Pre-flight Q&A drafts the whole script if the user
+ * just wants to "get it done".
+ *
+ * Self-contained — no new tables, no new edge functions. Uses the existing
+ * `jarvis-speak` function for voice output (graceful fallback to browser TTS)
+ * and the browser Web Speech API for voice input. The user can always type
+ * their answer instead of speaking, or skip a step.
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sparkles,
+  Mic,
+  MicOff,
+  X,
+  Send,
+  SkipForward,
+  Volume2,
+  VolumeX,
+  ChevronRight,
+  Bot,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+
+/* ────────────────────────────── Types ────────────────────────────── */
+
+export type WizardChannel = "email" | "sms" | "call";
+
+export interface WizardCallBlockPatch {
+  blockId: string;
+  content: string;
+}
+
+/** Patch the wizard sends back to the modal. Modal applies via setters. */
+export interface WizardPatch {
+  name?: string;
+  subject?: string;
+  body?: string;
+  channel?: WizardChannel;
+  agentName?: string;
+  callBlock?: WizardCallBlockPatch;
+}
+
+export interface WizardCurrent {
+  name: string;
+  channel: WizardChannel;
+  subject: string;
+  body: string;
+  agentName: string;
+  callBlocks: Array<{ id: string; type: string; title: string; content: string }>;
+}
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  /** Current values from the modal — used to skip steps already completed. */
+  current: WizardCurrent;
+  /** Apply a partial patch to the modal state. */
+  onApply: (patch: WizardPatch) => void;
+}
+
+/* ───────────────────────── Step definitions ─────────────────────────
+ * Each step has a `targetSelector` matching a `data-jarvis-id` in the
+ * Script Builder modal. The wizard scrolls + glows that element while the
+ * step is active.
+ */
+
+type StepKind = "intro" | "preflight" | "field" | "done";
+
+interface FieldStep {
+  kind: "field";
+  id: string;
+  targetSelector: string;
+  label: string;
+  /** What Jarvis says before asking. */
+  explain: string;
+  /** Question shown to the user. */
+  question: string;
+  /** Channel filter — only shown for matching channel. */
+  channels?: WizardChannel[];
+  /** Skip the step if this returns true given current values. */
+  isAlreadyFilled?: (c: WizardCurrent) => boolean;
+  /** Build the patch that gets applied to the modal. */
+  apply: (answer: string, c: WizardCurrent) => WizardPatch;
+  /** For call channel — points to a specific block id at runtime. */
+  callBlockId?: string;
+}
+
+/* ────────────────────────── Voice helpers ────────────────────────── */
+
+// Browser Speech Recognition – feature-detected, optional.
+// Defined outside the component so the type works in TS strict mode.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getSpeechRecognition(): any {
+  if (typeof window === "undefined") return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
+}
+
+/* ────────────────────────── Component ────────────────────────────── */
+
+export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
+  const [phase, setPhase] = useState<StepKind>("intro");
+  // intro mode: 'quick' (30s explain) | 'full' (deep) | 'just_do_it' (skip explain)
+  const [introMode, setIntroMode] = useState<"quick" | "full" | "just_do_it" | null>(null);
+
+  // Pre-flight answers (used by 'just_do_it' to draft the whole script in one go)
+  const [preflightStage, setPreflightStage] = useState(0);
+  const [preflight, setPreflight] = useState<{
+    purpose?: string;
+    tone?: string;
+    targetRole?: string;
+    cta?: string;
+  }>({});
+
+  const [stepIdx, setStepIdx] = useState(0);
+  const [answer, setAnswer] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const [voiceOutEnabled, setVoiceOutEnabled] = useState(true);
+  const [listening, setListening] = useState(false);
+  const [hasMicSupport] = useState(() => !!getSpeechRecognition());
+
+  // Conversation transcript shown in the panel
+  const [messages, setMessages] = useState<Array<{ role: "jarvis" | "user"; text: string }>>([]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  /* ─── Build the step list dynamically based on current channel ─── */
+
+  const steps = useMemo<FieldStep[]>(() => {
+    const c = current.channel;
+    const list: FieldStep[] = [
+      {
+        kind: "field",
+        id: "name",
+        targetSelector: "[data-jarvis-id='script-name-input']",
+        label: "Script Name",
+        explain:
+          "First, every script needs a memorable name so your team can find it later. Something like 'Senior Dev Outreach v1' works well.",
+        question: "What would you like to name this script?",
+        isAlreadyFilled: (c) => c.name.trim().length > 2,
+        apply: (a) => ({ name: a.trim() }),
+      },
+      {
+        kind: "field",
+        id: "channel",
+        targetSelector: "[data-jarvis-id='script-channel-select']",
+        label: "Channel",
+        explain:
+          "Now pick the channel. Email is best for detail, SMS for quick nudges, and Call Script powers the AI voice agent that actually calls the candidate.",
+        question: "Which channel — email, SMS, or call?",
+        isAlreadyFilled: () => true, // pre-selected; only shown if user opens wizard before picking
+        apply: (a) => {
+          const v = a.toLowerCase();
+          const ch: WizardChannel = v.includes("sms") || v.includes("text")
+            ? "sms"
+            : v.includes("call") || v.includes("phone") || v.includes("voice")
+            ? "call"
+            : "email";
+          return { channel: ch };
+        },
+      },
+    ];
+
+    if (c === "email") {
+      list.push({
+        kind: "field",
+        id: "subject",
+        targetSelector: "[data-jarvis-id='script-subject-input']",
+        label: "Subject Line",
+        channels: ["email"],
+        explain:
+          "The subject line is what gets your email opened. Keep it under 60 characters and make it personal.",
+        question:
+          "What's the subject? Tip: you can use {{job.title}} and {{candidate.first_name}} as variables.",
+        isAlreadyFilled: (c) => c.subject.trim().length > 0,
+        apply: (a) => ({ subject: a.trim() }),
+      });
+      list.push({
+        kind: "field",
+        id: "body",
+        targetSelector: "[data-jarvis-id='script-body']",
+        label: "Email Body",
+        channels: ["email"],
+        explain:
+          "Now the body. I'll draft it from your answer — describe the role, the hook, and the call-to-action. I'll polish it for you.",
+        question:
+          "In a sentence or two, what's this email pitching? I'll write the full draft.",
+        isAlreadyFilled: (c) => c.body.trim().length > 40,
+        apply: (a) => ({ body: a.trim() }),
+      });
+    }
+
+    if (c === "sms") {
+      list.push({
+        kind: "field",
+        id: "body",
+        targetSelector: "[data-jarvis-id='script-body']",
+        label: "SMS Body",
+        channels: ["sms"],
+        explain:
+          "SMS must stay under 160 characters. Be punchy and include an opt-out like 'Reply STOP'.",
+        question: "Sum up the message in one line — I'll tighten it for you.",
+        isAlreadyFilled: (c) => c.body.trim().length > 20,
+        apply: (a) => ({ body: a.trim() }),
+      });
+    }
+
+    if (c === "call") {
+      list.push({
+        kind: "field",
+        id: "agentName",
+        targetSelector: "[data-jarvis-id='script-agent-name']",
+        label: "AI Agent Name",
+        channels: ["call"],
+        explain:
+          "Your AI agent introduces itself by name. Pick something friendly — it's the first impression your candidate hears.",
+        question: "What name should the AI agent use? (e.g. Olivia, Marcus, or skip for auto)",
+        isAlreadyFilled: (c) => c.agentName.trim().length > 0,
+        apply: (a) => ({ agentName: a.trim() }),
+      });
+
+      // One step per call block
+      for (const b of current.callBlocks) {
+        list.push({
+          kind: "field",
+          id: `block-${b.id}`,
+          targetSelector: `[data-jarvis-id='script-block-${b.id}']`,
+          label: `Block: ${b.title || b.type}`,
+          channels: ["call"],
+          callBlockId: b.id,
+          explain: blockExplainText(b.type),
+          question: blockQuestionText(b.type),
+          isAlreadyFilled: () => b.content.trim().length > 30,
+          apply: (a) => ({ callBlock: { blockId: b.id, content: a.trim() } }),
+        });
+      }
+    }
+    return list;
+  }, [current.channel, current.callBlocks]);
+
+  /* ─── Spotlight: glow + scroll into view ─── */
+
+  const spotlightSelector = useCallback((selector: string | null) => {
+    // Remove previous glow
+    document
+      .querySelectorAll(".jarvis-wizard-glow")
+      .forEach((el) => el.classList.remove("jarvis-wizard-glow"));
+    if (!selector) return;
+    const el = document.querySelector(selector);
+    if (el) {
+      el.classList.add("jarvis-wizard-glow");
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, []);
+
+  /* ─── Speak via jarvis-speak (with browser fallback) ─── */
+
+  const speak = useCallback(
+    async (text: string) => {
+      if (!voiceOutEnabled) return;
+      try {
+        const { data, error } = await supabase.functions.invoke("jarvis-speak", {
+          body: { text, voice_id: "pNInz6obpgDQGcFmaJgB" },
+        });
+        if (error || !data?.audio) {
+          // Fallback to browser TTS
+          if (typeof window !== "undefined" && "speechSynthesis" in window) {
+            const u = new SpeechSynthesisUtterance(text);
+            u.rate = 1.05;
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(u);
+          }
+          return;
+        }
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+        const audio = new Audio(`data:audio/mpeg;base64,${data.audio}`);
+        audio.volume = 0.9;
+        audioRef.current = audio;
+        audio.play().catch(() => {});
+      } catch {
+        // silent fail — text is always shown in chat too
+      }
+    },
+    [voiceOutEnabled]
+  );
+
+  /* ─── Voice input ─── */
+
+  const startListening = useCallback(() => {
+    const SR = getSpeechRecognition();
+    if (!SR) return;
+    try {
+      const r = new SR();
+      r.lang = "en-GB";
+      r.interimResults = true;
+      r.continuous = false;
+      r.onresult = (e: SpeechRecognitionEvent) => {
+        const txt = Array.from(e.results)
+          .map((res) => res[0].transcript)
+          .join(" ");
+        setAnswer(txt);
+      };
+      r.onend = () => setListening(false);
+      r.onerror = () => setListening(false);
+      recognitionRef.current = r;
+      r.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
+  }, []);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+    }
+    setListening(false);
+  }, []);
+
+  /* ─── Chat helpers ─── */
+
+  const sayJarvis = useCallback(
+    (text: string) => {
+      setMessages((m) => [...m, { role: "jarvis", text }]);
+      speak(text);
+    },
+    [speak]
+  );
+
+  const sayUser = useCallback((text: string) => {
+    setMessages((m) => [...m, { role: "user", text }]);
+  }, []);
+
+  /* ─── Lifecycle ─── */
+
+  // On open: greet
+  useEffect(() => {
+    if (open) {
+      setMessages([]);
+      setPhase("intro");
+      setIntroMode(null);
+      setStepIdx(0);
+      setPreflightStage(0);
+      setPreflight({});
+      setAnswer("");
+      setTimeout(() => {
+        sayJarvis(
+          "Hi! I'm Jarvis. Setting up scripts can be fiddly so I'll walk you through it. Would you like a quick 30-second walkthrough, the full deep-dive, or shall I just ask a few questions and get it done for you?"
+        );
+      }, 250);
+    } else {
+      // cleanup
+      spotlightSelector(null);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      stopListening();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // When a field step becomes active → spotlight + ask
+  useEffect(() => {
+    if (phase !== "field") {
+      spotlightSelector(null);
+      return;
+    }
+    const step = steps[stepIdx];
+    if (!step) return;
+    spotlightSelector(step.targetSelector);
+    setAnswer("");
+    sayJarvis(`${step.explain} ${step.question}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, stepIdx, steps]);
+
+  /* ─── Intro choice handler ─── */
+
+  const chooseIntro = (mode: "quick" | "full" | "just_do_it") => {
+    setIntroMode(mode);
+    sayUser(mode === "quick" ? "Quick walkthrough please" : mode === "full" ? "Full walkthrough" : "Just get it done");
+
+    if (mode === "full") {
+      sayJarvis(
+        "Great — here's the full picture. A script has a name, a channel (email, SMS or call), and content. For calls we use blocks: an intro, a permission check ('do you have a minute?'), qualifying questions, optional branching responses, and a close. AI Polish rewrites your draft, and linking a job weaves the role details in while keeping the company name anonymous until the candidate confirms interest. I'll illuminate each field as we go — you can interrupt or skip any step. Ready?"
+      );
+      setTimeout(() => {
+        setPhase("field");
+        setStepIdx(findNextStep(steps, 0, current));
+      }, 500);
+      return;
+    }
+
+    if (mode === "quick") {
+      sayJarvis(
+        "Quick version: name your script, pick a channel, and fill in the content. For calls you have blocks. I'll glow each field — you tell me what you want and I'll fill it in. Let's go."
+      );
+      setTimeout(() => {
+        setPhase("field");
+        setStepIdx(findNextStep(steps, 0, current));
+      }, 500);
+      return;
+    }
+
+    // just_do_it → preflight Q&A
+    setPhase("preflight");
+    setPreflightStage(0);
+    setTimeout(() => {
+      sayJarvis(
+        "Perfect. I'll ask 4 quick questions then draft the entire script. Question 1: what's the purpose of this outreach? (e.g. 'Senior React dev for a fintech in London')"
+      );
+    }, 400);
+  };
+
+  /* ─── Pre-flight Q&A handler ─── */
+
+  const handlePreflightSubmit = async () => {
+    if (!answer.trim()) return;
+    sayUser(answer);
+    const a = answer.trim();
+    setAnswer("");
+
+    const next = { ...preflight };
+    if (preflightStage === 0) next.purpose = a;
+    else if (preflightStage === 1) next.targetRole = a;
+    else if (preflightStage === 2) next.tone = a;
+    else if (preflightStage === 3) next.cta = a;
+    setPreflight(next);
+
+    if (preflightStage < 3) {
+      const prompts = [
+        "Got it. Question 2: who's the ideal candidate? (seniority, location, skills)",
+        "Nice. Question 3: what tone — friendly, formal, or punchy?",
+        "Last one: what's the call-to-action? (book a call, reply yes, etc.)",
+      ];
+      sayJarvis(prompts[preflightStage]);
+      setPreflightStage(preflightStage + 1);
+      return;
+    }
+
+    // All 4 answered → draft
+    sayJarvis("Excellent. Drafting your script now…");
+    setThinking(true);
+    try {
+      const drafted = await draftFullScript({
+        ...next,
+        channel: current.channel,
+      });
+      // Apply name + content
+      const namePatch: WizardPatch = current.name.trim() ? {} : { name: drafted.name };
+      onApply(namePatch);
+      if (current.channel === "email") {
+        onApply({ subject: drafted.subject, body: drafted.body });
+      } else if (current.channel === "sms") {
+        onApply({ body: drafted.body });
+      } else {
+        // call: write into existing blocks
+        for (const b of current.callBlocks) {
+          const content = drafted.blocks?.[b.type] || drafted.body;
+          if (content) onApply({ callBlock: { blockId: b.id, content } });
+        }
+        if (drafted.agentName) onApply({ agentName: drafted.agentName });
+      }
+      sayJarvis(
+        "Done! I've filled in everything. Take a look — you can edit any field directly, or click 'Walk me through it' to review each one with me."
+      );
+      setPhase("done");
+    } catch (e) {
+      sayJarvis(
+        "Sorry, I couldn't draft it automatically. Let's do it field-by-field instead — I'll guide you."
+      );
+      setPhase("field");
+      setStepIdx(findNextStep(steps, 0, current));
+    } finally {
+      setThinking(false);
+    }
+  };
+
+  /* ─── Field step submit ─── */
+
+  const handleFieldSubmit = () => {
+    const step = steps[stepIdx];
+    if (!step) return;
+    if (!answer.trim()) return;
+    sayUser(answer);
+    const patch = step.apply(answer, current);
+    onApply(patch);
+    sayJarvis(`Got it — saved into ${step.label}. ✓`);
+    setAnswer("");
+    advance();
+  };
+
+  const skipStep = () => {
+    sayUser("(skip)");
+    sayJarvis("No worries, skipping that one.");
+    setAnswer("");
+    advance();
+  };
+
+  const advance = () => {
+    const next = findNextStep(steps, stepIdx + 1, current);
+    if (next >= steps.length) {
+      setPhase("done");
+      sayJarvis(
+        "All done! Your script is ready. Review it, then click 'Update Script' to save. You can call me again any time."
+      );
+      spotlightSelector(null);
+    } else {
+      setStepIdx(next);
+    }
+  };
+
+  /* ─── Render ─── */
+
+  if (!open) return null;
+
+  const currentStep = phase === "field" ? steps[stepIdx] : null;
+
+  return (
+    <>
+      {/* Glow keyframes injected once */}
+      <style>{`
+        .jarvis-wizard-glow {
+          position: relative;
+          z-index: 1;
+          box-shadow: 0 0 0 3px hsl(var(--primary) / 0.6), 0 0 24px 4px hsl(var(--primary) / 0.4) !important;
+          border-radius: 8px;
+          animation: jarvis-pulse 2s ease-in-out infinite;
+          transition: box-shadow 0.3s ease;
+        }
+        @keyframes jarvis-pulse {
+          0%, 100% { box-shadow: 0 0 0 3px hsl(var(--primary) / 0.5), 0 0 20px 4px hsl(var(--primary) / 0.35); }
+          50% { box-shadow: 0 0 0 4px hsl(var(--primary) / 0.85), 0 0 32px 8px hsl(var(--primary) / 0.55); }
+        }
+      `}</style>
+
+      <div
+        className="fixed right-4 top-20 bottom-4 w-[380px] z-[10001] flex flex-col rounded-xl border border-primary/40 bg-background/95 backdrop-blur shadow-2xl shadow-primary/30"
+        data-jarvis-id="script-wizard-panel"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-primary/15 to-fuchsia-500/10 rounded-t-xl">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-fuchsia-500 flex items-center justify-center">
+              <Bot className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold flex items-center gap-1.5">
+                Jarvis
+                <Badge variant="outline" className="h-4 text-[9px] px-1 border-primary/40 text-primary">
+                  Script Coach
+                </Badge>
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                {phase === "intro" && "Choose how to start"}
+                {phase === "preflight" && `Question ${preflightStage + 1} of 4`}
+                {phase === "field" && currentStep && `Step ${stepIdx + 1}: ${currentStep.label}`}
+                {phase === "done" && "All done"}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={() => setVoiceOutEnabled((v) => !v)}
+              title={voiceOutEnabled ? "Mute voice" : "Unmute voice"}
+            >
+              {voiceOutEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose} title="Close">
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Conversation */}
+        <ScrollArea className="flex-1 px-3 py-3">
+          <div className="space-y-2.5">
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "rounded-lg px-3 py-2 text-xs leading-relaxed",
+                  m.role === "jarvis"
+                    ? "bg-primary/10 border border-primary/20 text-foreground"
+                    : "bg-muted/40 border border-border/40 text-muted-foreground ml-6"
+                )}
+              >
+                {m.role === "jarvis" && (
+                  <div className="flex items-center gap-1 mb-0.5 text-[10px] text-primary font-semibold uppercase tracking-wide">
+                    <Sparkles className="h-2.5 w-2.5" /> Jarvis
+                  </div>
+                )}
+                {m.text}
+              </div>
+            ))}
+            {thinking && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground px-2">
+                <Loader2 className="h-3 w-3 animate-spin" /> Drafting…
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* Action area */}
+        <div className="border-t border-border/50 p-3 space-y-2">
+          {phase === "intro" && (
+            <div className="grid grid-cols-1 gap-1.5">
+              <Button size="sm" variant="outline" className="justify-start text-xs h-8" onClick={() => chooseIntro("quick")}>
+                <ChevronRight className="h-3 w-3 mr-1" /> Quick 30-sec walkthrough
+              </Button>
+              <Button size="sm" variant="outline" className="justify-start text-xs h-8" onClick={() => chooseIntro("full")}>
+                <ChevronRight className="h-3 w-3 mr-1" /> Full walkthrough (explain everything)
+              </Button>
+              <Button
+                size="sm"
+                className="justify-start text-xs h-8 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90"
+                onClick={() => chooseIntro("just_do_it")}
+              >
+                <Sparkles className="h-3 w-3 mr-1" /> Just get it done (4 questions)
+              </Button>
+            </div>
+          )}
+
+          {(phase === "preflight" || phase === "field") && (
+            <>
+              <Textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder={listening ? "Listening…" : "Type or speak your answer…"}
+                className="text-xs min-h-[60px] resize-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (phase === "preflight") handlePreflightSubmit();
+                    else handleFieldSubmit();
+                  }
+                }}
+              />
+              <div className="flex items-center gap-1.5">
+                {hasMicSupport && (
+                  <Button
+                    size="sm"
+                    variant={listening ? "default" : "outline"}
+                    className={cn("h-8 text-xs gap-1", listening && "bg-red-500 hover:bg-red-600 text-white")}
+                    onClick={listening ? stopListening : startListening}
+                  >
+                    {listening ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+                    {listening ? "Stop" : "Speak"}
+                  </Button>
+                )}
+                {phase === "field" && (
+                  <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={skipStep}>
+                    <SkipForward className="h-3 w-3" /> Skip
+                  </Button>
+                )}
+                <div className="flex-1" />
+                <Button
+                  size="sm"
+                  className="h-8 text-xs gap-1"
+                  onClick={phase === "preflight" ? handlePreflightSubmit : handleFieldSubmit}
+                  disabled={!answer.trim() || thinking}
+                >
+                  <Send className="h-3 w-3" /> Send
+                </Button>
+              </div>
+            </>
+          )}
+
+          {phase === "done" && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs text-green-500">
+                <CheckCircle2 className="h-4 w-4" /> Script ready to save
+              </div>
+              <Button size="sm" className="w-full h-8 text-xs" onClick={onClose}>
+                Close & review
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─────────────────────── Helper functions ─────────────────────── */
+
+function findNextStep(steps: FieldStep[], from: number, c: WizardCurrent): number {
+  for (let i = from; i < steps.length; i++) {
+    const s = steps[i];
+    if (s.isAlreadyFilled && s.isAlreadyFilled(c)) continue;
+    return i;
+  }
+  return steps.length;
+}
+
+function blockExplainText(type: string): string {
+  switch (type) {
+    case "intro":
+      return "The intro is what the AI agent says first — name, agency, and why they're calling.";
+    case "permission":
+      return "Permission check is critical for compliance — always ask if the candidate has a minute to talk.";
+    case "questions":
+      return "Qualifying questions reveal whether the candidate is a good fit (notice period, salary, location).";
+    case "branching":
+      return "Branching tells the AI how to respond if the candidate sounds interested vs not interested.";
+    case "close":
+      return "The close confirms next steps — usually scheduling a follow-up or sending the job spec by email.";
+    default:
+      return "Fill in what the AI agent should say in this block.";
+  }
+}
+
+function blockQuestionText(type: string): string {
+  switch (type) {
+    case "intro":
+      return "What should the agent say to introduce themselves and the call?";
+    case "permission":
+      return "How should the agent ask for permission to continue?";
+    case "questions":
+      return "List 2-3 questions you want answered (notice period, comp, location, etc.)";
+    case "branching":
+      return "Describe what to say if interested vs not interested.";
+    case "close":
+      return "How should the agent wrap up and confirm next steps?";
+    default:
+      return "What should the agent say here?";
+  }
+}
+
+/** Drafts a full script via the existing ai-script-assist edge function. */
+async function draftFullScript(input: {
+  purpose?: string;
+  targetRole?: string;
+  tone?: string;
+  cta?: string;
+  channel: WizardChannel;
+}): Promise<{
+  name: string;
+  subject?: string;
+  body: string;
+  blocks?: Record<string, string>;
+  agentName?: string;
+}> {
+  const { purpose, targetRole, tone, cta, channel } = input;
+
+  const prompt = [
+    `Channel: ${channel}`,
+    `Purpose: ${purpose ?? "outreach"}`,
+    `Target candidate: ${targetRole ?? "general"}`,
+    `Tone: ${tone ?? "friendly professional"}`,
+    `Call-to-action: ${cta ?? "reply or book a quick chat"}`,
+  ].join("\n");
+
+  try {
+    const { data, error } = await supabase.functions.invoke("ai-script-assist", {
+      body: {
+        mode: "draft_from_brief",
+        channel,
+        brief: prompt,
+      },
+    });
+    if (!error && data?.success && data?.draft) {
+      return {
+        name: data.draft.name || `${channel} script`,
+        subject: data.draft.subject,
+        body: data.draft.body || "",
+        blocks: data.draft.blocks,
+        agentName: data.draft.agentName,
+      };
+    }
+  } catch {
+    /* fall through to local fallback */
+  }
+
+  // Local fallback — never leaves user empty-handed
+  return localFallbackDraft(input);
+}
+
+function localFallbackDraft(input: {
+  purpose?: string;
+  targetRole?: string;
+  tone?: string;
+  cta?: string;
+  channel: WizardChannel;
+}) {
+  const { purpose, targetRole, cta, channel } = input;
+  const name = `${(purpose || "Outreach").split(" ").slice(0, 4).join(" ")} — draft`;
+  if (channel === "email") {
+    return {
+      name,
+      subject: `{{job.title}} opportunity — thought of you`,
+      body: `Hi {{candidate.first_name}},\n\nI'm reaching out about ${purpose || "an opportunity"} for someone with your background${
+        targetRole ? ` in ${targetRole}` : ""
+      }.\n\n${cta || "Would you be open to a quick 10-minute call this week?"}\n\nBest,\n{{recruiter.name}}\n{{agency.name}}\n\nReply STOP to opt out.`,
+    };
+  }
+  if (channel === "sms") {
+    return {
+      name,
+      body: `Hi {{candidate.first_name}}, {{recruiter.name}} from {{agency.name}}. ${cta || "Open to a quick chat about a new role?"} Reply STOP to opt out.`,
+    };
+  }
+  return {
+    name,
+    body: "",
+    agentName: "Olivia",
+    blocks: {
+      intro: `Hi {{candidate.first_name}}, this is {{agent.name}} from {{agency.name}}. I'm calling about ${
+        purpose || "an opportunity"
+      }.`,
+      permission: `Do you have a couple of minutes to chat?`,
+      questions: `What's your current notice period, and what kind of role are you looking for next?`,
+      close: `Thanks for your time — ${cta || "I'll send the details by email and we can set up a follow-up call."}`,
+    },
+  };
+}

@@ -727,6 +727,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // On open: greet
   useEffect(() => {
     if (open) {
+      killedRef.current = false;
       if (typeof document !== "undefined") {
         document.body.classList.add("jarvis-wizard-active");
       }
@@ -752,7 +753,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         );
       }, 250);
     } else {
-      // cleanup
+      // cleanup — flip kill switch FIRST so any in-flight TTS fetch aborts
+      // when it resolves instead of starting a new <audio>.
+      killedRef.current = true;
       if (typeof document !== "undefined") {
         document.body.classList.remove("jarvis-wizard-active");
       }

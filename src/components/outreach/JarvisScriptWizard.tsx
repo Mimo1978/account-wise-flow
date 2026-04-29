@@ -525,6 +525,20 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     }, 120);
   }, [micPermissionGranted, hasMicSupport, startListening]);
 
+  /**
+   * Interrupt Jarvis: stop the current speech and immediately open the mic
+   * so the user can talk back. Bound to clicks anywhere on the panel body
+   * (transcript area). Buttons in the action footer have their own handlers
+   * via stopPropagation so they don't double-trigger.
+   */
+  const interruptJarvis = useCallback(() => {
+    if (!isSpeaking) return;
+    stopSpeaking();
+    // Best-effort: if we already have permission, open the mic so the user
+    // can finish their thought immediately.
+    maybeAutoListen();
+  }, [isSpeaking, stopSpeaking, maybeAutoListen]);
+
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       try {

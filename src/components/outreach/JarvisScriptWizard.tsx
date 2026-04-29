@@ -780,6 +780,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // continuing to speak after the user exits the Edit Script screen.
   useEffect(() => {
     return () => {
+      killedRef.current = true;
       if (audioRef.current) {
         try { audioRef.current.pause(); } catch { /* noop */ }
         audioRef.current.src = "";

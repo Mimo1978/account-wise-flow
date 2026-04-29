@@ -545,6 +545,22 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     maybeAutoListen();
   }, [isSpeaking, stopSpeaking, maybeAutoListen]);
 
+  // Keep `expectingAnswerRef` in sync with the live UI state. We listen for
+  // a typed/spoken reply during preflight Q&A, while in a field's edit/intent
+  // sub-phase. We do NOT listen during intro (button choice), review (Keep/
+  // Edit/Redo buttons), suggested (Accept/Tweak/Reject buttons) or done.
+  useEffect(() => {
+    const expecting =
+      phase === "preflight" ||
+      (phase === "field" && (fieldSubPhase === "edit" || fieldSubPhase === "intent"));
+    expectingAnswerRef.current = expecting;
+    if (!expecting && listening) {
+      try { recognitionRef.current?.stop(); } catch { /* noop */ }
+      setListening(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, fieldSubPhase]);
+
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       try {

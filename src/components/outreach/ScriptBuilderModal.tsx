@@ -899,6 +899,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
                 ) : (
                   /* Call blocks */
                   <div className="space-y-2" data-jarvis-id="script-call-blocks">
+                    <CallGoalTemplates onApply={handleApplyGoalTemplate} className="mb-1" />
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">Call Blocks</Label>
                       <button

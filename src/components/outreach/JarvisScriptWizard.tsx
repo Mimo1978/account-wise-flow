@@ -227,11 +227,23 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [hasMicSupport] = useState(() => !!getSpeechRecognition());
   // Once the user has granted mic permission within the wizard session, we
-  // can safely auto-start listening after Jarvis finishes speaking. Without
-  // this gate, browsers would silently swallow the mic activation because it
-  // happens outside a user-gesture stack.
+  // can safely auto-start listening after Jarvis finishes speaking. We
+  // proactively request permission as soon as the wizard opens (the user's
+  // "Open Jarvis" tap is a valid gesture), so by the time she finishes her
+  // first sentence the mic is already authorised and can auto-activate.
   const [micPermissionGranted, setMicPermissionGranted] = useState(false);
+  const micPermissionRef = useRef(false);
   const autoListenRef = useRef(true);
+  // Default-on: Jarvis listens for the user's reply automatically after she
+  // finishes speaking. Toggleable from the header (mic icon).
+  const [autoListen, setAutoListen] = useState(true);
+  // Silence window before we auto-submit a spoken answer. 5 seconds — long
+  // enough for the user to think, short enough to feel natural.
+  const SILENCE_MS = 5000;
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Latest transcript captured by the recogniser. Used by the silence-timer
+  // auto-submit so we don't depend on stale React state.
+  const liveTranscriptRef = useRef("");
 
   // Conversation transcript shown in the panel
   const [messages, setMessages] = useState<Array<{ role: "jarvis" | "user"; text: string }>>([]);

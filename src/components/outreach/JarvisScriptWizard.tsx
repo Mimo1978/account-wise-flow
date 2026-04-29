@@ -194,6 +194,37 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Draggable panel position (null = use default right/top fixed anchor)
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+  const onDragStart = useCallback((e: React.PointerEvent) => {
+    const panel = (e.currentTarget as HTMLElement).closest("[data-jarvis-id='script-wizard-panel']") as HTMLElement | null;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: rect.left,
+      origY: rect.top,
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }, []);
+
+  const onDragMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    const nx = Math.max(8, Math.min(window.innerWidth - 200, dragRef.current.origX + dx));
+    const ny = Math.max(8, Math.min(window.innerHeight - 80, dragRef.current.origY + dy));
+    setPos({ x: nx, y: ny });
+  }, []);
+
+  const onDragEnd = useCallback((e: React.PointerEvent) => {
+    dragRef.current = null;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+  }, []);
+
   /* ─── Build the step list dynamically based on current channel ─── */
 
   const steps = useMemo<FieldStep[]>(() => {

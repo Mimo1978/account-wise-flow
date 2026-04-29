@@ -110,6 +110,58 @@ function getSpeechRecognition(): any {
   return (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition || null;
 }
 
+/**
+ * Browser TTS fallback. Picks the smoothest available voice (prefers
+ * Google/Microsoft natural voices over the default robotic voice that ships
+ * with most OSes) and uses warmer prosody so Jarvis doesn't sound like a
+ * 1950s toy robot when ElevenLabs isn't configured.
+ */
+function speakWithBrowser(text: string) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  const synth = window.speechSynthesis;
+  const pickVoice = (): SpeechSynthesisVoice | null => {
+    const voices = synth.getVoices();
+    if (!voices?.length) return null;
+    const preferOrder = [
+      /Google UK English Female/i,
+      /Google US English/i,
+      /Microsoft (Aria|Jenny|Libby|Sonia)/i,
+      /Samantha/i,
+      /Karen/i,
+      /Serena/i,
+      /^en-GB.*Female/i,
+      /^en-US.*Female/i,
+    ];
+    for (const re of preferOrder) {
+      const v = voices.find((vc) => re.test(vc.name) || re.test(vc.voiceURI));
+      if (v) return v;
+    }
+    return voices.find((v) => v.lang?.startsWith("en")) || voices[0];
+  };
+  const speakNow = () => {
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickVoice();
+    if (v) u.voice = v;
+    u.rate = 1.0;
+    u.pitch = 1.05;
+    u.volume = 0.95;
+    synth.cancel();
+    synth.speak(u);
+  };
+  if (synth.getVoices().length === 0) {
+    // Voices load asynchronously on first call in some browsers
+    const handler = () => {
+      synth.removeEventListener("voiceschanged", handler);
+      speakNow();
+    };
+    synth.addEventListener("voiceschanged", handler);
+    // safety: try after 250ms anyway
+    setTimeout(speakNow, 300);
+  } else {
+    speakNow();
+  }
+}
+
 /* ────────────────────────── Component ────────────────────────────── */
 
 export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {

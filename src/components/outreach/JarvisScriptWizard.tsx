@@ -714,6 +714,10 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // Mirror the autoListen toggle into a ref for callbacks.
   useEffect(() => { autoListenRef.current = autoListen; }, [autoListen]);
 
+  useEffect(() => { openRef.current = open; }, [open]);
+  useEffect(() => { speakingRef.current = isSpeaking; }, [isSpeaking]);
+  useEffect(() => { thinkingRef.current = thinking || suggesting; }, [thinking, suggesting]);
+
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       try {
@@ -723,6 +727,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       }
     }
     clearSilenceTimer();
+    recognitionRef.current = null;
     setListening(false);
   }, [clearSilenceTimer]);
 

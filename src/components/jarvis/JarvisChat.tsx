@@ -429,6 +429,8 @@ function useElevenLabsTTS(
         onDone?.();
         return;
       }
+      // Reset for a fresh utterance.
+      killedRef.current = false;
 
       const resolved = {
         autoSpotlight: options?.autoSpotlight ?? true,
@@ -448,6 +450,12 @@ function useElevenLabsTTS(
         const { data, error } = await supabase.functions.invoke("jarvis-speak", {
           body: { text, voice_id: elevenLabsVoiceId || "pNInz6obpgDQGcFmaJgB" },
         });
+        // Kill switch: chat was closed/stopped while we were waiting on TTS.
+        if (killedRef.current) {
+          setIsSpeaking(false);
+          onDoneRef.current = null;
+          return;
+        }
 
         if (error || data?.fallback || !data?.audio) {
           // Fallback to browser TTS

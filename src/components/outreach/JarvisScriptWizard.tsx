@@ -1398,25 +1398,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
             active. Mirrors the visual language of the standard JarvisChat. */}
         {isSpeaking && (
           <div className="border-t border-border/50 bg-primary/5 px-3 py-2 shrink-0">
-            <div className="flex items-center gap-2">
-              <Volume2 className="h-3.5 w-3.5 text-primary shrink-0 animate-pulse" />
-              <div className="flex-1 flex items-end justify-center gap-[2px] h-5">
-                {Array.from({ length: 28 }).map((_, i) => {
-                  const heights = [4, 8, 12, 16, 14, 18, 10, 6];
-                  const h = heights[i % heights.length];
-                  return (
-                    <div
-                      key={i}
-                      className="w-[2px] rounded-full bg-primary/80"
-                      style={{
-                        height: `${h}px`,
-                        animation: `cmPipelinePulse 0.7s ease-in-out ${(i % 8) * 70}ms infinite alternate`,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-              <span className="text-[10px] uppercase tracking-wide text-primary font-semibold shrink-0">Speaking</span>
+            <div className="flex items-center justify-center gap-2">
+              <CMPulse size="md" />
+              <span className="text-[10px] uppercase tracking-wide text-primary font-semibold shrink-0">Active</span>
             </div>
           </div>
         )}

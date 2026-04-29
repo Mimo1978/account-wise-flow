@@ -54,6 +54,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { ProofreadReviewModal, type ProofreadField } from "./ProofreadReviewModal";
 import { AssignToCampaignPrompt } from "./AssignToCampaignPrompt";
 import { JarvisScriptWizard, type WizardPatch } from "./JarvisScriptWizard";
+import { playYourTurnChime } from "@/lib/jarvis-sounds";
 import { Bot } from "lucide-react";
 import { RotateCcw } from "lucide-react";
 import {

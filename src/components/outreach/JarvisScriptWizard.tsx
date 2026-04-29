@@ -258,6 +258,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const listeningBaseRef = useRef("");
   const submittingVoiceRef = useRef(false);
   const speechPrimedRef = useRef(false);
+  const heardSpeechRef = useRef(false);
   // Hard kill switch. Flipped to `true` whenever the wizard closes or
   // unmounts. Any in-flight `speak()` call checks this after the async
   // jarvis-speak fetch resolves and aborts before creating a new <audio>
@@ -554,6 +555,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       r.continuous = true;
       listeningBaseRef.current = answer.trim();
       liveTranscriptRef.current = listeningBaseRef.current;
+      heardSpeechRef.current = false;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       r.onresult = (e: any) => {
         let combined = "";
@@ -561,6 +563,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           combined += e.results[i][0].transcript + " ";
         }
         const txt = [listeningBaseRef.current, combined.trim()].filter(Boolean).join(" ").trim();
+        heardSpeechRef.current = !!combined.trim();
         liveTranscriptRef.current = txt;
         setAnswer(txt);
         // Barge-in: any detected speech instantly silences Jarvis so the user
@@ -585,7 +588,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         clearSilenceTimer();
         setListening(false);
         const txt = liveTranscriptRef.current.trim();
-        if (txt && expectingAnswerRef.current && !submittingVoiceRef.current) {
+        if (txt && heardSpeechRef.current && expectingAnswerRef.current && !submittingVoiceRef.current) {
           submittingVoiceRef.current = true;
           submitDispatchRef.current?.(txt);
           setTimeout(() => { submittingVoiceRef.current = false; }, 250);

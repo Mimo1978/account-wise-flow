@@ -499,14 +499,30 @@ function useElevenLabsTTS(
   );
 
   const stop = useCallback(() => {
+    killedRef.current = true;
     if (audioRef.current) {
-      audioRef.current.pause();
+      try { audioRef.current.pause(); } catch { /* noop */ }
+      try { audioRef.current.src = ""; } catch { /* noop */ }
       audioRef.current = null;
     }
-    window.speechSynthesis?.cancel();
+    try { window.speechSynthesis?.cancel(); } catch { /* noop */ }
     setIsSpeaking(false);
     jarvisSpotlight.clearAll();
     onDoneRef.current = null;
+  }, []);
+
+  // Hard-stop on unmount so closing the chat panel kills any audio/TTS that
+  // is still queued or in-flight.
+  useEffect(() => {
+    return () => {
+      killedRef.current = true;
+      if (audioRef.current) {
+        try { audioRef.current.pause(); } catch { /* noop */ }
+        try { audioRef.current.src = ""; } catch { /* noop */ }
+        audioRef.current = null;
+      }
+      try { window.speechSynthesis?.cancel(); } catch { /* noop */ }
+    };
   }, []);
 
   const toggle = useCallback(() => {

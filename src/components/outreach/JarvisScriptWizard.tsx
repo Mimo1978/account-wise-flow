@@ -1268,20 +1268,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
             <div className="flex items-center gap-2.5">
               <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center relative">
                 {thinking ? (
-                  <div className="flex items-end gap-[2px] h-3.5">
-                    {[6,10,14,10,6].map((h, i) => (
-                      <div
-                        key={i}
-                        className="w-[2px] rounded-full bg-primary"
-                        style={{
-                          height: `${h}px`,
-                          animation: `cmPipelinePulse 0.8s ease-in-out ${i * 80}ms infinite alternate`,
-                        }}
-                      />
-                    ))}
-                  </div>
+                  <CMPulse size="sm" />
                 ) : isSpeaking ? (
-                  <Volume2 className="h-4 w-4 text-primary animate-pulse" />
+                  <CMPulse size="sm" />
                 ) : listening ? (
                   <Mic className="h-4 w-4 text-primary" />
                 ) : (

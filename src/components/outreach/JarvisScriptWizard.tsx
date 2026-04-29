@@ -80,7 +80,7 @@ interface Props {
  * step is active.
  */
 
-type StepKind = "intro" | "preflight" | "field" | "done";
+type StepKind = "intro" | "preflight" | "objective" | "field" | "done";
 
 interface FieldStep {
   kind: "field";
@@ -192,6 +192,22 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     targetRole?: string;
     cta?: string;
   }>({});
+
+  // Objective-driven prefill (quick / full walkthrough). User answers ONE
+  // question — "what do you want out of this script?" — and Jarvis pre-drafts
+  // every field/block in AI-friendly conversational style. The wizard then
+  // walks through each step, surfacing the prefilled suggestion in the
+  // 'suggested' sub-phase so the user can Accept / Tweak / Reject.
+  const [objective, setObjective] = useState<string>("");
+  // Map keyed by either a field id ("name", "subject", "body", "agentName")
+  // or a call block type ("intro", "permission", ...). Lookup falls through
+  // both.
+  const [prefilled, setPrefilled] = useState<Record<string, string>>({});
+  const prefilledRef = useRef<Record<string, string>>({});
+  // When true, Jarvis auto-applies every prefilled suggestion in sequence
+  // without waiting for the user — the user can hit "Pause" at any time.
+  const [autoRun, setAutoRun] = useState(false);
+  const autoRunRef = useRef(false);
 
   const [stepIdx, setStepIdx] = useState(0);
   const [answer, setAnswer] = useState("");

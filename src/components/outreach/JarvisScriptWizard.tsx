@@ -631,17 +631,23 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const expectingAnswerRef = useRef(false);
   const maybeAutoListen = useCallback(() => {
     if (!autoListenRef.current) return;
-    if (!micPermissionGranted) return;
     if (!hasMicSupport) return;
     if (!expectingAnswerRef.current) return;
-    // Defer one tick so React state for "isSpeaking → false" is committed
-    // before we flip to "listening" UI.
-    setTimeout(() => {
+    if (recognitionRef.current) return; // already listening
+    const kick = () => {
       if (!autoListenRef.current) return;
       if (!expectingAnswerRef.current) return;
+      if (recognitionRef.current) return;
       startListening();
-    }, 120);
-  }, [micPermissionGranted, hasMicSupport, startListening]);
+    };
+    if (!micPermissionRef.current) {
+      // Try to grab permission opportunistically. If denied (no gesture
+      // context), the user can still tap the Speak button which will prompt.
+      requestMicPermission().then((ok) => { if (ok) setTimeout(kick, 80); });
+      return;
+    }
+    setTimeout(kick, 120);
+  }, [hasMicSupport, startListening, requestMicPermission]);
 
   /**
    * Interrupt Jarvis: stop the current speech and immediately open the mic

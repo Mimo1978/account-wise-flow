@@ -474,6 +474,12 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   // When a field step becomes active → spotlight + ask
   useEffect(() => {
+    if (phase === "intro" || phase === "preflight") {
+      // While Jarvis is explaining or running pre-flight Q&A, illuminate
+      // the entire Edit Script modal so the user knows where the action is.
+      spotlightSelector("[data-jarvis-id='outreach-script-modal']");
+      return;
+    }
     if (phase !== "field") {
       spotlightSelector(null);
       return;

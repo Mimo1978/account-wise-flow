@@ -355,6 +355,10 @@ function useElevenLabsTTS(
   const [isSpeaking, setIsSpeaking] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const onDoneRef = useRef<(() => void) | null>(null);
+  // Hard kill switch — flipped on stop() and on unmount so any in-flight
+  // jarvis-speak fetch aborts when it resolves instead of starting a new
+  // <audio> element that would keep talking after the chat is closed.
+  const killedRef = useRef(false);
 
   // Browser fallback voice
   const getPreferredVoice = useCallback(() => {
@@ -425,6 +429,8 @@ function useElevenLabsTTS(
         onDone?.();
         return;
       }
+      // Reset for a fresh utterance.
+      killedRef.current = false;
 
       const resolved = {
         autoSpotlight: options?.autoSpotlight ?? true,
@@ -444,6 +450,12 @@ function useElevenLabsTTS(
         const { data, error } = await supabase.functions.invoke("jarvis-speak", {
           body: { text, voice_id: elevenLabsVoiceId || "pNInz6obpgDQGcFmaJgB" },
         });
+        // Kill switch: chat was closed/stopped while we were waiting on TTS.
+        if (killedRef.current) {
+          setIsSpeaking(false);
+          onDoneRef.current = null;
+          return;
+        }
 
         if (error || data?.fallback || !data?.audio) {
           // Fallback to browser TTS
@@ -487,14 +499,30 @@ function useElevenLabsTTS(
   );
 
   const stop = useCallback(() => {
+    killedRef.current = true;
     if (audioRef.current) {
-      audioRef.current.pause();
+      try { audioRef.current.pause(); } catch { /* noop */ }
+      try { audioRef.current.src = ""; } catch { /* noop */ }
       audioRef.current = null;
     }
-    window.speechSynthesis?.cancel();
+    try { window.speechSynthesis?.cancel(); } catch { /* noop */ }
     setIsSpeaking(false);
     jarvisSpotlight.clearAll();
     onDoneRef.current = null;
+  }, []);
+
+  // Hard-stop on unmount so closing the chat panel kills any audio/TTS that
+  // is still queued or in-flight.
+  useEffect(() => {
+    return () => {
+      killedRef.current = true;
+      if (audioRef.current) {
+        try { audioRef.current.pause(); } catch { /* noop */ }
+        try { audioRef.current.src = ""; } catch { /* noop */ }
+        audioRef.current = null;
+      }
+      try { window.speechSynthesis?.cancel(); } catch { /* noop */ }
+    };
   }, []);
 
   const toggle = useCallback(() => {

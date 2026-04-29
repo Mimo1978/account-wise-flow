@@ -252,6 +252,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // Hard kill switch. Flipped to `true` whenever the wizard closes or
+  // unmounts. Any in-flight `speak()` call checks this after the async
+  // jarvis-speak fetch resolves and aborts before creating a new <audio>
+  // — otherwise audio that was requested just before close still plays.
+  const killedRef = useRef(false);
 
   // Draggable panel position (null = use default right/top fixed anchor)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -441,7 +446,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const speak = useCallback(
     async (text: string) => {
       if (!voiceOutEnabled) return;
+      if (killedRef.current) return;
       const browserFallback = () => {
+        if (killedRef.current) return;
         setIsSpeaking(true);
         speakWithBrowser(text);
         // Best-effort: clear when synth finishes
@@ -465,6 +472,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           // Sarah — smooth, warm, natural British-leaning voice
           body: { text, voice_id: "EXAVITQu4vr4xnSDxMaL" },
         });
+        // Wizard was closed while we were waiting on the TTS fetch — abort.
+        if (killedRef.current) return;
         if (error || !data?.audio) {
           browserFallback();
           return;
@@ -718,6 +727,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // On open: greet
   useEffect(() => {
     if (open) {
+      killedRef.current = false;
       if (typeof document !== "undefined") {
         document.body.classList.add("jarvis-wizard-active");
       }
@@ -743,7 +753,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         );
       }, 250);
     } else {
-      // cleanup
+      // cleanup — flip kill switch FIRST so any in-flight TTS fetch aborts
+      // when it resolves instead of starting a new <audio>.
+      killedRef.current = true;
       if (typeof document !== "undefined") {
         document.body.classList.remove("jarvis-wizard-active");
       }
@@ -768,6 +780,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // continuing to speak after the user exits the Edit Script screen.
   useEffect(() => {
     return () => {
+      killedRef.current = true;
       if (audioRef.current) {
         try { audioRef.current.pause(); } catch { /* noop */ }
         audioRef.current.src = "";

@@ -406,6 +406,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // On open: greet
   useEffect(() => {
     if (open) {
+      if (typeof document !== "undefined") {
+        document.body.classList.add("jarvis-wizard-active");
+      }
       setMessages([]);
       setPhase("intro");
       setIntroMode(null);
@@ -420,6 +423,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       }, 250);
     } else {
       // cleanup
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("jarvis-wizard-active");
+      }
       spotlightSelector(null);
       if (audioRef.current) {
         audioRef.current.pause();

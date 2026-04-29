@@ -606,10 +606,25 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
                 </Badge>
               )}
               {violations.length === 0 && name && (
-                <Badge variant="outline" className="gap-1 text-xs border-green-500 text-green-600">
-                  <CheckCircle2 className="w-3 h-3" /> Clear
+                <Badge
+                  variant="outline"
+                  className="gap-1 text-xs border-green-500 text-green-600"
+                  title="No validation issues — script passes all guardrails"
+                >
+                  <CheckCircle2 className="w-3 h-3" /> No issues
                 </Badge>
               )}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setResetConfirmOpen(true)}
+                className="h-8 gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                title="Clear every field and start this script over from a blank template"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="text-xs font-semibold">Reset form</span>
+              </Button>
             </div>
           </div>
 

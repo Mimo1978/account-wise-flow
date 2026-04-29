@@ -53,6 +53,17 @@ import { ProofreadReviewModal, type ProofreadField } from "./ProofreadReviewModa
 import { AssignToCampaignPrompt } from "./AssignToCampaignPrompt";
 import { JarvisScriptWizard, type WizardPatch } from "./JarvisScriptWizard";
 import { Bot } from "lucide-react";
+import { RotateCcw } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Quick-insert ready-made snippets per channel for fast script authoring.
 const QUICK_TEMPLATES_EMAIL = [

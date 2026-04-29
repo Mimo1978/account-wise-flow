@@ -25,6 +25,7 @@ import {
   Briefcase,
   Loader2,
 } from "lucide-react";
+import { Maximize2, Minimize2, Move } from "lucide-react";
 import {
   ALLOWED_VARIABLES,
   DEFAULT_GUARDRAILS,

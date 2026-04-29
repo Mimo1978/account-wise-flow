@@ -1304,6 +1304,53 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
             </>
           )}
 
+          {phase === "objective" && (
+            <>
+              <Textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder={listening ? "Listening…" : "e.g. Book a 15-min call with senior backend devs in London, find out their notice & salary, ask for an updated CV…"}
+                className="text-xs min-h-[80px] resize-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleObjectiveSubmit();
+                  }
+                }}
+              />
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {hasMicSupport && (
+                  <Button size="sm" variant={listening ? "default" : "outline"} className={cn("h-8 text-xs gap-1", listening && "bg-red-500 hover:bg-red-600 text-white")} onClick={listening ? stopListening : startListening}>
+                    {listening ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+                    {listening ? "Stop" : "Speak"}
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 text-xs gap-1 text-muted-foreground"
+                  onClick={() => {
+                    sayUser("Skip — walk me through blank fields");
+                    setPhase("field");
+                    setStepIdx(findNextStep(steps, 0, current));
+                  }}
+                >
+                  <SkipForward className="h-3 w-3" /> Skip
+                </Button>
+                <div className="flex-1" />
+                <Button
+                  size="sm"
+                  className="h-8 text-xs gap-1 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90"
+                  onClick={handleObjectiveSubmit}
+                  disabled={!answer.trim() || thinking}
+                >
+                  {thinking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  Pre-draft all fields
+                </Button>
+              </div>
+            </>
+          )}
+
           {phase === "field" && fieldSubPhase === "review" && (
             <div className="grid grid-cols-1 gap-1.5">
               <Button size="sm" variant="outline" className="justify-start text-xs h-8" onClick={keepExisting}>

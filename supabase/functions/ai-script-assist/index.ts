@@ -16,7 +16,7 @@ const corsHeaders = {
  *    investment bank") until the candidate confirms interest + availability.
  */
 
-type Mode = "polish" | "link_job" | "proofread" | "suggest_field";
+type Mode = "polish" | "link_job" | "proofread" | "suggest_field" | "draft_from_brief";
 
 interface Body {
   mode: Mode;
@@ -44,6 +44,11 @@ interface Body {
   field_label?: string;
   user_intent?: string;
   existing_content?: string;
+  /** For draft_from_brief mode: free-form objective from the user. */
+  brief?: string;
+  /** For draft_from_brief: the block ids+types currently in the modal so we
+   *  return content keyed by block type and the wizard can map back. */
+  block_types?: string[];
 }
 
 function tierDescriptor(industry: string | null, name: string): string {

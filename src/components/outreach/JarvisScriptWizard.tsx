@@ -350,17 +350,25 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   /* ─── Spotlight: glow + scroll into view ─── */
 
+  const clearGlow = useCallback(() => {
+    document.querySelectorAll(".jarvis-wizard-glow, .jarvis-wizard-glow-modal, .jarvis-wizard-glow-field").forEach((el) => {
+      el.classList.remove("jarvis-wizard-glow", "jarvis-wizard-glow-modal", "jarvis-wizard-glow-field");
+    });
+  }, []);
+
   const spotlightSelector = useCallback((selector: string | null) => {
-    // Remove previous glow
-    document
-      .querySelectorAll(".jarvis-wizard-glow")
-      .forEach((el) => el.classList.remove("jarvis-wizard-glow"));
-    if (!selector) return;
+    document.querySelectorAll(".jarvis-wizard-glow-field").forEach((el) => {
+      el.classList.remove("jarvis-wizard-glow", "jarvis-wizard-glow-field");
+    });
+
+    const modal = document.querySelector("[data-jarvis-id='outreach-script-modal']");
+    modal?.classList.add("jarvis-wizard-glow", "jarvis-wizard-glow-modal");
+
+    if (!selector || selector === "[data-jarvis-id='outreach-script-modal']") return;
     const el = document.querySelector(selector);
     if (el) {
-      const isModal = selector === "[data-jarvis-id='outreach-script-modal']";
-      el.classList.add("jarvis-wizard-glow", isModal ? "jarvis-wizard-glow-modal" : "jarvis-wizard-glow-field");
-      if (!isModal) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("jarvis-wizard-glow", "jarvis-wizard-glow-field");
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, []);
 
@@ -489,7 +497,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       if (typeof document !== "undefined") {
         document.body.classList.remove("jarvis-wizard-active");
       }
-      spotlightSelector(null);
+      clearGlow();
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
@@ -511,7 +519,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       return;
     }
     if (phase !== "field") {
-      spotlightSelector(null);
+      clearGlow();
       return;
     }
     const step = steps[stepIdx];

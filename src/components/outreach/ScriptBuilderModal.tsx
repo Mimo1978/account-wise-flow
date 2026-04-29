@@ -514,7 +514,24 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0 gap-0" data-jarvis-id="outreach-script-modal">
+      <DialogContent
+        className="max-w-4xl h-[90vh] flex flex-col p-0 gap-0"
+        data-jarvis-id="outreach-script-modal"
+        onPointerDownOutside={(e) => {
+          // Don't close the dialog when the user clicks inside the Jarvis
+          // wizard panel (it lives outside the dialog DOM).
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("[data-jarvis-id='script-wizard-panel']")) {
+            e.preventDefault();
+          }
+        }}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest("[data-jarvis-id='script-wizard-panel']")) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/50 shrink-0">
           <div className="flex items-center justify-between gap-4">
             <DialogTitle className="text-base font-semibold">
@@ -530,15 +547,12 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
                 type="button"
                 size="sm"
                 onClick={() => setWizardOpen(true)}
-                className="h-8 gap-1.5 rounded-full bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 text-yellow-950 hover:opacity-95 border border-yellow-300/80 shadow-[0_0_18px_-2px_rgba(250,204,21,0.85)] font-semibold"
+                className="h-8 gap-1.5 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90 shadow-[0_0_12px_-2px_hsl(var(--primary)/0.6)]"
                 data-jarvis-id="ask-jarvis-script-help"
                 title="Let Jarvis walk you through setting up this script — voice + text guided wizard"
               >
-                <span className="relative inline-flex h-5 w-5 items-center justify-center rounded-full bg-yellow-950/15">
-                  <Bot className="w-3 h-3 text-yellow-950" />
-                  <Sparkles className="absolute -top-0.5 -right-0.5 w-2 h-2 text-yellow-900" />
-                </span>
-                <span className="text-xs">Ask Jarvis</span>
+                <Bot className="w-3.5 h-3.5" />
+                <span className="text-xs font-semibold">Ask Jarvis</span>
               </Button>
               {violations.length > 0 && (
                 <Badge

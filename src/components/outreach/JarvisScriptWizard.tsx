@@ -1020,6 +1020,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     const next = findNextStep(steps, stepIdx + 1, current);
     if (next >= steps.length) {
       setPhase("done");
+      setAutoRun(false);
+      autoRunRef.current = false;
       sayJarvis(
         "All done! Your script is ready. Review it, then click 'Update Script' to save. You can call me again any time."
       );

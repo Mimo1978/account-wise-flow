@@ -358,8 +358,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     if (!selector) return;
     const el = document.querySelector(selector);
     if (el) {
-      el.classList.add("jarvis-wizard-glow");
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      const isModal = selector === "[data-jarvis-id='outreach-script-modal']";
+      el.classList.add("jarvis-wizard-glow", isModal ? "jarvis-wizard-glow-modal" : "jarvis-wizard-glow-field");
+      if (!isModal) el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, []);
 
@@ -668,15 +669,19 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       {/* Glow keyframes injected once */}
       <style>{`
         .jarvis-wizard-glow {
-          outline: 3px solid #FACC15 !important;
+          outline: 3px solid hsl(var(--warning)) !important;
           outline-offset: 4px !important;
           border-radius: 8px;
           box-shadow:
-            0 0 0 6px rgba(250, 204, 21, 0.30),
-            0 0 30px rgba(250, 204, 21, 0.55),
-            0 0 60px rgba(250, 204, 21, 0.30) !important;
+            0 0 0 6px hsl(var(--warning) / 0.30),
+            0 0 30px hsl(var(--warning) / 0.55),
+            0 0 60px hsl(var(--warning) / 0.30) !important;
           animation: jarvis-wizard-pulse 1.4s ease-in-out infinite;
           transition: outline 0.3s ease, box-shadow 0.3s ease;
+        }
+        .jarvis-wizard-glow-modal {
+          outline-width: 4px !important;
+          outline-offset: -2px !important;
         }
         /* While Jarvis Script Wizard is active, hide the universal floating
            Jarvis FAB + command palette button so they don't compete with the
@@ -688,15 +693,15 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         @keyframes jarvis-wizard-pulse {
           0%, 100% {
             box-shadow:
-              0 0 0 6px rgba(250, 204, 21, 0.30),
-              0 0 30px rgba(250, 204, 21, 0.45),
-              0 0 60px rgba(250, 204, 21, 0.25);
+              0 0 0 6px hsl(var(--warning) / 0.30),
+              0 0 30px hsl(var(--warning) / 0.45),
+              0 0 60px hsl(var(--warning) / 0.25);
           }
           50% {
             box-shadow:
-              0 0 0 8px rgba(250, 204, 21, 0.55),
-              0 0 40px rgba(250, 204, 21, 0.85),
-              0 0 80px rgba(250, 204, 21, 0.40);
+              0 0 0 8px hsl(var(--warning) / 0.55),
+              0 0 40px hsl(var(--warning) / 0.85),
+              0 0 80px hsl(var(--warning) / 0.40);
           }
         }
         @keyframes jarvis-wizard-slide-in {

@@ -680,6 +680,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, fieldSubPhase]);
 
+  // Mirror the autoListen toggle into a ref for callbacks.
+  useEffect(() => { autoListenRef.current = autoListen; }, [autoListen]);
+
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       try {

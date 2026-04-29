@@ -210,6 +210,12 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const [listening, setListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [hasMicSupport] = useState(() => !!getSpeechRecognition());
+  // Once the user has granted mic permission within the wizard session, we
+  // can safely auto-start listening after Jarvis finishes speaking. Without
+  // this gate, browsers would silently swallow the mic activation because it
+  // happens outside a user-gesture stack.
+  const [micPermissionGranted, setMicPermissionGranted] = useState(false);
+  const autoListenRef = useRef(true);
 
   // Conversation transcript shown in the panel
   const [messages, setMessages] = useState<Array<{ role: "jarvis" | "user"; text: string }>>([]);
@@ -391,6 +397,18 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   /* ─── Speak via jarvis-speak (with browser fallback) ─── */
 
+  const stopSpeaking = useCallback(() => {
+    if (audioRef.current) {
+      try { audioRef.current.pause(); } catch { /* noop */ }
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try { window.speechSynthesis.cancel(); } catch { /* noop */ }
+    }
+    setIsSpeaking(false);
+  }, []);
+
   const speak = useCallback(
     async (text: string) => {
       if (!voiceOutEnabled) return;
@@ -407,6 +425,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
               setIsSpeaking(false);
               // "Your turn" chime so user knows Jarvis has finished talking
               try { playYourTurnChime(); } catch { /* noop */ }
+              maybeAutoListen();
             }
           };
           setTimeout(tick, 250);
@@ -433,6 +452,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           setIsSpeaking(false);
           if (chime) {
             try { playYourTurnChime(); } catch { /* noop */ }
+            maybeAutoListen();
           }
         };
         audio.onended = () => finish(true);
@@ -443,6 +463,10 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         browserFallback();
       }
     },
+    // maybeAutoListen is defined below; we intentionally don't add it as a
+    // dep because it's stable (uses refs) and adding it would re-create the
+    // speak function on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [voiceOutEnabled]
   );
 
@@ -463,15 +487,43 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         setAnswer(txt);
       };
       r.onend = () => setListening(false);
-      r.onerror = () => setListening(false);
+      r.onerror = (ev: Event & { error?: string }) => {
+        // 'not-allowed' / 'service-not-allowed' → mic permission revoked.
+        // Disable auto-listen so we don't fight the browser on every turn.
+        if (ev?.error === "not-allowed" || ev?.error === "service-not-allowed") {
+          setMicPermissionGranted(false);
+          autoListenRef.current = false;
+        }
+        setListening(false);
+      };
       recognitionRef.current = r;
       r.start();
       setListening(true);
+      setMicPermissionGranted(true);
       try { playListeningPing(); } catch { /* noop */ }
     } catch {
       setListening(false);
     }
   }, []);
+
+  /**
+   * Auto-start the mic if (a) the user has explicitly granted permission
+   * earlier in the session by tapping the Speak button at least once, and
+   * (b) we're in a phase where typing/speaking an answer is expected.
+   * Without the explicit grant we'd hit a silent NotAllowedError because the
+   * gesture context is lost across the await for Jarvis's audio.
+   */
+  const maybeAutoListen = useCallback(() => {
+    if (!autoListenRef.current) return;
+    if (!micPermissionGranted) return;
+    if (!hasMicSupport) return;
+    // Defer one tick so React state for "isSpeaking → false" is committed
+    // before we flip to "listening" UI.
+    setTimeout(() => {
+      if (!autoListenRef.current) return;
+      startListening();
+    }, 120);
+  }, [micPermissionGranted, hasMicSupport, startListening]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {

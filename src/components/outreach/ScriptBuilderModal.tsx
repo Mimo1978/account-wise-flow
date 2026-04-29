@@ -158,6 +158,39 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
   const { data: jobs = [] } = useJobs();
   const activeJobs = jobs.filter((j) => j.status === "active" || j.status === "draft");
 
+  // Jarvis guided wizard state — slides in over the modal and walks the user
+  // through every field with voice + text + autofill.
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  /**
+   * Apply a partial patch from the Jarvis wizard back into modal state.
+   * Always additive — never blows away existing user edits unless the wizard
+   * explicitly provides a value for that field.
+   */
+  const applyWizardPatch = useCallback(
+    (patch: WizardPatch) => {
+      if (patch.name !== undefined) setName(patch.name);
+      if (patch.channel !== undefined) handleChannelChange(patch.channel);
+      if (patch.subject !== undefined) setSubject(patch.subject);
+      if (patch.body !== undefined) {
+        setBody(patch.body);
+        if (channel === "email") setEmailDraft(patch.body);
+        if (channel === "sms") setSmsDraft(patch.body);
+      }
+      if (patch.agentName !== undefined) setAgentName(patch.agentName);
+      if (patch.callBlock) {
+        setCallBlocks((prev) =>
+          prev.map((b) =>
+            b.id === patch.callBlock!.blockId ? { ...b, content: patch.callBlock!.content } : b,
+          ),
+        );
+        setExpandedBlock(patch.callBlock.blockId);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [channel],
+  );
+
   // ── Agency name (workspace setting) ───────────────────────────────────────
   const { settings, updateSettings } = useWorkspaceSettings();
   const { currentWorkspace } = useWorkspace();

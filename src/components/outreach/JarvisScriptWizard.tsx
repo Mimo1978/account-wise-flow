@@ -618,6 +618,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       setPreflightStage(0);
       setPreflight({});
       setAnswer("");
+      setObjective("");
+      setPrefilled({});
+      prefilledRef.current = {};
+      setAutoRun(false);
+      autoRunRef.current = false;
       setTimeout(() => {
         sayJarvis(
           "Hi, I'm Jarvis. Setting up scripts can be fiddly, so I'll guide you through it step by step. How would you like to start? Choose a quick 30-second walkthrough, the full deep-dive explanation, or let me ask you four short questions and draft the whole script for you."

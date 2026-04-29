@@ -276,16 +276,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       if (!voiceOutEnabled) return;
       try {
         const { data, error } = await supabase.functions.invoke("jarvis-speak", {
-          body: { text, voice_id: "pNInz6obpgDQGcFmaJgB" },
+          // Sarah — smooth, warm, natural British-leaning voice
+          body: { text, voice_id: "EXAVITQu4vr4xnSDxMaL" },
         });
         if (error || !data?.audio) {
-          // Fallback to browser TTS
-          if (typeof window !== "undefined" && "speechSynthesis" in window) {
-            const u = new SpeechSynthesisUtterance(text);
-            u.rate = 1.05;
-            window.speechSynthesis.cancel();
-            window.speechSynthesis.speak(u);
-          }
+          speakWithBrowser(text);
           return;
         }
         if (audioRef.current) {
@@ -297,7 +292,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         audioRef.current = audio;
         audio.play().catch(() => {});
       } catch {
-        // silent fail — text is always shown in chat too
+        speakWithBrowser(text);
       }
     },
     [voiceOutEnabled]
@@ -368,7 +363,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       setAnswer("");
       setTimeout(() => {
         sayJarvis(
-          "Hi! I'm Jarvis. Setting up scripts can be fiddly so I'll walk you through it. Would you like a quick 30-second walkthrough, the full deep-dive, or shall I just ask a few questions and get it done for you?"
+          "Hi, I'm Jarvis. Setting up scripts can be fiddly, so I'll guide you through it step by step. How would you like to start? Choose a quick 30-second walkthrough, the full deep-dive explanation, or let me ask you four short questions and draft the whole script for you."
         );
       }, 250);
     } else {
@@ -408,7 +403,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
     if (mode === "full") {
       sayJarvis(
-        "Great — here's the full picture. A script has a name, a channel (email, SMS or call), and content. For calls we use blocks: an intro, a permission check ('do you have a minute?'), qualifying questions, optional branching responses, and a close. AI Polish rewrites your draft, and linking a job weaves the role details in while keeping the company name anonymous until the candidate confirms interest. I'll illuminate each field as we go — you can interrupt or skip any step. Ready?"
+        "Great. Here's how it works. Every script has three parts: a name, a channel, and content. The channel can be email, SMS, or call. Call scripts are built from blocks: an intro, a permission check, qualifying questions, optional branching responses, and a close. AI Polish rewrites your draft into clean copy. Linking a job weaves the role details in automatically, while keeping the company name anonymous until the candidate confirms interest. I'll highlight each field in gold as we go. You can interrupt, type, speak, or skip any step. Ready when you are."
       );
       setTimeout(() => {
         setPhase("field");
@@ -419,7 +414,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
     if (mode === "quick") {
       sayJarvis(
-        "Quick version: name your script, pick a channel, and fill in the content. For calls you have blocks. I'll glow each field — you tell me what you want and I'll fill it in. Let's go."
+        "Quick version. Name your script, pick a channel, and fill in the content. Call scripts use blocks for each part of the conversation. I'll highlight each field in gold, you tell me what you want, and I'll fill it in. Let's go."
       );
       setTimeout(() => {
         setPhase("field");
@@ -433,7 +428,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     setPreflightStage(0);
     setTimeout(() => {
       sayJarvis(
-        "Perfect. I'll ask 4 quick questions then draft the entire script. Question 1: what's the purpose of this outreach? (e.g. 'Senior React dev for a fintech in London')"
+        "Perfect. I'll ask four quick questions, then draft the entire script for you. Question one: what is the purpose of this outreach? For example, 'Senior React developer for a fintech in London'."
       );
     }, 400);
   };

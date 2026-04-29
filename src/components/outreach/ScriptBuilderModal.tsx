@@ -815,19 +815,20 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
                     </div>
                     <div className="space-y-2">
                       {callBlocks.map((block, idx) => (
-                        <CallBlockCard
-                          key={block.id}
-                          block={block}
-                          isFirst={idx === 0}
-                          isLast={idx === callBlocks.length - 1}
-                          expanded={expandedBlock === block.id}
-                          onToggle={() =>
-                            setExpandedBlock((p) => (p === block.id ? null : block.id))
-                          }
-                          onChange={(patch) => updateBlock(block.id, patch)}
-                          onRemove={() => removeBlock(block.id)}
-                          onMove={(dir) => moveBlock(block.id, dir)}
-                        />
+                        <div key={block.id} data-jarvis-id={`script-block-${block.id}`}>
+                          <CallBlockCard
+                            block={block}
+                            isFirst={idx === 0}
+                            isLast={idx === callBlocks.length - 1}
+                            expanded={expandedBlock === block.id}
+                            onToggle={() =>
+                              setExpandedBlock((p) => (p === block.id ? null : block.id))
+                            }
+                            onChange={(patch) => updateBlock(block.id, patch)}
+                            onRemove={() => removeBlock(block.id)}
+                            onMove={(dir) => moveBlock(block.id, dir)}
+                          />
+                        </div>
                       ))}
                     </div>
                   </div>

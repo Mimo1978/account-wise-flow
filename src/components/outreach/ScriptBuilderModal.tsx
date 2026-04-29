@@ -51,6 +51,8 @@ import { ScriptTemplateLibrary, type ReadyTemplate } from "./ScriptTemplateLibra
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { ProofreadReviewModal, type ProofreadField } from "./ProofreadReviewModal";
 import { AssignToCampaignPrompt } from "./AssignToCampaignPrompt";
+import { JarvisScriptWizard, type WizardPatch } from "./JarvisScriptWizard";
+import { Bot } from "lucide-react";
 
 // Quick-insert ready-made snippets per channel for fast script authoring.
 const QUICK_TEMPLATES_EMAIL = [
@@ -155,6 +157,39 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
   const [savedScript, setSavedScript] = useState<{ id: string; name: string; channel: ScriptChannel } | null>(null);
   const { data: jobs = [] } = useJobs();
   const activeJobs = jobs.filter((j) => j.status === "active" || j.status === "draft");
+
+  // Jarvis guided wizard state — slides in over the modal and walks the user
+  // through every field with voice + text + autofill.
+  const [wizardOpen, setWizardOpen] = useState(false);
+
+  /**
+   * Apply a partial patch from the Jarvis wizard back into modal state.
+   * Always additive — never blows away existing user edits unless the wizard
+   * explicitly provides a value for that field.
+   */
+  const applyWizardPatch = useCallback(
+    (patch: WizardPatch) => {
+      if (patch.name !== undefined) setName(patch.name);
+      if (patch.channel !== undefined) handleChannelChange(patch.channel);
+      if (patch.subject !== undefined) setSubject(patch.subject);
+      if (patch.body !== undefined) {
+        setBody(patch.body);
+        if (channel === "email") setEmailDraft(patch.body);
+        if (channel === "sms") setSmsDraft(patch.body);
+      }
+      if (patch.agentName !== undefined) setAgentName(patch.agentName);
+      if (patch.callBlock) {
+        setCallBlocks((prev) =>
+          prev.map((b) =>
+            b.id === patch.callBlock!.blockId ? { ...b, content: patch.callBlock!.content } : b,
+          ),
+        );
+        setExpandedBlock(patch.callBlock.blockId);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [channel],
+  );
 
   // ── Agency name (workspace setting) ───────────────────────────────────────
   const { settings, updateSettings } = useWorkspaceSettings();
@@ -491,6 +526,17 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
               )}
             </DialogTitle>
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setWizardOpen(true)}
+                className="h-8 gap-1.5 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90 shadow-[0_0_12px_-2px_hsl(var(--primary)/0.6)]"
+                data-jarvis-id="ask-jarvis-script-help"
+                title="Let Jarvis walk you through setting up this script — voice + text guided wizard"
+              >
+                <Bot className="w-3.5 h-3.5" />
+                <span className="text-xs font-semibold">Ask Jarvis</span>
+              </Button>
               {violations.length > 0 && (
                 <Badge
                   variant="outline"
@@ -656,6 +702,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
                 placeholder="Agent name (e.g. Olivia) — auto-suggested if blank"
                 className="h-8 w-[260px] text-xs"
                 title="Used by the AI agent to introduce itself: 'My name is {{agent.name}}…'"
+                data-jarvis-id="script-agent-name"
               />
               <span className="text-[10px] text-muted-foreground">
                 Resolves <code className="text-[10px]">{`{{agent.name}}`}</code> in your script.
@@ -698,7 +745,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
             <ScrollArea className="h-full pr-1">
               <div className="py-4 space-y-4">
                 {channel === "email" && (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5" data-jarvis-id="script-subject-input">
                     <Label className="text-xs">Subject Line</Label>
                     <EnhancedTextField
                       value={subject}
@@ -713,7 +760,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
                 )}
 
                 {channel !== "call" ? (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5" data-jarvis-id="script-body">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">
                         Body{" "}
@@ -768,19 +815,20 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
                     </div>
                     <div className="space-y-2">
                       {callBlocks.map((block, idx) => (
-                        <CallBlockCard
-                          key={block.id}
-                          block={block}
-                          isFirst={idx === 0}
-                          isLast={idx === callBlocks.length - 1}
-                          expanded={expandedBlock === block.id}
-                          onToggle={() =>
-                            setExpandedBlock((p) => (p === block.id ? null : block.id))
-                          }
-                          onChange={(patch) => updateBlock(block.id, patch)}
-                          onRemove={() => removeBlock(block.id)}
-                          onMove={(dir) => moveBlock(block.id, dir)}
-                        />
+                        <div key={block.id} data-jarvis-id={`script-block-${block.id}`}>
+                          <CallBlockCard
+                            block={block}
+                            isFirst={idx === 0}
+                            isLast={idx === callBlocks.length - 1}
+                            expanded={expandedBlock === block.id}
+                            onToggle={() =>
+                              setExpandedBlock((p) => (p === block.id ? null : block.id))
+                            }
+                            onChange={(patch) => updateBlock(block.id, patch)}
+                            onRemove={() => removeBlock(block.id)}
+                            onMove={(dir) => moveBlock(block.id, dir)}
+                          />
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -950,6 +998,26 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
           channel={savedScript.channel}
         />
       )}
+
+      {/* Jarvis-guided script wizard — slide-in panel with voice + text */}
+      <JarvisScriptWizard
+        open={wizardOpen && open}
+        onClose={() => setWizardOpen(false)}
+        current={{
+          name,
+          channel,
+          subject,
+          body,
+          agentName,
+          callBlocks: callBlocks.map((b) => ({
+            id: b.id,
+            type: b.type,
+            title: b.title,
+            content: b.content,
+          })),
+        }}
+        onApply={applyWizardPatch}
+      />
     </Dialog>
   );
 }

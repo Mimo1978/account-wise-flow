@@ -1090,7 +1090,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
             </div>
           )}
 
-          {(phase === "preflight" || phase === "field") && (
+          {phase === "preflight" && (
             <>
               <Textarea
                 value={answer}
@@ -1100,39 +1100,107 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    if (phase === "preflight") handlePreflightSubmit();
-                    else handleFieldSubmit();
+                    handlePreflightSubmit();
                   }
                 }}
               />
               <div className="flex items-center gap-1.5">
                 {hasMicSupport && (
-                  <Button
-                    size="sm"
-                    variant={listening ? "default" : "outline"}
-                    className={cn("h-8 text-xs gap-1", listening && "bg-red-500 hover:bg-red-600 text-white")}
-                    onClick={listening ? stopListening : startListening}
-                  >
+                  <Button size="sm" variant={listening ? "default" : "outline"} className={cn("h-8 text-xs gap-1", listening && "bg-red-500 hover:bg-red-600 text-white")} onClick={listening ? stopListening : startListening}>
                     {listening ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
                     {listening ? "Stop" : "Speak"}
                   </Button>
                 )}
-                {phase === "field" && (
-                  <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={skipStep}>
-                    <SkipForward className="h-3 w-3" /> Skip
-                  </Button>
-                )}
                 <div className="flex-1" />
-                <Button
-                  size="sm"
-                  className="h-8 text-xs gap-1"
-                  onClick={phase === "preflight" ? handlePreflightSubmit : handleFieldSubmit}
-                  disabled={!answer.trim() || thinking}
-                >
+                <Button size="sm" className="h-8 text-xs gap-1" onClick={handlePreflightSubmit} disabled={!answer.trim() || thinking}>
                   <Send className="h-3 w-3" /> Send
                 </Button>
               </div>
             </>
+          )}
+
+          {phase === "field" && fieldSubPhase === "review" && (
+            <div className="grid grid-cols-1 gap-1.5">
+              <Button size="sm" variant="outline" className="justify-start text-xs h-8" onClick={keepExisting}>
+                <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" /> Keep as is
+              </Button>
+              <Button size="sm" variant="outline" className="justify-start text-xs h-8" onClick={editMyself}>
+                <ChevronRight className="h-3 w-3 mr-1" /> Edit it myself
+              </Button>
+              <Button size="sm" className="justify-start text-xs h-8 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90" onClick={askForSuggestion}>
+                <Sparkles className="h-3 w-3 mr-1" /> Suggest a fresh AI-friendly version
+              </Button>
+              <Button size="sm" variant="ghost" className="justify-start text-xs h-7 text-muted-foreground" onClick={skipStep}>
+                <SkipForward className="h-3 w-3 mr-1" /> Skip this field
+              </Button>
+            </div>
+          )}
+
+          {phase === "field" && (fieldSubPhase === "edit" || fieldSubPhase === "intent") && (
+            <>
+              <Textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder={
+                  listening
+                    ? "Listening…"
+                    : fieldSubPhase === "intent"
+                    ? "Tell me what you want out of this field…"
+                    : "Type or speak the field content…"
+                }
+                className="text-xs min-h-[60px] resize-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (fieldSubPhase === "intent") requestSuggestion();
+                    else handleFieldSubmit();
+                  }
+                }}
+              />
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {hasMicSupport && (
+                  <Button size="sm" variant={listening ? "default" : "outline"} className={cn("h-8 text-xs gap-1", listening && "bg-red-500 hover:bg-red-600 text-white")} onClick={listening ? stopListening : startListening}>
+                    {listening ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+                    {listening ? "Stop" : "Speak"}
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={skipStep}>
+                  <SkipForward className="h-3 w-3" /> Skip
+                </Button>
+                <div className="flex-1" />
+                <Button
+                  size="sm"
+                  className="h-8 text-xs gap-1"
+                  onClick={fieldSubPhase === "intent" ? requestSuggestion : handleFieldSubmit}
+                  disabled={!answer.trim() || thinking || suggesting}
+                >
+                  {suggesting ? <Loader2 className="h-3 w-3 animate-spin" /> : fieldSubPhase === "intent" ? <Sparkles className="h-3 w-3" /> : <Send className="h-3 w-3" />}
+                  {fieldSubPhase === "intent" ? "Draft it" : "Send"}
+                </Button>
+              </div>
+            </>
+          )}
+
+          {phase === "field" && fieldSubPhase === "suggested" && (
+            <div className="space-y-2">
+              <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs whitespace-pre-wrap max-h-32 overflow-y-auto">
+                {suggestion}
+              </div>
+              {suggestRationale && (
+                <p className="text-[10px] text-muted-foreground italic">{suggestRationale}</p>
+              )}
+              <div className="grid grid-cols-3 gap-1.5">
+                <Button size="sm" className="h-8 text-xs gap-1" onClick={acceptSuggestion}>
+                  <CheckCircle2 className="h-3 w-3" /> Accept
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={tweakSuggestion}>
+                  <ChevronRight className="h-3 w-3" /> Tweak
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={rejectSuggestion}>
+                  <SkipForward className="h-3 w-3" /> Try again
+                </Button>
+              </div>
+            </div>
           )}
 
           {phase === "done" && (

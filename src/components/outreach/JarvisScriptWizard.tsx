@@ -1492,7 +1492,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                   </Button>
                 )}
                 <div className="flex-1" />
-                <Button size="sm" className="h-8 text-xs gap-1" onClick={handlePreflightSubmit} disabled={!answer.trim() || thinking}>
+                <Button size="sm" className="h-8 text-xs gap-1" onClick={() => handlePreflightSubmit()} disabled={!answer.trim() || thinking}>
                   <Send className="h-3 w-3" /> Send
                 </Button>
               </div>
@@ -1536,7 +1536,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                 <Button
                   size="sm"
                   className="h-8 text-xs gap-1 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90"
-                  onClick={handleObjectiveSubmit}
+                  onClick={() => handleObjectiveSubmit()}
                   disabled={!answer.trim() || thinking}
                 >
                   {thinking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
@@ -1598,7 +1598,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                 <Button
                   size="sm"
                   className="h-8 text-xs gap-1"
-                  onClick={fieldSubPhase === "intent" ? requestSuggestion : handleFieldSubmit}
+                  onClick={() => fieldSubPhase === "intent" ? requestSuggestion() : handleFieldSubmit()}
                   disabled={!answer.trim() || thinking || suggesting}
                 >
                   {suggesting ? <Loader2 className="h-3 w-3 animate-spin" /> : fieldSubPhase === "intent" ? <Sparkles className="h-3 w-3" /> : <Send className="h-3 w-3" />}

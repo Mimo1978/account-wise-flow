@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { playYourTurnChime, playListeningPing } from "@/lib/jarvis-sounds";
+import { playYourTurnChime } from "@/lib/jarvis-sounds";
 import { CMPulse } from "@/components/ui/CMLoader";
 
 /* ────────────────────────────── Types ────────────────────────────── */
@@ -252,6 +252,12 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const openRef = useRef(open);
+  const speakingRef = useRef(false);
+  const thinkingRef = useRef(false);
+  const listeningBaseRef = useRef("");
+  const submittingVoiceRef = useRef(false);
+  const speechPrimedRef = useRef(false);
   // Hard kill switch. Flipped to `true` whenever the wizard closes or
   // unmounts. Any in-flight `speak()` call checks this after the async
   // jarvis-speak fetch resolves and aborts before creating a new <audio>

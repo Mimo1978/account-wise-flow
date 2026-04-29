@@ -1153,6 +1153,60 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
         activeChannels={activeChannels}
         campaignId={campaign.id}
       />
+
+      <AlertDialog
+        open={!!scriptToDelete}
+        onOpenChange={(o) => { if (!o) setScriptToDelete(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this script?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {scriptToDelete ? (
+                <>
+                  You are about to permanently delete <strong>{scriptToDelete.name}</strong>{" "}
+                  (v{scriptToDelete.version}). This action cannot be undone.
+                  {(() => {
+                    const assigned: string[] = [];
+                    if (campaign.email_script_id === scriptToDelete.id) assigned.push("Email");
+                    if (campaign.sms_script_id === scriptToDelete.id) assigned.push("SMS");
+                    if (campaign.call_script_id === scriptToDelete.id) assigned.push("Call");
+                    return assigned.length > 0 ? (
+                      <span className="block mt-2 text-destructive">
+                        Warning: this script is currently assigned to the {assigned.join(", ")} channel
+                        {assigned.length > 1 ? "s" : ""} on this campaign. Deleting it will leave those channels without a script.
+                      </span>
+                    ) : null;
+                  })()}
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingScript}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingScript}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (!scriptToDelete) return;
+                const id = scriptToDelete.id;
+                deleteScript(id, {
+                  onSuccess: () => {
+                    // Clear local channel selection if it referenced the deleted script
+                    if (emailScriptId === id) setEmailScriptId("");
+                    if (smsScriptId === id) setSmsScriptId("");
+                    if (callScriptId === id) setCallScriptId("");
+                    setScriptToDelete(null);
+                  },
+                });
+              }}
+            >
+              {isDeletingScript ? "Deleting…" : "Delete script"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,20 +1,55 @@
 /**
  * Jarvis universal "ready" chime.
  *
- * One short, warm, single-event tone played at the moment Jarvis hands the
- * conversation back to the user — i.e. she has stopped speaking and the
- * microphone is now listening. Replaces the previous double-chime
+ * A clear, pleasant two-note bell played at the moment Jarvis hands the
+ * conversation back to the user. Replaces the previous double-chime
  * (turn-end + listening-ping) which felt noisy and echoed.
  *
  * Design:
- *   • One soft sine tone, ~180ms, no harmonic stack, no shimmer.
- *   • Gentle attack and exponential decay — pleasant, not abrupt.
- *   • Built-in 800ms debounce so back-to-back triggers from different code
- *     paths (TTS-end + mic-start) collapse into a single audible cue.
+ *   • Two-note ascending bell (C5 → G5) — bright, friendly, noticeable.
+ *   • Sine fundamental + soft 2nd-harmonic shimmer for "bell" character.
+ *   • Gentle attack, longer exponential decay (~0.9s) — pleasant, not abrupt.
+ *   • 800ms debounce so back-to-back triggers from different code paths
+ *     (TTS-end + mic-start) collapse into a single audible cue.
  */
 
 let lastPlayedAt = 0;
 const DEBOUNCE_MS = 800;
+
+function ringNote(
+  ctx: AudioContext,
+  destination: AudioNode,
+  freq: number,
+  startAt: number,
+  duration: number,
+  peak: number
+) {
+  // Fundamental sine
+  const osc = ctx.createOscillator();
+  const env = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(freq, startAt);
+  env.gain.setValueAtTime(0.0001, startAt);
+  env.gain.exponentialRampToValueAtTime(peak, startAt + 0.012);
+  env.gain.exponentialRampToValueAtTime(0.0005, startAt + duration);
+  osc.connect(env);
+  env.connect(destination);
+  osc.start(startAt);
+  osc.stop(startAt + duration + 0.05);
+
+  // Soft 2nd-harmonic shimmer for bell character
+  const shimmer = ctx.createOscillator();
+  const shimEnv = ctx.createGain();
+  shimmer.type = "sine";
+  shimmer.frequency.setValueAtTime(freq * 2, startAt);
+  shimEnv.gain.setValueAtTime(0.0001, startAt);
+  shimEnv.gain.exponentialRampToValueAtTime(peak * 0.35, startAt + 0.008);
+  shimEnv.gain.exponentialRampToValueAtTime(0.0005, startAt + duration * 0.55);
+  shimmer.connect(shimEnv);
+  shimEnv.connect(destination);
+  shimmer.start(startAt);
+  shimmer.stop(startAt + duration);
+}
 
 function playReadyChime() {
   const now = Date.now();
@@ -24,23 +59,17 @@ function playReadyChime() {
   try {
     const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!Ctx) return;
-    const ctx = new Ctx();
+    const ctx: AudioContext = new Ctx();
     const master = ctx.createGain();
-    master.gain.setValueAtTime(0.001, ctx.currentTime);
-    master.gain.exponentialRampToValueAtTime(0.14, ctx.currentTime + 0.02);
-    master.gain.exponentialRampToValueAtTime(0.0005, ctx.currentTime + 0.32);
+    master.gain.setValueAtTime(0.55, ctx.currentTime);
     master.connect(ctx.destination);
 
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    // Soft E5 → G5 — a small uplifting interval that signals "your turn".
-    osc.frequency.setValueAtTime(659.25, ctx.currentTime);
-    osc.frequency.linearRampToValueAtTime(783.99, ctx.currentTime + 0.18);
-    osc.connect(master);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.34);
+    const t0 = ctx.currentTime;
+    // Two-note ascending bell: C5 → G5 (bright, friendly, "your turn")
+    ringNote(ctx, master, 523.25, t0, 0.85, 0.7);
+    ringNote(ctx, master, 783.99, t0 + 0.13, 0.95, 0.7);
 
-    setTimeout(() => { try { ctx.close(); } catch { /* noop */ } }, 600);
+    setTimeout(() => { try { ctx.close(); } catch { /* noop */ } }, 1400);
   } catch {
     // AudioContext unavailable — silently ignore.
   }

@@ -185,6 +185,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const [thinking, setThinking] = useState(false);
   const [voiceOutEnabled, setVoiceOutEnabled] = useState(true);
   const [listening, setListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [hasMicSupport] = useState(() => !!getSpeechRecognition());
 
   // Conversation transcript shown in the panel

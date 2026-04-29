@@ -93,10 +93,23 @@ interface FieldStep {
   question: string;
   /** Channel filter — only shown for matching channel. */
   channels?: WizardChannel[];
-  /** Skip the step if this returns true given current values. */
-  isAlreadyFilled?: (c: WizardCurrent) => boolean;
+  /** Read current value for this field — used to decide review vs blank flow. */
+  readCurrent: (c: WizardCurrent) => string;
   /** Build the patch that gets applied to the modal. */
   apply: (answer: string, c: WizardCurrent) => WizardPatch;
+  /** Field kind sent to ai-script-assist suggest_field mode. */
+  fieldKind:
+    | "name"
+    | "subject"
+    | "email_body"
+    | "sms_body"
+    | "agent_name"
+    | "call_intro"
+    | "call_permission"
+    | "call_questions"
+    | "call_branching"
+    | "call_close"
+    | "call_block";
   /** For call channel — points to a specific block id at runtime. */
   callBlockId?: string;
 }

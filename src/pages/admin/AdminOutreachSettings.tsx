@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Save } from 'lucide-react';
 import { useWorkspaceSettings, type OutreachRules } from '@/hooks/use-workspace-settings';
 import { usePermissions } from '@/hooks/use-permissions';
+import { ShieldAlert } from 'lucide-react';
 
 const DEFAULTS: OutreachRules = {
   prevent_state_downgrade: true,
@@ -98,6 +99,41 @@ export default function AdminOutreachSettings() {
               />
             </div>
           ))}
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive/30">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-destructive" />
+            Script Safety Filter
+          </CardTitle>
+          <CardDescription>
+            Brand-protection rules that scan every outreach script before it can be saved or
+            launched. Blocks profanity, slurs, hate speech, discriminatory wording, threats and
+            requests for sensitive personal data. Structural checks (minimum content, required
+            email subject, required call blocks) always apply regardless of this setting.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium">Strict script safety (recommended)</Label>
+              <p className="text-xs text-muted-foreground">
+                When ON, scripts containing profanity, slurs, discriminatory language, threats or
+                sensitive data requests cannot be saved. When OFF, those issues are logged as
+                warnings only — use with care and only with a documented business reason.
+              </p>
+            </div>
+            <Switch
+              checked={(rules as any).script_safety_strict !== false}
+              onCheckedChange={(checked) => {
+                setRules((prev) => ({ ...(prev as any), script_safety_strict: checked }) as OutreachRules);
+                setDirty(true);
+              }}
+              disabled={!isAdmin}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

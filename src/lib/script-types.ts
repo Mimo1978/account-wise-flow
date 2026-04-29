@@ -85,6 +85,68 @@ export const DEFAULT_GUARDRAILS: GuardrailRule[] = [
     pattern: "\\b(act now|don't wait|last chance|final opportunity|apply immediately)\\b",
     severity: "warning",
   },
+  // ─── Safety filters (strict mode) ──────────────────────────────────────────
+  // These are blocking errors by default and protect the brand, candidates and
+  // the workspace against compliance risk. Workspace admins can downgrade them
+  // to warnings via Admin → Outreach Settings → "Strict script safety".
+  {
+    id: "profanity_block",
+    label: "Profanity / offensive language",
+    description: "Outbound recruitment scripts must not contain profanity or offensive language.",
+    // Word-boundary matched, case-insensitive. Deliberately conservative list.
+    pattern: "\\b(fuck|fucking|shit|bitch|bastard|asshole|dick|cunt|wanker|prick|bollocks|piss off|crap)\\b",
+    severity: "error",
+  },
+  {
+    id: "slurs_hate_block",
+    label: "Slurs or hate speech",
+    description: "Slurs and hate speech are never permitted in outreach. Save is blocked.",
+    pattern: "\\b(retard|retarded|f[a4]g|f[a4]gg[o0]t|n[i1]gg[ae3]r?|tr[a4]nny|sp[i1]c|ch[i1]nk|k[i1]ke|g[o0]ok)\\b",
+    severity: "error",
+  },
+  {
+    id: "discrimination_block",
+    label: "Discriminatory language",
+    description: "Recruitment must not screen by protected characteristics (age, gender, race, religion, disability, marital status, pregnancy).",
+    pattern: "\\b(must be (male|female|man|woman|young|under \\d+|over \\d+)|no (women|men|gays|blacks|whites|asians|muslims|christians|jews|disabled)|whites only|men only|women only|no over[- ]?\\d+s?|no married|must not be pregnant)\\b",
+    severity: "error",
+  },
+  {
+    id: "threat_harassment_block",
+    label: "Threatening or harassing language",
+    description: "Threats, intimidation or harassment are never acceptable in outreach.",
+    pattern: "\\b(i('| wi)ll (sue|destroy|ruin) you|you('| wi)ll regret|or else|we know where you (live|work)|stop ignoring me|answer me now|i(’|')m warning you)\\b",
+    severity: "error",
+  },
+  {
+    id: "dangerous_requests",
+    label: "Sensitive data request",
+    description: "Never request payment details, full national ID/SSN, or passwords inside an outreach script.",
+    pattern: "\\b(your (credit card|cvv|bank account number|sort code|password|pin)|social security number|ssn|national insurance number)\\b",
+    severity: "error",
+  },
+  // ─── Structural completeness checks ───────────────────────────────────────
+  {
+    id: "min_content",
+    label: "Script body too short",
+    description: "A script must contain enough content (at least 30 characters of meaningful text) to be sent.",
+    pattern: "__MIN_CONTENT__",
+    severity: "error",
+  },
+  {
+    id: "subject_required",
+    label: "Email subject required",
+    description: "Email scripts must have a non-empty subject line before they can be saved.",
+    pattern: "__SUBJECT_REQUIRED__",
+    severity: "error",
+  },
+  {
+    id: "call_blocks_required",
+    label: "Call script missing core blocks",
+    description: "Call scripts must have content in the Introduction, Permission and Close blocks.",
+    pattern: "__CALL_BLOCKS_REQUIRED__",
+    severity: "error",
+  },
 ];
 
 // ─── Call block structure ─────────────────────────────────────────────────────
@@ -132,28 +194,95 @@ export interface GuardrailViolation {
   position: number;
 }
 
+/**
+ * Optional structural context for the guardrail checker. Lets us validate
+ * completeness (subject, call blocks) in addition to body content.
+ */
+export interface GuardrailContext {
+  subject?: string;
+  callBlocks?: CallBlock[];
+  /**
+   * When false, all `error`-severity safety rules are downgraded to
+   * `warning` so they no longer block save. Used by the Admin "Strict
+   * script safety" toggle for workspaces that need a manual override.
+   * Structural rules (min_content, subject_required, call_blocks_required)
+   * are NEVER downgraded — an empty script is always invalid.
+   */
+  strictSafety?: boolean;
+}
+
+const STRUCTURAL_RULE_IDS = new Set([
+  "min_content",
+  "subject_required",
+  "call_blocks_required",
+]);
+
 export function checkGuardrails(
   body: string,
   channel: ScriptChannel,
-  guardrails: GuardrailRule[]
+  guardrails: GuardrailRule[],
+  context: GuardrailContext = {},
 ): GuardrailViolation[] {
   const violations: GuardrailViolation[] = [];
+  const strict = context.strictSafety !== false; // default ON
+
+  const pushViolation = (rule: GuardrailRule, matchedText: string, position: number) => {
+    // Honour the admin "strict safety" override: downgrade non-structural
+    // safety errors to warnings so save is not blocked.
+    const effective: GuardrailRule =
+      !strict && rule.severity === "error" && !STRUCTURAL_RULE_IDS.has(rule.id)
+        ? { ...rule, severity: "warning" }
+        : rule;
+    violations.push({ rule: effective, matchedText, position });
+  };
 
   for (const rule of guardrails) {
+    // ── Structural / length checks (sentinel patterns) ────────────────────
     if (rule.id === "sms_length" && channel === "sms") {
       if (body.length > 160) {
-        violations.push({ rule, matchedText: `${body.length} chars`, position: 160 });
+        pushViolation(rule, `${body.length} chars`, 160);
       }
       continue;
     }
     if (rule.pattern === "__SMS_LENGTH__") continue;
 
+    if (rule.pattern === "__MIN_CONTENT__") {
+      const stripped = body.replace(/\s+/g, " ").trim();
+      if (stripped.length < 30) {
+        pushViolation(rule, `${stripped.length} chars`, 0);
+      }
+      continue;
+    }
+
+    if (rule.pattern === "__SUBJECT_REQUIRED__") {
+      if (channel === "email" && !(context.subject ?? "").trim()) {
+        pushViolation(rule, "missing subject", 0);
+      }
+      continue;
+    }
+
+    if (rule.pattern === "__CALL_BLOCKS_REQUIRED__") {
+      if (channel === "call") {
+        const blocks = context.callBlocks ?? [];
+        const required: CallBlockType[] = ["intro", "permission", "close"];
+        const missing = required.filter((t) => {
+          const b = blocks.find((bb) => bb.type === t);
+          return !b || !b.content.trim();
+        });
+        if (missing.length > 0) {
+          pushViolation(rule, `missing: ${missing.join(", ")}`, 0);
+        }
+      }
+      continue;
+    }
+
+    // ── Standard regex content rules ──────────────────────────────────────
     const regex = new RegExp(rule.pattern, "gi");
     let match: RegExpExecArray | null;
     while ((match = regex.exec(body)) !== null) {
       const satisfied = rule.satisfiedBy?.some((v) => body.includes(v));
       if (!satisfied) {
-        violations.push({ rule, matchedText: match[0], position: match.index });
+        pushViolation(rule, match[0], match.index);
       }
       break;
     }

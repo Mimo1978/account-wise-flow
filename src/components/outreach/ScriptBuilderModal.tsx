@@ -744,7 +744,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
             <ScrollArea className="h-full pr-1">
               <div className="py-4 space-y-4">
                 {channel === "email" && (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5" data-jarvis-id="script-subject-input">
                     <Label className="text-xs">Subject Line</Label>
                     <EnhancedTextField
                       value={subject}
@@ -759,7 +759,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
                 )}
 
                 {channel !== "call" ? (
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5" data-jarvis-id="script-body">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs">
                         Body{" "}

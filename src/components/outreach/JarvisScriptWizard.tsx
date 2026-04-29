@@ -451,6 +451,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       recognitionRef.current = r;
       r.start();
       setListening(true);
+      try { playListeningPing(); } catch { /* noop */ }
     } catch {
       setListening(false);
     }

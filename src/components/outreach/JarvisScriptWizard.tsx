@@ -80,7 +80,7 @@ interface Props {
  * step is active.
  */
 
-type StepKind = "intro" | "preflight" | "field" | "done";
+type StepKind = "intro" | "preflight" | "objective" | "field" | "done";
 
 interface FieldStep {
   kind: "field";
@@ -192,6 +192,22 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     targetRole?: string;
     cta?: string;
   }>({});
+
+  // Objective-driven prefill (quick / full walkthrough). User answers ONE
+  // question — "what do you want out of this script?" — and Jarvis pre-drafts
+  // every field/block in AI-friendly conversational style. The wizard then
+  // walks through each step, surfacing the prefilled suggestion in the
+  // 'suggested' sub-phase so the user can Accept / Tweak / Reject.
+  const [objective, setObjective] = useState<string>("");
+  // Map keyed by either a field id ("name", "subject", "body", "agentName")
+  // or a call block type ("intro", "permission", ...). Lookup falls through
+  // both.
+  const [prefilled, setPrefilled] = useState<Record<string, string>>({});
+  const prefilledRef = useRef<Record<string, string>>({});
+  // When true, Jarvis auto-applies every prefilled suggestion in sequence
+  // without waiting for the user — the user can hit "Pause" at any time.
+  const [autoRun, setAutoRun] = useState(false);
+  const autoRunRef = useRef(false);
 
   const [stepIdx, setStepIdx] = useState(0);
   const [answer, setAnswer] = useState("");
@@ -552,6 +568,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   useEffect(() => {
     const expecting =
       phase === "preflight" ||
+      phase === "objective" ||
       (phase === "field" && (fieldSubPhase === "edit" || fieldSubPhase === "intent"));
     expectingAnswerRef.current = expecting;
     if (!expecting && listening) {
@@ -601,6 +618,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       setPreflightStage(0);
       setPreflight({});
       setAnswer("");
+      setObjective("");
+      setPrefilled({});
+      prefilledRef.current = {};
+      setAutoRun(false);
+      autoRunRef.current = false;
       setTimeout(() => {
         sayJarvis(
           "Hi, I'm Jarvis. Setting up scripts can be fiddly, so I'll guide you through it step by step. How would you like to start? Choose a quick 30-second walkthrough, the full deep-dive explanation, or let me ask you four short questions and draft the whole script for you."
@@ -661,6 +683,10 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       spotlightSelector("[data-jarvis-id='outreach-script-modal']");
       return;
     }
+    if (phase === "objective") {
+      spotlightSelector("[data-jarvis-id='outreach-script-modal']");
+      return;
+    }
     if (phase !== "field") {
       clearGlow();
       return;
@@ -672,6 +698,33 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     setSuggestion("");
     setSuggestRationale("");
     const existing = (step.readCurrent(current) || "").trim();
+    const prefill = lookupPrefill(step, prefilledRef.current);
+
+    // Prefilled draft from the objective step takes priority — surface it
+    // immediately as a suggestion the user can Accept/Tweak/Reject. This is
+    // the "Jarvis pre-builds every block in AI-friendly chat style" flow.
+    if (prefill && prefill.trim().length > 0) {
+      setSuggestion(prefill);
+      setSuggestRationale("Pre-drafted from your objective.");
+      setFieldSubPhase("suggested");
+      sayJarvis(
+        `${step.label} — here's what I drafted. Accept to save it, Tweak to edit, or ask me to try again.\n\n${prefill}`
+      );
+      // Auto-run: Jarvis applies and moves on by herself.
+      if (autoRunRef.current) {
+        setTimeout(() => {
+          if (!autoRunRef.current) return;
+          // Read latest step + suggestion from refs to avoid stale closure.
+          const s = steps[stepIdx];
+          if (!s) return;
+          onApply(s.apply(prefill, current));
+          sayJarvis(`Saved into ${s.label}. ✓`);
+          advance();
+        }, 1400);
+      }
+      return;
+    }
+
     if (existing.length > 0) {
       setFieldSubPhase("review");
       const preview = existing.length > 200 ? existing.slice(0, 200) + "…" : existing;
@@ -696,8 +749,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         "Great. Here's how it works. Every script has three parts: a name, a channel, and content. The channel can be email, SMS, or call. Call scripts are built from blocks: an intro, a permission check, qualifying questions, optional branching responses, and a close. AI Polish rewrites your draft into clean copy. Linking a job weaves the role details in automatically, while keeping the company name anonymous until the candidate confirms interest. I'll highlight each field in gold as we go. You can interrupt, type, speak, or skip any step. Ready when you are."
       );
       setTimeout(() => {
-        setPhase("field");
-        setStepIdx(findNextStep(steps, 0, current));
+        askObjective();
       }, 500);
       return;
     }
@@ -707,8 +759,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         "Quick version. Name your script, pick a channel, and fill in the content. Call scripts use blocks for each part of the conversation. I'll highlight each field in gold, you tell me what you want, and I'll fill it in. Let's go."
       );
       setTimeout(() => {
-        setPhase("field");
-        setStepIdx(findNextStep(steps, 0, current));
+        askObjective();
       }, 500);
       return;
     }
@@ -721,6 +772,67 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         "Perfect. I'll ask four quick questions, then draft the entire script for you. Question one: what is the purpose of this outreach? For example, 'Senior React developer for a fintech in London'."
       );
     }, 400);
+  };
+
+  /* ─── Objective prefill (quick + full walkthroughs) ─── */
+
+  const askObjective = () => {
+    setPhase("objective");
+    setAnswer("");
+    setTimeout(() => {
+      sayJarvis(
+        "Before we walk through the fields, tell me in one or two sentences: what do you want this script to achieve? For example: 'book a 15-minute intro call with senior backend engineers in London for a fintech role, find out their notice period and salary expectations, and ask them to send an updated CV.' I'll pre-draft every field in natural AI-agent friendly language — you'll just review and tweak each one."
+      );
+    }, 250);
+  };
+
+  const handleObjectiveSubmit = async () => {
+    if (!answer.trim()) return;
+    sayUser(answer);
+    const brief = answer.trim();
+    setObjective(brief);
+    setAnswer("");
+    setThinking(true);
+    sayJarvis("Pre-drafting every field for you now…");
+    try {
+      const blockTypes = current.callBlocks.map((b) => b.type);
+      const { data, error } = await supabase.functions.invoke("ai-script-assist", {
+        body: {
+          mode: "draft_from_brief",
+          channel: current.channel,
+          brief,
+          block_types: blockTypes,
+        },
+      });
+      if (error || !data?.success || !data?.draft) {
+        throw new Error(data?.message || error?.message || "Could not pre-draft");
+      }
+      const d = data.draft;
+      const map: Record<string, string> = {};
+      if (d.name) map.name = d.name;
+      if (d.subject) map.subject = d.subject;
+      if (d.body) map.body = d.body;
+      if (d.agentName) map.agentName = d.agentName;
+      if (d.blocks && typeof d.blocks === "object") {
+        for (const [type, content] of Object.entries(d.blocks)) {
+          if (typeof content === "string") map[`block:${type}`] = content;
+        }
+      }
+      setPrefilled(map);
+      prefilledRef.current = map;
+      sayJarvis(
+        "Done — every field has a draft ready. I'll walk you through each one. You can Accept, Tweak, or ask me to redo it. Or hit 'Run all' and I'll apply every draft for you."
+      );
+      setPhase("field");
+      setStepIdx(findNextStep(steps, 0, current));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Pre-draft failed";
+      sayJarvis(`${msg}. No worries — let's do it field-by-field instead. I'll ask one question per field.`);
+      setPhase("field");
+      setStepIdx(findNextStep(steps, 0, current));
+    } finally {
+      setThinking(false);
+    }
   };
 
   /* ─── Pre-flight Q&A handler ─── */
@@ -908,6 +1020,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     const next = findNextStep(steps, stepIdx + 1, current);
     if (next >= steps.length) {
       setPhase("done");
+      setAutoRun(false);
+      autoRunRef.current = false;
       sayJarvis(
         "All done! Your script is ready. Review it, then click 'Update Script' to save. You can call me again any time."
       );
@@ -1045,6 +1159,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                     ? "Choose how to start"
                     : phase === "preflight"
                     ? `Question ${preflightStage + 1} of 4`
+                    : phase === "objective"
+                    ? "What's your objective?"
                     : phase === "field" && currentStep
                     ? `Step ${stepIdx + 1}: ${currentStep.label}`
                     : phase === "done"
@@ -1196,6 +1312,53 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
             </>
           )}
 
+          {phase === "objective" && (
+            <>
+              <Textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder={listening ? "Listening…" : "e.g. Book a 15-min call with senior backend devs in London, find out their notice & salary, ask for an updated CV…"}
+                className="text-xs min-h-[80px] resize-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleObjectiveSubmit();
+                  }
+                }}
+              />
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {hasMicSupport && (
+                  <Button size="sm" variant={listening ? "default" : "outline"} className={cn("h-8 text-xs gap-1", listening && "bg-red-500 hover:bg-red-600 text-white")} onClick={listening ? stopListening : startListening}>
+                    {listening ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+                    {listening ? "Stop" : "Speak"}
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 text-xs gap-1 text-muted-foreground"
+                  onClick={() => {
+                    sayUser("Skip — walk me through blank fields");
+                    setPhase("field");
+                    setStepIdx(findNextStep(steps, 0, current));
+                  }}
+                >
+                  <SkipForward className="h-3 w-3" /> Skip
+                </Button>
+                <div className="flex-1" />
+                <Button
+                  size="sm"
+                  className="h-8 text-xs gap-1 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90"
+                  onClick={handleObjectiveSubmit}
+                  disabled={!answer.trim() || thinking}
+                >
+                  {thinking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                  Pre-draft all fields
+                </Button>
+              </div>
+            </>
+          )}
+
           {phase === "field" && fieldSubPhase === "review" && (
             <div className="grid grid-cols-1 gap-1.5">
               <Button size="sm" variant="outline" className="justify-start text-xs h-8" onClick={keepExisting}>
@@ -1277,6 +1440,39 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                   <SkipForward className="h-3 w-3" /> Try again
                 </Button>
               </div>
+              {Object.keys(prefilled).length > 0 && (
+                <Button
+                  size="sm"
+                  variant={autoRun ? "default" : "outline"}
+                  className={cn(
+                    "h-7 text-[11px] w-full gap-1",
+                    autoRun && "bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground"
+                  )}
+                  onClick={() => {
+                    const next = !autoRun;
+                    setAutoRun(next);
+                    autoRunRef.current = next;
+                    if (next) {
+                      sayJarvis("Running through every field for you. I'll save each draft and move on. Hit Pause any time.");
+                      // Kick off the auto-apply for the current step.
+                      const s = steps[stepIdx];
+                      if (s && suggestion) {
+                        setTimeout(() => {
+                          if (!autoRunRef.current) return;
+                          onApply(s.apply(suggestion, current));
+                          sayJarvis(`Saved into ${s.label}. ✓`);
+                          advance();
+                        }, 1200);
+                      }
+                    } else {
+                      sayJarvis("Paused. Take your time — Accept, Tweak, or Try again.");
+                    }
+                  }}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  {autoRun ? "Pause auto-run" : "Run all (Jarvis applies every draft)"}
+                </Button>
+              )}
             </div>
           )}
 
@@ -1306,6 +1502,33 @@ function findNextStep(steps: FieldStep[], from: number, _c: WizardCurrent): numb
   // surfaced for review/edit/redo within the step itself.
   if (from >= steps.length) return steps.length;
   return from;
+}
+
+/**
+ * Look up a prefilled draft for a given step from the map produced by
+ * `draft_from_brief`. Maps the step's field id to the draft key.
+ */
+function lookupPrefill(step: FieldStep, map: Record<string, string>): string | null {
+  if (!map || Object.keys(map).length === 0) return null;
+  if (step.callBlockId) {
+    // Find the block type from the step id pattern (block-<id>) — but we have
+    // it in callBlockId; the caller mapped fieldKind. We use fieldKind to
+    // recover block type.
+    const t = step.fieldKind.replace(/^call_/, "");
+    return map[`block:${t}`] ?? null;
+  }
+  switch (step.id) {
+    case "name":
+      return map.name ?? null;
+    case "subject":
+      return map.subject ?? null;
+    case "body":
+      return map.body ?? null;
+    case "agentName":
+      return map.agentName ?? null;
+    default:
+      return null;
+  }
 }
 
 function blockExplainText(type: string): string {

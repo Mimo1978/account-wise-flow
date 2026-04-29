@@ -261,7 +261,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         explain:
           "First, every script needs a memorable name so your team can find it later. Something like 'Senior Dev Outreach v1' works well.",
         question: "What would you like to name this script?",
-        isAlreadyFilled: (c) => c.name.trim().length > 2,
+        readCurrent: (c) => c.name,
+        fieldKind: "name",
         apply: (a) => ({ name: a.trim() }),
       },
       {
@@ -272,7 +273,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         explain:
           "Now pick the channel. Email is best for detail, SMS for quick nudges, and Call Script powers the AI voice agent that actually calls the candidate.",
         question: "Which channel — email, SMS, or call?",
-        isAlreadyFilled: () => true, // pre-selected; only shown if user opens wizard before picking
+        readCurrent: (c) => c.channel,
+        fieldKind: "name",
         apply: (a) => {
           const v = a.toLowerCase();
           const ch: WizardChannel = v.includes("sms") || v.includes("text")
@@ -296,7 +298,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           "The subject line is what gets your email opened. Keep it under 60 characters and make it personal.",
         question:
           "What's the subject? Tip: you can use {{job.title}} and {{candidate.first_name}} as variables.",
-        isAlreadyFilled: (c) => c.subject.trim().length > 0,
+        readCurrent: (c) => c.subject,
+        fieldKind: "subject",
         apply: (a) => ({ subject: a.trim() }),
       });
       list.push({
@@ -309,7 +312,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           "Now the body. I'll draft it from your answer — describe the role, the hook, and the call-to-action. I'll polish it for you.",
         question:
           "In a sentence or two, what's this email pitching? I'll write the full draft.",
-        isAlreadyFilled: (c) => c.body.trim().length > 40,
+        readCurrent: (c) => c.body,
+        fieldKind: "email_body",
         apply: (a) => ({ body: a.trim() }),
       });
     }
@@ -324,7 +328,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         explain:
           "SMS must stay under 160 characters. Be punchy and include an opt-out like 'Reply STOP'.",
         question: "Sum up the message in one line — I'll tighten it for you.",
-        isAlreadyFilled: (c) => c.body.trim().length > 20,
+        readCurrent: (c) => c.body,
+        fieldKind: "sms_body",
         apply: (a) => ({ body: a.trim() }),
       });
     }
@@ -339,12 +344,19 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         explain:
           "Your AI agent introduces itself by name. Pick something friendly — it's the first impression your candidate hears.",
         question: "What name should the AI agent use? (e.g. Olivia, Marcus, or skip for auto)",
-        isAlreadyFilled: (c) => c.agentName.trim().length > 0,
+        readCurrent: (c) => c.agentName,
+        fieldKind: "agent_name",
         apply: (a) => ({ agentName: a.trim() }),
       });
 
       // One step per call block
       for (const b of current.callBlocks) {
+        const blockKind =
+          b.type === "intro" ? "call_intro" :
+          b.type === "permission" ? "call_permission" :
+          b.type === "questions" ? "call_questions" :
+          b.type === "branching" ? "call_branching" :
+          b.type === "close" ? "call_close" : "call_block";
         list.push({
           kind: "field",
           id: `block-${b.id}`,
@@ -354,7 +366,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           callBlockId: b.id,
           explain: blockExplainText(b.type),
           question: blockQuestionText(b.type),
-          isAlreadyFilled: () => b.content.trim().length > 30,
+          readCurrent: () => b.content,
+          fieldKind: blockKind as FieldStep["fieldKind"],
           apply: (a) => ({ callBlock: { blockId: b.id, content: a.trim() } }),
         });
       }

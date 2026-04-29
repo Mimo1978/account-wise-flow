@@ -732,6 +732,10 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       prefilledRef.current = {};
       setAutoRun(false);
       autoRunRef.current = false;
+      // The "Ask Jarvis" button click that opened the wizard is a valid
+      // user gesture — pre-warm mic permission so auto-listen can fire
+      // immediately after the greeting finishes.
+      void requestMicPermission();
       setTimeout(() => {
         sayJarvis(
           "Hi, I'm Jarvis. Setting up scripts can be fiddly, so I'll guide you through it step by step. How would you like to start? Choose a quick 30-second walkthrough, the full deep-dive explanation, or let me ask you four short questions and draft the whole script for you."

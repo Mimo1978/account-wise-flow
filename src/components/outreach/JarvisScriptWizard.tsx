@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { playYourTurnChime, playListeningPing } from "@/lib/jarvis-sounds";
 
 /* ────────────────────────────── Types ────────────────────────────── */
 
@@ -388,6 +389,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
               setTimeout(tick, 200);
             } else {
               setIsSpeaking(false);
+              // "Your turn" chime so user knows Jarvis has finished talking
+              try { playYourTurnChime(); } catch { /* noop */ }
             }
           };
           setTimeout(tick, 250);
@@ -410,9 +413,15 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         audio.volume = 0.9;
         audioRef.current = audio;
         setIsSpeaking(true);
-        audio.onended = () => setIsSpeaking(false);
-        audio.onerror = () => setIsSpeaking(false);
-        audio.onpause = () => setIsSpeaking(false);
+        const finish = (chime: boolean) => {
+          setIsSpeaking(false);
+          if (chime) {
+            try { playYourTurnChime(); } catch { /* noop */ }
+          }
+        };
+        audio.onended = () => finish(true);
+        audio.onerror = () => finish(false);
+        audio.onpause = () => finish(false);
         audio.play().catch(() => {});
       } catch {
         browserFallback();
@@ -442,6 +451,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       recognitionRef.current = r;
       r.start();
       setListening(true);
+      try { playListeningPing(); } catch { /* noop */ }
     } catch {
       setListening(false);
     }
@@ -500,15 +510,44 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       clearGlow();
       if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.src = "";
         audioRef.current = null;
       }
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
       stopListening();
+      setIsSpeaking(false);
+      setThinking(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Hard-stop everything when the component unmounts (e.g. parent modal closes
+  // and removes the wizard from the React tree). This prevents Jarvis from
+  // continuing to speak after the user exits the Edit Script screen.
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        try { audioRef.current.pause(); } catch { /* noop */ }
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        try { window.speechSynthesis.cancel(); } catch { /* noop */ }
+      }
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch { /* noop */ }
+        recognitionRef.current = null;
+      }
+      if (typeof document !== "undefined") {
+        document.body.classList.remove("jarvis-wizard-active");
+        document.querySelectorAll(".jarvis-wizard-glow, .jarvis-wizard-glow-modal, .jarvis-wizard-glow-field").forEach((el) => {
+          el.classList.remove("jarvis-wizard-glow", "jarvis-wizard-glow-modal", "jarvis-wizard-glow-field");
+        });
+      }
+    };
+  }, []);
 
   // When a field step becomes active → spotlight + ask
   useEffect(() => {
@@ -849,8 +888,43 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                 <Loader2 className="h-3 w-3 animate-spin" /> Drafting…
               </div>
             )}
+            {/* Listening indicator (mirrors standardised JarvisChat) */}
+            {listening && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-destructive/5 border border-destructive/20 text-xs text-foreground">
+                <span className="h-2 w-2 rounded-full bg-destructive animate-pulse shrink-0" />
+                <span className="italic opacity-80">{answer ? answer : "Listening…"}</span>
+              </div>
+            )}
           </div>
         </ScrollArea>
+
+        {/* Speaking waveform bar — shown across the bottom whenever Jarvis is
+            talking, so users with low audio / hard-of-hearing know she's
+            active. Mirrors the visual language of the standard JarvisChat. */}
+        {isSpeaking && (
+          <div className="border-t border-border/50 bg-primary/5 px-3 py-2 shrink-0">
+            <div className="flex items-center gap-2">
+              <Volume2 className="h-3.5 w-3.5 text-primary shrink-0 animate-pulse" />
+              <div className="flex-1 flex items-end justify-center gap-[2px] h-5">
+                {Array.from({ length: 28 }).map((_, i) => {
+                  const heights = [4, 8, 12, 16, 14, 18, 10, 6];
+                  const h = heights[i % heights.length];
+                  return (
+                    <div
+                      key={i}
+                      className="w-[2px] rounded-full bg-primary/80"
+                      style={{
+                        height: `${h}px`,
+                        animation: `cmPipelinePulse 0.7s ease-in-out ${(i % 8) * 70}ms infinite alternate`,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <span className="text-[10px] uppercase tracking-wide text-primary font-semibold shrink-0">Speaking</span>
+            </div>
+          </div>
+        )}
 
         {/* Action area */}
         <div className="border-t border-border/50 p-3 space-y-2">

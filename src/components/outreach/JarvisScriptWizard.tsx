@@ -1075,8 +1075,17 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         </div>
 
         {/* Conversation */}
-        <ScrollArea className="flex-1 px-3 py-3">
+        <ScrollArea
+          className="flex-1 px-3 py-3"
+          onClick={interruptJarvis}
+          title={isSpeaking ? "Tap to interrupt Jarvis" : undefined}
+        >
           <div className="space-y-2.5">
+            {isSpeaking && (
+              <div className="text-[10px] text-muted-foreground/70 italic text-center py-1">
+                Tap anywhere to interrupt
+              </div>
+            )}
             {messages.map((m, i) => (
               <div
                 key={i}

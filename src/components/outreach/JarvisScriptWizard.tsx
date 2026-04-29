@@ -93,10 +93,23 @@ interface FieldStep {
   question: string;
   /** Channel filter — only shown for matching channel. */
   channels?: WizardChannel[];
-  /** Skip the step if this returns true given current values. */
-  isAlreadyFilled?: (c: WizardCurrent) => boolean;
+  /** Read current value for this field — used to decide review vs blank flow. */
+  readCurrent: (c: WizardCurrent) => string;
   /** Build the patch that gets applied to the modal. */
   apply: (answer: string, c: WizardCurrent) => WizardPatch;
+  /** Field kind sent to ai-script-assist suggest_field mode. */
+  fieldKind:
+    | "name"
+    | "subject"
+    | "email_body"
+    | "sms_body"
+    | "agent_name"
+    | "call_intro"
+    | "call_permission"
+    | "call_questions"
+    | "call_branching"
+    | "call_close"
+    | "call_block";
   /** For call channel — points to a specific block id at runtime. */
   callBlockId?: string;
 }
@@ -183,6 +196,16 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const [stepIdx, setStepIdx] = useState(0);
   const [answer, setAnswer] = useState("");
   const [thinking, setThinking] = useState(false);
+  // Per-field sub-flow:
+  //  - 'review'    → existing content present, ask Keep/Edit/Redo
+  //  - 'intent'    → ask user "what do you want out of this?" before AI suggest
+  //  - 'suggested' → AI returned a suggestion, user can Accept/Tweak/Reject
+  //  - 'edit'      → user typing/speaking the value directly (current default)
+  type FieldSubPhase = "review" | "intent" | "suggested" | "edit";
+  const [fieldSubPhase, setFieldSubPhase] = useState<FieldSubPhase>("edit");
+  const [suggestion, setSuggestion] = useState<string>("");
+  const [suggestRationale, setSuggestRationale] = useState<string>("");
+  const [suggesting, setSuggesting] = useState(false);
   const [voiceOutEnabled, setVoiceOutEnabled] = useState(true);
   const [listening, setListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -248,27 +271,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         explain:
           "First, every script needs a memorable name so your team can find it later. Something like 'Senior Dev Outreach v1' works well.",
         question: "What would you like to name this script?",
-        isAlreadyFilled: (c) => c.name.trim().length > 2,
+        readCurrent: (c) => c.name,
+        fieldKind: "name",
         apply: (a) => ({ name: a.trim() }),
-      },
-      {
-        kind: "field",
-        id: "channel",
-        targetSelector: "[data-jarvis-id='script-channel-select']",
-        label: "Channel",
-        explain:
-          "Now pick the channel. Email is best for detail, SMS for quick nudges, and Call Script powers the AI voice agent that actually calls the candidate.",
-        question: "Which channel — email, SMS, or call?",
-        isAlreadyFilled: () => true, // pre-selected; only shown if user opens wizard before picking
-        apply: (a) => {
-          const v = a.toLowerCase();
-          const ch: WizardChannel = v.includes("sms") || v.includes("text")
-            ? "sms"
-            : v.includes("call") || v.includes("phone") || v.includes("voice")
-            ? "call"
-            : "email";
-          return { channel: ch };
-        },
       },
     ];
 
@@ -283,7 +288,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           "The subject line is what gets your email opened. Keep it under 60 characters and make it personal.",
         question:
           "What's the subject? Tip: you can use {{job.title}} and {{candidate.first_name}} as variables.",
-        isAlreadyFilled: (c) => c.subject.trim().length > 0,
+        readCurrent: (c) => c.subject,
+        fieldKind: "subject",
         apply: (a) => ({ subject: a.trim() }),
       });
       list.push({
@@ -296,7 +302,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           "Now the body. I'll draft it from your answer — describe the role, the hook, and the call-to-action. I'll polish it for you.",
         question:
           "In a sentence or two, what's this email pitching? I'll write the full draft.",
-        isAlreadyFilled: (c) => c.body.trim().length > 40,
+        readCurrent: (c) => c.body,
+        fieldKind: "email_body",
         apply: (a) => ({ body: a.trim() }),
       });
     }
@@ -311,7 +318,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         explain:
           "SMS must stay under 160 characters. Be punchy and include an opt-out like 'Reply STOP'.",
         question: "Sum up the message in one line — I'll tighten it for you.",
-        isAlreadyFilled: (c) => c.body.trim().length > 20,
+        readCurrent: (c) => c.body,
+        fieldKind: "sms_body",
         apply: (a) => ({ body: a.trim() }),
       });
     }
@@ -326,12 +334,19 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         explain:
           "Your AI agent introduces itself by name. Pick something friendly — it's the first impression your candidate hears.",
         question: "What name should the AI agent use? (e.g. Olivia, Marcus, or skip for auto)",
-        isAlreadyFilled: (c) => c.agentName.trim().length > 0,
+        readCurrent: (c) => c.agentName,
+        fieldKind: "agent_name",
         apply: (a) => ({ agentName: a.trim() }),
       });
 
       // One step per call block
       for (const b of current.callBlocks) {
+        const blockKind =
+          b.type === "intro" ? "call_intro" :
+          b.type === "permission" ? "call_permission" :
+          b.type === "questions" ? "call_questions" :
+          b.type === "branching" ? "call_branching" :
+          b.type === "close" ? "call_close" : "call_block";
         list.push({
           kind: "field",
           id: `block-${b.id}`,
@@ -341,7 +356,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
           callBlockId: b.id,
           explain: blockExplainText(b.type),
           question: blockQuestionText(b.type),
-          isAlreadyFilled: () => b.content.trim().length > 30,
+          readCurrent: () => b.content,
+          fieldKind: blockKind as FieldStep["fieldKind"],
           apply: (a) => ({ callBlock: { blockId: b.id, content: a.trim() } }),
         });
       }
@@ -565,7 +581,19 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     if (!step) return;
     spotlightSelector(step.targetSelector);
     setAnswer("");
-    sayJarvis(`${step.explain} ${step.question}`);
+    setSuggestion("");
+    setSuggestRationale("");
+    const existing = (step.readCurrent(current) || "").trim();
+    if (existing.length > 0) {
+      setFieldSubPhase("review");
+      const preview = existing.length > 200 ? existing.slice(0, 200) + "…" : existing;
+      sayJarvis(
+        `${step.explain} I can see you already have something here: "${preview}". Would you like to keep it as is, edit it yourself, or shall I suggest a fresh AI-friendly version based on what you want out of it?`
+      );
+    } else {
+      setFieldSubPhase("edit");
+      sayJarvis(`${step.explain} ${step.question}`);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, stepIdx, steps]);
 
@@ -683,6 +711,102 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     sayJarvis(`Got it — saved into ${step.label}. ✓`);
     setAnswer("");
     advance();
+  };
+
+  /* ─── Per-field review actions ─── */
+
+  const keepExisting = () => {
+    const step = steps[stepIdx];
+    if (!step) return;
+    sayUser("Keep it as is");
+    sayJarvis(`Perfect — leaving ${step.label} as it is. Moving on.`);
+    advance();
+  };
+
+  const editMyself = () => {
+    const step = steps[stepIdx];
+    if (!step) return;
+    sayUser("I'll edit it myself");
+    setAnswer(step.readCurrent(current) || "");
+    setFieldSubPhase("edit");
+    sayJarvis(`Go ahead — type or speak the new ${step.label}, then hit Send.`);
+  };
+
+  const askForSuggestion = () => {
+    const step = steps[stepIdx];
+    if (!step) return;
+    sayUser("Suggest a fresh version");
+    setFieldSubPhase("intent");
+    setAnswer("");
+    sayJarvis(
+      `What do you want out of this ${step.label.toLowerCase()}? Tell me the goal in your own words and I'll draft something that hits it while staying within the field's rules.`
+    );
+  };
+
+  const requestSuggestion = useCallback(async () => {
+    const step = steps[stepIdx];
+    if (!step) return;
+    if (!answer.trim()) return;
+    sayUser(answer);
+    const intent = answer.trim();
+    setAnswer("");
+    setSuggesting(true);
+    setThinking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-script-assist", {
+        body: {
+          mode: "suggest_field",
+          channel: current.channel,
+          field_kind: step.fieldKind,
+          field_label: step.label,
+          user_intent: intent,
+          existing_content: step.readCurrent(current) || "",
+        },
+      });
+      if (error || !data?.success || !data?.suggestion) {
+        throw new Error(data?.message || error?.message || "AI suggestion failed");
+      }
+      setSuggestion(data.suggestion);
+      setSuggestRationale(data.rationale || "");
+      setFieldSubPhase("suggested");
+      sayJarvis(`Here's my suggestion — accept it, tweak it, or reject and we'll try again.\n\n${data.suggestion}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Couldn't generate a suggestion";
+      sayJarvis(`${msg}. Want to type it yourself instead?`);
+      setFieldSubPhase("edit");
+    } finally {
+      setSuggesting(false);
+      setThinking(false);
+    }
+  }, [answer, stepIdx, steps, current]);
+
+  const acceptSuggestion = () => {
+    const step = steps[stepIdx];
+    if (!step || !suggestion) return;
+    sayUser("Accept");
+    onApply(step.apply(suggestion, current));
+    sayJarvis(`Saved into ${step.label}. ✓`);
+    setSuggestion("");
+    setSuggestRationale("");
+    advance();
+  };
+
+  const tweakSuggestion = () => {
+    const step = steps[stepIdx];
+    if (!step) return;
+    sayUser("Let me tweak it");
+    setAnswer(suggestion);
+    setFieldSubPhase("edit");
+    sayJarvis("Edit away — type or speak the changes, then Send.");
+  };
+
+  const rejectSuggestion = () => {
+    sayUser("Try again");
+    setSuggestion("");
+    setSuggestRationale("");
+    setFieldSubPhase("intent");
+    setAnswer("");
+    sayJarvis("No problem — what should I change about the goal? Tell me again in your own words.");
   };
 
   const skipStep = () => {
@@ -946,7 +1070,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
             </div>
           )}
 
-          {(phase === "preflight" || phase === "field") && (
+          {phase === "preflight" && (
             <>
               <Textarea
                 value={answer}
@@ -956,39 +1080,107 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    if (phase === "preflight") handlePreflightSubmit();
-                    else handleFieldSubmit();
+                    handlePreflightSubmit();
                   }
                 }}
               />
               <div className="flex items-center gap-1.5">
                 {hasMicSupport && (
-                  <Button
-                    size="sm"
-                    variant={listening ? "default" : "outline"}
-                    className={cn("h-8 text-xs gap-1", listening && "bg-red-500 hover:bg-red-600 text-white")}
-                    onClick={listening ? stopListening : startListening}
-                  >
+                  <Button size="sm" variant={listening ? "default" : "outline"} className={cn("h-8 text-xs gap-1", listening && "bg-red-500 hover:bg-red-600 text-white")} onClick={listening ? stopListening : startListening}>
                     {listening ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
                     {listening ? "Stop" : "Speak"}
                   </Button>
                 )}
-                {phase === "field" && (
-                  <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={skipStep}>
-                    <SkipForward className="h-3 w-3" /> Skip
-                  </Button>
-                )}
                 <div className="flex-1" />
-                <Button
-                  size="sm"
-                  className="h-8 text-xs gap-1"
-                  onClick={phase === "preflight" ? handlePreflightSubmit : handleFieldSubmit}
-                  disabled={!answer.trim() || thinking}
-                >
+                <Button size="sm" className="h-8 text-xs gap-1" onClick={handlePreflightSubmit} disabled={!answer.trim() || thinking}>
                   <Send className="h-3 w-3" /> Send
                 </Button>
               </div>
             </>
+          )}
+
+          {phase === "field" && fieldSubPhase === "review" && (
+            <div className="grid grid-cols-1 gap-1.5">
+              <Button size="sm" variant="outline" className="justify-start text-xs h-8" onClick={keepExisting}>
+                <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" /> Keep as is
+              </Button>
+              <Button size="sm" variant="outline" className="justify-start text-xs h-8" onClick={editMyself}>
+                <ChevronRight className="h-3 w-3 mr-1" /> Edit it myself
+              </Button>
+              <Button size="sm" className="justify-start text-xs h-8 bg-gradient-to-r from-primary to-fuchsia-500 text-primary-foreground hover:opacity-90" onClick={askForSuggestion}>
+                <Sparkles className="h-3 w-3 mr-1" /> Suggest a fresh AI-friendly version
+              </Button>
+              <Button size="sm" variant="ghost" className="justify-start text-xs h-7 text-muted-foreground" onClick={skipStep}>
+                <SkipForward className="h-3 w-3 mr-1" /> Skip this field
+              </Button>
+            </div>
+          )}
+
+          {phase === "field" && (fieldSubPhase === "edit" || fieldSubPhase === "intent") && (
+            <>
+              <Textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                placeholder={
+                  listening
+                    ? "Listening…"
+                    : fieldSubPhase === "intent"
+                    ? "Tell me what you want out of this field…"
+                    : "Type or speak the field content…"
+                }
+                className="text-xs min-h-[60px] resize-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (fieldSubPhase === "intent") requestSuggestion();
+                    else handleFieldSubmit();
+                  }
+                }}
+              />
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {hasMicSupport && (
+                  <Button size="sm" variant={listening ? "default" : "outline"} className={cn("h-8 text-xs gap-1", listening && "bg-red-500 hover:bg-red-600 text-white")} onClick={listening ? stopListening : startListening}>
+                    {listening ? <MicOff className="h-3 w-3" /> : <Mic className="h-3 w-3" />}
+                    {listening ? "Stop" : "Speak"}
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={skipStep}>
+                  <SkipForward className="h-3 w-3" /> Skip
+                </Button>
+                <div className="flex-1" />
+                <Button
+                  size="sm"
+                  className="h-8 text-xs gap-1"
+                  onClick={fieldSubPhase === "intent" ? requestSuggestion : handleFieldSubmit}
+                  disabled={!answer.trim() || thinking || suggesting}
+                >
+                  {suggesting ? <Loader2 className="h-3 w-3 animate-spin" /> : fieldSubPhase === "intent" ? <Sparkles className="h-3 w-3" /> : <Send className="h-3 w-3" />}
+                  {fieldSubPhase === "intent" ? "Draft it" : "Send"}
+                </Button>
+              </div>
+            </>
+          )}
+
+          {phase === "field" && fieldSubPhase === "suggested" && (
+            <div className="space-y-2">
+              <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs whitespace-pre-wrap max-h-32 overflow-y-auto">
+                {suggestion}
+              </div>
+              {suggestRationale && (
+                <p className="text-[10px] text-muted-foreground italic">{suggestRationale}</p>
+              )}
+              <div className="grid grid-cols-3 gap-1.5">
+                <Button size="sm" className="h-8 text-xs gap-1" onClick={acceptSuggestion}>
+                  <CheckCircle2 className="h-3 w-3" /> Accept
+                </Button>
+                <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={tweakSuggestion}>
+                  <ChevronRight className="h-3 w-3" /> Tweak
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 text-xs gap-1" onClick={rejectSuggestion}>
+                  <SkipForward className="h-3 w-3" /> Try again
+                </Button>
+              </div>
+            </div>
           )}
 
           {phase === "done" && (
@@ -1012,13 +1204,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
 /* ─────────────────────── Helper functions ─────────────────────── */
 
-function findNextStep(steps: FieldStep[], from: number, c: WizardCurrent): number {
-  for (let i = from; i < steps.length; i++) {
-    const s = steps[i];
-    if (s.isAlreadyFilled && s.isAlreadyFilled(c)) continue;
-    return i;
-  }
-  return steps.length;
+function findNextStep(steps: FieldStep[], from: number, _c: WizardCurrent): number {
+  // Wizard now visits EVERY field — no auto-skipping. Existing content is
+  // surfaced for review/edit/redo within the step itself.
+  if (from >= steps.length) return steps.length;
+  return from;
 }
 
 function blockExplainText(type: string): string {

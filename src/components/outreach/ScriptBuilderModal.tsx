@@ -211,6 +211,7 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
   // and when an existing script is loaded into the modal.
   useEffect(() => {
     if (!open) return;
+    setWizardOpen(false);
     setName(script?.name ?? "");
     const ch: ScriptChannel = script?.channel ?? defaultChannel ?? "email";
     setChannel(ch);

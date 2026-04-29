@@ -677,6 +677,10 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       spotlightSelector("[data-jarvis-id='outreach-script-modal']");
       return;
     }
+    if (phase === "objective") {
+      spotlightSelector("[data-jarvis-id='outreach-script-modal']");
+      return;
+    }
     if (phase !== "field") {
       clearGlow();
       return;
@@ -688,6 +692,33 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     setSuggestion("");
     setSuggestRationale("");
     const existing = (step.readCurrent(current) || "").trim();
+    const prefill = lookupPrefill(step, prefilledRef.current);
+
+    // Prefilled draft from the objective step takes priority — surface it
+    // immediately as a suggestion the user can Accept/Tweak/Reject. This is
+    // the "Jarvis pre-builds every block in AI-friendly chat style" flow.
+    if (prefill && prefill.trim().length > 0) {
+      setSuggestion(prefill);
+      setSuggestRationale("Pre-drafted from your objective.");
+      setFieldSubPhase("suggested");
+      sayJarvis(
+        `${step.label} — here's what I drafted. Accept to save it, Tweak to edit, or ask me to try again.\n\n${prefill}`
+      );
+      // Auto-run: Jarvis applies and moves on by herself.
+      if (autoRunRef.current) {
+        setTimeout(() => {
+          if (!autoRunRef.current) return;
+          // Read latest step + suggestion from refs to avoid stale closure.
+          const s = steps[stepIdx];
+          if (!s) return;
+          onApply(s.apply(prefill, current));
+          sayJarvis(`Saved into ${s.label}. ✓`);
+          advance();
+        }, 1400);
+      }
+      return;
+    }
+
     if (existing.length > 0) {
       setFieldSubPhase("review");
       const preview = existing.length > 200 ? existing.slice(0, 200) + "…" : existing;

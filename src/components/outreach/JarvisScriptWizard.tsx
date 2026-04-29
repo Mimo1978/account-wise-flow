@@ -36,6 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { playYourTurnChime, playListeningPing } from "@/lib/jarvis-sounds";
+import { CMPulse } from "@/components/ui/CMLoader";
 
 /* ────────────────────────────── Types ────────────────────────────── */
 

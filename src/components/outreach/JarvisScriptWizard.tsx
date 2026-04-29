@@ -518,7 +518,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   // Forward-declared so the recogniser callbacks can call back into the
   // current phase's submit logic without a circular reference.
-  const submitDispatchRef = useRef<() => void>(() => { /* noop */ });
+  const submitDispatchRef = useRef<(spokenText?: string) => void>(() => { /* noop */ });
 
   const clearSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -533,14 +533,18 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       // Auto-submit whatever the user has spoken so far.
       const txt = liveTranscriptRef.current.trim();
       if (!txt) return;
+      submittingVoiceRef.current = true;
       try { recognitionRef.current?.stop(); } catch { /* noop */ }
-      submitDispatchRef.current?.();
+      submitDispatchRef.current?.(txt);
+      setTimeout(() => { submittingVoiceRef.current = false; }, 250);
     }, SILENCE_MS);
   }, [clearSilenceTimer]);
 
   const startListening = useCallback(() => {
     const SR = getSpeechRecognition();
     if (!SR) return;
+    if (!openRef.current || killedRef.current) return;
+    if (speakingRef.current || thinkingRef.current) return;
     // Already running — don't double-start (browser throws InvalidStateError).
     if (recognitionRef.current) return;
     try {
@@ -548,14 +552,15 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       r.lang = "en-GB";
       r.interimResults = true;
       r.continuous = true;
-      liveTranscriptRef.current = "";
+      listeningBaseRef.current = answer.trim();
+      liveTranscriptRef.current = listeningBaseRef.current;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       r.onresult = (e: any) => {
         let combined = "";
         for (let i = 0; i < e.results.length; i++) {
           combined += e.results[i][0].transcript + " ";
         }
-        const txt = combined.trim();
+        const txt = [listeningBaseRef.current, combined.trim()].filter(Boolean).join(" ").trim();
         liveTranscriptRef.current = txt;
         setAnswer(txt);
         // Barge-in: any detected speech instantly silences Jarvis so the user
@@ -579,11 +584,18 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         recognitionRef.current = null;
         clearSilenceTimer();
         setListening(false);
+        const txt = liveTranscriptRef.current.trim();
+        if (txt && expectingAnswerRef.current && !submittingVoiceRef.current) {
+          submittingVoiceRef.current = true;
+          submitDispatchRef.current?.(txt);
+          setTimeout(() => { submittingVoiceRef.current = false; }, 250);
+          return;
+        }
         // If we're still expecting an answer (and haven't auto-submitted),
         // restart the recogniser. Some browsers stop after a long silence.
-        if (expectingAnswerRef.current && autoListenRef.current && micPermissionRef.current) {
+        if (openRef.current && !killedRef.current && !speakingRef.current && !thinkingRef.current && expectingAnswerRef.current && autoListenRef.current && micPermissionRef.current) {
           setTimeout(() => {
-            if (expectingAnswerRef.current && !recognitionRef.current) {
+            if (openRef.current && !killedRef.current && !speakingRef.current && !thinkingRef.current && expectingAnswerRef.current && !recognitionRef.current) {
               startListening();
             }
           }, 200);
@@ -612,7 +624,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       recognitionRef.current = null;
       setListening(false);
     }
-  }, [armSilenceTimer, clearSilenceTimer]);
+  }, [answer, armSilenceTimer, clearSilenceTimer]);
 
   /**
    * Pre-warm mic permission. Called on mount + after the user makes their

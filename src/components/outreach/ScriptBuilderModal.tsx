@@ -53,6 +53,17 @@ import { ProofreadReviewModal, type ProofreadField } from "./ProofreadReviewModa
 import { AssignToCampaignPrompt } from "./AssignToCampaignPrompt";
 import { JarvisScriptWizard, type WizardPatch } from "./JarvisScriptWizard";
 import { Bot } from "lucide-react";
+import { RotateCcw } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Quick-insert ready-made snippets per channel for fast script authoring.
 const QUICK_TEMPLATES_EMAIL = [
@@ -161,6 +172,31 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
   // Jarvis guided wizard state — slides in over the modal and walks the user
   // through every field with voice + text + autofill.
   const [wizardOpen, setWizardOpen] = useState(false);
+
+  // Confirm dialog for the destructive "Reset form" action in the header.
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
+  /**
+   * Wipe every field in the editor back to a blank, default state so the user
+   * can start the script over. Does not save — the user must still click
+   * "Update Script" / "Create Script" to persist.
+   */
+  const handleResetForm = useCallback(() => {
+    const ch: ScriptChannel = defaultChannel ?? "email";
+    setName("");
+    setChannel(ch);
+    setSubject("");
+    setBody(ch === "call" ? "" : getDefaultScriptBody(ch));
+    setEmailDraft(getDefaultScriptBody("email"));
+    setSmsDraft(getDefaultScriptBody("sms"));
+    setCallBlocks(getDefaultCallBlocks());
+    setExpandedBlock("intro");
+    setLinkedJobId(null);
+    setAgentVoice("auto");
+    setAgentName("");
+    setResetConfirmOpen(false);
+    toast.success("Form reset — all fields cleared");
+  }, [defaultChannel]);
 
   /**
    * Apply a partial patch from the Jarvis wizard back into modal state.
@@ -570,10 +606,25 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
                 </Badge>
               )}
               {violations.length === 0 && name && (
-                <Badge variant="outline" className="gap-1 text-xs border-green-500 text-green-600">
-                  <CheckCircle2 className="w-3 h-3" /> Clear
+                <Badge
+                  variant="outline"
+                  className="gap-1 text-xs border-green-500 text-green-600"
+                  title="No validation issues — script passes all guardrails"
+                >
+                  <CheckCircle2 className="w-3 h-3" /> No issues
                 </Badge>
               )}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setResetConfirmOpen(true)}
+                className="h-8 gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                title="Clear every field and start this script over from a blank template"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="text-xs font-semibold">Reset form</span>
+              </Button>
             </div>
           </div>
 
@@ -1036,6 +1087,32 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
         }}
         onApply={applyWizardPatch}
       />
+
+      <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <AlertDialogContent className="z-[10001]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Reset entire script?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently clear every field in the editor — script name, channel, subject,
+              body, all call blocks, agent voice and any linked job — and return the form to a blank
+              template. This action cannot be undone. Your previously saved version (if any) will not
+              be affected until you click <span className="font-semibold">Update Script</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetForm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, reset form
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

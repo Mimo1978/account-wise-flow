@@ -1414,6 +1414,33 @@ function findNextStep(steps: FieldStep[], from: number, _c: WizardCurrent): numb
   return from;
 }
 
+/**
+ * Look up a prefilled draft for a given step from the map produced by
+ * `draft_from_brief`. Maps the step's field id to the draft key.
+ */
+function lookupPrefill(step: FieldStep, map: Record<string, string>): string | null {
+  if (!map || Object.keys(map).length === 0) return null;
+  if (step.callBlockId) {
+    // Find the block type from the step id pattern (block-<id>) — but we have
+    // it in callBlockId; the caller mapped fieldKind. We use fieldKind to
+    // recover block type.
+    const t = step.fieldKind.replace(/^call_/, "");
+    return map[`block:${t}`] ?? null;
+  }
+  switch (step.id) {
+    case "name":
+      return map.name ?? null;
+    case "subject":
+      return map.subject ?? null;
+    case "body":
+      return map.body ?? null;
+    case "agentName":
+      return map.agentName ?? null;
+    default:
+      return null;
+  }
+}
+
 function blockExplainText(type: string): string {
   switch (type) {
     case "intro":

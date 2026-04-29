@@ -684,12 +684,15 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
             0 0 0 6px hsl(var(--warning) / 0.30),
             0 0 30px hsl(var(--warning) / 0.55),
             0 0 60px hsl(var(--warning) / 0.30) !important;
-          animation: jarvis-wizard-pulse 1.4s ease-in-out infinite;
           transition: outline 0.3s ease, box-shadow 0.3s ease;
         }
         .jarvis-wizard-glow-modal {
           outline-width: 4px !important;
           outline-offset: -2px !important;
+          animation: none !important;
+        }
+        .jarvis-wizard-glow-field {
+          animation: jarvis-wizard-pulse 1.4s ease-in-out infinite;
         }
         /* While Jarvis Script Wizard is active, hide the universal floating
            Jarvis FAB + command palette button so they don't compete with the

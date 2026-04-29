@@ -368,13 +368,29 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const speak = useCallback(
     async (text: string) => {
       if (!voiceOutEnabled) return;
+      const browserFallback = () => {
+        setIsSpeaking(true);
+        speakWithBrowser(text);
+        // Best-effort: clear when synth finishes
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          const synth = window.speechSynthesis;
+          const tick = () => {
+            if (synth.speaking || synth.pending) {
+              setTimeout(tick, 200);
+            } else {
+              setIsSpeaking(false);
+            }
+          };
+          setTimeout(tick, 250);
+        }
+      };
       try {
         const { data, error } = await supabase.functions.invoke("jarvis-speak", {
           // Sarah — smooth, warm, natural British-leaning voice
           body: { text, voice_id: "EXAVITQu4vr4xnSDxMaL" },
         });
         if (error || !data?.audio) {
-          speakWithBrowser(text);
+          browserFallback();
           return;
         }
         if (audioRef.current) {
@@ -384,9 +400,13 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         const audio = new Audio(`data:audio/mpeg;base64,${data.audio}`);
         audio.volume = 0.9;
         audioRef.current = audio;
+        setIsSpeaking(true);
+        audio.onended = () => setIsSpeaking(false);
+        audio.onerror = () => setIsSpeaking(false);
+        audio.onpause = () => setIsSpeaking(false);
         audio.play().catch(() => {});
       } catch {
-        speakWithBrowser(text);
+        browserFallback();
       }
     },
     [voiceOutEnabled]

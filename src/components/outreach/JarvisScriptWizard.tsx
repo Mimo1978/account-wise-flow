@@ -601,7 +601,19 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     if (!step) return;
     spotlightSelector(step.targetSelector);
     setAnswer("");
-    sayJarvis(`${step.explain} ${step.question}`);
+    setSuggestion("");
+    setSuggestRationale("");
+    const existing = (step.readCurrent(current) || "").trim();
+    if (existing.length > 0) {
+      setFieldSubPhase("review");
+      const preview = existing.length > 200 ? existing.slice(0, 200) + "…" : existing;
+      sayJarvis(
+        `${step.explain} I can see you already have something here: "${preview}". Would you like to keep it as is, edit it yourself, or shall I suggest a fresh AI-friendly version based on what you want out of it?`
+      );
+    } else {
+      setFieldSubPhase("edit");
+      sayJarvis(`${step.explain} ${step.question}`);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, stepIdx, steps]);
 

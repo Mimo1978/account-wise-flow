@@ -1087,6 +1087,32 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
         }}
         onApply={applyWizardPatch}
       />
+
+      <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <AlertDialogContent className="z-[10001]">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Reset entire script?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently clear every field in the editor — script name, channel, subject,
+              body, all call blocks, agent voice and any linked job — and return the form to a blank
+              template. This action cannot be undone. Your previously saved version (if any) will not
+              be affected until you click <span className="font-semibold">Update Script</span>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetForm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, reset form
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

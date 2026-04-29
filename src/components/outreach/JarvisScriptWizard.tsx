@@ -1038,13 +1038,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
 /* ─────────────────────── Helper functions ─────────────────────── */
 
-function findNextStep(steps: FieldStep[], from: number, c: WizardCurrent): number {
-  for (let i = from; i < steps.length; i++) {
-    const s = steps[i];
-    if (s.isAlreadyFilled && s.isAlreadyFilled(c)) continue;
-    return i;
-  }
-  return steps.length;
+function findNextStep(steps: FieldStep[], from: number, _c: WizardCurrent): number {
+  // Wizard now visits EVERY field — no auto-skipping. Existing content is
+  // surfaced for review/edit/redo within the step itself.
+  if (from >= steps.length) return steps.length;
+  return from;
 }
 
 function blockExplainText(type: string): string {

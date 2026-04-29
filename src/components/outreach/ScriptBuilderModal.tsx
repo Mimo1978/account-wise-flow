@@ -998,6 +998,26 @@ export function ScriptBuilderModal({ open, onOpenChange, campaignId, script, def
           channel={savedScript.channel}
         />
       )}
+
+      {/* Jarvis-guided script wizard — slide-in panel with voice + text */}
+      <JarvisScriptWizard
+        open={wizardOpen && open}
+        onClose={() => setWizardOpen(false)}
+        current={{
+          name,
+          channel,
+          subject,
+          body,
+          agentName,
+          callBlocks: callBlocks.map((b) => ({
+            id: b.id,
+            type: b.type,
+            title: b.title,
+            content: b.content,
+          })),
+        }}
+        onApply={applyWizardPatch}
+      />
     </Dialog>
   );
 }

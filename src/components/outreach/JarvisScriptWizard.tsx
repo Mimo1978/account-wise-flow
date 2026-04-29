@@ -1151,6 +1151,8 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
                     ? "Choose how to start"
                     : phase === "preflight"
                     ? `Question ${preflightStage + 1} of 4`
+                    : phase === "objective"
+                    ? "What's your objective?"
                     : phase === "field" && currentStep
                     ? `Step ${stepIdx + 1}: ${currentStep.label}`
                     : phase === "done"

@@ -690,58 +690,94 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       `}</style>
 
       <div
-        className="jarvis-wizard-panel fixed w-[380px] z-[2147483000] flex flex-col rounded-xl border-2 bg-background/98 backdrop-blur"
+        className={cn(
+          "jarvis-wizard-panel fixed z-[2147483000] flex flex-col border border-border bg-background shadow-2xl overflow-hidden rounded-2xl w-[420px] h-[580px] max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)]",
+          isDragging && "select-none"
+        )}
         data-jarvis-id="script-wizard-panel"
         style={
           pos
-            ? { left: pos.x, top: pos.y, height: "min(560px, calc(100vh - 24px))" }
-            : { right: 16, top: 80, bottom: 16 }
+            ? { left: pos.x, top: pos.y }
+            : { right: 16, top: 80 }
         }
-        onPointerDown={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between px-4 py-3 border-b border-yellow-500/30 bg-gradient-to-r from-yellow-400/20 via-amber-400/10 to-yellow-500/15 rounded-t-xl cursor-move select-none"
-          onPointerDown={onDragStart}
-          onPointerMove={onDragMove}
-          onPointerUp={onDragEnd}
-          onPointerCancel={onDragEnd}
-          title="Drag to move"
-        >
-          <div className="flex items-center gap-2">
-            <GripVertical className="h-3.5 w-3.5 text-yellow-600/70 dark:text-yellow-400/70" />
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-md shadow-yellow-500/50">
-              <Bot className="h-4 w-4 text-yellow-950" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold flex items-center gap-1.5">
-                Jarvis
-                <Badge variant="outline" className="h-4 text-[9px] px-1 border-yellow-500/60 text-yellow-600 dark:text-yellow-400">
-                  Script Coach
-                </Badge>
-              </div>
-              <div className="text-[10px] text-muted-foreground">
-                {phase === "intro" && "Choose how to start"}
-                {phase === "preflight" && `Question ${preflightStage + 1} of 4`}
-                {phase === "field" && currentStep && `Step ${stepIdx + 1}: ${currentStep.label}`}
-                {phase === "done" && "All done"}
-              </div>
-            </div>
+        {/* Drag handle + Header — mirrors standardised JarvisChat panel */}
+        <div className="shrink-0 border-b border-border bg-gradient-to-r from-primary/5 to-primary/10">
+          {/* Drag handle bar */}
+          <div
+            onMouseDown={handleDragStart}
+            className="h-8 flex items-center justify-center gap-2 relative"
+            style={{ cursor: isDragging ? "grabbing" : "grab" }}
+          >
+            <GripVertical className="h-3.5 w-3.5 text-muted-foreground/50" />
           </div>
-          <div className="flex items-center gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7"
-              onClick={() => setVoiceOutEnabled((v) => !v)}
-              title={voiceOutEnabled ? "Mute voice" : "Unmute voice"}
-            >
-              {voiceOutEnabled ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-            </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose} title="Close">
-              <X className="h-3.5 w-3.5" />
-            </Button>
+          {/* Header content */}
+          <div className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-full bg-primary/15 flex items-center justify-center relative">
+                {thinking ? (
+                  <div className="flex items-end gap-[2px] h-3.5">
+                    {[6,10,14,10,6].map((h, i) => (
+                      <div
+                        key={i}
+                        className="w-[2px] rounded-full bg-primary"
+                        style={{
+                          height: `${h}px`,
+                          animation: `cmPipelinePulse 0.8s ease-in-out ${i * 80}ms infinite alternate`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : isSpeaking ? (
+                  <Volume2 className="h-4 w-4 text-primary animate-pulse" />
+                ) : listening ? (
+                  <Mic className="h-4 w-4 text-primary" />
+                ) : (
+                  <Sparkles className="h-4 w-4 text-primary" />
+                )}
+                {listening && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" />
+                )}
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-foreground leading-none">Jarvis</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {thinking
+                    ? "Thinking…"
+                    : isSpeaking
+                    ? "Speaking…"
+                    : listening
+                    ? "Listening…"
+                    : phase === "intro"
+                    ? "Choose how to start"
+                    : phase === "preflight"
+                    ? `Question ${preflightStage + 1} of 4`
+                    : phase === "field" && currentStep
+                    ? `Step ${stepIdx + 1}: ${currentStep.label}`
+                    : phase === "done"
+                    ? "All done"
+                    : "Script Coach"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7"
+                onClick={() => setVoiceOutEnabled((v) => !v)}
+                title={voiceOutEnabled ? "Mute voice" : "Enable voice"}
+              >
+                {voiceOutEnabled ? (
+                  <Volume2 className="h-3.5 w-3.5 text-primary" />
+                ) : (
+                  <VolumeX className="h-3.5 w-3.5 text-muted-foreground" />
+                )}
+              </Button>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onClose} title="Close">
+                <X className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </div>
           </div>
         </div>
 

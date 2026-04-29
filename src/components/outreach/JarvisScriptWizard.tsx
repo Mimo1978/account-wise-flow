@@ -196,6 +196,16 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   const [stepIdx, setStepIdx] = useState(0);
   const [answer, setAnswer] = useState("");
   const [thinking, setThinking] = useState(false);
+  // Per-field sub-flow:
+  //  - 'review'    → existing content present, ask Keep/Edit/Redo
+  //  - 'intent'    → ask user "what do you want out of this?" before AI suggest
+  //  - 'suggested' → AI returned a suggestion, user can Accept/Tweak/Reject
+  //  - 'edit'      → user typing/speaking the value directly (current default)
+  type FieldSubPhase = "review" | "intent" | "suggested" | "edit";
+  const [fieldSubPhase, setFieldSubPhase] = useState<FieldSubPhase>("edit");
+  const [suggestion, setSuggestion] = useState<string>("");
+  const [suggestRationale, setSuggestRationale] = useState<string>("");
+  const [suggesting, setSuggesting] = useState(false);
   const [voiceOutEnabled, setVoiceOutEnabled] = useState(true);
   const [listening, setListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);

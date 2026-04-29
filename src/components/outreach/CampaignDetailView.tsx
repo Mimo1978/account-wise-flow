@@ -47,6 +47,7 @@ import {
   Loader2,
   AlertTriangle,
   CheckCircle2,
+  Trash2,
 } from "lucide-react";
 import {
   useOutreachTargets,
@@ -56,7 +57,7 @@ import {
   type OutreachTarget,
   type OutreachTargetState,
 } from "@/hooks/use-outreach";
-import { useOutreachScripts } from "@/hooks/use-scripts";
+import { useOutreachScripts, useDeleteScript } from "@/hooks/use-scripts";
 import type { OutreachScript } from "@/lib/script-types";
 import { OutreachTargetRow } from "./OutreachTargetRow";
 import { AddTargetsModal } from "./AddTargetsModal";
@@ -67,6 +68,16 @@ import { AutomationSettingsPanel } from "./AutomationSettingsPanel";
 import { InboundResponsesPanel } from "./InboundResponsesPanel";
 import { CampaignSetupGuide } from "./CampaignSetupGuide";
 import { ChannelModeSelector, type ChannelKey } from "./ChannelModeSelector";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { format, parseISO } from "date-fns";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -157,6 +168,8 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
   const { data: allScripts = [] } = useOutreachScripts();
   const { mutate: updateCampaign, isPending: isUpdating } = useUpdateCampaign();
   const { mutateAsync: updateTargetState } = useUpdateTargetState();
+  const { mutate: deleteScript, isPending: isDeletingScript } = useDeleteScript();
+  const [scriptToDelete, setScriptToDelete] = useState<OutreachScript | null>(null);
   const [isLaunching, setIsLaunching] = useState(false);
   const [launchProgress, setLaunchProgress] = useState<LaunchProgressState | null>(null);
 
@@ -882,9 +895,20 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
               ) : (
                 <div className="space-y-2">
                   {scripts.map((script) => (
+                    (() => {
+                      const assignedChannels: string[] = [];
+                      if (campaign.email_script_id === script.id) assignedChannels.push("Email");
+                      if (campaign.sms_script_id === script.id) assignedChannels.push("SMS");
+                      if (campaign.call_script_id === script.id) assignedChannels.push("Call");
+                      const isAssigned = assignedChannels.length > 0;
+                      return (
                     <div
                       key={script.id}
-                      className="rounded-lg border border-border/50 bg-card px-4 py-3 hover:border-border transition-colors flex items-center justify-between gap-3"
+                      className={`rounded-lg border px-4 py-3 transition-colors flex items-center justify-between gap-3 ${
+                        isAssigned
+                          ? "border-primary/60 bg-primary/[0.06] shadow-[0_0_18px_hsl(var(--primary)/0.18)]"
+                          : "border-border/50 bg-card hover:border-border"
+                      }`}
                     >
                       <div className="min-w-0 flex-1">
                         <div>
@@ -899,6 +923,12 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                             {script.is_default && (
                               <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
                                 Default
+                              </Badge>
+                            )}
+                            {isAssigned && (
+                              <Badge className="text-[10px] gap-1 bg-primary/15 text-primary border border-primary/40 hover:bg-primary/15">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Assigned · {assignedChannels.join(" / ")}
                               </Badge>
                             )}
                           </div>
@@ -933,6 +963,7 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                           })()}
                         </div>
                       </div>
+                      <div className="flex items-center gap-2 shrink-0">
                       <Button
                         variant="outline"
                         size="sm"
@@ -942,7 +973,19 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
+                        onClick={() => setScriptToDelete(script)}
+                        title="Delete script"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                      </div>
                     </div>
+                      );
+                    })()
                   ))}
                 </div>
               )}
@@ -1110,6 +1153,60 @@ export function CampaignDetailView({ campaign, onBack, projectId }: Props) {
         activeChannels={activeChannels}
         campaignId={campaign.id}
       />
+
+      <AlertDialog
+        open={!!scriptToDelete}
+        onOpenChange={(o) => { if (!o) setScriptToDelete(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this script?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {scriptToDelete ? (
+                <>
+                  You are about to permanently delete <strong>{scriptToDelete.name}</strong>{" "}
+                  (v{scriptToDelete.version}). This action cannot be undone.
+                  {(() => {
+                    const assigned: string[] = [];
+                    if (campaign.email_script_id === scriptToDelete.id) assigned.push("Email");
+                    if (campaign.sms_script_id === scriptToDelete.id) assigned.push("SMS");
+                    if (campaign.call_script_id === scriptToDelete.id) assigned.push("Call");
+                    return assigned.length > 0 ? (
+                      <span className="block mt-2 text-destructive">
+                        Warning: this script is currently assigned to the {assigned.join(", ")} channel
+                        {assigned.length > 1 ? "s" : ""} on this campaign. Deleting it will leave those channels without a script.
+                      </span>
+                    ) : null;
+                  })()}
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingScript}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingScript}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (!scriptToDelete) return;
+                const id = scriptToDelete.id;
+                deleteScript(id, {
+                  onSuccess: () => {
+                    // Clear local channel selection if it referenced the deleted script
+                    if (emailScriptId === id) setEmailScriptId("");
+                    if (smsScriptId === id) setSmsScriptId("");
+                    if (callScriptId === id) setCallScriptId("");
+                    setScriptToDelete(null);
+                  },
+                });
+              }}
+            >
+              {isDeletingScript ? "Deleting…" : "Delete script"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

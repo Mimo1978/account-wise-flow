@@ -684,12 +684,27 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       `}</style>
 
       <div
-        className="jarvis-wizard-panel fixed right-4 top-20 bottom-4 w-[380px] z-[2147483000] flex flex-col rounded-xl border-2 bg-background/98 backdrop-blur"
+        className="jarvis-wizard-panel fixed w-[380px] z-[2147483000] flex flex-col rounded-xl border-2 bg-background/98 backdrop-blur"
         data-jarvis-id="script-wizard-panel"
+        style={
+          pos
+            ? { left: pos.x, top: pos.y, height: "min(560px, calc(100vh - 24px))" }
+            : { right: 16, top: 80, bottom: 16 }
+        }
+        onPointerDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-yellow-500/30 bg-gradient-to-r from-yellow-400/20 via-amber-400/10 to-yellow-500/15 rounded-t-xl">
+        <div
+          className="flex items-center justify-between px-4 py-3 border-b border-yellow-500/30 bg-gradient-to-r from-yellow-400/20 via-amber-400/10 to-yellow-500/15 rounded-t-xl cursor-move select-none"
+          onPointerDown={onDragStart}
+          onPointerMove={onDragMove}
+          onPointerUp={onDragEnd}
+          onPointerCancel={onDragEnd}
+          title="Drag to move"
+        >
           <div className="flex items-center gap-2">
+            <GripVertical className="h-3.5 w-3.5 text-yellow-600/70 dark:text-yellow-400/70" />
             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 flex items-center justify-center shadow-md shadow-yellow-500/50">
               <Bot className="h-4 w-4 text-yellow-950" />
             </div>

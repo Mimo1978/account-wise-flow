@@ -671,7 +671,6 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // Edit/Redo buttons), suggested (Accept/Tweak/Reject buttons) or done.
   useEffect(() => {
     const expecting =
-      phase === "intro" ||
       phase === "preflight" ||
       phase === "objective" ||
       (phase === "field" && (fieldSubPhase === "edit" || fieldSubPhase === "intent"));

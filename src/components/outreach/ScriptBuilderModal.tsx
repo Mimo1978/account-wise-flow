@@ -51,6 +51,8 @@ import { ScriptTemplateLibrary, type ReadyTemplate } from "./ScriptTemplateLibra
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { ProofreadReviewModal, type ProofreadField } from "./ProofreadReviewModal";
 import { AssignToCampaignPrompt } from "./AssignToCampaignPrompt";
+import { JarvisScriptWizard, type WizardPatch } from "./JarvisScriptWizard";
+import { Bot } from "lucide-react";
 
 // Quick-insert ready-made snippets per channel for fast script authoring.
 const QUICK_TEMPLATES_EMAIL = [

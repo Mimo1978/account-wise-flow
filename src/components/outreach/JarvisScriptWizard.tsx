@@ -943,10 +943,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     }, 250);
   };
 
-  const handleObjectiveSubmit = async () => {
-    if (!answer.trim()) return;
-    sayUser(answer);
-    const brief = answer.trim();
+  const handleObjectiveSubmit = async (spokenText?: string) => {
+    const response = (spokenText ?? answer).trim();
+    if (!response) return;
+    sayUser(response);
+    const brief = response;
     setObjective(brief);
     setAnswer("");
     liveTranscriptRef.current = "";
@@ -995,10 +996,11 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   /* ─── Pre-flight Q&A handler ─── */
 
-  const handlePreflightSubmit = async () => {
-    if (!answer.trim()) return;
-    sayUser(answer);
-    const a = answer.trim();
+  const handlePreflightSubmit = async (spokenText?: string) => {
+    const response = (spokenText ?? answer).trim();
+    if (!response) return;
+    sayUser(response);
+    const a = response;
     setAnswer("");
     liveTranscriptRef.current = "";
 
@@ -1060,12 +1062,13 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   /* ─── Field step submit ─── */
 
-  const handleFieldSubmit = () => {
+  const handleFieldSubmit = (spokenText?: string) => {
     const step = steps[stepIdx];
     if (!step) return;
-    if (!answer.trim()) return;
-    sayUser(answer);
-    const patch = step.apply(answer, current);
+    const response = (spokenText ?? answer).trim();
+    if (!response) return;
+    sayUser(response);
+    const patch = step.apply(response, current);
     onApply(patch);
     sayJarvis(`Got it — saved into ${step.label}. ✓`);
     setAnswer("");

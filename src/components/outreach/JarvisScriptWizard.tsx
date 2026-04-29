@@ -1308,6 +1308,30 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
               </div>
             </div>
             <div className="flex items-center gap-0.5">
+              {hasMicSupport && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-7 w-7"
+                  onClick={() => {
+                    const next = !autoListen;
+                    setAutoListen(next);
+                    autoListenRef.current = next;
+                    if (!next) {
+                      stopListening();
+                    } else {
+                      void requestMicPermission();
+                    }
+                  }}
+                  title={autoListen ? "Auto-listen on (click to disable)" : "Auto-listen off (click to enable)"}
+                >
+                  {autoListen ? (
+                    <Mic className="h-3.5 w-3.5 text-primary" />
+                  ) : (
+                    <MicOff className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </Button>
+              )}
               <Button
                 size="icon"
                 variant="ghost"

@@ -596,7 +596,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
 
   const currentStep = phase === "field" ? steps[stepIdx] : null;
 
-  return (
+  const panel = (
     <>
       {/* Glow keyframes injected once */}
       <style>{`
@@ -612,6 +612,13 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
             0 0 60px rgba(250, 204, 21, 0.30) !important;
           animation: jarvis-wizard-pulse 1.4s ease-in-out infinite;
           transition: outline 0.3s ease, box-shadow 0.3s ease;
+        }
+        /* While Jarvis Script Wizard is active, hide the universal floating
+           Jarvis FAB + command palette button so they don't compete with the
+           in-context coach. */
+        body.jarvis-wizard-active button[aria-label="Ask Jarvis"],
+        body.jarvis-wizard-active button[aria-label="Jarvis Commands"] {
+          display: none !important;
         }
         @keyframes jarvis-wizard-pulse {
           0%, 100% {
@@ -639,7 +646,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       `}</style>
 
       <div
-        className="jarvis-wizard-panel fixed right-4 top-20 bottom-4 w-[380px] z-[10001] flex flex-col rounded-xl border-2 bg-background/98 backdrop-blur"
+        className="jarvis-wizard-panel fixed right-4 top-20 bottom-4 w-[380px] z-[2147483000] flex flex-col rounded-xl border-2 bg-background/98 backdrop-blur"
         data-jarvis-id="script-wizard-panel"
       >
         {/* Header */}
@@ -787,6 +794,9 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       </div>
     </>
   );
+
+  if (typeof document === "undefined") return panel;
+  return createPortal(panel, document.body);
 }
 
 /* ─────────────────────── Helper functions ─────────────────────── */

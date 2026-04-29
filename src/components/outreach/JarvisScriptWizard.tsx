@@ -905,6 +905,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     const brief = answer.trim();
     setObjective(brief);
     setAnswer("");
+    liveTranscriptRef.current = "";
     setThinking(true);
     sayJarvis("Pre-drafting every field for you now…");
     try {
@@ -955,6 +956,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     sayUser(answer);
     const a = answer.trim();
     setAnswer("");
+    liveTranscriptRef.current = "";
 
     const next = { ...preflight };
     if (preflightStage === 0) next.purpose = a;
@@ -1023,6 +1025,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     onApply(patch);
     sayJarvis(`Got it — saved into ${step.label}. ✓`);
     setAnswer("");
+    liveTranscriptRef.current = "";
     advance();
   };
 

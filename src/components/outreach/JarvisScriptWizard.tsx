@@ -275,26 +275,6 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         fieldKind: "name",
         apply: (a) => ({ name: a.trim() }),
       },
-      {
-        kind: "field",
-        id: "channel",
-        targetSelector: "[data-jarvis-id='script-channel-select']",
-        label: "Channel",
-        explain:
-          "Now pick the channel. Email is best for detail, SMS for quick nudges, and Call Script powers the AI voice agent that actually calls the candidate.",
-        question: "Which channel — email, SMS, or call?",
-        readCurrent: (c) => c.channel,
-        fieldKind: "name",
-        apply: (a) => {
-          const v = a.toLowerCase();
-          const ch: WizardChannel = v.includes("sms") || v.includes("text")
-            ? "sms"
-            : v.includes("call") || v.includes("phone") || v.includes("voice")
-            ? "call"
-            : "email";
-          return { channel: ch };
-        },
-      },
     ];
 
     if (c === "email") {

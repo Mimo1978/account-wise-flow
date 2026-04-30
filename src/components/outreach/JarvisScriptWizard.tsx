@@ -594,6 +594,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         const txt = liveTranscriptRef.current.trim();
         if (txt && heardSpeechRef.current && openRef.current && !killedRef.current && expectingAnswerRef.current && !submittingVoiceRef.current) {
           submittingVoiceRef.current = true;
+          try { playProcessingChime(); } catch { /* noop */ }
           submitDispatchRef.current?.(txt);
           setTimeout(() => { submittingVoiceRef.current = false; }, 250);
           return;

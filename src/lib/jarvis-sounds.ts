@@ -60,6 +60,7 @@ function playReadyChime() {
     const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!Ctx) return;
     const ctx: AudioContext = new Ctx();
+    if (ctx.state === "suspended") void ctx.resume();
     const master = ctx.createGain();
     master.gain.setValueAtTime(0.55, ctx.currentTime);
     master.connect(ctx.destination);

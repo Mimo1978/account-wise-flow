@@ -90,3 +90,32 @@ export function playYourTurnChime() {
 export function playListeningPing() {
   playReadyChime();
 }
+
+/**
+ * Soft "got it / processing" cue — fires when the silence timer auto-submits
+ * the user's spoken answer. Distinct from the bright two-note "your turn"
+ * bell: a single short low-to-mid blip so the user knows Jarvis has accepted
+ * the input and is processing, even though the mic just cut out.
+ */
+let lastProcessingAt = 0;
+const PROCESSING_DEBOUNCE_MS = 600;
+export function playProcessingChime() {
+  const now = Date.now();
+  if (now - lastProcessingAt < PROCESSING_DEBOUNCE_MS) return;
+  lastProcessingAt = now;
+  try {
+    const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx: AudioContext = new Ctx();
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.5, ctx.currentTime);
+    master.connect(ctx.destination);
+    const t0 = ctx.currentTime;
+    // Short descending two-note blip: G5 → E5, quick decay (~0.35s total)
+    ringNote(ctx, master, 783.99, t0, 0.22, 0.55);
+    ringNote(ctx, master, 659.25, t0 + 0.09, 0.28, 0.55);
+    setTimeout(() => { try { ctx.close(); } catch { /* noop */ } }, 600);
+  } catch {
+    // ignore
+  }
+}

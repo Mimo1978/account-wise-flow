@@ -453,6 +453,34 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     async (text: string) => {
       if (!voiceOutEnabled) return;
       if (killedRef.current) return;
+      // Strip markdown / formatting characters so TTS doesn't read out
+      // "asterisk asterisk Company Name" when speaking job spec content.
+      const sanitize = (raw: string) =>
+        raw
+          // Remove fenced & inline code backticks
+          .replace(/```[\s\S]*?```/g, " ")
+          .replace(/`+/g, "")
+          // Bold / italic markers ** __ * _ ~~
+          .replace(/\*\*/g, "")
+          .replace(/__/g, "")
+          .replace(/(^|[\s(])[*_~]+(?=\S)/g, "$1")
+          .replace(/(?<=\S)[*_~]+(?=[\s.,;:!?)]|$)/g, "")
+          // Headings / blockquote / list markers at line start
+          .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+          .replace(/^\s{0,3}>\s?/gm, "")
+          .replace(/^\s*[-*+]\s+/gm, "")
+          .replace(/^\s*\d+\.\s+/gm, "")
+          // Markdown links [text](url) -> text
+          .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+          // Stray pipes from tables
+          .replace(/\s*\|\s*/g, ", ")
+          // Collapse whitespace
+          .replace(/[ \t]+/g, " ")
+          .replace(/\n{2,}/g, ". ")
+          .replace(/\s+\./g, ".")
+          .trim();
+      text = sanitize(text);
+      if (!text) return;
       const browserFallback = () => {
         if (killedRef.current) return;
         setIsSpeaking(true);

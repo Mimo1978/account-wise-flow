@@ -633,9 +633,12 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         const txt = liveTranscriptRef.current.trim();
         if (txt && heardSpeechRef.current && openRef.current && !killedRef.current && expectingAnswerRef.current && !submittingVoiceRef.current) {
           submittingVoiceRef.current = true;
-          try { playProcessingChime(); } catch { /* noop */ }
+          playAcceptedInputChime();
           submitDispatchRef.current?.(txt);
-          setTimeout(() => { submittingVoiceRef.current = false; }, 250);
+          setTimeout(() => {
+            submittingVoiceRef.current = false;
+            processingChimeFiredRef.current = false;
+          }, 250);
           return;
         }
         // If we're still expecting an answer (and haven't auto-submitted),
@@ -671,7 +674,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       recognitionRef.current = null;
       setListening(false);
     }
-  }, [answer, armSilenceTimer, clearSilenceTimer]);
+  }, [answer, armSilenceTimer, clearSilenceTimer, playAcceptedInputChime]);
 
   /**
    * Pre-warm mic permission. Called on mount + after the user makes their

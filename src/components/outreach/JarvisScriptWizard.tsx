@@ -536,6 +536,10 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       if (!openRef.current || killedRef.current || !expectingAnswerRef.current) return;
       submittingVoiceRef.current = true;
       try { recognitionRef.current?.stop(); } catch { /* noop */ }
+      // Audible "got it / processing" cue — the mic has just cut out and
+      // there's no other visible signal that Jarvis is now working on the
+      // user's answer.
+      try { playProcessingChime(); } catch { /* noop */ }
       submitDispatchRef.current?.(txt);
       setTimeout(() => { submittingVoiceRef.current = false; }, 250);
     }, SILENCE_MS);

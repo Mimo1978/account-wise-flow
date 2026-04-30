@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { playYourTurnChime } from "@/lib/jarvis-sounds";
+import { playYourTurnChime, playProcessingChime } from "@/lib/jarvis-sounds";
 import { CMPulse } from "@/components/ui/CMLoader";
 
 /* ────────────────────────────── Types ────────────────────────────── */

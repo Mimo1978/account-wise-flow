@@ -34,7 +34,7 @@ import { useJarvisNavigation } from "@/hooks/use-jarvis-navigation";
 import { GuidedTourPlayer } from "@/components/jarvis/GuidedTourPlayer";
 import { TourTooltipBubble } from "@/components/jarvis/TourTooltipBubble";
 import { jarvisSpotlight } from "@/lib/JarvisSpotlight";
-import { playYourTurnChime, playListeningPing } from "@/lib/jarvis-sounds";
+import { playYourTurnChime, playListeningPing, playProcessingChime } from "@/lib/jarvis-sounds";
 import { JarvisWorking } from "@/components/ui/JarvisWorking";
 
 /* ------------------------------------------------------------------ */
@@ -247,6 +247,14 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finalTextRef = useRef("");
+  const latestTranscriptRef = useRef("");
+  const processingChimeFiredRef = useRef(false);
+
+  const playAcceptedInputChime = useCallback(() => {
+    if (processingChimeFiredRef.current) return;
+    processingChimeFiredRef.current = true;
+    try { playProcessingChime(); } catch { /* noop */ }
+  }, []);
 
   const clearSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -262,6 +270,7 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
     setIsListening(false);
     setInterimTranscript("");
     finalTextRef.current = "";
+    latestTranscriptRef.current = "";
   }, [clearSilenceTimer]);
 
   const startListening = useCallback(() => {
@@ -295,22 +304,31 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
       if (final) {
         finalTextRef.current = final;
       }
+      latestTranscriptRef.current = (finalTextRef.current + interim).trim();
       setInterimTranscript(finalTextRef.current + interim);
 
       // Reset silence timer on each result
       clearSilenceTimer();
       silenceTimerRef.current = setTimeout(() => {
-        const text = (finalTextRef.current || interim).trim();
+        const text = latestTranscriptRef.current.trim();
         if (text) {
+          playAcceptedInputChime();
           onFinalTranscript(text);
         }
         stopListening();
-      }, 1500);
+      }, 5000);
     };
 
     recognition.onend = () => {
       setIsListening(false);
       setInterimTranscript("");
+      const text = latestTranscriptRef.current.trim();
+      if (text && !processingChimeFiredRef.current) {
+        playAcceptedInputChime();
+        onFinalTranscript(text);
+      }
+      finalTextRef.current = "";
+      latestTranscriptRef.current = "";
     };
 
     recognition.onerror = (e: any) => {
@@ -323,11 +341,13 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
 
     recognitionRef.current = recognition;
     finalTextRef.current = "";
+    latestTranscriptRef.current = "";
+    processingChimeFiredRef.current = false;
     recognition.start();
     setIsListening(true);
     setInterimTranscript("");
     playListeningPing();
-  }, [onFinalTranscript, clearSilenceTimer, stopListening]);
+  }, [onFinalTranscript, clearSilenceTimer, stopListening, playAcceptedInputChime]);
 
   const supported =
     typeof window !== "undefined" &&

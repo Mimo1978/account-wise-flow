@@ -245,6 +245,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
   // Latest transcript captured by the recogniser. Used by the silence-timer
   // auto-submit so we don't depend on stale React state.
   const liveTranscriptRef = useRef("");
+  const processingChimeFiredRef = useRef(false);
 
   // Conversation transcript shown in the panel
   const [messages, setMessages] = useState<Array<{ role: "jarvis" | "user"; text: string }>>([]);
@@ -555,6 +556,12 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     }
   }, []);
 
+  const playAcceptedInputChime = useCallback(() => {
+    if (processingChimeFiredRef.current) return;
+    processingChimeFiredRef.current = true;
+    try { playProcessingChime(); } catch { /* noop */ }
+  }, []);
+
   const armSilenceTimer = useCallback(() => {
     clearSilenceTimer();
     silenceTimerRef.current = setTimeout(() => {
@@ -567,11 +574,14 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       // Audible "got it / processing" cue — the mic has just cut out and
       // there's no other visible signal that Jarvis is now working on the
       // user's answer.
-      try { playProcessingChime(); } catch { /* noop */ }
+      playAcceptedInputChime();
       submitDispatchRef.current?.(txt);
-      setTimeout(() => { submittingVoiceRef.current = false; }, 250);
+      setTimeout(() => {
+        submittingVoiceRef.current = false;
+        processingChimeFiredRef.current = false;
+      }, 250);
     }, SILENCE_MS);
-  }, [clearSilenceTimer]);
+  }, [clearSilenceTimer, playAcceptedInputChime]);
 
   const startListening = useCallback(() => {
     const SR = getSpeechRecognition();
@@ -588,6 +598,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       listeningBaseRef.current = answer.trim();
       liveTranscriptRef.current = listeningBaseRef.current;
       heardSpeechRef.current = false;
+      processingChimeFiredRef.current = false;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       r.onresult = (e: any) => {
         let combined = "";
@@ -622,9 +633,12 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         const txt = liveTranscriptRef.current.trim();
         if (txt && heardSpeechRef.current && openRef.current && !killedRef.current && expectingAnswerRef.current && !submittingVoiceRef.current) {
           submittingVoiceRef.current = true;
-          try { playProcessingChime(); } catch { /* noop */ }
+          playAcceptedInputChime();
           submitDispatchRef.current?.(txt);
-          setTimeout(() => { submittingVoiceRef.current = false; }, 250);
+          setTimeout(() => {
+            submittingVoiceRef.current = false;
+            processingChimeFiredRef.current = false;
+          }, 250);
           return;
         }
         // If we're still expecting an answer (and haven't auto-submitted),
@@ -660,7 +674,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       recognitionRef.current = null;
       setListening(false);
     }
-  }, [answer, armSilenceTimer, clearSilenceTimer]);
+  }, [answer, armSilenceTimer, clearSilenceTimer, playAcceptedInputChime]);
 
   /**
    * Pre-warm mic permission. Called on mount + after the user makes their

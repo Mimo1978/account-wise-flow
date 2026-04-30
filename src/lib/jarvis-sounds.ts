@@ -60,6 +60,7 @@ function playReadyChime() {
     const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!Ctx) return;
     const ctx: AudioContext = new Ctx();
+    if (ctx.state === "suspended") void ctx.resume();
     const master = ctx.createGain();
     master.gain.setValueAtTime(0.55, ctx.currentTime);
     master.connect(ctx.destination);
@@ -103,10 +104,18 @@ export function playProcessingChime() {
   const now = Date.now();
   if (now - lastProcessingAt < PROCESSING_DEBOUNCE_MS) return;
   lastProcessingAt = now;
+  // Use the same unmistakable Jarvis chime for handover and accepted-input.
+  // The previous soft blip was too quiet and could be missed during the
+  // silence timeout, which made it feel like Jarvis had stopped listening.
+  playReadyChime();
+}
+
+export function playSoftProcessingBlip() {
   try {
     const Ctx = (window as any).AudioContext || (window as any).webkitAudioContext;
     if (!Ctx) return;
     const ctx: AudioContext = new Ctx();
+    if (ctx.state === "suspended") void ctx.resume();
     const master = ctx.createGain();
     master.gain.setValueAtTime(0.5, ctx.currentTime);
     master.connect(ctx.destination);

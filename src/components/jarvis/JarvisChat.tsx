@@ -34,7 +34,7 @@ import { useJarvisNavigation } from "@/hooks/use-jarvis-navigation";
 import { GuidedTourPlayer } from "@/components/jarvis/GuidedTourPlayer";
 import { TourTooltipBubble } from "@/components/jarvis/TourTooltipBubble";
 import { jarvisSpotlight } from "@/lib/JarvisSpotlight";
-import { playYourTurnChime, playListeningPing } from "@/lib/jarvis-sounds";
+import { playYourTurnChime, playListeningPing, playProcessingChime } from "@/lib/jarvis-sounds";
 import { JarvisWorking } from "@/components/ui/JarvisWorking";
 
 /* ------------------------------------------------------------------ */
@@ -247,6 +247,13 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const finalTextRef = useRef("");
+  const processingChimeFiredRef = useRef(false);
+
+  const playAcceptedInputChime = useCallback(() => {
+    if (processingChimeFiredRef.current) return;
+    processingChimeFiredRef.current = true;
+    try { playProcessingChime(); } catch { /* noop */ }
+  }, []);
 
   const clearSilenceTimer = useCallback(() => {
     if (silenceTimerRef.current) {
@@ -302,10 +309,11 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
       silenceTimerRef.current = setTimeout(() => {
         const text = (finalTextRef.current || interim).trim();
         if (text) {
+          playAcceptedInputChime();
           onFinalTranscript(text);
         }
         stopListening();
-      }, 1500);
+      }, 5000);
     };
 
     recognition.onend = () => {
@@ -323,11 +331,12 @@ function useEnhancedSpeechRecognition(onFinalTranscript: (text: string) => void)
 
     recognitionRef.current = recognition;
     finalTextRef.current = "";
+    processingChimeFiredRef.current = false;
     recognition.start();
     setIsListening(true);
     setInterimTranscript("");
     playListeningPing();
-  }, [onFinalTranscript, clearSilenceTimer, stopListening]);
+  }, [onFinalTranscript, clearSilenceTimer, stopListening, playAcceptedInputChime]);
 
   const supported =
     typeof window !== "undefined" &&

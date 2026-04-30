@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { playYourTurnChime } from "@/lib/jarvis-sounds";
+import { playYourTurnChime, playProcessingChime } from "@/lib/jarvis-sounds";
 import { CMPulse } from "@/components/ui/CMLoader";
 
 /* ────────────────────────────── Types ────────────────────────────── */
@@ -453,6 +453,34 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
     async (text: string) => {
       if (!voiceOutEnabled) return;
       if (killedRef.current) return;
+      // Strip markdown / formatting characters so TTS doesn't read out
+      // "asterisk asterisk Company Name" when speaking job spec content.
+      const sanitize = (raw: string) =>
+        raw
+          // Remove fenced & inline code backticks
+          .replace(/```[\s\S]*?```/g, " ")
+          .replace(/`+/g, "")
+          // Bold / italic markers ** __ * _ ~~
+          .replace(/\*\*/g, "")
+          .replace(/__/g, "")
+          .replace(/(^|[\s(])[*_~]+(?=\S)/g, "$1")
+          .replace(/(?<=\S)[*_~]+(?=[\s.,;:!?)]|$)/g, "")
+          // Headings / blockquote / list markers at line start
+          .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+          .replace(/^\s{0,3}>\s?/gm, "")
+          .replace(/^\s*[-*+]\s+/gm, "")
+          .replace(/^\s*\d+\.\s+/gm, "")
+          // Markdown links [text](url) -> text
+          .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+          // Stray pipes from tables
+          .replace(/\s*\|\s*/g, ", ")
+          // Collapse whitespace
+          .replace(/[ \t]+/g, " ")
+          .replace(/\n{2,}/g, ". ")
+          .replace(/\s+\./g, ".")
+          .trim();
+      text = sanitize(text);
+      if (!text) return;
       const browserFallback = () => {
         if (killedRef.current) return;
         setIsSpeaking(true);
@@ -536,6 +564,10 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
       if (!openRef.current || killedRef.current || !expectingAnswerRef.current) return;
       submittingVoiceRef.current = true;
       try { recognitionRef.current?.stop(); } catch { /* noop */ }
+      // Audible "got it / processing" cue — the mic has just cut out and
+      // there's no other visible signal that Jarvis is now working on the
+      // user's answer.
+      try { playProcessingChime(); } catch { /* noop */ }
       submitDispatchRef.current?.(txt);
       setTimeout(() => { submittingVoiceRef.current = false; }, 250);
     }, SILENCE_MS);
@@ -590,6 +622,7 @@ export function JarvisScriptWizard({ open, onClose, current, onApply }: Props) {
         const txt = liveTranscriptRef.current.trim();
         if (txt && heardSpeechRef.current && openRef.current && !killedRef.current && expectingAnswerRef.current && !submittingVoiceRef.current) {
           submittingVoiceRef.current = true;
+          try { playProcessingChime(); } catch { /* noop */ }
           submitDispatchRef.current?.(txt);
           setTimeout(() => { submittingVoiceRef.current = false; }, 250);
           return;
